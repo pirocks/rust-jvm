@@ -2,9 +2,12 @@ use std::ffi::CStr;
 use std::mem::transmute;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 
+use crate::interpreter::WasException;
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state};
 
@@ -28,7 +31,10 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     };
 
     let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
-    let all_methods = get_all_methods(jvm, int_state, runtime_class);
+    let all_methods = match get_all_methods(jvm, int_state, runtime_class) {
+        Ok(all_methods) => all_methods,
+        Err(WasException {}) => { return null_mut() }
+    };
 
     let (_method_i, (c, m)) = all_methods.iter().enumerate().find(|(_, (c, i))| {
         let c_view = c.view();
