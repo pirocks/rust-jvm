@@ -114,12 +114,12 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
                     let loader_obj = jvm.class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
                     let class_loader: ClassLoader = JavaValue::Object(loader_obj.into()).cast_class_loader();
                     match ptype.clone() {
-                        PTypeView::ByteType => Ok(Arc::new(RuntimeClass::Byte)),
-                        PTypeView::CharType => Ok(Arc::new(RuntimeClass::Char)),
-                        PTypeView::DoubleType => Ok(Arc::new(RuntimeClass::Double)),
-                        PTypeView::FloatType => Ok(Arc::new(RuntimeClass::Float)),
-                        PTypeView::IntType => Ok(Arc::new(RuntimeClass::Int)),
-                        PTypeView::LongType => Ok(Arc::new(RuntimeClass::Long)),
+                        PTypeView::ByteType => Arc::new(RuntimeClass::Byte),
+                        PTypeView::CharType => Arc::new(RuntimeClass::Char),
+                        PTypeView::DoubleType => Arc::new(RuntimeClass::Double),
+                        PTypeView::FloatType => Arc::new(RuntimeClass::Float),
+                        PTypeView::IntType => Arc::new(RuntimeClass::Int),
+                        PTypeView::LongType => Arc::new(RuntimeClass::Long),
                         PTypeView::Ref(ref_) => {
                             match ref_ {
                                 ReferenceTypeView::Class(class_name) => {
@@ -134,9 +134,9 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
                                 }
                             }
                         }
-                        PTypeView::ShortType => Ok(Arc::new(RuntimeClass::Short)),
-                        PTypeView::BooleanType => Ok(Arc::new(RuntimeClass::Boolean)),
-                        PTypeView::VoidType => Ok(Arc::new(RuntimeClass::Void)),
+                        PTypeView::ShortType => Arc::new(RuntimeClass::Short),
+                        PTypeView::BooleanType => Arc::new(RuntimeClass::Boolean),
+                        PTypeView::VoidType => Arc::new(RuntimeClass::Void),
                         _ => panic!(),
                     }
                 }

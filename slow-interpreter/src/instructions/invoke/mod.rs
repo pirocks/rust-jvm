@@ -9,7 +9,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
-use crate::utils::{lookup_method_parsed, throw_npe};
+use crate::utils::{lookup_method_parsed, throw_npe, throw_npe_res};
 
 pub mod special;
 pub mod native;
@@ -209,7 +209,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                 let temp = match int_state.pop_current_operand_stack().unwrap_object() {
                     Some(x) => x,
                     None => {
-                        throw_npe(jvm, int_state)?;
+                        throw_npe_res(jvm, int_state)?;
                         unreachable!()
                     },
                 };
@@ -222,7 +222,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 );
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
-                return None;
+                return Ok(None);
             } else {
                 unimplemented!();
             },
@@ -235,7 +235,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         int_state,
         class_name_.into(),
     ).unwrap();//todo pass the error up
-    (resolved_class, expected_method_name, expected_descriptor).into()
+    Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 
 pub fn find_target_method(

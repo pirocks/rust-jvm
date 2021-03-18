@@ -209,7 +209,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         }
     };
 
-    let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c);
+    let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, &method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
     invoke_virtual_method_i(jvm, int_state, md.clone(), final_target_class.clone(), target_method)
@@ -221,8 +221,8 @@ pub fn virtual_method_lookup(
     method_name: &str,
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
-) -> (Arc<RuntimeClass>, usize) {
-    let all_methods = get_all_methods(state, int_state, c.clone());
+) -> Result<(Arc<RuntimeClass>, usize), WasException> {
+    let all_methods = get_all_methods(state, int_state, c.clone())?;
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let final_target_class_view = c.view();
         let method_view = final_target_class_view.method_view_i(*i);
@@ -259,5 +259,5 @@ pub fn virtual_method_lookup(
         dbg!(prev_prev_frame.local_vars_types());
         panic!()
     });
-    (final_target_class.clone(), *new_i)
+    Ok((final_target_class.clone(), *new_i))
 }
