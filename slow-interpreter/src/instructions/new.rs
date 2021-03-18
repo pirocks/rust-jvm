@@ -46,7 +46,7 @@ pub fn a_new_array_from_name(jvm: &JVMState, int_state: &mut InterpreterStateGua
         int_state,
         t.clone(),
     )?;
-    let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t);
+    let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::Object(None), t)?;
     Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()))))
 }
 
@@ -79,7 +79,10 @@ pub fn newarray(jvm: &JVMState, int_state: &mut InterpreterStateGuard, a_type: A
             PTypeView::FloatType
         }
     };
-    let new_array = JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_);
+    let new_array = match JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_) {
+        Ok(arr) => arr,
+        Err(WasException {}) => return
+    };
     int_state.push_current_operand_stack(JavaValue::Object(new_array));
 }
 
@@ -109,13 +112,16 @@ pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))
         }
-        current = JavaValue::Object(Arc::new(Object::Array(ArrayObject::new_array(
+        current = JavaValue::Object(Arc::new(Object::Array(match ArrayObject::new_array(
             jvm,
             int_state,
             new_vec,
             next_type.clone(),
             jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string()),
-        ))).into());
+        ) {
+            Ok(arr) => arr,
+            Err(WasException {}) => return
+        })).into());
         current_type = next_type;
     }
     int_state.push_current_operand_stack(current);

@@ -2,12 +2,10 @@ use std::ffi::CStr;
 use std::mem::transmute;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 
 use crate::interpreter::WasException;
-use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state};
 

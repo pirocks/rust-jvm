@@ -72,7 +72,7 @@ pub fn create_method_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         int_state,
         ptypes_as_classes,
         class_type,
-        jvm.thread_state.new_monitor("monitor for a method type".to_string())))).into());
+        jvm.thread_state.new_monitor("monitor for a method type".to_string()))?)).into());
     run_constructor(jvm, int_state, method_type_class, vec![this.clone(), rtype, ptypes], "([Ljava/lang/Class;Ljava/lang/Class;)V".to_string())?;
     frame.push(this);
     Ok(())

@@ -11,6 +11,7 @@ use jvmti_jni_bindings::{jbyte, jobject};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -272,14 +273,14 @@ impl JavaValue {
             jv => (*jv).clone()
         }
     }
-    pub fn empty_byte_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
-        JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+    pub fn empty_byte_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JavaValue, WasException> {
+        Ok(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
             jvm,
             int_state,
             vec![],
             PTypeView::ByteType,
             jvm.thread_state.new_monitor("".to_string()),
-        )))))
+        )?)))))
     }
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
@@ -290,18 +291,18 @@ impl JavaValue {
         })).into()
     }
 
-    pub fn new_vec(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: usize, val: JavaValue, elem_type: PTypeView) -> Option<Arc<Object>> {
+    pub fn new_vec(jvm: &JVMState, int_state: &mut InterpreterStateGuard, len: usize, val: JavaValue, elem_type: PTypeView) -> Result<Option<Arc<Object>>, WasException> {
         let mut buf: Vec<JavaValue> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Some(Arc::new(Object::Array(ArrayObject::new_array(
+        Ok(Some(Arc::new(Object::Array(ArrayObject::new_array(
             jvm,
             int_state,
             buf,
             elem_type,
             jvm.thread_state.new_monitor("array object monitor".to_string()),
-        ))))
+        )?))))
     }
 
     pub fn new_vec_from_vec(jvm: &JVMState, vals: Vec<JavaValue>, elem_type: PTypeView) -> JavaValue {
@@ -543,8 +544,8 @@ impl Object {
         }
     }
 
-    pub fn object_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, object_array: Vec<JavaValue>, class_type: PTypeView) -> Object {
-        Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string())))
+    pub fn object_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, object_array: Vec<JavaValue>, class_type: PTypeView) -> Result<Object, WasException> {
+        Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
     }
 
     pub fn monitor(&self) -> &Monitor {
@@ -575,13 +576,13 @@ impl ArrayObject {
         unsafe { self.elems.get().as_mut().unwrap() }
     }
 
-    pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Self {
-        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone()))).unwrap();//todo pass the error up
-        Self {
+    pub fn new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, elems: Vec<JavaValue>, type_: PTypeView, monitor: Arc<Monitor>) -> Result<Self, WasException> {
+        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())))?;
+        Ok(Self {
             elems: UnsafeCell::new(elems),
             elem_type: type_,
             monitor,
-        }
+        })
     }
 }
 

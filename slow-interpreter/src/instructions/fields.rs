@@ -3,6 +3,7 @@ use verification::verifier::instructions::special::extract_field_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::utils::throw_npe;
 
@@ -45,20 +46,23 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
 
     let view = int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
-    let field_value = match get_static_impl(jvm, int_state, &field_class_name, &field_name) {
+    let field_value = match match get_static_impl(jvm, int_state, &field_class_name, &field_name) {
+        Ok(val) => val,
+        Err(WasException {}) => return
+    } {
         None => { return; }
         Some(val) => val
     };
     int_state.push_current_operand_stack(field_value);
 }
 
-fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Option<JavaValue> {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into()).unwrap();//todo pass the error up
+fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Result<Option<JavaValue>, WasException> {
+    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
-        let interface_lookup_res = get_static_impl(jvm, int_state, &interfaces.interface_name(), field_name);
+        let interface_lookup_res = get_static_impl(jvm, int_state, &interfaces.interface_name(), field_name)?;
         if interface_lookup_res.is_some() {
-            return interface_lookup_res;
+            return Ok(interface_lookup_res);
         }
     }
     let temp = target_classfile.static_vars();
@@ -75,7 +79,7 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
             val.clone().into()
         }
     };
-    field_value
+    Ok(field_value)
 }
 
 pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {

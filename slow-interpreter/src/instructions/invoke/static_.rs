@@ -23,11 +23,14 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name = class_name_type.unwrap_class_type();
     //todo  spec says where check_ is allowed. need to match that
-    let target_class = check_initing_or_inited_class(
+    let target_class = match check_initing_or_inited_class(
         jvm,
         int_state,
         class_name.into(),
-    ).unwrap();//todo pass the error up
+    ) {
+        Ok(x) => x,
+        Err(WasException {}) => return,
+    };
     let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
     let _ = invoke_static_impl(

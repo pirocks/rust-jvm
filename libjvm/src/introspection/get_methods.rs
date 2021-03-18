@@ -65,7 +65,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &JVMState, int_state: &mut InterpreterS
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
         object_array.push(method.java_value());
     });
-    let res = Arc::new(Object::object_array(jvm, int_state, object_array, method_class.view().type_())).into();
+    let res = Arc::new(Object::object_array(jvm, int_state, object_array, method_class.view().type_())?).into();
     unsafe { Ok(new_local_ref_public(res, int_state)) }
 }
 
@@ -78,10 +78,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type)
+    match JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
+        Ok(res) => res,
+        Err(WasException {}) => null_mut()
+    }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> jobjectArray {
+fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> Result<jobjectArray, WasException> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()
@@ -101,6 +104,6 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &JVMState, int_state: &mut Interpr
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.java_value())
     });
-    let res = Arc::new(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())).into();
-    unsafe { new_local_ref_public(res, int_state) }
+    let res = Arc::new(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())?).into();
+    Ok(unsafe { new_local_ref_public(res, int_state) })
 }

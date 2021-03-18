@@ -9,7 +9,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
-use crate::utils::{lookup_method_parsed, throw_npe, throw_npe_res};
+use crate::utils::{lookup_method_parsed, throw_npe_res};
 
 pub mod special;
 pub mod native;
@@ -220,7 +220,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     temp.unwrap_array().mut_array().clone(),
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
-                );
+                )?;
                 int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
                 return Ok(None);
             } else {
@@ -234,7 +234,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
         jvm,
         int_state,
         class_name_.into(),
-    ).unwrap();//todo pass the error up
+    )?;
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 

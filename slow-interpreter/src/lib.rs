@@ -109,7 +109,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
-    )))));
+    ).expect("todo")))));
     let local_vars = int_state.current_frame_mut().local_vars_mut();
     local_vars[0] = arg_array;
 }

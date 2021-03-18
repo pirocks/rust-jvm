@@ -54,7 +54,10 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             return null_mut();
         }
     };
-    let res = Some(Arc::new(Array(ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())))));
+    let res = Some(Arc::new(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
+        Ok(arr) => arr,
+        Err(WasException {}) => return null_mut()
+    })));
     new_local_ref_public(res, int_state)
 }
 

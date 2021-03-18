@@ -42,7 +42,7 @@ pub enum InitAssertionCase {
 pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method().into() {//todo replace with a try cast
         let target = target.cast_method();
-        method_init(jvm, int_state, mname.clone(), target, method_view, synthetic);
+        method_init(jvm, int_state, mname.clone(), target, method_view, synthetic)?;
     } else {
 
         //todo handle constructors and fields
@@ -97,7 +97,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Member
 */
 
 
-fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) {
+fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let flags = method.get_modifiers();
     let clazz = method.get_clazz();
     mname.set_clazz(clazz.clone());
@@ -108,7 +108,7 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     } else {
         let class_ptye = clazz.as_type(jvm);
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-        let inited_class = check_initing_or_inited_class(jvm, int_state, class_name.into()).unwrap();//todo pass the error up
+        let inited_class = check_initing_or_inited_class(jvm, int_state, class_name.into())?;
         if inited_class.view().is_interface() {
             REF_INVOKE_INTERFACE
         } else {
@@ -144,4 +144,5 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     }
     //todo is this really correct? what if garbage in flags?
     mname.set_flags(modifiers | extra_flags);
+    Ok(())
 }

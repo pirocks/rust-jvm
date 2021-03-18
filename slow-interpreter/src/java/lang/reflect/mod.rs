@@ -95,7 +95,7 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         exception_table,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    ))))))
+    )?)))))
 }
 
 fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JavaValue, WasException> {
@@ -112,7 +112,7 @@ fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         res,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    ))))))
+    )?)))))
 }
 
 
@@ -175,9 +175,9 @@ pub mod method {
             //todo what does slot do?
             let slot = -1;
             let signature = get_signature(jvm, int_state, &method_view)?;
-            let annotations = JavaValue::empty_byte_array(jvm, int_state);
-            let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state);
-            let annotation_default = JavaValue::empty_byte_array(jvm, int_state);
+            let annotations = JavaValue::empty_byte_array(jvm, int_state)?;
+            let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state)?;
+            let annotation_default = JavaValue::empty_byte_array(jvm, int_state)?;
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
@@ -303,12 +303,12 @@ pub mod constructor {
             slot: jint,
             signature: JString,
         ) -> Result<Constructor, WasException> {
-            let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into()).unwrap();//todo pass the error up
+            let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into())?;
             //todo impl these
             push_new_object(jvm, int_state, &constructor_class);
             let constructor_object = int_state.pop_current_operand_stack();
 
-            let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state);
+            let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
             run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string())?;
             Ok(constructor_object.cast_constructor())
@@ -370,7 +370,7 @@ pub mod field {
                 annotations,
                 PTypeView::ByteType,
                 jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
-            )))));
+            )?))));
 
             run_constructor(
                 jvm,

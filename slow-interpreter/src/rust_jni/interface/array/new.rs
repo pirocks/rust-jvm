@@ -1,8 +1,10 @@
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 
+use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
@@ -61,9 +63,12 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
     for _ in 0..len {
         the_vec.push(default_value(elem_type.clone()))
     }
-    new_local_ref_public(Some(Arc::new(Object::Array(ArrayObject::new_array(jvm, int_state,
-                                                                            the_vec,
-                                                                            elem_type,
-                                                                            jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())
-    )))), int_state)
+    new_local_ref_public(Some(Arc::new(Object::Array(match ArrayObject::new_array(jvm, int_state,
+                                                                                  the_vec,
+                                                                                  elem_type,
+                                                                                  jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
+    ) {
+        Ok(arr) => arr,
+        Err(WasException {}) => return null_mut()
+    }))), int_state)
 }

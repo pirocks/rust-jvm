@@ -2,6 +2,7 @@ use std::alloc::Layout;
 use std::ffi::{c_void, CStr};
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
@@ -72,7 +73,9 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     // let frame = int_state.current_frame_mut();
-    create_string_on_stack(jvm, int_state, owned_str);
+    if let Err(WasException {}) = create_string_on_stack(jvm, int_state, owned_str) {
+        return null_mut()
+    };
     let string = int_state.pop_current_operand_stack().unwrap_object();
     assert!(!string.is_none());
     new_local_ref_public(string, int_state)

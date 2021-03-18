@@ -47,13 +47,16 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         object_array.push(field_object)
     }
     let res = Some(Arc::new(
-        Object::Array(ArrayObject::new_array(
+        Object::Array(match ArrayObject::new_array(
             jvm,
             int_state,
             object_array,
             PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
-            jvm.thread_state.new_monitor("".to_string())
-        ))));
+            jvm.thread_state.new_monitor("".to_string()),
+        ) {
+            Ok(arr) => arr,
+            Err(WasException {}) => return null_mut()
+        })));
     new_local_ref_public(res, int_state)
 }
 

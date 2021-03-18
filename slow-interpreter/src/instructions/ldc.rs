@@ -36,7 +36,7 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
     int_state.push_current_operand_stack(string.java_value());
 }
 
-pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) {
+pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) -> Result<(), WasException> {
     let java_lang_string = ClassName::string();
     let string_class = assert_inited_or_initing_class(
         jvm,
@@ -53,8 +53,8 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         interpreter_state,
         chars,
         PTypeView::CharType,
-        jvm.thread_state.new_monitor("monitor for a string".to_string())
-    ))))));
+        jvm.thread_state.new_monitor("monitor for a string".to_string()),
+    )?)))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
@@ -74,6 +74,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
         *function_return = false;
     }
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
+    Ok(())
 }
 
 pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) {
