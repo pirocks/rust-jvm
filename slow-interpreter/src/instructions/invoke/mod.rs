@@ -6,9 +6,10 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
+use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
-use crate::utils::lookup_method_parsed;
+use crate::utils::{lookup_method_parsed, throw_npe};
 
 pub mod special;
 pub mod native;
@@ -197,7 +198,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Option<(Arc<RuntimeClass>, String, MethodDescriptor)> {
+fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Result<Option<(Arc<RuntimeClass>, String, MethodDescriptor)>, WasException> {
     let view = int_state.current_class_view();
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name_ = match class_name_type {
@@ -205,7 +206,13 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
             ReferenceTypeView::Class(c) => c,
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
-                let temp = int_state.pop_current_operand_stack().unwrap_object().unwrap();//todo handle npe
+                let temp = match int_state.pop_current_operand_stack().unwrap_object() {
+                    Some(x) => x,
+                    None => {
+                        throw_npe(jvm, int_state)?;
+                        unreachable!()
+                    },
+                };
                 let ArrayObject { elems: _, elem_type, monitor: _monitor } = temp.unwrap_array();
                 let array_object = ArrayObject::new_array(
                     jvm,

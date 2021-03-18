@@ -59,7 +59,7 @@ pub fn run_native_method(
 
     let meth_name = method.name();
     let result = if meth_name == *"arraycopy" {//todo and descriptor matches and class matches
-        system_array_copy(&mut args);
+        system_array_copy(jvm, int_state, &mut args);
         None
     } else if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
         jvm.libjava.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))

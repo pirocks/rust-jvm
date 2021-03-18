@@ -11,6 +11,7 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::throw_npe;
 
 use crate::introspection::JVM_GetCallerClass;
 
@@ -71,7 +72,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
     address: jlong,
     len: jlong,
 ) {
-    let nonnull = from_object(src_obj).unwrap();//todo handle npe
+    let nonnull = match from_object(src_obj) {
+        Some(x) => x,
+        None => return throw_npe(get_state(env), get_interpreter_state(env)),
+    };
     let as_array = nonnull.unwrap_array();//not defined for non-byte-array objects
     assert_eq!(as_array.elem_type, PTypeView::ByteType);
     let array_mut = as_array.mut_array();

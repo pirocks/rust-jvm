@@ -27,11 +27,14 @@ Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
 */
 pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let (_resolved_class, method_name, expected_descriptor) = match resolved_class(state, int_state, cp) {
+    let (_resolved_class, method_name, expected_descriptor) = match match resolved_class(state, int_state, cp) {
+        Ok(res) => res,
+        Err(WasException {}) => return
+    } {
         None => return,
         Some(o) => { o }
     };
-    //let the main instruction check int_state instead
+    //let the main instruction check intresstate inste
     let _ = invoke_virtual(state, int_state, &method_name, &expected_descriptor);
 }
 
@@ -63,7 +66,7 @@ fn invoke_virtual_method_i_impl(
         } else {
             unimplemented!()
         }
-        return Ok(())
+        return Ok(());
     }
     if target_method.is_native() {
         run_native_method(jvm, interpreter_state, target_class, target_method_i)
