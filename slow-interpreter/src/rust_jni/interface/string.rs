@@ -1,20 +1,23 @@
-use std::alloc::Layout;
+use std::alloc::{Layout, rust_oom};
 use std::ffi::{c_void, CStr};
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jsize, jstring};
+use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jsize, jstring, jvmtiIterationControl_JVMTI_ITERATION_ABORT};
+use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
+use crate::rust_jni::interface::exception::throw;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use crate::utils::throw_npe;
+use crate::utils::{throw_illegal_arg, throw_npe};
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
@@ -82,9 +85,12 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub unsafe fn intern_impl_unsafe(jvm: &JVMState, str_unsafe: jstring) -> jstring {
-    let str_obj = from_object(str_unsafe);
-    to_object(intern_safe(jvm, str_obj).object().into())
+pub unsafe fn intern_impl_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str_unsafe: jstring) -> Result<jstring, WasException> {
+    let str_obj = match from_object(str_unsafe) {
+        Some(x) => x,
+        None => return throw_npe(jvm, int_state),
+    };
+    Ok(to_object(intern_safe(str_obj).object().into()))
 }
 
 pub fn intern_safe(str_obj: Arc<Object>) -> JString {
@@ -124,21 +130,30 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
         },
     };
     let jstring = JavaValue::Object(str_obj.into()).cast_string();
-    jstring.length(jvm, int_state) as i32
+    let rust_str = jstring.to_rust_string();
+    JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
 
 
 pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
-    let str_obj = from_object(str).unwrap();//todo handle npe
-    //todo maybe use string_obj_to_string in future.
-    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();//todo handle npe
-    let chars = char_object.unwrap_array();
-    let borrowed_elems = chars.mut_array();
-    for i in 0..len {
-        let char_ = (&borrowed_elems[(start + i) as usize]).unwrap_char() as i8 as u8 as char;
-        buf.offset(i as isize).write(char_ as i8);
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let str_obj = match from_object(str) {
+        Some(x) => x,
+        None => {
+            return throw_npe(jvm, int_state)
+        },
+    };
+    let rust_str = JavaValue::Object(str_obj.into()).cast_string().to_rust_string();
+    let mut chars = rust_str.chars().skip(start as usize).take(len as usize);
+    let new_str = chars.collect::<String>();
+    if new_str.chars().count() != len || rust_str.chars().count() < start as usize {
+        return todo!("string out of bounds exception")
     }
-    buf.offset((len) as isize).write('\0' as i8);
+    let sketch_string = JVMString::from_regular_string(new_str.as_str());
+    for (i, val) in sketch_string.buf.iter().enumerate() {
+        buf.offset(i as isize).write(*val as i8);
+    }
 }
 
 
@@ -166,8 +181,7 @@ pub unsafe extern "C" fn get_string_region(env: *mut JNIEnv, str: jstring, start
 }
 
 
-pub unsafe extern "C" fn release_string_utfchars(_env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
-    let len = libc::strlen(chars);
-    let chars_layout = Layout::from_size_align((len + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
-    std::alloc::dealloc(chars as *mut u8, chars_layout);
+pub unsafe extern "C" fn release_string_utfchars(env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
+    let jvm = get_state(env);
+    jvm.native_interface_allocations.free(chars as *mut c_void)
 }
