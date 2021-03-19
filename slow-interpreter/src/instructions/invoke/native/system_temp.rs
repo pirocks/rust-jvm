@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 
-use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;

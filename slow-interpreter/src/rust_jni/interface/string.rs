@@ -1,11 +1,10 @@
-use std::alloc::Layout;
 use std::ffi::{c_void, CStr};
-use std::mem::{size_of, transmute};
+use std::iter::once;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jobject, jsize, jstring, jvmtiIterationControl_JVMTI_ITERATION_ABORT};
+use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::instructions::ldc::create_string_on_stack;
@@ -14,16 +13,16 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue, Object};
 use crate::jvm_state::JVMState;
-use crate::rust_jni::interface::exception::throw;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use crate::utils::{throw_illegal_arg, throw_npe, throw_npe_res};
+use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
                                              str: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
     get_rust_str(env, str, |rust_str| {
-        let buf = JVMString::from_regular_string(rust_str.as_str()).buf.clone();
+        let mut buf = JVMString::from_regular_string(rust_str.as_str()).buf.clone();
+        buf.push(0);//null terminator
         let jvm = get_state(env);
         let mut res = null_mut();
         jvm.native_interface_allocations.allocate_and_write_vec(buf, null_mut(), &mut res as *mut *mut u8);
@@ -128,7 +127,7 @@ pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, st
             return todo!("string out of bounds exception");
         }
         let sketch_string = JVMString::from_regular_string(new_str.as_str());
-        for (i, val) in sketch_string.buf.iter().enumerate() {
+        for (i, val) in sketch_string.buf.iter().chain(once(&0u8)).enumerate() {
             buf.offset(i as isize).write(*val as i8);
         }
     });
