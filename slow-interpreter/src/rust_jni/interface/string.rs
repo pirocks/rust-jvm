@@ -5,7 +5,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jsize, jstring, jvmtiIterationControl_JVMTI_ITERATION_ABORT};
+use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jobject, jsize, jstring, jvmtiIterationControl_JVMTI_ITERATION_ABORT};
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::instructions::ldc::create_string_on_stack;
@@ -19,33 +19,19 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use crate::utils::{throw_illegal_arg, throw_npe};
 
-//todo shouldn't this be handled by a registered native
-pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
-                                             name: jstring,
+pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
+                                             str: jstring,
                                              is_copy: *mut jboolean) -> *const c_char {
-    //todo this could be replaced with string_obj_to_string, though prob wise to have some kind of streaming impl or something
-    let str_obj_o = from_object(name).unwrap();//todo handle npe
-    let possibly_uninit = str_obj_o.lookup_field("value").unwrap_object();
-    let char_array: Vec<JavaValue> = match possibly_uninit {
-        None => {
-            "<invalid string>".chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>()
+    get_rust_str(env, str, |rust_str| {
+        let buf = JVMString::from_regular_string(rust_str.as_str()).buf.clone();
+        let jvm = get_state(env);
+        let mut res = null_mut();
+        jvm.native_interface_allocations.allocate_and_write_vec(buf, null_mut(), &mut res as *mut *mut u8);
+        if !is_copy.is_null() {
+            is_copy.write(JNI_TRUE as u8);
         }
-        Some(string_chars_o) => {
-            let unwrapped = string_chars_o.unwrap_array().mut_array();
-            unwrapped.clone()
-        }
-    };
-    let chars_layout = Layout::from_size_align((char_array.len() + 1) * size_of::<c_char>(), size_of::<c_char>()).unwrap();
-    let res = std::alloc::alloc(chars_layout) as *mut c_char;
-    char_array.iter().enumerate().for_each(|(i, j)| {
-        let cur = j.unwrap_char() as u8;
-        res.add(i).write(transmute(cur))
+        res as *const c_char
     });
-    res.add(char_array.len()).write(0);//null terminate
-    if !is_copy.is_null() {
-        is_copy.write(JNI_TRUE as u8);
-    }
-    // dbg!(get_state(_env).get_current_thread());
     res
 }
 
@@ -61,7 +47,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let str = CStr::from_ptr(utf);
     new_local_ref_public(match JString::from_rust(jvm, int_state, str.to_str().unwrap().to_string()) {
         Ok(jstring) => jstring,
-        Err(WasException {}) => todo!()
+        Err(WasException {}) => return null_mut()
     }.object().into(), int_state)
 }
 
@@ -77,7 +63,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if let Err(WasException {}) = create_string_on_stack(jvm, int_state, owned_str) {
-        return null_mut()
+        return null_mut();
     };
     let string = int_state.pop_current_operand_stack().unwrap_object();
     assert!(!string.is_none());
@@ -97,7 +83,7 @@ pub fn intern_safe(str_obj: Arc<Object>) -> JString {
     let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
-            return JavaValue::Object(str_obj.into()).cast_string()//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
+            return JavaValue::Object(str_obj.into()).cast_string();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr
     };
@@ -126,8 +112,8 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let str_obj = match from_object(str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state)
-        },
+            return throw_npe(jvm, int_state);
+        }
     };
     let jstring = JavaValue::Object(str_obj.into()).cast_string();
     let rust_str = jstring.to_rust_string();
@@ -136,24 +122,30 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
 
 
 pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
+    get_rust_str(env, str, |rust_str| {
+        let mut chars = rust_str.chars().skip(start as usize).take(len as usize);
+        let new_str = chars.collect::<String>();
+        if new_str.chars().count() != len || rust_str.chars().count() < start as usize {
+            return todo!("string out of bounds exception");
+        }
+        let sketch_string = JVMString::from_regular_string(new_str.as_str());
+        for (i, val) in sketch_string.buf.iter().enumerate() {
+            buf.offset(i as isize).write(*val as i8);
+        }
+    });
+}
+
+unsafe fn get_rust_str<T>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(String) -> T) -> T {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str_obj = match from_object(str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state)
-        },
+            return throw_npe(jvm, int_state);
+        }
     };
     let rust_str = JavaValue::Object(str_obj.into()).cast_string().to_rust_string();
-    let mut chars = rust_str.chars().skip(start as usize).take(len as usize);
-    let new_str = chars.collect::<String>();
-    if new_str.chars().count() != len || rust_str.chars().count() < start as usize {
-        return todo!("string out of bounds exception")
-    }
-    let sketch_string = JVMString::from_regular_string(new_str.as_str());
-    for (i, val) in sketch_string.buf.iter().enumerate() {
-        buf.offset(i as isize).write(*val as i8);
-    }
+    rust_str
 }
 
 
@@ -166,18 +158,11 @@ pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len
 }
 
 pub unsafe extern "C" fn get_string_region(env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
-    let temp = match from_object(str).unwrap().lookup_field("value").unwrap_object() {
-        Some(x) => x,
-        None => return throw_npe(get_state(env), get_interpreter_state(env)),
-    };
-    let char_array = &temp.unwrap_array().mut_array();
-    let mut str_ = Vec::new();
-    for char_ in char_array.iter() {
-        str_.push(char_.unwrap_char())
-    }
-    for i in 0..len {
-        buf.offset(i as isize).write(str_[(start + i) as usize] as jchar);
-    }
+    get_rust_str(env, str, |rust_str| {
+        for (i, char) in rust_str.chars().skip(start as usize).take(len as usize).enumerate() {//todo bounds check
+            buf.offset(i as isize).write(char as jchar);
+        }
+    })
 }
 
 
