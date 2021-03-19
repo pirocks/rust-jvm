@@ -404,7 +404,7 @@ pub mod string {
     use std::cell::UnsafeCell;
     use std::sync::Arc;
 
-    use jvmti_jni_bindings::jchar;
+    use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -469,6 +469,19 @@ pub mod string {
                 res.push(elem.unwrap_char())
             }
             res
+        }
+
+        pub fn length(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<jint, WasException> {
+            int_state.push_current_operand_stack(self.clone().java_value());
+            let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into())?;
+            run_static_or_virtual(
+                jvm,
+                int_state,
+                &string_class,
+                "length".to_string(),
+                "()I".to_string(),
+            )?;
+            Ok(int_state.pop_current_operand_stack().unwrap_int())
         }
 
         as_object_or_java_value!();

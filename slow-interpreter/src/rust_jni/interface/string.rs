@@ -5,7 +5,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jsize, jstring};
+use jvmti_jni_bindings::{jboolean, jchar, jio_fprintf, JNI_TRUE, JNIEnv, jsize, jstring};
 
 use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
@@ -14,6 +14,7 @@ use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::utils::throw_npe;
 
 //todo shouldn't this be handled by a registered native
 pub unsafe extern "C" fn get_string_utfchars(_env: *mut JNIEnv,
@@ -72,7 +73,6 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    // let frame = int_state.current_frame_mut();
     if let Err(WasException {}) = create_string_on_stack(jvm, int_state, owned_str) {
         return null_mut()
     };
@@ -87,11 +87,11 @@ pub unsafe fn intern_impl_unsafe(jvm: &JVMState, str_unsafe: jstring) -> jstring
     to_object(intern_safe(jvm, str_obj).object().into())
 }
 
-pub fn intern_safe(jvm: &JVMState, str_obj: Option<Arc<Object>>) -> JString {
-    let char_array_ptr = match str_obj.clone().unwrap().lookup_field("value").unwrap_object() {
+pub fn intern_safe(str_obj: Arc<Object>) -> JString {
+    let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
-            return JavaValue::Object(str_obj).cast_string()//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
+            return JavaValue::Object(str_obj.into()).cast_string()//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr
     };
@@ -104,7 +104,7 @@ pub fn intern_safe(jvm: &JVMState, str_obj: Option<Arc<Object>>) -> JString {
     match guard.strings.get(&native_string_bytes) {
         None => {
             guard.strings.insert(native_string_bytes, str_obj.as_ref().unwrap().clone());
-            JavaValue::Object(str_obj).cast_string()
+            JavaValue::Object(str_obj.into()).cast_string()
         }
         Some(res) => {
             JavaValue::Object(res.clone().into()).cast_string()
@@ -113,13 +113,18 @@ pub fn intern_safe(jvm: &JVMState, str_obj: Option<Arc<Object>>) -> JString {
 }
 
 
-pub unsafe extern "C" fn get_string_utflength(_env: *mut JNIEnv, str: jstring) -> jsize {
-    let str_obj = from_object(str).unwrap();//todo handle npe
-    //todo use length function.
-    let char_object = str_obj.lookup_field("value").unwrap_object().unwrap();//todo handle npe
-    let chars = char_object.unwrap_array();
-    let borrowed_elems = chars.mut_array();
-    borrowed_elems.len() as i32
+pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) -> jsize {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+
+    let str_obj = match from_object(str) {
+        Some(x) => x,
+        None => {
+            return throw_npe(jvm, int_state)
+        },
+    };
+    let jstring = JavaValue::Object(str_obj.into()).cast_string();
+    jstring.length(jvm, int_state) as i32
 }
 
 
@@ -142,13 +147,14 @@ pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len
     for i in 0..len {
         str.push(unicode.offset(i as isize).read() as u8 as char)
     }
-    let res = new_string_with_string(env, str);
-    assert_ne!(res, std::ptr::null_mut());
-    res
+    new_string_with_string(env, str)
 }
 
-pub unsafe extern "C" fn get_string_region(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
-    let temp = from_object(str).unwrap().lookup_field("value").unwrap_object().unwrap();//todo handle npe
+pub unsafe extern "C" fn get_string_region(env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut jchar) {
+    let temp = match from_object(str).unwrap().lookup_field("value").unwrap_object() {
+        Some(x) => x,
+        None => return throw_npe(get_state(env), get_interpreter_state(env)),
+    };
     let char_array = &temp.unwrap_array().mut_array();
     let mut str_ = Vec::new();
     for char_ in char_array.iter() {

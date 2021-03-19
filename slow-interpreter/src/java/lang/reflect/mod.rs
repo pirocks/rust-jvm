@@ -304,10 +304,10 @@ pub mod constructor {
             signature: JString,
         ) -> Result<Constructor, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into())?;
-            //todo impl these
             push_new_object(jvm, int_state, &constructor_class);
             let constructor_object = int_state.pop_current_operand_stack();
 
+            //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
             run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string())?;
@@ -355,7 +355,7 @@ pub mod field {
             signature: JString,
             annotations: Vec<JavaValue>,
         ) -> Result<Self, WasException> {
-            let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into()).unwrap();//todo pass the error up
+            let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into())?;
             push_new_object(jvm, int_state, &field_classfile);
             let field_object = int_state.pop_current_operand_stack();
 

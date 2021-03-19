@@ -673,7 +673,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone())), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
-    initialize_class(runtime_class.clone(), jvm, int_state).unwrap();//todo pass the error up
+    initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
     Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
 }

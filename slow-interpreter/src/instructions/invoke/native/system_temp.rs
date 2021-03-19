@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 
+use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
@@ -10,7 +11,7 @@ pub fn system_array_copy(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let src = match src_o.as_ref() {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
-    }.unwrap_array();//todo handle npe
+    }.unwrap_array();
     let src_pos = args[1].clone().unwrap_int();
     let dest_o = args[2].clone().unwrap_object();
     let dest = match dest_o.as_ref() {
@@ -18,7 +19,7 @@ pub fn system_array_copy(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         None => {
             return throw_npe(jvm, int_state)
         },
-    }.unwrap_array();//todo handle npe
+    }.unwrap_array();
     let dest_pos = args[3].clone().unwrap_int();
     let length = args[4].clone().unwrap_int();
     if src_pos < 0
