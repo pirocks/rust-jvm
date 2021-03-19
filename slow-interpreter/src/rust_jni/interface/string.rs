@@ -1,4 +1,4 @@
-use std::alloc::{Layout, rust_oom};
+use std::alloc::Layout;
 use std::ffi::{c_void, CStr};
 use std::mem::{size_of, transmute};
 use std::os::raw::c_char;
@@ -12,12 +12,12 @@ use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::{ExceptionReturn, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::interface::exception::throw;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use crate::utils::{throw_illegal_arg, throw_npe};
+use crate::utils::{throw_illegal_arg, throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
                                              str: jstring,
@@ -31,8 +31,7 @@ pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
             is_copy.write(JNI_TRUE as u8);
         }
         res as *const c_char
-    });
-    res
+    })
 }
 
 pub unsafe extern "C" fn release_string_chars(env: *mut JNIEnv, _str: jstring, chars: *const jchar) {
@@ -74,12 +73,12 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 pub unsafe fn intern_impl_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object(str_unsafe) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe_res(jvm, int_state),
     };
-    Ok(to_object(intern_safe(str_obj).object().into()))
+    Ok(to_object(intern_safe(jvm, str_obj).object().into()))
 }
 
-pub fn intern_safe(str_obj: Arc<Object>) -> JString {
+pub fn intern_safe(jvm: &JVMState, str_obj: Arc<Object>) -> JString {
     let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
@@ -95,7 +94,7 @@ pub fn intern_safe(str_obj: Arc<Object>) -> JString {
     let mut guard = jvm.string_internment.write().unwrap();
     match guard.strings.get(&native_string_bytes) {
         None => {
-            guard.strings.insert(native_string_bytes, str_obj.as_ref().unwrap().clone());
+            guard.strings.insert(native_string_bytes, str_obj.clone());
             JavaValue::Object(str_obj.into()).cast_string()
         }
         Some(res) => {
@@ -121,11 +120,11 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
 }
 
 
-pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
+pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
     get_rust_str(env, str, |rust_str| {
-        let mut chars = rust_str.chars().skip(start as usize).take(len as usize);
+        let chars = rust_str.chars().skip(start as usize).take(len as usize);
         let new_str = chars.collect::<String>();
-        if new_str.chars().count() != len || rust_str.chars().count() < start as usize {
+        if new_str.chars().count() != len as usize || rust_str.chars().count() < start as usize {
             return todo!("string out of bounds exception");
         }
         let sketch_string = JVMString::from_regular_string(new_str.as_str());
@@ -135,7 +134,7 @@ pub unsafe extern "C" fn get_string_utfregion(_env: *mut JNIEnv, str: jstring, s
     });
 }
 
-unsafe fn get_rust_str<T>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(String) -> T) -> T {
+unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(String) -> T) -> T {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str_obj = match from_object(str) {
@@ -145,7 +144,7 @@ unsafe fn get_rust_str<T>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(Stri
         }
     };
     let rust_str = JavaValue::Object(str_obj.into()).cast_string().to_rust_string();
-    rust_str
+    and_then(rust_str)
 }
 
 
