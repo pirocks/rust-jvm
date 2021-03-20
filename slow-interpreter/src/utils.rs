@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::instructions::invoke::static_::invoke_static_impl;
+use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
@@ -124,4 +127,21 @@ pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterSta
         JavaValue::Object(obj) => obj,
         JavaValue::Top => panic!()
     })
+}
+
+
+pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) -> Result<(), WasException> {
+    let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
+    let view = class.view();
+    let res_fun = view.lookup_method(&method_name, &parsed_desc);
+    let method_view = match res_fun {
+        Some(x) => x,
+        None => panic!(),
+    };
+    let md = method_view.desc();
+    if method_view.is_static() {
+        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view)
+    } else {
+        invoke_virtual_method_i(jvm, int_state, md, class.clone(), &method_view)
+    }
 }

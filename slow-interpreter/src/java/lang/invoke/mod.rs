@@ -10,13 +10,14 @@ pub mod method_type {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::class::JClass;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java_values::{ArrayObject, JavaValue, Object};
+    use crate::runtime_class::RuntimeClass;
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct MethodType {
@@ -33,7 +34,7 @@ pub mod method_type {
         pub fn from_method_descriptor_string(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> Result<MethodType, WasException> {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
-            let method_type = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
+            let method_type: Arc<RuntimeClass> = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
             run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
@@ -217,13 +218,13 @@ pub mod method_handle {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java_values::{JavaValue, Object};
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
     pub struct MethodHandle {
@@ -281,7 +282,6 @@ pub mod method_handles {
         use rust_jvm_common::classnames::ClassName;
 
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
         use crate::interpreter::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::class::JClass;
@@ -290,6 +290,7 @@ pub mod method_handles {
         use crate::java::lang::string::JString;
         use crate::java_values::{JavaValue, Object};
         use crate::jvm_state::JVMState;
+        use crate::utils::run_static_or_virtual;
 
         #[derive(Clone)]
         pub struct Lookup {
@@ -362,13 +363,13 @@ pub mod lambda_form {
         use type_safe_proc_macro_utils::getter_gen;
 
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
         use crate::interpreter::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::member_name::MemberName;
         use crate::java_values::{JavaValue, Object};
         use crate::jvm_state::JVMState;
+        use crate::utils::run_static_or_virtual;
 
         #[derive(Clone, Debug)]
         pub struct NamedFunction {

@@ -5,12 +5,12 @@ pub mod reflection {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
+    use crate::utils::run_static_or_virtual;
 
     pub struct Reflection {
         normal_object: Arc<Object>

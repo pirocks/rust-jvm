@@ -5,10 +5,10 @@ pub mod unsafe_ {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::java::lang::reflect::field::Field;
     use crate::java_values::{JavaValue, Object};
+    use crate::utils::run_static_or_virtual;
 
     pub struct Unsafe {
         normal_object: Arc<Object>
@@ -46,12 +46,12 @@ pub mod launcher {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
+    use crate::utils::run_static_or_virtual;
 
     pub struct Launcher {
         normal_object: Arc<Object>
@@ -86,11 +86,11 @@ pub mod launcher {
         use rust_jvm_common::classnames::ClassName;
 
         use crate::class_loading::check_initing_or_inited_class;
-        use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
         use crate::interpreter::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java_values::{JavaValue, Object};
         use crate::jvm_state::JVMState;
+        use crate::utils::run_static_or_virtual;
 
         pub struct ExtClassLoader {
             normal_object: Arc<Object>

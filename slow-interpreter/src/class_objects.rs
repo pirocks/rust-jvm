@@ -10,7 +10,6 @@ use crate::class_loading::check_loaded_class_force_loader;
 use crate::interpreter::WasException;
 use crate::java_values::Object;
 
-//todo do something about this class object crap
 pub fn get_or_create_class_object(jvm: &JVMState,
                                   type_: PTypeView,
                                   int_state: &mut InterpreterStateGuard,

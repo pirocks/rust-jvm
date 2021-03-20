@@ -5,10 +5,10 @@ pub mod properties {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
+    use crate::utils::run_static_or_virtual;
 
     pub struct Properties {
         normal_object: Arc<Object>

@@ -12,7 +12,7 @@ use rust_jvm_common::ptype::PType;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT, run_static_or_virtual};
+use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::resolved_class;
 use crate::interpreter::{run_function, WasException};
@@ -21,6 +21,7 @@ use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
+use crate::utils::run_static_or_virtual;
 
 /**
 Should only be used for an actual invoke_virtual instruction.

@@ -7,11 +7,11 @@ pub mod throwable {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
     pub struct Throwable {
@@ -86,13 +86,13 @@ pub mod member_name {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
     pub struct MemberName {
@@ -243,7 +243,6 @@ pub mod class {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
@@ -251,6 +250,7 @@ pub mod class {
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Debug, Clone)]
     pub struct JClass {
@@ -346,13 +346,13 @@ pub mod class_loader {
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct ClassLoader {
@@ -409,11 +409,11 @@ pub mod string {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java_values::{ArrayObject, JavaValue};
     use crate::java_values::Object;
+    use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
 
     #[derive(Clone)]
@@ -549,7 +549,6 @@ pub mod thread {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::native::mhn_temp::run_static_or_virtual;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
@@ -559,6 +558,7 @@ pub mod thread {
     use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
     use crate::threading::{JavaThread, JavaThreadId};
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Debug, Clone)]
     pub struct JThread {
