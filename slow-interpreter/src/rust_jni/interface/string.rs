@@ -124,7 +124,7 @@ pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, st
         let chars = rust_str.chars().skip(start as usize).take(len as usize);
         let new_str = chars.collect::<String>();
         if new_str.chars().count() != len as usize || rust_str.chars().count() < start as usize {
-            return todo!("string out of bounds exception");
+            todo!("string out of bounds exception");
         }
         let sketch_string = JVMString::from_regular_string(new_str.as_str());
         for (i, val) in sketch_string.buf.iter().chain(once(&0u8)).enumerate() {

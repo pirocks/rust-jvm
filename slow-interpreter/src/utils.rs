@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -52,15 +51,11 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
 }
 
 
-pub fn string_obj_to_string(str_obj: Option<Arc<Object>>) -> String {
-    let temp = str_obj.unwrap().lookup_field("value");//todo handle npe
+pub fn string_obj_to_string(str_obj: Arc<Object>) -> String {
+    let temp = str_obj.lookup_field("value");
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
-    let mut res = String::new();
-    for char_ in borrowed_elems.deref() {
-        res.push(char_.unwrap_char() as u8 as char);
-    }
-    res
+    char::decode_utf16(borrowed_elems.iter().map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
 pub fn throw_npe_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {

@@ -15,11 +15,14 @@ use crate::runtime_class::RuntimeClass;
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame_mut().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
-    let target_class = check_initing_or_inited_class(
+    let target_class = match check_initing_or_inited_class(
         jvm,
         int_state,
         method_class_name.into(),
-    ).unwrap();//todo pass the error up
+    ) {
+        Ok(x) => x,
+        Err(WasException {}) => return,
+    };
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state, method_name, &parsed_descriptor, target_class);
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
 }

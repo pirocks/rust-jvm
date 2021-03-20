@@ -3,14 +3,19 @@ use std::ops::DerefMut;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::java_values::JavaValue;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use crate::utils::throw_npe;
 
 unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue) {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = from_object(obj).unwrap();//todo pass the error up
+    let notnull = match from_object(obj) {
+        Some(x) => x,
+        None => return throw_npe(jvm, int_state),
+    };
     let mut field_borrow = notnull.unwrap_normal_object().fields_mut();
     field_borrow.deref_mut().insert(name, val);
 }

@@ -47,8 +47,14 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     };
     let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
-    let method_name = string_obj_to_string(method_obj.lookup_field("name").unwrap_object());
-    let signature = string_obj_to_string(method_obj.lookup_field("signature").unwrap_object());
+    let method_name = string_obj_to_string(match method_obj.lookup_field("name").unwrap_object() {
+        None => return throw_npe(jvm, int_state),
+        Some(method_name) => method_name
+    });
+    let signature = string_obj_to_string(match method_obj.lookup_field("signature").unwrap_object() {
+        None => return throw_npe(jvm, int_state),
+        Some(method_name) => method_name
+    });
     let clazz_java_val = method_obj.lookup_field("clazz");
     let target_class_refcell_borrow = clazz_java_val.cast_class().as_type(jvm);
     let target_class = target_class_refcell_borrow;
@@ -122,7 +128,10 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         },
     };
-    let mut signature = string_obj_to_string(signature_str_obj.unwrap_object());
+    let mut signature = string_obj_to_string(match signature_str_obj.unwrap_object() {
+        None => return throw_npe(jvm, int_state),
+        Some(signature) => signature
+    });
     push_new_object(jvm, int_state, &clazz);
     let obj = int_state.pop_current_operand_stack();
     let mut full_args = vec![obj.clone()];

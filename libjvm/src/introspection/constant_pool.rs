@@ -35,7 +35,10 @@ use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_boun
 unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let constant_pool = ConstantPool::new(jvm, int_state, from_jclass(cls));
+    let constant_pool = match ConstantPool::new(jvm, int_state, from_jclass(cls)) {
+        Ok(constant_pool) => constant_pool,
+        Err(WasException {}) => return null_mut()
+    };
     to_object(constant_pool.object().into())
 }
 

@@ -4,6 +4,7 @@
 #![feature(vec_into_raw_parts)]
 #![feature(core_intrinsics)]
 #![feature(entry_insert)]
+#![feature(assoc_char_funcs)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
