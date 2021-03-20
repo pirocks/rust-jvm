@@ -85,11 +85,13 @@ pub mod member_name {
     use type_safe_proc_macro_utils::getter_gen;
 
     use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter::WasException;
-    use crate::interpreter_util::push_new_object;
+    use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::reflect::field::Field;
+    use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue, Object};
     use crate::utils::run_static_or_virtual;
@@ -174,9 +176,6 @@ pub mod member_name {
 
 
         getter_gen!(flags,jint,unwrap_int);
-        // pub fn get_flags(&self) -> jint {
-        //     self.normal_object.unwrap_normal_object().fields_mut().get(&"flags".to_string()).unwrap().unwrap_int()
-        // }
 
         pub fn set_resolution(&self, new_val: JavaValue) {
             self.normal_object.unwrap_normal_object().fields_mut().insert("resolution".to_string(), new_val);
@@ -204,28 +203,20 @@ pub mod member_name {
             Ok(int_state.pop_current_operand_stack().cast_class())
         }
 
-        pub fn new_member_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint, resolution: JavaValue) -> Self {
-            let target_classfile = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
-            push_new_object(jvm, int_state, &target_classfile);
-            let obj = int_state.pop_current_operand_stack().cast_member_name();
-            obj.set_clazz(clazz);
-            obj.set_name(name);
-            obj.set_type(type_);
-            obj.set_flags(flags);
-            obj.set_resolution(resolution);
-            obj
+        pub fn new_from_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> Result<Self, WasException> {
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
+            push_new_object(jvm, int_state, &class_class);
+            let res = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), field.java_value()], "(Ljava/lang/reflect/Field;)V".to_string())?;
+            Ok(res.cast_member_name())
         }
 
-        pub fn new_self_resolution(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clazz: JClass, name: JString, type_: MethodType, flags: jint) -> Self {
-            let target_classfile = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
-            push_new_object(jvm, int_state, &target_classfile);
-            let obj = int_state.pop_current_operand_stack().cast_member_name();
-            obj.set_clazz(clazz);
-            obj.set_name(name);
-            obj.set_type(type_);
-            obj.set_flags(flags);
-            obj.set_resolution(obj.clone().java_value());
-            obj
+        pub fn new_from_method(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method: Method) -> Result<Self, WasException> {
+            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
+            push_new_object(jvm, int_state, &class_class);
+            let res = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
+            Ok(res.cast_member_name())
         }
 
         as_object_or_java_value!();

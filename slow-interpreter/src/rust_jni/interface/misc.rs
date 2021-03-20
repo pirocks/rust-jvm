@@ -188,13 +188,13 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
 }
 
 
-pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Result<Vec<(Arc<RuntimeClass>, usize)>, WasException> {
+pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass>, usize)>, WasException> {
     let mut res = vec![];
-    get_all_methods_impl(jvm, int_state, class, &mut res)?;
+    get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, usize)>) -> Result<(), WasException> {
+fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().methods().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
@@ -207,19 +207,27 @@ fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
         }
         Some(super_name) => {
             let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
-            get_all_methods_impl(jvm, int_state, super_, res)?;
+            get_all_methods_impl(jvm, int_state, super_, res, include_interface)?;
         }
+    }
+    if include_interface {
+        class.view().interfaces().for_each(|interface| {
+            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            interface.view().methods().enumerate().for_each(|(i, _)| {
+                res.push((object.clone(), i));
+            });
+        });
     }
     Ok(())
 }
 
-pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>) -> Result<Vec<(Arc<RuntimeClass>, usize)>, WasException> {
+pub fn get_all_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass>, usize)>, WasException> {
     let mut res = vec![];
-    get_all_fields_impl(jvm, int_state, class, &mut res)?;
+    get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, usize)>) -> Result<(), WasException> {
+fn get_all_fields_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
@@ -233,8 +241,17 @@ fn get_all_fields_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cl
         }
         Some(super_name) => {
             let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
-            get_all_fields_impl(jvm, int_state, super_, res)?
+            get_all_fields_impl(jvm, int_state, super_, res, include_interface)?
         }
+    }
+
+    if include_interface {
+        class.view().interfaces().for_each(|interface| {
+            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            interface.view().fields().enumerate().for_each(|(i, _)| {
+                res.push((object.clone(), i));
+            });
+        });
     }
     Ok(())
 }
