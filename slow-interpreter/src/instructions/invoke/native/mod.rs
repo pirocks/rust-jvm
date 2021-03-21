@@ -57,7 +57,6 @@ pub fn run_native_method(
         m.lock(jvm)
     }
 
-    let meth_name = method.name();
     let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
         jvm.libjava.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))
     {

@@ -13,7 +13,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
-use crate::resolvers::methods::{ResolutionError, resolve_invoke_static, resolve_invoke_virtual};
+use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
 
 pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
@@ -142,19 +142,24 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone())?;
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
-            } else if ref_kind == JVM_REF_invokeStatic {
-                let mut synthetic = false;
-                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic) {
+                let (resolve_result, method_i, class) = match resolve_invoke_virtual(jvm, int_state, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
-                            let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into())?;
-                            push_new_object(jvm, int_state, &linkage_error);
-                            let object = int_state.pop_current_operand_stack().unwrap_object();
-                            int_state.set_throw(object);
-                            return Err(WasException);
+                            throw_linkage_error(jvm, int_state)?;
+                            unreachable!()
+                        }
+                    }
+                };
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
+            } else if ref_kind == JVM_REF_invokeStatic {
+                let mut synthetic = false;
+                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic)? {
+                    Ok(ok) => ok,
+                    Err(err) => match err {
+                        ResolutionError::Linkage => {
+                            throw_linkage_error(jvm, int_state)?;
+                            unreachable!()
                         }
                     }
                 };
@@ -162,10 +167,26 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 jvm.resolved_method_handles.write().unwrap().insert(ByAddress(member_name.clone().object()), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
-                unimplemented!()
+                let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {
+                    Ok(ok) => ok,
+                    Err(err) => match err {
+                        ResolutionError::Linkage => {
+                            throw_linkage_error(jvm, int_state)?;
+                            unreachable!()
+                        }
+                    }
+                };
+                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else if ref_kind == JVM_REF_invokeSpecial {
-                //todo this is incorrect b/c it will get the virtual function
-                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone())?;
+                let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, int_state, member_name.clone())? {
+                    Ok(ok) => ok,
+                    Err(err) => match err {
+                        ResolutionError::Linkage => {
+                            throw_linkage_error(jvm, int_state)?;
+                            unreachable!()
+                        }
+                    }
+                };
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else {
                 panic!()
@@ -208,4 +229,12 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     }
 
     Ok(member_name.java_value())
+}
+
+fn throw_linkage_error(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into())?;
+    push_new_object(jvm, int_state, &linkage_error);
+    let object = int_state.pop_current_operand_stack().unwrap_object();
+    int_state.set_throw(object);
+    return Err(WasException);
 }
