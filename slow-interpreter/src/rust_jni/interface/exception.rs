@@ -14,13 +14,13 @@ pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv) {
     assert!(int_state.throw().is_none());
 }
 
-pub unsafe extern "C" fn exception_check(_env: *mut JNIEnv) -> jboolean {
-    false as jboolean//todo exceptions are not needed for hello world so if we encounter an exception we just pretend it didn't happen
+pub unsafe extern "C" fn exception_check(env: *mut JNIEnv) -> jboolean {
+    let int_state = get_interpreter_state(env);
+    u8::from(int_state.throw().is_some())
 }
 
 
 pub unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
-    // let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
     interpreter_state.set_throw(from_object(obj));
     0 as jint
