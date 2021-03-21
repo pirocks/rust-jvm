@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
-use classfile_view::loading::ClassWithLoader;
+use classfile_view::loading::{ClassWithLoader, LoaderName};
+use classfile_view::view::attribute_view::BootstrapArgView::Class;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
@@ -10,7 +11,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::OperandStack;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
-use crate::verifier::codecorrectness::{Environment, frame_is_assignable, Handler, handler_exception_class, MergedCodeInstruction, operand_stack_has_legal_length, push_operand_stack, size_of, valid_type_transition};
+use crate::verifier::codecorrectness::{Environment, frame_is_assignable, Handler, handler_exception_class, init_handler_is_legal, MergedCodeInstruction, operand_stack_has_legal_length, push_operand_stack, size_of, valid_type_transition};
 use crate::verifier::codecorrectness::MergedCodeInstruction::{Instruction, StackMap};
 use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::instructions::big_match::instruction_is_type_safe;
@@ -187,10 +188,9 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             let _target_stack_frame = offset_stack_frame(env, h.target)?;
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
-                //todo how does bootstrap loader from throwable make its way into this
-                //todo why do I take the class name when I already know it
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }),
-                              &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: env.vf.current_loader.clone() }))
+                              &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: LoaderName::BootstrapLoader }))?;
+                init_handler_is_legal(env, h)
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
             }
@@ -631,9 +631,8 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
             let class_name = ClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
-        ConstantInfoView::MethodHandle(_) => unimplemented!(),
-        ConstantInfoView::MethodType(_) => unimplemented!(),
-        ConstantInfoView::InvokeDynamic(_) => unimplemented!(),
+        ConstantInfoView::MethodHandle(mh) => VType::Class(ClassWithLoader { class_name: ClassName::method_handle(), loader: vf.current_loader.clone() }),
+        ConstantInfoView::MethodType(mt) => VType::Class(ClassWithLoader { class_name: ClassName::method_type(), loader: vf.current_loader.clone() }),
         ConstantInfoView::LiveObject(idx) => {
             let type_ = vf.live_pool_getter.elem_type(*idx);
             PTypeView::Ref(type_).to_verification_type(&vf.current_loader.clone())
@@ -674,7 +673,7 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let view = get_class(&env.vf, env.method.class);
     let const_ = &view.constant_pool_view(cp as usize);
-    let type_: VType = loadable_constant(&env.vf, const_);//todo dup
+    let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {
         VType::DoubleType => {}
         VType::LongType => {}
@@ -691,14 +690,6 @@ pub fn instruction_is_type_safe_lshl(env: &Environment, stack_frame: Frame) -> R
     type_transition(env, stack_frame, vec![VType::IntType, VType::LongType], VType::LongType)
 }
 
-
-//
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_nop(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
-//
-
 pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: mut rest, flag_this_uninit: flags } = stack_frame;
     let _type_ = pop_category1(&env.vf, &mut rest)?;
@@ -712,7 +703,7 @@ pub fn instruction_is_type_safe_pop(env: &Environment, stack_frame: Frame) -> Re
 
 pub fn instruction_is_type_safe_pop2(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let Frame { locals, stack_map: operand_stack, flag_this_uninit: flags } = stack_frame;
-    let out = pop2form_is_type_safe(env, operand_stack)?;//todo uneeded clone
+    let out = pop2form_is_type_safe(env, operand_stack)?;
     let next_frame = Frame {
         locals: locals.clone(),
         stack_map: out,

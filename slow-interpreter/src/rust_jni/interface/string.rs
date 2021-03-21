@@ -150,9 +150,8 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
 pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
     let mut str = String::with_capacity(len as usize);
     for i in 0..len {
-        str.push(unicode.offset(i as isize).read() as u8 as char)
+        str.push(unicode.offset(i as isize).read() as u8 as char)// todo handle unicode properly.
     }
-    dbg!(&str);
     new_string_with_string(env, str)
 }
 

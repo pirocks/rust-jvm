@@ -32,7 +32,9 @@ pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, l
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
     } else if size_of(vf, &locals[index]) == 2 {
-        assert_eq!(&locals[index + 1], &VType::TopType);//todo this isn't completely correct. Ideally this function should fail, instead of returning a assertion error
+        if &locals[index + 1] != &VType::TopType {
+            return Result::Err(unknown_error_verifying!());
+        }
         locals_copy[index] = type_;
         Result::Ok(locals_copy)
     } else {

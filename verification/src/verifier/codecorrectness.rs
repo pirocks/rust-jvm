@@ -37,7 +37,7 @@ pub fn pop_matching_list(vf: &VerifierContext, pop_from: OperandStack, pop: Vec<
 
 pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, pop: &[VType]) -> Result<OperandStack, TypeSafetyError> {
     if pop.is_empty() {
-        Result::Ok(pop_from)//todo inefficient copying
+        Result::Ok(pop_from)
     } else {
         let to_pop = pop.first().unwrap();
         pop_matching_type(vf, &mut pop_from, to_pop)?;
@@ -53,10 +53,12 @@ pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut Operan
         Result::Ok(actual_type)
     } else if size_of(vf, type_) == 2 {
         assert!(matches!(&operand_stack.peek(), VType::TopType));
-        operand_stack.operand_pop();
+        let top = operand_stack.operand_pop();
         let actual_type = &operand_stack.peek();
-        //todo if not assignable we need to roll back top pop
-        is_assignable(vf, actual_type, type_).unwrap();
+        if let Err(err) = is_assignable(vf, actual_type, type_) {
+            operand_stack.operand_push(top);
+            return Err(err);
+        };
         operand_stack.operand_pop();
         Result::Ok(actual_type.clone())
     } else {
@@ -92,7 +94,7 @@ pub fn push_operand_stack(vf: &VerifierContext, mut operand_stack: OperandStack,
             } else if size_of(vf, type_) == 1 {
                 operand_stack.operand_push(type_.clone());
             } else {
-                unimplemented!()
+                panic!("It's impossible to have something which isn't size 1 or 2")
             }
             operand_stack
         }
@@ -123,37 +125,26 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
         is_assignable(vf, left_, right_)
     }).collect();
     let stack_assignable = stack_assignable_res.is_ok();
-    if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable /*&&
+    if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
         if left.flag_this_uninit {
             right.flag_this_uninit
         } else {
-            true//todo realistically I shouldn't check this b/c no way of knowing from stackmapframes.
-        }*/ {
+            true
+        } {
         Result::Ok(())
     } else {
-        dbg!(locals_assignable);
-        dbg!(stack_assignable);
-        dbg!(left);
-        dbg!(right);
-        panic!();
-//        Result::Err(unknown_error_verifying!())
+        Result::Err(unknown_error_verifying!())
     }
 }
 
 pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_view = method_class.method_view_i(method.method_index as usize);
-    // dbg!(method_view.name());
     does_not_override_final_method(vf, class, method)?;
-    // dbg!("1");
-    if method_view.is_native() || method_view.is_abstract(){
+    if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())
     } else {
-        //will have a code attribute. or else method_with_code_is_type_safe will crash todo
-        /*let attributes = get_attributes(class, method);
-        attributes.iter().any(|_| {
-            unimplemented!()
-        }) && */method_with_code_is_type_safe(vf, class, method)
+        method_with_code_is_type_safe(vf, class, method)
     }
 }
 
@@ -181,9 +172,8 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 
 pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, class);
-    // dbg!("2");
     let method_info = &method_class.method_view_i(method.method_index);
-    let code = method_info.code_attribute().unwrap();//todo add CodeView
+    let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let mut final_offset = 0;
@@ -219,24 +209,20 @@ pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: 
     match &handler.class_name {
         None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.current_loader.clone() } }
         Some(s) => {
-//            let _classfile = loader.pre_load(loader.clone(),s).unwrap();
-            // then class in question exists
             // todo compare against throwable , but not here ?
             ClassWithLoader { class_name: s.clone(), loader: loader.clone() }
         }
     }
 }
-//
 
 pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
+    not_init_handler(&_env.vf, _env, _handler)
+}
+
+pub fn not_init_handler(vf: &VerifierContext, env: &Environment, handler: &Handler) -> bool {
     unimplemented!()
 }
-//
-//#[allow(unused)]
-//pub fn not_init_handler(vf:&VerifierContext,env: &Environment, handler: &Handler) -> bool {
-//    unimplemented!()
-//}
-//
+
 //#[allow(unused)]
 //pub fn is_init_handler(vf:&VerifierContext,env: &Environment, handler: &Handler) -> bool {
 //    unimplemented!()
@@ -285,7 +271,6 @@ fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_map
 assumes that stackmaps and instructions are ordered
 */
 pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
-//    trace!("Starting instruction and stackmap merge");
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     res
@@ -363,22 +348,18 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
 }
 
 
-fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Option<VType> {
+fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<Option<VType>, TypeSafetyError> {
     let method_class = get_class(vf, method.class);
     let method_view = method_class.method_view_i(method.method_index);
     if method_view.is_static() {
-        //todo dup
-        let classfile = &method_class;
-        let method_info = &classfile.method_view_i(method.method_index);
-        let method_name_ = method_info.name();
-        let method_name = method_name_.deref();
-        if method_name != "<init>" {
-            None
+        let method_name = method_view.name();
+        if method_name.as_str() != "<init>" {
+            Ok(None)
         } else {
-            unimplemented!()
+            Err(unknown_error_verifying!())
         }
     } else {
-        Some(instance_method_initial_this_type(vf, class, method).unwrap())
+        Ok(Some(instance_method_initial_this_type(vf, class, method)?))
     }
 }
 
@@ -395,7 +376,7 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
             if !chain.is_empty() {
                 Result::Ok(VType::UninitializedThis)
             } else {
-                unimplemented!()
+                Result::Err(unknown_error_verifying!())
             }
         }
     } else {

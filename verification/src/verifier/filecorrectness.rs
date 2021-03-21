@@ -138,7 +138,6 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                     return Result::Ok(());
                 }
                 if is_assignable(vf, &VType::Reference, to).is_err() {
-                    //todo okay to use name like that?
                     if c.class_name == ClassName::object() &&
                         c.loader == LoaderName::BootstrapLoader {
                         return Result::Ok(());
@@ -174,15 +173,12 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::NullType => Result::Ok(()),
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
-            //todo really need to do something about these magic strings
             _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: vf.current_loader.clone() }), to),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
             VType::TopType => Result::Ok(()),
             VType::Class(_) => {
-                // dbg!(c);
-                // panic!()
                 Result::Err(unknown_error_verifying!())
             }
             _ => {
@@ -206,7 +202,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         _ => {
             dbg!(from);
             panic!("This is a bug")
-        }//todo , should have a better message function
+        }
     }
 }
 

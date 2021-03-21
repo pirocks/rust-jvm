@@ -10,7 +10,7 @@ use rust_jvm_common::descriptor_parser::Descriptor;
 
 use crate::OperandStack;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verifier::filecorrectness::{class_is_final, get_class_methods, super_class_chain};
+use crate::verifier::filecorrectness::{class_is_final, get_class_methods, is_bootstrap_loader, super_class_chain};
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use crate::verifier::filecorrectness::loaded_class;
@@ -88,13 +88,11 @@ pub enum TypeSafetyError {
     NotSafe(String),
 }
 
-//todo could be an impl method on VerifierContext
 pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        //todo this check needs to sorta exist
-        // if !is_bootstrap_loader(&class.loader) {
-        //     return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
-        // }
+        if !is_bootstrap_loader(&class.loader) {
+            return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
+        }
     } else {
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
@@ -109,14 +107,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
     }
     let methods = get_class_methods(vf, class);
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
-        let res = method_is_type_safe(vf, class, m);
-        match res {
-            Ok(_) => {}
-            Err(e) => {
-                return Result::Err(e);//return early on error for debugging purposes
-            }
-        }
-        res
+        method_is_type_safe(vf, class, m)
     }).collect();
     method_type_safety?;
     Ok(())
