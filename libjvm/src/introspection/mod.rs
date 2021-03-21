@@ -38,6 +38,7 @@ use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
+use slow_interpreter::utils::throw_npe;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -182,7 +183,11 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
     let jvm = get_state(env);
-    let jstring = JavaValue::Object(from_object(JVM_GetClassName(env, cb))).cast_string();
+    let int_state = get_interpreter_state(env);
+    let jstring = match JavaValue::Object(from_object(JVM_GetClassName(env, cb))).cast_string() {
+        None => return throw_npe(jvm, int_state),
+        Some(jstring) => jstring
+    };
     let rust_string = jstring.to_rust_string();
     let sketch_string = JVMString::from_regular_string(rust_string.as_str());
     let mut len = 0;

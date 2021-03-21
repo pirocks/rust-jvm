@@ -52,6 +52,7 @@ use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_object_class, get_state, to_object};
+use crate::utils::throw_npe;
 
 //todo this should be in state impl
 thread_local! {
@@ -392,8 +393,12 @@ pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
 // Returns a pointer to a Unicode string, or NULL if the operation fails.
 pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const jchar {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
-    let string: JString = JavaValue::Object(from_object(str)).cast_string();
+    let string: JString = match JavaValue::Object(from_object(str)).cast_string() {
+        None => return throw_npe(jvm, int_state),
+        Some(string) => string
+    };
     let char_vec = string.value();
     let mut res = null_mut();
     jvm.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);

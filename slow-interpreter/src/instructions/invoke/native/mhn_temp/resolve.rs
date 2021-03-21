@@ -84,7 +84,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
         member_name.get_clazz().as_type(jvm).unwrap_class_type() == ClassName::class() &&
-        member_name.to_string(jvm, int_state)?.to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
     {
         None
     } else if &member_name.get_name().to_rust_string() == "linkToStatic" {
@@ -95,19 +95,19 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         assert_eq!(member_name.get_flags(), 100728832);
         ResolveAssertionCase::ZERO_L.into()
     } else if &member_name.get_name().to_rust_string() == "linkToSpecial" &&
-        member_name.to_string(jvm, int_state)?.to_rust_string() == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
         assert_eq!(member_name.get_flags(), 100728832);
         ResolveAssertionCase::LINK_TO_SPECIAL.into()
     } else if &member_name.get_name().to_rust_string() == "make" &&
-        member_name.to_string(jvm, int_state)?.to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
         assert_eq!(member_name.get_flags(), 100728832);
         ResolveAssertionCase::MAKE.into()
-    } else if member_name.to_string(jvm, int_state)?.to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
+    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
         assert_eq!(member_name.get_flags(), 17039360);
         ResolveAssertionCase::ARG_L0.into()
-    } else if member_name.to_string(jvm, int_state)?.to_rust_string() == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
+    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
         assert_eq!(member_name.get_flags(), 83951616);
-        assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state)?.to_rust_string(), "(Object,long)Object");
+        assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
     } else {
         None
@@ -192,7 +192,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
             ResolveAssertionCase::MAKE => {
-                assert_eq!(&member_name.to_string(jvm, int_state)?.to_rust_string(), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
+                assert_eq!(&member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
                 assert_eq!(member_name.get_flags(), 100728840);
                 assert!(member_name.get_resolution().unwrap_object().is_some());
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);

@@ -5,6 +5,8 @@
 
 use std::sync::Arc;
 
+use itertools::Either;
+
 use classfile_view::view::ClassView;
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 
@@ -79,24 +81,41 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_
     let is_method = (matchFlags & IS_METHOD) > 0;
     let is_field = (matchFlags & IS_FIELD) > 0;
     let is_constructor = (matchFlags & IS_CONSTRUCTOR) > 0;
-    let member_names = match parse_field_descriptor(matchSig.as_str()) {
+    let member_names = match matchSig {
         None => {
-            match parse_method_descriptor(matchSig.as_str()) {
+            let methods = if is_method {
+                Either::Left(get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, None)?.into_iter())
+            } else {
+                Either::Right(std::iter::empty())
+            };
+            let fields = if is_field {
+                Either::Left(get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, None)?.into_iter())
+            } else {
+                Either::Right(std::iter::empty())
+            };
+            methods.chain(fields).collect()
+        }
+        Some(matchSig) => {
+            match parse_field_descriptor(matchSig.as_str()) {
                 None => {
-                    throw_illegal_arg_res(jvm, int_state)?;
-                    unreachable!()
+                    match parse_method_descriptor(matchSig.as_str()) {
+                        None => {
+                            throw_illegal_arg_res(jvm, int_state)?;
+                            unreachable!()
+                        }
+                        Some(md) => {
+                            assert!(is_method);
+                            get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, Some(md))
+                        }
+                    }
                 }
-                Some(md) => {
-                    assert!(is_method);
-                    get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, md)
+                Some(fd) => {
+                    assert!(is_field);
+                    get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, Some(fd))
                 }
-            }
+            }?
         }
-        Some(fd) => {
-            assert!(is_field);
-            get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, fd)
-        }
-    }?;
+    };
     let res_arr = results.mut_array();
     let mut i = skip;
     let len = member_names.len();
@@ -122,7 +141,10 @@ fn get_matching_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ma
         (match &match_name {
             None => true,
             Some(match_name) => &field.field_name() == match_name
-        }) && field.field_type().to_ptype() == fd.field_type
+        }) && (match &fd {
+            None => true,
+            Some(FieldDescriptor { field_type }) => field_type == &field.field_type().to_ptype()
+        })
     }).map(|(field_class, i)| {
         let view = field_class.view();
         let field_view = view.field(i);
@@ -153,7 +175,10 @@ fn get_matching_methods(
         (match &match_name {
             None => true,
             Some(match_name) => match_name == &method.name()
-        }) && method.desc() == md && if is_constructor {
+        }) && (match &md {
+            None => true,
+            Some(md) => md == &method.desc()
+        }) && if is_constructor {
             method.name().as_str() == "<init>"
         } else {
             true
@@ -168,7 +193,7 @@ fn get_matching_methods(
 
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
     let member_name = args[0].cast_member_name();
-    let name = member_name.get_name_func(jvm, int_state)?;
+    let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
     let clazz = member_name.clazz();
     let field_type = member_name.get_field_type(jvm, int_state)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;

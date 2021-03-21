@@ -81,7 +81,7 @@ pub fn intern_safe(jvm: &JVMState, str_obj: Arc<Object>) -> JString {
     let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
-            return JavaValue::Object(str_obj.into()).cast_string();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
+            return JavaValue::Object(str_obj.into()).cast_string().unwrap();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr
     };
@@ -94,10 +94,10 @@ pub fn intern_safe(jvm: &JVMState, str_obj: Arc<Object>) -> JString {
     match guard.strings.get(&native_string_bytes) {
         None => {
             guard.strings.insert(native_string_bytes, str_obj.clone());
-            JavaValue::Object(str_obj.into()).cast_string()
+            JavaValue::Object(str_obj.into()).cast_string().unwrap()
         }
         Some(res) => {
-            JavaValue::Object(res.clone().into()).cast_string()
+            JavaValue::Object(res.clone().into()).cast_string().unwrap()
         }
     }
 }
@@ -113,7 +113,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
             return throw_npe(jvm, int_state);
         }
     };
-    let jstring = JavaValue::Object(str_obj.into()).cast_string();
+    let jstring = JavaValue::Object(str_obj.into()).cast_string().unwrap();
     let rust_str = jstring.to_rust_string();
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
@@ -142,7 +142,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
             return throw_npe(jvm, int_state);
         }
     };
-    let rust_str = JavaValue::Object(str_obj.into()).cast_string().to_rust_string();
+    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string();
     and_then(rust_str)
 }
 

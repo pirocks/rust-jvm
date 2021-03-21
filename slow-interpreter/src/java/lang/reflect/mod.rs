@@ -319,7 +319,6 @@ pub mod constructor {
 }
 
 pub mod field {
-    use std::process::exit;
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::PTypeView;

@@ -132,7 +132,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state:
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
             let string_value = int_state.pop_current_operand_stack();
-            intern_safe(jvm, string_value.cast_string().object().into()).java_value()
+            intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
         }
         _ => panic!()
     }

@@ -15,11 +15,13 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -64,7 +66,10 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = JavaValue::Object(from_object(name)).cast_string().to_rust_string();
+    let name_str = match JavaValue::Object(from_object(name)).cast_string() {
+        None => return throw_npe(jvm, int_state),
+        Some(name_str) => name_str
+    }.to_rust_string();
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl

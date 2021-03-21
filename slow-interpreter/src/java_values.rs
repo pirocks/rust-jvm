@@ -719,6 +719,13 @@ impl ExceptionReturn for *const i8 {
     }
 }
 
+impl ExceptionReturn for *const u16 {
+    fn invalid_default() -> Self {
+        null()
+    }
+}
+
+
 impl ExceptionReturn for *mut c_void {
     fn invalid_default() -> Self {
         null_mut()

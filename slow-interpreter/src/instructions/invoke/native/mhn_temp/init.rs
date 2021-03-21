@@ -15,7 +15,7 @@ pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mu
     //two params, is a static function.
     let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
-    let to_string = target.cast_object().to_string(jvm, int_state)?.to_rust_string();
+    let to_string = target.cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string();
     let assertion_case = match to_string.as_str() {
         "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => {
             InitAssertionCase::CHECK_EXACT_TYPE.into()
