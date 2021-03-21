@@ -112,7 +112,7 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
         if inited_class.view().is_interface() {
             REF_INVOKE_INTERFACE
         } else {
-            //todo if you are wondering why this is needed, I'm as confused as you are.
+            //afaik this is more of an optimization than anything else, but expected by standard library
             if inited_class.view().is_final() {
                 REF_INVOKE_SPECIAL
             } else {
@@ -142,7 +142,6 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
             modifiers |= ACC_SYNTHETIC as i32;
         }
     }
-    //todo is this really correct? what if garbage in flags?
     mname.set_flags(modifiers | extra_flags);
     Ok(())
 }

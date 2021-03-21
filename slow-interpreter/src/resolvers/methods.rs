@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
+use crate::interpreter::WasException;
 use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> (Method, usize, Arc<RuntimeClass>) {
+pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<(Method, usize, Arc<RuntimeClass>), WasException> {
 	let method_type = member_name.get_type().cast_method_type();
 	let return_type = method_type.get_rtype_as_type(jvm);
 	let parameter_types = method_type.get_ptypes_as_types(jvm);
@@ -25,10 +26,7 @@ pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterSta
 		}
 	});
 	let method_view = res.unwrap();
-	(match Method::method_object_from_method_view(jvm, int_state, &method_view) {
-		Ok(method) => method,
-		Err(_) => todo!()
-	}, method_view.method_i(), runtime_class.clone())
+	Ok((Method::method_object_from_method_view(jvm, int_state, &method_view)?, method_view.method_i(), runtime_class.clone()))
 }
 
 pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, synthetic: &mut bool) -> Result<(Method, usize, Arc<RuntimeClass>), ResolutionError> {

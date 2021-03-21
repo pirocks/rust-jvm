@@ -81,19 +81,11 @@ enum ResolveAssertionCase {
 */
 
 fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<JavaValue, WasException> {
-    // dbg!(member_name.get_name().to_rust_string());
-    // dbg!(member_name.to_string(jvm, int_state).to_rust_string());
-    // dbg!(member_name.get_type().cast_method_type().to_string(jvm, int_state).to_rust_string());
-    // dbg!(member_name.get_flags());
-    // dbg!(member_name.get_resolution().cast_object().to_string(jvm, int_state).to_rust_string());
-    // int_state.print_stack_trace();
 
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
         member_name.get_clazz().as_type(jvm).unwrap_class_type() == ClassName::class() &&
         member_name.to_string(jvm, int_state)?.to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
     {
-        // assert_eq!(member_name.get_flags(), 83951616);
-        // ResolveAssertionCase::CAST.into()
         None
     } else if &member_name.get_name().to_rust_string() == "linkToStatic" {
         assert_eq!(member_name.get_flags(), 100728832);
@@ -118,23 +110,10 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state)?.to_rust_string(), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
     } else {
-        // dbg!(member_name.get_name().to_rust_string());
-        // dbg!(member_name.to_string(jvm, int_state).to_rust_string());
         None
     };
 
     let type_java_value = member_name.get_type();
-//todo maybe create a class for this resolution object
-//todo actually do whatever I'm meant to do here.
-
-    // let resolution_object = JavaValue::Object(Arc::new(Object::Object(NormalObject {
-    //     monitor: jvm.thread_state.new_monitor("monitor for a resolution object".to_string()),
-    //     fields: RefCell::new(Default::default()),
-    //     class_pointer: check_inited_class(jvm, int_state, &ClassName::object().into(), int_state.current_loader(jvm)),
-    //     class_object_type: None,
-    // })).into());
-    // member_name.set_resolution(resolution_object);
-    //todo sets resolution to something on failure
     let flags_val = member_name.get_flags();
     let ref_kind = ((flags_val >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK as i32) as u32;
     let ALL_KINDS = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE;
@@ -159,7 +138,6 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
             //todo do we need to update clazz?
             member_name.set_flags(new_flags);
-            // member_name.set_resolution(JavaValue::Object(None));
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
@@ -200,21 +178,13 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let _type_ = type_java_value.unwrap_normal_object();
     if let Some(assertion_case) = assertion_case {
         match assertion_case {
-            // ResolveAssertionCase::CAST => {
-            //     assert_eq!(member_name.get_flags(), 117506049);
-            // }
             ResolveAssertionCase::LINK_TO_STATIC => {
                 assert_eq!(&member_name.get_name().to_rust_string(), "linkToStatic");
                 assert_eq!(member_name.get_flags(), 100733208);
                 assert!(member_name.get_resolution().unwrap_object().is_some());
                 assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
             }
-            ResolveAssertionCase::ZERO_L => {
-                // assert_eq!(&member_name.get_name().to_rust_string(), "zero_L");
-                // assert_eq!(member_name.get_flags(), 100728842);
-                // assert!(member_name.get_resolution().unwrap_object().is_some());
-                // assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
-            }
+            ResolveAssertionCase::ZERO_L => {}
             ResolveAssertionCase::LINK_TO_SPECIAL => {
                 assert_eq!(&member_name.get_name().to_rust_string(), "linkToSpecial");
                 assert_eq!(member_name.get_flags(), 100733208);
@@ -229,10 +199,6 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             }
             ResolveAssertionCase::ARG_L0 => {
                 assert_eq!(member_name.get_flags(), 17039376);
-                // dbg!(member_name.get_type());
-                // dbg!(member_name.to_string(jvm,int_state).to_rust_string());
-                // dbg!(member_name.get_resolution());
-                // assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 17039360);
             }
             ResolveAssertionCase::GET_OBJECT_UNSAFE => {
                 assert_eq!(member_name.get_flags(), 117506305);
