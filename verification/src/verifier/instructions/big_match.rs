@@ -1,4 +1,4 @@
-use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide};
+use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
@@ -54,7 +54,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::dload_3 => instruction_is_type_safe_dload(3, env, stack_frame),
         InstructionInfo::dmul => instruction_is_type_safe_dadd(env, stack_frame),
         InstructionInfo::dneg => instruction_is_type_safe_dneg(env, stack_frame),
-        InstructionInfo::drem => { unimplemented!() }
+        InstructionInfo::drem => instruction_is_type_safe_dadd(env, stack_frame),
         InstructionInfo::dreturn => instruction_is_type_safe_dreturn(env, stack_frame),
         InstructionInfo::dstore(i) => instruction_is_type_safe_dstore(*i as usize, env, stack_frame),
         InstructionInfo::dstore_0 => instruction_is_type_safe_dstore(0, env, stack_frame),
@@ -87,7 +87,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::fload_3 => instruction_is_type_safe_fload(3, env, stack_frame),
         InstructionInfo::fmul => instruction_is_type_safe_fadd(env, stack_frame),
         InstructionInfo::fneg => instruction_is_type_safe_fneg(env, stack_frame),
-        InstructionInfo::frem => { unimplemented!() }
+        InstructionInfo::frem => instruction_is_type_safe_fadd(env, stack_frame),
         InstructionInfo::freturn => instruction_is_type_safe_freturn(env, stack_frame),
         InstructionInfo::fstore(i) => instruction_is_type_safe_fstore(*i as usize, env, stack_frame),
         InstructionInfo::fstore_0 => instruction_is_type_safe_fstore(0, env, stack_frame),
@@ -102,7 +102,11 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             assert!(final_target >= 0);
             instruction_is_type_safe_goto(final_target as usize, env, stack_frame)
         }
-        InstructionInfo::goto_w(_) => { unimplemented!() }
+        InstructionInfo::goto_w(target) => {
+            let final_target = (*target as isize) + (instruction.offset as isize);
+            assert!(final_target >= 0);
+            instruction_is_type_safe_goto(final_target as usize, env, stack_frame)
+        }
         InstructionInfo::i2b => instruction_is_type_safe_ineg(env, stack_frame),
         InstructionInfo::i2c => instruction_is_type_safe_ineg(env, stack_frame),
         InstructionInfo::i2d => instruction_is_type_safe_i2d(env, stack_frame),
@@ -180,8 +184,8 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::isub => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::iushr => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::ixor => instruction_is_type_safe_iadd(env, stack_frame),
-        InstructionInfo::jsr(_) => { unimplemented!() }
-        InstructionInfo::jsr_w(_) => { unimplemented!() }
+        InstructionInfo::jsr(_) => {}
+        InstructionInfo::jsr_w(_) => {}
         InstructionInfo::l2d => instruction_is_type_safe_l2d(env, stack_frame),
         InstructionInfo::l2f => instruction_is_type_safe_l2f(env, stack_frame),
         InstructionInfo::l2i => instruction_is_type_safe_l2i(env, stack_frame),
@@ -230,14 +234,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::multianewarray(m) => instruction_is_type_safe_multianewarray(m.index as usize, m.dims as usize, env, stack_frame),
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, offset, env, stack_frame),
         InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
-        InstructionInfo::nop => {
-            unimplemented!()
-        }
+        InstructionInfo::nop => {}
         InstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
         InstructionInfo::pop2 => instruction_is_type_safe_pop2(env, stack_frame),
         InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(*cp, env, stack_frame),
         InstructionInfo::putstatic(cp) => instruction_is_type_safe_putstatic(*cp, env, stack_frame),
-        InstructionInfo::ret(_) => { unimplemented!() }
+        InstructionInfo::ret(_) => {}
         InstructionInfo::return_ => instruction_is_type_safe_return(env, stack_frame),
         InstructionInfo::saload => instruction_is_type_safe_saload(env, stack_frame),
         InstructionInfo::sastore => instruction_is_type_safe_sastore(env, stack_frame),
@@ -252,20 +254,20 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
         InstructionInfo::wide(wide) => match wide {
-            Wide::Iload(_) => unimplemented!(),
-            Wide::Fload(_) => unimplemented!(),
-            Wide::Aload(_) => unimplemented!(),
-            Wide::Lload(_) => unimplemented!(),
-            Wide::Dload(_) => unimplemented!(),
-            Wide::Istore(_) => unimplemented!(),
-            Wide::Fstore(_) => unimplemented!(),
-            Wide::Astore(_) => unimplemented!(),
-            Wide::Lstore(_) => unimplemented!(),
-            Wide::Dstore(_) => unimplemented!(),
-            Wide::Ret(_) => unimplemented!(),
+            Wide::Iload(WideIload { index }) => instruction_is_type_safe_iload(*index as usize, env, stack_frame),
+            Wide::Fload(WideFload { index }) => instruction_is_type_safe_fload(*index as usize, env, stack_frame),
+            Wide::Aload(WideAload { index }) => instruction_is_type_safe_aload(*index as usize, env, stack_frame),
+            Wide::Lload(WideLload { index }) => instruction_is_type_safe_lload(*index as usize, env, stack_frame),
+            Wide::Dload(WideDload { index }) => instruction_is_type_safe_dload(*index as usize, env, stack_frame),
+            Wide::Istore(WideIstore { index }) => instruction_is_type_safe_istore(*index as usize, env, stack_frame),
+            Wide::Fstore(WideFstore { index }) => instruction_is_type_safe_fstore(*index as usize, env, stack_frame),
+            Wide::Astore(WideAstore { index }) => instruction_is_type_safe_astore(*index as usize, env, stack_frame),
+            Wide::Lstore(WideLstore { index }) => instruction_is_type_safe_lstore(*index as usize, env, stack_frame),
+            Wide::Dstore(WideDstore { index }) => instruction_is_type_safe_dstore(*index as usize, env, stack_frame),
+            Wide::Ret(WideRet { index }) => {},
             Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as usize, env, stack_frame),
         },
-        _ => unimplemented!()
+        InstructionInfo::EndOfCode => Result::Err(unknown_error_verifying!())
     }
 }
 
