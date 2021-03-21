@@ -138,9 +138,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             let correct_flags = res_c.view().field(*res_i).access_flags();
             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
-            let class_object = get_or_create_class_object(jvm, ClassName::field().into(), int_state)?.into();
-            let clazz = unwrap_or_npe(jvm, int_state, JavaValue::Object(class_object).cast_class())?;
-            member_name.set_clazz(clazz);
+            // we don't update clazz, since the specific versio may not be assignable unlike the generic, or like if we get an inherited field stuff breaks if we update
             member_name.set_flags(new_flags);
         }
         IS_METHOD => {

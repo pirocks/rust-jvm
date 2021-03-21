@@ -152,6 +152,7 @@ pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len
     for i in 0..len {
         str.push(unicode.offset(i as isize).read() as u8 as char)
     }
+    dbg!(&str);
     new_string_with_string(env, str)
 }
 
