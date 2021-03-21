@@ -250,6 +250,7 @@ pub mod constructor {
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use type_safe_proc_macro_utils::getter_gen;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -313,6 +314,25 @@ pub mod constructor {
             run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string())?;
             Ok(constructor_object.cast_constructor())
         }
+
+        pub fn get_clazz(&self) -> JClass {
+            self.normal_object.lookup_field("clazz").cast_class().unwrap()//todo this unwrap
+        }
+
+        pub fn get_modifiers(&self) -> jint {
+            self.normal_object.lookup_field("modifiers").unwrap_int()
+        }
+
+        pub fn get_name(&self) -> JString {
+            self.normal_object.lookup_field("name").cast_string().expect("methods must have names")
+        }
+
+        pub fn parameter_types(&self) -> Vec<JClass> {
+            self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class().unwrap()).collect()//todo unwrap
+        }
+
+        getter_gen!(slot,jint,unwrap_int);
+        getter_gen!(returnType,JClass,cast_class);
 
         as_object_or_java_value!();
     }

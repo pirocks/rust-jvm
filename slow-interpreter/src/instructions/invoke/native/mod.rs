@@ -14,7 +14,6 @@ use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::{monitor_for_function, WasException};
-use crate::java::lang::class::JClass;
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;

@@ -1,3 +1,6 @@
+use itertools::Either;
+
+use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
@@ -5,9 +8,10 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::native::mhn_temp::{IS_METHOD, REFERENCE_KIND_SHIFT};
+use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::interpreter::WasException;
 use crate::java::lang::member_name::MemberName;
+use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
 
@@ -22,7 +26,7 @@ pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mu
         }
         _ => None
     };
-    let res = init(jvm, int_state, mname.clone(), target, None, false);
+    let res = init(jvm, int_state, mname.clone(), target, Either::Left(None), false);
     if let Some(case) = assertion_case {
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
@@ -39,14 +43,17 @@ pub enum InitAssertionCase {
 }
 
 
-pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
-    if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method().into() {//todo replace with a try cast
+pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
+    if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method().into() {
         let target = target.cast_method();
-        method_init(jvm, int_state, mname.clone(), target, method_view, synthetic)?;
+        method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
+    } else if target.unwrap_normal_object().class_pointer.view().name() == ClassName::constructor().into() {
+        let target = target.cast_constructor();
+        constructor_init(mname.clone(), target, view.left().unwrap(), synthetic)?;
+    } else if target.unwrap_normal_object().class_pointer.view().name() == ClassName::field().into() {
+        todo!()
     } else {
-
-        //todo handle constructors and fields
-        unimplemented!()
+        todo!()
     }
     Ok(())//this is a void method.
 }
@@ -96,7 +103,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Member
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-
+//todo is this method view stuff really needed
 fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let flags = method.get_modifiers();
     let clazz = method.get_clazz();
@@ -122,6 +129,39 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     } as u32) << REFERENCE_KIND_SHIFT) as i32;
     let extra_flags = IS_METHOD | invoke_type_flag as u32;
     let mut modifiers = method.get_modifiers();
+    if let Some(method_view) = method_view {
+        if method_view.is_varargs() {
+            modifiers |= ACC_VARARGS as i32;
+            if method_view.is_signature_polymorphic() {
+                modifiers &= !(ACC_VARARGS as i32);
+            }
+        }
+        if method_view.is_native() {
+            modifiers |= ACC_NATIVE as i32;
+        }
+        if method_view.is_static() {
+            modifiers |= ACC_STATIC as i32;
+        }
+        if method_view.is_final() || method_view.is_signature_polymorphic() {
+            modifiers |= ACC_FINAL as i32;
+        }
+        if synthetic {
+            modifiers |= ACC_SYNTHETIC as i32;
+        }
+    }
+    mname.set_flags(modifiers | extra_flags as i32);
+    Ok(())
+}
+
+
+fn constructor_init(mname: MemberName, constructor: Constructor, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+    let clazz = constructor.get_clazz();
+    mname.set_clazz(clazz.clone());
+    //static v. invoke_virtual v. interface
+    //see MethodHandles::init_method_MemberName
+    let invoke_type_flag = ((REF_INVOKE_SPECIAL as i32) << REFERENCE_KIND_SHIFT) as i32;
+    let extra_flags = IS_CONSTRUCTOR | invoke_type_flag as u32;
+    let mut modifiers = constructor.get_modifiers();
     if let Some(method_view) = method_view {
         if method_view.is_varargs() {
             modifiers |= ACC_VARARGS as i32;

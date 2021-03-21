@@ -13,6 +13,7 @@ use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, pars
 use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter::WasException;
 use crate::java::lang::member_name::MemberName;
+use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
@@ -120,7 +121,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_
     let mut i = skip;
     let len = member_names.len();
     for member in member_names {
-        if (i as usize) < len {
+        if (i as usize) < res_arr.len() {
             res_arr[i as usize] = member.java_value();
         }
         i += 1;
@@ -186,8 +187,13 @@ fn get_matching_methods(
     }).map(|(method_class, i)| {
         let view = method_class.view();
         let method_view = view.method_view_i(i);
-        let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
-        MemberName::new_from_method(jvm, int_state, method_obj)
+        if method_view.name().as_str() == "<init>" {
+            let constructor_obj = Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
+            MemberName::new_from_constructor(jvm, int_state, constructor_obj)
+        } else {
+            let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
+            MemberName::new_from_method(jvm, int_state, method_obj)
+        }
     }).collect::<Result<Vec<_>, WasException>>()
 }
 

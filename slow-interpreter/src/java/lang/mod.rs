@@ -90,6 +90,7 @@ pub mod member_name {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
+    use crate::java::lang::reflect::constructor::Constructor;
     use crate::java::lang::reflect::field::Field;
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
@@ -216,6 +217,15 @@ pub mod member_name {
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, member_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
+            Ok(res.cast_member_name())
+        }
+
+
+        pub fn new_from_constructor(jvm: &JVMState, int_state: &mut InterpreterStateGuard, constructor: Constructor) -> Result<Self, WasException> {
+            let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
+            push_new_object(jvm, int_state, &member_class);
+            let res = int_state.pop_current_operand_stack();
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), constructor.java_value()], "(Ljava/lang/reflect/Constructor;)V".to_string())?;
             Ok(res.cast_member_name())
         }
 
