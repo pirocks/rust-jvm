@@ -118,7 +118,7 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, &mut args)?.into()
+        shouldBeInitialized(jvm, int_state, &mut args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {

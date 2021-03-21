@@ -744,6 +744,19 @@ pub fn instruction_is_type_safe_sipush(env: &Environment, stack_frame: Frame) ->
     type_transition(env, stack_frame, vec![], VType::IntType)
 }
 
+
+pub fn instruction_is_type_safe_nop(stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let Frame { locals, stack_map, flag_this_uninit } = stack_frame;
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
+        next_frame: Frame {
+            locals: locals.clone(),
+            stack_map,
+            flag_this_uninit,
+        },
+        exception_frame: exception_stack_frame(locals.clone(), flag_this_uninit),
+    }))
+}
+
 pub fn instruction_is_type_safe_swap(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let flags = stack_frame.flag_this_uninit;

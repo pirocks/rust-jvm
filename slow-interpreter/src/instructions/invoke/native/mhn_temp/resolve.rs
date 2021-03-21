@@ -138,7 +138,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             let correct_flags = res_c.view().field(*res_i).access_flags();
             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
-            let clazz = unwrap_or_npe(jvm, int_state, JavaValue::Object(get_or_create_class_object(jvm, ClassName::field().into(), int_state)?.into()).cast_class())?;
+            let class_object = get_or_create_class_object(jvm, ClassName::field().into(), int_state)?.into();
+            let clazz = unwrap_or_npe(jvm, int_state, JavaValue::Object(class_object).cast_class())?;
             member_name.set_clazz(clazz);
             member_name.set_flags(new_flags);
         }

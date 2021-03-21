@@ -3,8 +3,6 @@ extern crate elapsed;
 use std::collections::vec_deque::VecDeque;
 use std::sync::Arc;
 
-use elapsed::measure_time;
-
 use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::vtype::VType;
@@ -18,22 +16,10 @@ use crate::verifier::TypeSafetyError;
 pub mod verifier;
 
 pub fn verify(vf: &VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    let (_time, res) = measure_time(|| match class_is_type_safe(vf, &ClassWithLoader {
+    class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name().unwrap_name(),
         loader,
-    }) {
-        Ok(_) => Result::Ok(()),
-        Err(err) => {
-            match err {
-                TypeSafetyError::NotSafe(s) => {
-                    dbg!(s);
-                    unimplemented!()
-                }
-                TypeSafetyError::NeedToLoad(_) => unimplemented!(),
-            }
-        }
-    });
-    res
+    })
 }
 
 #[derive(Debug)]
@@ -68,8 +54,8 @@ impl Clone for OperandStack {
 }
 
 impl PartialEq for OperandStack {
-    fn eq(&self, _other: &OperandStack) -> bool {
-        unimplemented!()
+    fn eq(&self, other: &OperandStack) -> bool {
+        self.data == other.data
     }
 }
 

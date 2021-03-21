@@ -86,7 +86,6 @@ impl Clone for Frame {
 #[derive(Debug)]
 pub enum TypeSafetyError {
     NotSafe(String),
-    NeedToLoad(Vec<ClassName>),
 }
 
 //todo could be an impl method on VerifierContext

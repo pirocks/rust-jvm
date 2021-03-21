@@ -2,7 +2,7 @@ use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide, WideAload, 
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
-use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup2, instruction_is_type_safe_dup2_x1, instruction_is_type_safe_dup2_x2, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2d, instruction_is_type_safe_l2f, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_pop, instruction_is_type_safe_pop2, instruction_is_type_safe_sipush, instruction_is_type_safe_swap, InstructionTypeSafe};
+use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup2, instruction_is_type_safe_dup2_x1, instruction_is_type_safe_dup2_x2, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2d, instruction_is_type_safe_l2f, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_nop, instruction_is_type_safe_pop, instruction_is_type_safe_pop2, instruction_is_type_safe_sipush, instruction_is_type_safe_swap, InstructionTypeSafe};
 use crate::verifier::instructions::branches::*;
 use crate::verifier::instructions::consts::*;
 use crate::verifier::instructions::float::*;
@@ -184,8 +184,8 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::isub => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::iushr => instruction_is_type_safe_iadd(env, stack_frame),
         InstructionInfo::ixor => instruction_is_type_safe_iadd(env, stack_frame),
-        InstructionInfo::jsr(_) => {}
-        InstructionInfo::jsr_w(_) => {}
+        InstructionInfo::jsr(_) => instruction_is_type_safe_nop(stack_frame),
+        InstructionInfo::jsr_w(_) => instruction_is_type_safe_nop(stack_frame),
         InstructionInfo::l2d => instruction_is_type_safe_l2d(env, stack_frame),
         InstructionInfo::l2f => instruction_is_type_safe_l2f(env, stack_frame),
         InstructionInfo::l2i => instruction_is_type_safe_l2i(env, stack_frame),
@@ -234,12 +234,12 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::multianewarray(m) => instruction_is_type_safe_multianewarray(m.index as usize, m.dims as usize, env, stack_frame),
         InstructionInfo::new(cp) => instruction_is_type_safe_new(*cp as usize, offset, env, stack_frame),
         InstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
-        InstructionInfo::nop => {}
+        InstructionInfo::nop => instruction_is_type_safe_nop(stack_frame),
         InstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
         InstructionInfo::pop2 => instruction_is_type_safe_pop2(env, stack_frame),
         InstructionInfo::putfield(cp) => instruction_is_type_safe_putfield(*cp, env, stack_frame),
         InstructionInfo::putstatic(cp) => instruction_is_type_safe_putstatic(*cp, env, stack_frame),
-        InstructionInfo::ret(_) => {}
+        InstructionInfo::ret(_) => instruction_is_type_safe_nop(stack_frame),
         InstructionInfo::return_ => instruction_is_type_safe_return(env, stack_frame),
         InstructionInfo::saload => instruction_is_type_safe_saload(env, stack_frame),
         InstructionInfo::sastore => instruction_is_type_safe_sastore(env, stack_frame),
@@ -264,7 +264,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
             Wide::Astore(WideAstore { index }) => instruction_is_type_safe_astore(*index as usize, env, stack_frame),
             Wide::Lstore(WideLstore { index }) => instruction_is_type_safe_lstore(*index as usize, env, stack_frame),
             Wide::Dstore(WideDstore { index }) => instruction_is_type_safe_dstore(*index as usize, env, stack_frame),
-            Wide::Ret(WideRet { index }) => {},
+            Wide::Ret(WideRet { index: _ }) => instruction_is_type_safe_nop(stack_frame),
             Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as usize, env, stack_frame),
         },
         InstructionInfo::EndOfCode => Result::Err(unknown_error_verifying!())

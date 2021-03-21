@@ -22,7 +22,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;
-use crate::utils::{throw_illegal_arg_res, throw_npe_res, unwrap_or_npe};
+use crate::utils::{throw_illegal_arg_res, unwrap_or_npe};
 
 pub mod resolve;
 
@@ -201,7 +201,8 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMStat
     let member_name = args[0].cast_member_name();
     let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz())?;
-    let field_type = unwrap_or_npe(jvm, int_state, member_name.get_field_type(jvm, int_state)?)?;
+    let field_type_option = member_name.get_field_type(jvm, int_state)?;
+    let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![])?;
     Ok(Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?)
