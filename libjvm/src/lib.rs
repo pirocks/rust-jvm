@@ -70,6 +70,7 @@ pub mod io;
 pub mod socket;
 pub mod raw_monitor;
 pub mod java_sun_misc_unsafe;
+pub mod java_lang_system;
 pub mod util;
 
 #[no_mangle]

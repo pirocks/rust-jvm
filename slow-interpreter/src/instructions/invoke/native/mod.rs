@@ -11,7 +11,6 @@ use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_init
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
-use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::{monitor_for_function, WasException};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
@@ -59,10 +58,7 @@ pub fn run_native_method(
     }
 
     let meth_name = method.name();
-    let result = if meth_name == *"arraycopy" {//todo and descriptor matches and class matches
-        system_array_copy(jvm, int_state, &mut args);
-        None
-    } else if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
+    let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
         jvm.libjava.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))
     {
         //todo dup

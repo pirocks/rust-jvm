@@ -103,7 +103,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Member
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-//todo is this method view stuff really needed
+/// the method view param here and elsewhere is only passed when resolving
 fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let flags = method.get_modifiers();
     let clazz = method.get_clazz();
@@ -130,27 +130,31 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
     let extra_flags = IS_METHOD | invoke_type_flag as u32;
     let mut modifiers = method.get_modifiers();
     if let Some(method_view) = method_view {
-        if method_view.is_varargs() {
-            modifiers |= ACC_VARARGS as i32;
-            if method_view.is_signature_polymorphic() {
-                modifiers &= !(ACC_VARARGS as i32);
-            }
-        }
-        if method_view.is_native() {
-            modifiers |= ACC_NATIVE as i32;
-        }
-        if method_view.is_static() {
-            modifiers |= ACC_STATIC as i32;
-        }
-        if method_view.is_final() || method_view.is_signature_polymorphic() {
-            modifiers |= ACC_FINAL as i32;
-        }
-        if synthetic {
-            modifiers |= ACC_SYNTHETIC as i32;
-        }
+        update_modifiers_with_method_view(synthetic, &mut modifiers, method_view)
     }
     mname.set_flags(modifiers | extra_flags as i32);
     Ok(())
+}
+
+fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, method_view: &MethodView) {
+    if method_view.is_varargs() {
+        *modifiers |= ACC_VARARGS as i32;
+        if method_view.is_signature_polymorphic() {
+            *modifiers &= !(ACC_VARARGS as i32);
+        }
+    }
+    if method_view.is_native() {
+        *modifiers |= ACC_NATIVE as i32;
+    }
+    if method_view.is_static() {
+        *modifiers |= ACC_STATIC as i32;
+    }
+    if method_view.is_final() || method_view.is_signature_polymorphic() {
+        *modifiers |= ACC_FINAL as i32;
+    }
+    if synthetic {
+        *modifiers |= ACC_SYNTHETIC as i32;
+    }
 }
 
 
@@ -163,24 +167,7 @@ fn constructor_init(mname: MemberName, constructor: Constructor, method_view: Op
     let extra_flags = IS_CONSTRUCTOR | invoke_type_flag as u32;
     let mut modifiers = constructor.get_modifiers();
     if let Some(method_view) = method_view {
-        if method_view.is_varargs() {
-            modifiers |= ACC_VARARGS as i32;
-            if method_view.is_signature_polymorphic() {
-                modifiers &= !(ACC_VARARGS as i32);
-            }
-        }
-        if method_view.is_native() {
-            modifiers |= ACC_NATIVE as i32;
-        }
-        if method_view.is_static() {
-            modifiers |= ACC_STATIC as i32;
-        }
-        if method_view.is_final() || method_view.is_signature_polymorphic() {
-            modifiers |= ACC_FINAL as i32;
-        }
-        if synthetic {
-            modifiers |= ACC_SYNTHETIC as i32;
-        }
+        update_modifiers_with_method_view(synthetic, &mut modifiers, method_view)
     }
     mname.set_flags(modifiers | extra_flags as i32);
     Ok(())
