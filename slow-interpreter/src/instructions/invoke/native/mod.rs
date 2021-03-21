@@ -131,7 +131,7 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
         Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(&mut args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, &mut args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {

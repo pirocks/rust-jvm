@@ -223,7 +223,7 @@ pub fn virtual_method_lookup(
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
 ) -> Result<(Arc<RuntimeClass>, usize), WasException> {
-    let all_methods = get_all_methods(state, int_state, c.clone())?;
+    let all_methods = get_all_methods(state, int_state, c.clone(), false)?;
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let final_target_class_view = c.view();
         let method_view = final_target_class_view.method_view_i(*i);

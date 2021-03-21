@@ -3,17 +3,19 @@
 #![allow(non_snake_case)]
 
 
+use std::sync::Arc;
+
+use classfile_view::view::ClassView;
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::interpreter::WasException;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
 use crate::java_values::JavaValue;
-use crate::resolvers::search_all_members;
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;
@@ -32,10 +34,10 @@ pub const SYNTHETIC: i32 = 4096;
 pub const ANNOTATION: i32 = 8192;
 pub const ENUM: i32 = 16384;
 pub const RECOGNIZED_MODIFIERS: i32 = 65535;
-pub const IS_METHOD: i32 = 65536;
-pub const IS_CONSTRUCTOR: i32 = 131072;
-pub const IS_FIELD: i32 = 262144;
-pub const IS_TYPE: i32 = 524288;
+pub const IS_METHOD: u32 = 65536;
+pub const IS_CONSTRUCTOR: u32 = 131072;
+pub const IS_FIELD: u32 = 262144;
+pub const IS_TYPE: u32 = 524288;
 pub const CALLER_SENSITIVE: i32 = 1048576;
 pub const ALL_ACCESS: i32 = 7;
 pub const ALL_KINDS: i32 = 983040;
@@ -56,11 +58,11 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_
     //class member is defined on
     let defc = args[0].cast_class();
     //name to lookup on
-    let match_name = args[1].cast_string().to_rust_string();
+    let match_name = args[1].cast_string().map(|string| string.to_rust_string());
     //signature to lookup on
-    let matchSig = args[2].cast_string().to_rust_string();
+    let matchSig = args[2].cast_string().map(|string| string.to_rust_string());
     //flags as defined above
-    let matchFlags = args[3].unwrap_int();
+    let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks
     let _caller = args[4].cast_class();//todo access check
     //seems to be where to start putting in array
@@ -86,56 +88,82 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_
                 }
                 Some(md) => {
                     assert!(is_method);
-                    get_all_methods(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
-                        let current_view = current_rc.view();
-                        if !search_super {
-                            if current_view.name() != view.name() {
-                                return false
-                            }
-                        }
-                        let method = current_view.method_view_i(*method_i);
-                        method.name() == match_name && method.desc() == md && if is_constructor {
-                            method.name().as_str() == "<init>"
-                        } else {
-                            true
-                        }
-                    }).map(|(method_class, i)| {
-                        let view = method_class.view();
-                        let method_view = view.method_view_i(i);
-                        let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
-                        MemberName::new_from_method(jvm, int_state, method_obj)
-                    })
+                    get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, md)
                 }
             }
         }
         Some(fd) => {
             assert!(is_field);
-            get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
-                let current_view = current_rc.view();
-                if !search_super {
-                    if current_view.name() != view.name() {
-                        return false
-                    }
-                }
-                let field = current_view.field(*method_i);
-                field.name() == match_name && field.desc() == fd
-            }).map(|(field_class, i)| {
-                let view = field_class.view();
-                let field_view = view.field(i);
-                let field_obj = field_object_from_view(jvm, int_state, field_class, field_view)?;
-                MemberName::new_from_field(jvm, int_state, field_obj.cast_field())
-            })
+            get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, fd)
         }
-    }.collect::<Result<Vec<_>, WasException>>()?;
+    }?;
     let res_arr = results.mut_array();
     let mut i = skip;
+    let len = member_names.len();
     for member in member_names {
-        if (i as usize) < member_names.len() {
+        if (i as usize) < len {
             res_arr[i as usize] = member.java_value();
         }
+        i += 1;
     }
 
-    Ok(JavaValue::Int(member_names.len() as i32))
+    Ok(JavaValue::Int(len as i32))
+}
+
+fn get_matching_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, match_name: &Option<String>, rc: Arc<RuntimeClass>, view: Arc<dyn ClassView>, search_super: bool, search_interface: bool, fd: Option<FieldDescriptor>) -> Result<Vec<MemberName>, WasException> {
+    get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+        let current_view = current_rc.view();
+        if !search_super {
+            if current_view.name() != view.name() {
+                return false;
+            }
+        }
+        let field = current_view.field(*method_i);
+        (match &match_name {
+            None => true,
+            Some(match_name) => &field.field_name() == match_name
+        }) && field.field_type().to_ptype() == fd.field_type
+    }).map(|(field_class, i)| {
+        let view = field_class.view();
+        let field_view = view.field(i);
+        let field_obj = field_object_from_view(jvm, int_state, field_class, field_view)?;
+        MemberName::new_from_field(jvm, int_state, field_obj.cast_field())
+    }).collect::<Result<Vec<_>, WasException>>()
+}
+
+fn get_matching_methods(
+    jvm: &JVMState,
+    int_state: &mut InterpreterStateGuard,
+    match_name: &Option<String>,
+    rc: &Arc<RuntimeClass>,
+    view: &Arc<dyn ClassView>,
+    search_super: bool,
+    search_interface: bool,
+    is_constructor: bool,
+    md: Option<MethodDescriptor>,
+) -> Result<Vec<MemberName>, WasException> {
+    get_all_methods(jvm, int_state, rc.clone(), search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+        let current_view = current_rc.view();
+        if !search_super {
+            if current_view.name() != view.name() {
+                return false;
+            }
+        }
+        let method = current_view.method_view_i(*method_i);
+        (match &match_name {
+            None => true,
+            Some(match_name) => match_name == &method.name()
+        }) && method.desc() == md && if is_constructor {
+            method.name().as_str() == "<init>"
+        } else {
+            true
+        }
+    }).map(|(method_class, i)| {
+        let view = method_class.view();
+        let method_view = view.method_view_i(i);
+        let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
+        MemberName::new_from_method(jvm, int_state, method_obj)
+    }).collect::<Result<Vec<_>, WasException>>()
 }
 
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {

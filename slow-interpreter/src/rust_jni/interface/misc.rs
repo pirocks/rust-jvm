@@ -211,12 +211,14 @@ fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
         }
     }
     if include_interface {
-        class.view().interfaces().for_each(|interface| {
+        let view = class.view();
+        let interfaces = view.interfaces();
+        for interface in interfaces {
             let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
             interface.view().methods().enumerate().for_each(|(i, _)| {
-                res.push((object.clone(), i));
+                res.push((interface.clone(), i));
             });
-        });
+        }
     }
     Ok(())
 }
@@ -246,12 +248,12 @@ fn get_all_fields_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cl
     }
 
     if include_interface {
-        class.view().interfaces().for_each(|interface| {
+        for interface in class.view().interfaces() {
             let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
             interface.view().fields().enumerate().for_each(|(i, _)| {
-                res.push((object.clone(), i));
+                res.push((interface.clone(), i));
             });
-        });
+        }
     }
     Ok(())
 }

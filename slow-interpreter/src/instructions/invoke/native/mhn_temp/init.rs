@@ -120,7 +120,7 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
             }
         }
     } as u32) << REFERENCE_KIND_SHIFT) as i32;
-    let extra_flags = IS_METHOD | invoke_type_flag;
+    let extra_flags = IS_METHOD | invoke_type_flag as u32;
     let mut modifiers = method.get_modifiers();
     if let Some(method_view) = method_view {
         if method_view.is_varargs() {
@@ -142,6 +142,6 @@ fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Mem
             modifiers |= ACC_SYNTHETIC as i32;
         }
     }
-    mname.set_flags(modifiers | extra_flags);
+    mname.set_flags(modifiers | extra_flags as i32);
     Ok(())
 }

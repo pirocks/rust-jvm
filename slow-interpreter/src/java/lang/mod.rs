@@ -112,7 +112,7 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name_func(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
+        pub fn get_name_func(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JString>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
@@ -316,7 +316,7 @@ pub mod class {
                 "getName".to_string(),
                 "()Ljava/lang/String;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack().cast_string())
+            Ok(int_state.pop_current_operand_stack().cast_string().expect("classes are known to have non-null names"))
         }
 
         pub fn set_name_(&self, name: JString) {
@@ -413,8 +413,8 @@ pub mod string {
     }
 
     impl JavaValue {
-        pub fn cast_string(&self) -> JString {
-            JString { normal_object: self.unwrap_object_nonnull() }
+        pub fn cast_string(&self) -> Option<JString> {
+            Some(JString { normal_object: self.unwrap_object()? })
         }
     }
 
@@ -438,7 +438,7 @@ pub mod string {
             let array = JavaValue::Object(Some(Arc::new(Object::Array(array_object))));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
                             "([C)V".to_string())?;
-            Ok(string_object.cast_string())
+            Ok(string_object.cast_string().expect("error creating string"))
         }
 
         pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
@@ -451,7 +451,7 @@ pub mod string {
                 "intern".to_string(),
                 "()Ljava/lang/String;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack().cast_string())
+            Ok(int_state.pop_current_operand_stack().cast_string().expect("error interning strinng"))
         }
 
         pub fn value(&self) -> Vec<jchar> {
@@ -608,7 +608,7 @@ pub mod thread {
         }
 
         pub fn name(&self) -> JString {
-            self.normal_object.lookup_field("name").cast_string()
+            self.normal_object.lookup_field("name").cast_string().expect("threads are known to have nonnull names")
         }
 
         pub fn priority(&self) -> i32 {
@@ -752,7 +752,7 @@ pub mod thread_group {
         }
 
         pub fn name(&self) -> JString {
-            self.normal_object.lookup_field("name").cast_string()
+            self.normal_object.lookup_field("name").cast_string().expect("thread group null name")
         }
 
         pub fn daemon(&self) -> jboolean {

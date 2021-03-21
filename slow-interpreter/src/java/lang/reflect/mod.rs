@@ -229,7 +229,7 @@ pub mod method {
         }
 
         pub fn get_name(&self) -> JString {
-            self.normal_object.lookup_field("name").cast_string()
+            self.normal_object.lookup_field("name").cast_string().expect("methods must have names")
         }
 
         pub fn parameter_types(&self) -> Vec<JClass> {
@@ -319,6 +319,7 @@ pub mod constructor {
 }
 
 pub mod field {
+    use std::process::exit;
     use std::sync::Arc;
 
     use classfile_view::view::ptype_view::PTypeView;
@@ -383,7 +384,7 @@ pub mod field {
         }
 
         pub fn name(&self) -> JString {
-            self.normal_object.lookup_field("name").cast_string()
+            self.normal_object.lookup_field("name").cast_string().expect("fields must have names")
         }
 
         pub fn clazz(&self) -> JClass {

@@ -117,10 +117,10 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let flags_val = member_name.get_flags();
     let ref_kind = ((flags_val >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK as i32) as u32;
     let ALL_KINDS = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE;
-    let kind = flags_val & ALL_KINDS;
+    let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm))?;
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm), true)?;//todo search interfaces?
 
             let name = member_name.get_name().to_rust_string();
 
@@ -141,7 +141,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
+                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone())?;
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false)?;
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
@@ -164,7 +164,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                 unimplemented!()
             } else if ref_kind == JVM_REF_invokeSpecial {
                 //todo this is incorrect b/c it will get the virtual function
-                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone());
+                let (resolve_result, method_i, class) = resolve_invoke_virtual(jvm, int_state, member_name.clone())?;
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), (&class.view().method_view_i(method_i)).into(), false)?;
             } else {
                 panic!()

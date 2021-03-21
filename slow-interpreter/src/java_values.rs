@@ -7,7 +7,7 @@ use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jbyte, jobject};
+use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
@@ -734,5 +734,17 @@ impl ExceptionReturn for JavaValue {
 impl ExceptionReturn for () {
     fn invalid_default() -> Self {
         ()
+    }
+}
+
+impl ExceptionReturn for jfieldID {
+    fn invalid_default() -> Self {
+        null_mut()
+    }
+}
+
+impl ExceptionReturn for jmethodID {
+    fn invalid_default() -> Self {
+        null_mut()
     }
 }

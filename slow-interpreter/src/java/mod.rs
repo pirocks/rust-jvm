@@ -11,7 +11,7 @@ macro_rules! as_object_or_java_value {
             JavaValue::Object(self.object().into())
         }
 
-        pub fn to_string(&self, jvm: &crate::jvm_state::JVMState, int_state: & mut crate::InterpreterStateGuard) -> Result<crate::java::lang::string::JString,crate::WasException> {
+        pub fn to_string(&self, jvm: &crate::jvm_state::JVMState, int_state: & mut crate::InterpreterStateGuard) -> Result<Option<crate::java::lang::string::JString>,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(
              jvm,
