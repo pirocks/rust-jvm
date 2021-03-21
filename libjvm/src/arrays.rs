@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::ops::Deref;
 use std::panic::panic_any;
 use std::ptr::null_mut;
@@ -109,5 +110,35 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let src_o = from_object(src);
+    let src = match src_o.as_ref() {
+        Some(x) => x,
+        None => return throw_npe(jvm, int_state),
+    }.unwrap_array();
+    let dest_o = from_object(dst);
+    let dest = match dest_o.as_ref() {
+        Some(x) => x,
+        None => {
+            return throw_npe(jvm, int_state)
+        },
+    }.unwrap_array();
+    if src_pos < 0
+        || dst_pos < 0
+        || length < 0
+        || src_pos + length > src.mut_array().len() as i32
+        || dst_pos + length > dest.mut_array().len() as i32 {
+        unimplemented!()
+    }
+    let mut to_copy = vec![];
+    for i in 0..(length as usize) {
+        let borrowed = src.mut_array();
+        let temp = (borrowed)[src_pos as usize + i].borrow().clone();
+        to_copy.push(temp);
+    }
+    for i in 0..(length as usize) {
+        let borrowed = dest.mut_array();
+        borrowed[dst_pos as usize + i] = to_copy[i].clone();
+    }
 }

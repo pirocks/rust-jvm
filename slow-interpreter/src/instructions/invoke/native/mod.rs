@@ -152,4 +152,3 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
 
 pub mod mhn_temp;
 pub mod unsafe_temp;
-pub mod system_temp;
