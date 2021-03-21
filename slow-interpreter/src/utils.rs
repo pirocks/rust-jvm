@@ -145,3 +145,14 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
         invoke_virtual_method_i(jvm, int_state, md, class.clone(), &method_view)
     }
 }
+
+
+pub fn unwrap_or_npe<T>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, to_unwrap: Option<T>) -> Result<T, WasException> {
+    match to_unwrap {
+        None => {
+            throw_npe_res(jvm, int_state)?;
+            unreachable!()
+        }
+        Some(unwrapped) => Ok(unwrapped)
+    }
+}

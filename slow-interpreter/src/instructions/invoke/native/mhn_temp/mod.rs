@@ -22,7 +22,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;
-use crate::utils::throw_illegal_arg_res;
+use crate::utils::{throw_illegal_arg_res, throw_npe_res, unwrap_or_npe};
 
 pub mod resolve;
 
@@ -59,7 +59,7 @@ pub mod init;
 ///
 pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
     //class member is defined on
-    let defc = args[0].cast_class().unwrap();//todo this unwrap
+    let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
     let match_name = args[1].cast_string().map(|string| string.to_rust_string());
     //signature to lookup on
@@ -200,8 +200,8 @@ fn get_matching_methods(
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
     let member_name = args[0].cast_member_name();
     let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
-    let clazz = member_name.clazz().expect("todo");
-    let field_type = member_name.get_field_type(jvm, int_state)?.expect("todo");
+    let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz())?;
+    let field_type = unwrap_or_npe(jvm, int_state, member_name.get_field_type(jvm, int_state)?)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![])?;
     Ok(Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?)

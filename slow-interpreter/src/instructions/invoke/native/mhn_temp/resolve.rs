@@ -7,6 +7,7 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
+use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter::WasException;
@@ -15,9 +16,9 @@ use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
+use crate::utils::unwrap_or_npe;
 
 pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
-//todo
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
 //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -121,11 +122,11 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm), true)?;//todo search interfaces?
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm), true)?;
 
             let name = member_name.get_name().to_rust_string();
 
-            let typejclass = member_name.get_type().cast_class().expect("todo");
+            let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type().cast_class())?;
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let view = c.view();
@@ -137,7 +138,8 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
             let correct_flags = res_c.view().field(*res_i).access_flags();
             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
-            //todo do we need to update clazz?
+            let clazz = unwrap_or_npe(jvm, int_state, JavaValue::Object(get_or_create_class_object(jvm, ClassName::field().into(), int_state)?.into()).cast_class())?;
+            member_name.set_clazz(clazz);
             member_name.set_flags(new_flags);
         }
         IS_METHOD => {
