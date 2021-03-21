@@ -189,7 +189,7 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
     let handlers = get_handlers(vf, class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
-    let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size);
+    let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size)?;
     let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;
@@ -216,7 +216,11 @@ pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: 
 }
 
 pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
-    not_init_handler(&_env.vf, _env, _handler)
+    if not_init_handler(&_env.vf, _env, _handler) {
+        todo!()
+    } else {
+        todo!()
+    }
 }
 
 pub fn not_init_handler(vf: &VerifierContext, env: &Environment, handler: &Handler) -> bool {
@@ -276,7 +280,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
     res
 }
 
-fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> (Frame, VType) {
+fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> Result<(Frame, VType), TypeSafetyError> {
     let classfile = get_class(vf, class);
     let method_view = &classfile.method_view_i(method.method_index as usize);
     let initial_parsed_descriptor = method_view.desc();
@@ -284,7 +288,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),
         return_type: initial_parsed_descriptor.return_type,
     };
-    let this_list = method_initial_this_type(vf, class, method);
+    let this_list = method_initial_this_type(vf, class, method)?;
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
     let args = expand_type_list(vf, parsed_descriptor.parameter_types
@@ -299,7 +303,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
-    (Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.current_loader))
+    Ok((Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.current_loader)))
 }
 
 

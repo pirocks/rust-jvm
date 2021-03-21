@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use classfile_view::loading::{ClassWithLoader, LoaderName};
-use classfile_view::view::attribute_view::BootstrapArgView::Class;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
@@ -45,7 +44,6 @@ pub enum FrameResult {
     AfterGoto,
 }
 
-//todo how to handle other values here
 pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0];//infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
@@ -158,10 +156,10 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     }
 }
 
-pub fn nth0(index: usize, locals: &[VType]) -> VType {
+pub fn nth0(index: usize, locals: &[VType]) -> Result<VType, TypeSafetyError> {
     match locals.get(index) {
-        None => unimplemented!(),
-        Some(res) => res.clone(),
+        None => Err(unknown_error_verifying!()),
+        Some(res) => Ok(res.clone()),
     }
 }
 
@@ -334,7 +332,7 @@ fn dup_x2_form_is_type_safe(env: &Environment, mut input_stack: OperandStack) ->
     let temp = input_stack.operand_pop();
     let is_form1 = peek_category2(&env.vf, &mut input_stack).is_err();
     input_stack.operand_push(temp);
-    if is_form1 {//todo
+    if is_form1 {
         dup_x2_form1_is_type_safe(env, input_stack)
     } else {
         dup_x2_form2_is_type_safe(env, input_stack)
@@ -387,11 +385,6 @@ fn dup_x2_form2_is_type_safe(env: &Environment, input_stack: OperandStack) -> Re
     can_safely_push_list(env, rest, vec![type1.clone(), type2, type1])
 }
 
-
-//#[allow(unused)]
-//pub fn instruction_is_type_safe_dup2(env: &Environment, offset: usize, stack_frame: &Frame)  -> Result<InstructionTypeSafe, TypeSafetyError> {
-//    unimplemented!()
-//}
 
 //
 //instructionIsTypeSafe(dup2_x1, Environment, _Offset, StackFrame,NextStackFrame, ExceptionStackFrame) :-
@@ -575,7 +568,7 @@ pub fn instruction_is_type_safe_iadd(env: &Environment, stack_frame: Frame) -> R
 
 pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
-    let should_be_int = nth0(index, locals);
+    let should_be_int = nth0(index, locals)?;
     match should_be_int {
         VType::IntType => {
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
