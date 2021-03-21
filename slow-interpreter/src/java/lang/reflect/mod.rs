@@ -156,7 +156,7 @@ pub mod method {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack().cast_class()
+                int_state.pop_current_operand_stack().cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
@@ -221,7 +221,7 @@ pub mod method {
         }
 
         pub fn get_clazz(&self) -> JClass {
-            self.normal_object.lookup_field("clazz").cast_class()
+            self.normal_object.lookup_field("clazz").cast_class().unwrap()//todo this unwrap
         }
 
         pub fn get_modifiers(&self) -> jint {
@@ -233,7 +233,7 @@ pub mod method {
         }
 
         pub fn parameter_types(&self) -> Vec<JClass> {
-            self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class()).collect()
+            self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
         getter_gen!(slot,jint,unwrap_int);
@@ -280,7 +280,7 @@ pub mod constructor {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack().cast_class()
+                int_state.pop_current_operand_stack().cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
@@ -387,7 +387,7 @@ pub mod field {
         }
 
         pub fn clazz(&self) -> JClass {
-            self.normal_object.lookup_field("clazz").cast_class()
+            self.normal_object.lookup_field("clazz").cast_class().expect("todo")
         }
 
         as_object_or_java_value!();
@@ -428,7 +428,7 @@ pub mod constant_pool {
         }
 
         pub fn get_constant_pool_oop(&self) -> JClass {
-            self.normal_object.lookup_field("constantPoolOop").cast_class()
+            self.normal_object.lookup_field("constantPoolOop").cast_class().unwrap()
         }
 
 

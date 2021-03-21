@@ -23,7 +23,7 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
     let obj = from_object(cls);
-    let runtime_class = JavaValue::Object(obj).cast_class().as_runtime_class(jvm);
+    let runtime_class = JavaValue::Object(obj).cast_class().expect("todo").as_runtime_class(jvm);
     (match runtime_class.deref() {
         RuntimeClass::Byte => false,
         RuntimeClass::Boolean => false,
@@ -59,6 +59,6 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    let type_ = JavaValue::Object(from_object(cls)).cast_class().as_type(jvm);
+    let type_ = JavaValue::Object(from_object(cls)).cast_class().expect("todo").as_type(jvm);
     type_.is_primitive() as jboolean
 }

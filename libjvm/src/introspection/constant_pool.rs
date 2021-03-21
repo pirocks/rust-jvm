@@ -109,7 +109,7 @@ fn get_class_from_type_maybe(jvm: &JVMState, int_state: &mut InterpreterStateGua
     } else {
         match jvm.classes.read().unwrap().get_class_obj(ptype) {
             None => return Ok(None),
-            Some(rc) => Some(JavaValue::Object(rc.into()).cast_class().as_runtime_class(jvm))
+            Some(rc) => Some(JavaValue::Object(rc.into()).cast_class().unwrap().as_runtime_class(jvm))
         }
     })
 }

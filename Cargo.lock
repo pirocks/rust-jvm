@@ -234,7 +234,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81156fece84ab6a9f2afdb109ce3ae577e42b1228441eded99bd77f627953b1a"
 dependencies = [
-    "cfg-if 1.0.0",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -374,7 +374,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
-    "cfg-if 1.0.0",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -383,7 +383,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37d572918e350e82412fe766d24b15e6682fb2ed2bbe018280caa810397cb319"
 dependencies = [
-    "either",
+ "either",
 ]
 
 [[package]]
@@ -1001,24 +1001,24 @@ version = "0.1.0"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
-    "bimap",
-    "bindgen",
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "errno",
-    "futures-intrusive",
-    "itertools",
-    "jar-manipulation",
-    "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading 0.6.5",
-    "lock_api 0.3.4",
-    "nix",
-    "num",
-    "parking_lot 0.11.1",
-    "regex",
+ "bimap",
+ "bindgen",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "errno",
+ "futures-intrusive",
+ "itertools",
+ "jar-manipulation",
+ "jvmti-jni-bindings",
+ "libc",
+ "libffi",
+ "libloading 0.6.5",
+ "lock_api 0.3.4",
+ "nix",
+ "num",
+ "parking_lot 0.11.1",
+ "regex",
  "rust-jvm-common",
  "sketch-jvm-version-of-utf8",
  "thread-priority",

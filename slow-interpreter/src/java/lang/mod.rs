@@ -185,7 +185,7 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().fields_mut().get(&"resolution".to_string()).unwrap().clone()
         }
 
-        pub fn clazz(&self) -> JClass {
+        pub fn clazz(&self) -> Option<JClass> {
             self.normal_object.unwrap_normal_object().fields_mut().get("clazz").unwrap().cast_class()
         }
 
@@ -196,7 +196,7 @@ pub mod member_name {
             Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
 
-        pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JClass, WasException> {
+        pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JClass>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string())?;
@@ -204,18 +204,18 @@ pub mod member_name {
         }
 
         pub fn new_from_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> Result<Self, WasException> {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
-            push_new_object(jvm, int_state, &class_class);
+            let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
+            push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack();
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), field.java_value()], "(Ljava/lang/reflect/Field;)V".to_string())?;
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), field.java_value()], "(Ljava/lang/reflect/Field;)V".to_string())?;
             Ok(res.cast_member_name())
         }
 
         pub fn new_from_method(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method: Method) -> Result<Self, WasException> {
-            let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
-            push_new_object(jvm, int_state, &class_class);
+            let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
+            push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack();
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
             Ok(res.cast_member_name())
         }
 
@@ -249,9 +249,8 @@ pub mod class {
     }
 
     impl JavaValue {
-        pub fn cast_class(&self) -> JClass {
-            assert_eq!(self.unwrap_normal_object().class_pointer.view().name(), ClassName::class().into());
-            JClass { normal_object: self.unwrap_object_nonnull() }
+        pub fn cast_class(&self) -> Option<JClass> {
+            Some(JClass { normal_object: self.unwrap_object()? })
         }
     }
 
@@ -283,7 +282,7 @@ pub mod class {
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string())?;
-            Ok(res.cast_class())
+            Ok(res.cast_class().unwrap())
         }
 
 
@@ -292,18 +291,18 @@ pub mod class {
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack();
             run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "(Ljava/lang/ClassLoader;)V".to_string())?;
-            Ok(res.cast_class())
+            Ok(res.cast_class().unwrap())
         }
 
         pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
-            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class()
+            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class().unwrap()
         }
 
         pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<JClass, WasException> {
             load_class_constant_by_type(jvm, int_state, ptype)?;
             let res = int_state.pop_current_operand_stack().unwrap_object();
-            Ok(JavaValue::Object(res).cast_class())
+            Ok(JavaValue::Object(res).cast_class().unwrap())
         }
 
         pub fn get_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
@@ -384,7 +383,7 @@ pub mod class_loader {
                 "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
             )?;
             assert!(int_state.throw().is_none());
-            Ok(int_state.pop_current_operand_stack().cast_class())
+            Ok(int_state.pop_current_operand_stack().cast_class().unwrap())
         }
 
         as_object_or_java_value!();

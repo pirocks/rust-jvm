@@ -14,10 +14,12 @@ use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::system_temp::system_array_copy;
 use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::{monitor_for_function, WasException};
+use crate::java::lang::class::JClass;
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
+use crate::utils::throw_npe_res;
 
 pub fn run_native_method(
     jvm: &JVMState,
@@ -124,7 +126,13 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
         shouldBeInitialized(jvm, &mut args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
-        let jclass = args[1].cast_class();
+        let jclass = match args[1].cast_class() {
+            None => {
+                throw_npe_res(jvm, int_state)?;
+                unreachable!()
+            }
+            Some(class) => class
+        };
         let ptype = jclass.as_runtime_class(jvm).ptypeview();
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None

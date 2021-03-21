@@ -88,7 +88,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let object = from_object(cls);
-    let temp = JavaValue::Object(object).cast_class().as_type(jvm);
+    let temp = JavaValue::Object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public(match JClass::from_type(jvm, int_state, object_class.unwrap_array()) {
         Ok(jclass) => jclass,

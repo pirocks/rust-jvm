@@ -57,7 +57,7 @@ pub mod method_type {
 
         pub fn get_ptypes_as_types(&self, jvm: &JVMState) -> Vec<PType> {
             self.get_ptypes().unwrap_array().unwrap_object_array().iter()
-                .map(|x| JavaValue::Object(x.clone()).cast_class().as_type(jvm).to_ptype()).collect()
+                .map(|x| JavaValue::Object(x.clone()).cast_class().unwrap().as_type(jvm).to_ptype()).collect()
         }
 
         pub fn set_form(&self, form: MethodTypeForm) {
@@ -85,7 +85,7 @@ pub mod method_type {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(JavaValue::Int(int));
             run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_class())
+            Ok(int_state.pop_current_operand_stack().cast_class().unwrap())
         }
 
         pub fn new(

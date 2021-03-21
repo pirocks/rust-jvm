@@ -124,7 +124,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 
             let name = member_name.get_name().to_rust_string();
 
-            let typejclass = member_name.get_type().cast_class();
+            let typejclass = member_name.get_type().cast_class().expect("todo");
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let view = c.view();

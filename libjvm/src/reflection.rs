@@ -55,7 +55,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         Some(method_name) => method_name
     });
     let clazz_java_val = method_obj.lookup_field("clazz");
-    let target_class_refcell_borrow = clazz_java_val.cast_class().as_type(jvm);
+    let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
         unimplemented!()
@@ -121,7 +121,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     };
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
-    let clazz = match class_object_to_runtime_class(&temp_4.cast_class(), jvm, int_state) {
+    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

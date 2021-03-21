@@ -66,7 +66,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
     let res = {
-        let type_ = &JavaValue::Object(class.into()).cast_class().as_type(jvm);
+        let type_ = &JavaValue::Object(class.into()).cast_class().unwrap().as_type(jvm);
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();//todo handle npe
-    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().as_type(jvm);
+    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
