@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use classfile_view::loading::*;
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use classfile_view::view::constant_info_view::ConstantInfoView::LiveObject;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;
@@ -207,9 +208,8 @@ pub struct Handler {
 pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderName) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: vf.current_loader.clone() } }
+        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: LoaderName::BootstrapLoader } }
         Some(s) => {
-            // todo compare against throwable , but not here ?
             ClassWithLoader { class_name: s.clone(), loader: loader.clone() }
         }
     }

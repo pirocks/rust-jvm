@@ -209,7 +209,7 @@ pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, of
         InstructionInfo::lneg => instruction_is_type_safe_lneg(env, stack_frame),
         InstructionInfo::lookupswitch(s) => {
             let targets: Vec<usize> = s.pairs.iter().map(|(_, x)| {
-                (offset as isize + *x as isize) as usize//todo create correct typedefs for usize etc.
+                (offset as isize + *x as isize) as usize
             }).collect();
             let keys = s.pairs.iter().map(|(x, _)| {
                 *x

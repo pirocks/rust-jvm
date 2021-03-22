@@ -167,6 +167,11 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
     let first = operand_stack.operand_pop();
     let flags = temp_frame.flag_this_uninit;
     let current_class_loader = env.class_loader.clone();
+    let exception_frame = Frame {
+        locals: locals.clone(),
+        stack_map: OperandStack::empty(),
+        flag_this_uninit: flags,
+    };
     match first {
         VType::Uninitialized(address) => {
             let uninit_address = VType::Uninitialized(UninitializedVariableInfo { offset: address.offset });
@@ -180,11 +185,6 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
                 stack_map: next_operand_stack,
                 flag_this_uninit: next_flags,
             };
-            let exception_frame = Frame {
-                locals,
-                stack_map: OperandStack::empty(),
-                flag_this_uninit: flags,
-            };
             passes_protected_check(env, &method_class_name.clone(), "<init>".to_string(), Descriptor::Method(&parsed_descriptor), &next_frame)?;
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
@@ -194,16 +194,10 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
             let this_class = VType::Class(this);
             let next_operand_stack = substitute_operand_stack(&VType::UninitializedThis, &this_class, &operand_stack);
             let next_locals = substitute(&VType::UninitializedThis, &this_class, locals.as_slice());
-            //todo duplication with above
             let next_frame = Frame {
                 locals: Rc::new(next_locals),
                 stack_map: next_operand_stack,
                 flag_this_uninit,
-            };
-            let exception_frame = Frame {
-                locals,
-                stack_map: OperandStack::empty(),
-                flag_this_uninit: flags,
             };
             Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
@@ -295,38 +289,20 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
         class_name: ClassName::Str(method_class_name.to_string()),
         loader: current_loader.clone(),
     });
-    // dbg!("10");
-    // dbg!(&current_class);
-    // dbg!(&method_class);
-    // is_assignable(&env.vf, &current_class, &method_class)?;//todo the spec puts this here, but I think the spec is wrong
-    // dbg!("11");
+    // is_assignable(&env.vf, &current_class, &method_class)?;//the spec puts this here, but I think the spec is wrong
     let mut operand_arg_list_copy: Vec<_> = parsed_descriptor.parameter_types.iter().rev().map(|x| {
         PTypeView::from_ptype(x).to_verification_type(&env.class_loader)
     }).collect();
-    // dbg!("12");
     operand_arg_list_copy.push(current_class);
     let return_type = &PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
-    // dbg!("13");
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let mut operand_arg_list_copy2: Vec<_> = parsed_descriptor.parameter_types
         .iter().rev()
         .map(|x| { PTypeView::from_ptype(&x).to_verification_type(&env.class_loader) })
         .collect();
-    // dbg!("14");
     operand_arg_list_copy2.push(method_class);
-    let next_frame = valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame.clone())?;//todo uneeded clone
-    // dbg!("15");
-    // dbg!(&operand_arg_list_copy);
-    // dbg!(&return_type);
-    // dbg!(&stack_frame);
-    // let next_frame = valid_type_transition(
-    //     env,
-    //     operand_arg_list_copy,
-    //     &return_type,
-    //     stack_frame,
-    // )?;
-    // dbg!("16");
+    let next_frame = valid_type_transition(env, operand_arg_list_copy2, &return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(locals, flag);
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
@@ -345,10 +321,6 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         .cloned()
         .collect();
     let return_type = PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&env.class_loader);
-    // dbg!(&stack_arg_list);
-    // dbg!(&operand_arg_list);
-    // dbg!(&method_name);
-    // dbg!(&_class_name);
     if &method_name == "linkToStatic" || &method_name == "linkToVirtual" {
         //todo should handle polymorphism better
         let mut next_stack_frame = stack_frame.stack_map.clone();
@@ -362,7 +334,6 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
             flag_this_uninit: stack_frame.flag_this_uninit,
         })
     } else {
-        // dbg!(method_name);
         let locals = stack_frame.locals.clone();
         let flag = stack_frame.flag_this_uninit;
         let next_frame = valid_type_transition(env, stack_arg_list, &return_type, stack_frame)?;
@@ -384,8 +355,7 @@ pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stac
         _ => panic!()
     };
 
-    if /*method_name.contains("arrayOf") ||*/ method_name.contains('[') || &method_name == "<init>" || &method_name == "<clinit>" {
-        dbg!(method_name);
+    if &method_name == "<init>" || &method_name == "<clinit>" {
         unimplemented!();
     }
     // the operand_arg list is in the order displayed by the spec, e.g first elem a 0.

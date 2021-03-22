@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::process::exit;
 use std::ptr::null_mut;
+use std::sync::RwLock;
 
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use slow_interpreter::interpreter::WasException;
@@ -14,19 +15,26 @@ unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
     JVM_INTERFACE_VERSION as jint
 }
 
+
+static mut ON_EXIT: RwLock<Vec<Option<unsafe extern "C" fn()>>> = RwLock::new(Vec::new())
+
 #[no_mangle]
-unsafe extern "system" fn JVM_OnExit(func: ::std::option::Option<unsafe extern "C" fn()>) {
-    unimplemented!()
+unsafe extern "system" fn JVM_OnExit(func: Option<unsafe extern "C" fn()>) {
+    ON_EXIT.write().unwrap().push(func);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Exit(code: jint) {
-    unimplemented!()
+    //todo run finalizers blocking on gc
+    for func in ON_EXIT.read().unwrap().iter() {
+        if let Some(func) = func.as_ref() { func(); };
+    }
+    exit(code);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Halt(code: jint) {
-    exit(code);//todo cleanup and gracefully shutdown
+    exit(code);// halt means that no cleanup is desired
 }
 
 #[no_mangle]
@@ -43,7 +51,8 @@ unsafe extern "system" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void {
-    unimplemented!()
+    eprintln!("Attempt to get jmm which is unsupported");
+    null_mut()
 }
 
 #[no_mangle]
@@ -90,8 +99,6 @@ unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_BeforeHalt() {
-    unimplemented!()
-}
+unsafe extern "system" fn JVM_BeforeHalt() {}
 
 
