@@ -528,3 +528,4 @@ pub enum ResumeError {
 }
 
 pub mod monitors;
+pub mod safepoints;
