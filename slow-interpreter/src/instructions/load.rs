@@ -4,6 +4,7 @@ use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::{push_new_object, run_constructor};
 use crate::java_values::JavaValue;
+use crate::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res};
 
 pub fn aload(current_frame: &mut StackEntry, n: usize) {
     let ref_ = current_frame.local_vars()[n].clone();
@@ -78,27 +79,13 @@ pub fn aaload(int_state: &mut InterpreterStateGuard) {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-fn throw_array_out_of_bounds(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    //todo get binds for this in java lang
-    let bounds_class = assert_inited_or_initing_class(
-        jvm,
-        int_state,
-        ClassName::new("java/lang/ArrayIndexOutOfBoundsException").into(),
-    );
-    push_new_object(jvm, int_state, &bounds_class);
-    let obj = int_state.current_frame_mut().pop();
-    if let Ok(_) = run_constructor(jvm, int_state, bounds_class, vec![obj.clone()], "()V".to_string()) {
-        int_state.set_throw(obj.unwrap_object());
-    };
-}
-
-pub fn caload(state: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn caload(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let index = int_state.pop_current_operand_stack().unwrap_int();
     let temp = int_state.pop_current_operand_stack();
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.mut_array();
     if index < 0 || index >= array_refcell.len() as i32 {
-        throw_array_out_of_bounds(state, int_state);
+        throw_array_out_of_bounds(jvm, int_state, index);
         return;
     }
     let as_int = match array_refcell[index as usize] {
