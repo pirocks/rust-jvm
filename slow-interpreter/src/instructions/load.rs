@@ -85,8 +85,7 @@ pub fn caload(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let unborrowed = temp.unwrap_array();
     let array_refcell = unborrowed.mut_array();
     if index < 0 || index >= array_refcell.len() as i32 {
-        throw_array_out_of_bounds(jvm, int_state, index);
-        return;
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     let as_int = match array_refcell[index as usize] {
         JavaValue::Char(c) => c as i32,

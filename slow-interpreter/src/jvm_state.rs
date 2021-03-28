@@ -34,6 +34,7 @@ use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
 
@@ -72,6 +73,8 @@ pub struct JVMState {
     pub assertions_enabled: bool,
 
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>,
+
+    pub monitors2: RwLock<Vec<Monitor2>>
 }
 
 pub struct Classes {
@@ -165,6 +168,7 @@ impl JVMState {
             debug_print_exceptions,
             assertions_enabled,
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
+            monitors2: RwLock::new(vec![])
         };
         jvm.add_class_class_class_object();
         (args, jvm)

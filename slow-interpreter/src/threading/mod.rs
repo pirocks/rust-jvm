@@ -27,6 +27,7 @@ use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 use crate::threading::ResumeError::NotSuspended;
+use crate::threading::safepoints::SafePoint;
 
 pub struct ThreadState {
     pub(crate) threads: Threads,
@@ -159,6 +160,7 @@ impl ThreadState {
             thread_local_storage: RwLock::new(null_mut()),
             await_on_park: Condvar::new(),
             num_parks: Mutex::new(0),
+            safepoint_state: SafePoint::new()
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive();
@@ -375,6 +377,7 @@ pub struct JavaThread {
     pub thread_local_storage: RwLock<*mut c_void>,
     await_on_park: Condvar,
     num_parks: Mutex<isize>,
+    pub safepoint_state: SafePoint
 }
 
 impl JavaThread {
@@ -391,6 +394,7 @@ impl JavaThread {
             thread_local_storage: RwLock::new(null_mut()),
             await_on_park: Condvar::new(),
             num_parks: Mutex::new(0),
+            safepoint_state: SafePoint::new()
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res

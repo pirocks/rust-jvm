@@ -5,6 +5,7 @@
 #![feature(core_intrinsics)]
 #![feature(entry_insert)]
 #![feature(assoc_char_funcs)]
+#![feature(duration_zero)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;

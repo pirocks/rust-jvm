@@ -215,11 +215,6 @@ pub mod method {
             Ok(method_object.cast_method())
         }
 
-
-        pub fn init() -> Self {
-            unimplemented!()
-        }
-
         pub fn get_clazz(&self) -> JClass {
             self.normal_object.lookup_field("clazz").cast_class().unwrap()//todo this unwrap
         }
