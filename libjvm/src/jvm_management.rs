@@ -3,6 +3,8 @@ use std::process::exit;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
+use lazy_static::lazy_static;
+
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::string::JString;
@@ -16,7 +18,9 @@ unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
 }
 
 
-static mut ON_EXIT: RwLock<Vec<Option<unsafe extern "C" fn()>>> = RwLock::new(Vec::new())
+lazy_static! {
+    static ref ON_EXIT: RwLock<Vec<Option<unsafe extern "C" fn()>>> = RwLock::new(Vec::new());
+}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_OnExit(func: Option<unsafe extern "C" fn()>) {

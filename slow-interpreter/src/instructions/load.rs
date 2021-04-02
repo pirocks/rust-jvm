@@ -1,10 +1,6 @@
-use rust_jvm_common::classnames::ClassName;
-
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
-use crate::class_loading::assert_inited_or_initing_class;
-use crate::interpreter_util::{push_new_object, run_constructor};
 use crate::java_values::JavaValue;
-use crate::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res};
+use crate::utils::throw_array_out_of_bounds;
 
 pub fn aload(current_frame: &mut StackEntry, n: usize) {
     let ref_ = current_frame.local_vars()[n].clone();

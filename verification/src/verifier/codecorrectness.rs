@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use classfile_view::loading::*;
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use classfile_view::view::constant_info_view::ConstantInfoView::LiveObject;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use classfile_view::vtype::VType;

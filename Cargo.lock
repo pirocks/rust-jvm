@@ -414,6 +414,7 @@ dependencies = [
  "classfile-view",
  "heapsize",
  "jvmti-jni-bindings",
+ "lazy_static",
  "libc",
  "lock_api 0.3.4",
  "nix",

@@ -10,7 +10,7 @@ use crate::java_values::JavaValue;
 use crate::method_table::MethodId;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn call_nonvirtual_object_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
