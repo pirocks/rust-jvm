@@ -150,7 +150,7 @@ impl SafePoint {
                 res |= JVMTI_THREAD_STATE_WAITING;
                 res |= JVMTI_THREAD_STATE_SLEEPING;
                 res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
-            } else if guard.parks >= 0 {
+            } else if guard.parks > 0 {
                 res |= JVMTI_THREAD_STATE_WAITING;
                 res |= JVMTI_THREAD_STATE_PARKED;
                 if guard.park_until.is_none() {
@@ -182,7 +182,7 @@ impl SafePoint {
             let _ = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }
-        if guard.parks >= 0 {
+        if guard.parks > 0 {
             let _ = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }

@@ -349,9 +349,13 @@ impl JavaThread {
     pub fn notify_alive(&self) {
         let mut status = self.thread_status.write().unwrap();
         status.alive = true;
+        self.update_thread_object(status)
+    }
+
+    fn update_thread_object(&self, status: RwLockWriteGuard<ThreadStatus>) {
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
-            obj.set_thread_status(self.status_number())
+            obj.set_thread_status(self.safepoint_state.get_thread_status_number(status.deref()))
         }
     }
 
@@ -360,12 +364,9 @@ impl JavaThread {
         let mut status = self.thread_status.write().unwrap();
 
         status.terminated = true;
-
-        if self.thread_object.read().unwrap().is_some() {
-            let obj = self.thread_object();
-            obj.set_thread_status(self.safepoint_state.get_thread_status_number(status.deref()))
-        }//todo duplication
+        self.update_thread_object(status)
     }
+
 
     pub fn status_number(&self) -> jint {
         let status_guard = self.thread_status.read().unwrap();
