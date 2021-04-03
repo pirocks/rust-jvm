@@ -1,4 +1,4 @@
-use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
+use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
@@ -69,11 +69,12 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> jvmtiError {
     let jthread = get_thread_or_error!(thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
-    match java_thread.suspend_thread(int_state) {
+    match java_thread.suspend_thread(jvm, int_state) {
         Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
         Err(err) => match err {
             SuspendError::AlreadySuspended => jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,
-            SuspendError::NotAlive => jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE
+            SuspendError::NotAlive => jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE,
+            SuspendError::WasException(_) => jvmtiError_JVMTI_ERROR_INTERNAL
         }
     }
 }

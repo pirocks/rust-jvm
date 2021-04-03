@@ -1,17 +1,20 @@
+use std::ops::Add;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant};
+
+use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::Object;
 use crate::jvm_state::JVMState;
-use crate::threading::JavaThreadId;
+use crate::threading::{JavaThreadId, ResumeError, SuspendError, ThreadStatus};
 
 pub type MonitorID = usize;
 
 #[derive(Debug)]
 pub struct MonitorWait {
-    wait_until: Instant,
+    wait_until: Option<Instant>,
     monitor: MonitorID,
     prev_count: usize,
 }
@@ -21,8 +24,10 @@ struct SafePointStopReasonState {
     waiting_monitor_lock: Option<MonitorID>,
     waiting_monitor_notify: Option<MonitorWait>,
     suspended: bool,
-    parks: usize,
+    parks: isize,
+    park_until: Option<Instant>,
     throw_exception: Option<Arc<Object>>,
+    sleep_until: Option<Instant>,
 }
 
 impl Default for SafePointStopReasonState {
@@ -32,7 +37,9 @@ impl Default for SafePointStopReasonState {
             waiting_monitor_notify: None,
             suspended: false,
             parks: 0,
+            park_until: None,
             throw_exception: None,
+            sleep_until: None,
         }
     }
 }
@@ -64,7 +71,7 @@ impl SafePoint {
         guard.waiting_monitor_lock = Some(to);
     }
 
-    pub fn set_waiting_notify(&self, monitor: MonitorID, wait_until: Instant, prev_count: usize) {
+    pub fn set_waiting_notify(&self, monitor: MonitorID, wait_until: Option<Instant>, prev_count: usize) {
         let mut guard = self.state.lock().unwrap();
         assert!(guard.waiting_monitor_notify.is_none());
         guard.waiting_monitor_notify = Some(MonitorWait { wait_until, monitor, prev_count });
@@ -75,10 +82,96 @@ impl SafePoint {
         assert!(guard.waiting_monitor_notify.is_some());
         guard.waiting_monitor_notify = None;
     }
+
+    pub fn set_suspended(&self) -> Result<(), SuspendError> {
+        let mut guard = self.state.lock().unwrap();
+        if guard.suspended {
+            return Result::Err(SuspendError::AlreadySuspended);
+        }
+        guard.suspended = true;
+
+        Ok(())
+    }
+
+    pub fn set_unsuspended(&self) -> Result<(), ResumeError> {
+        let mut guard = self.state.lock().unwrap();
+        if !guard.suspended {
+            return Err(ResumeError::NotSuspended);
+        }
+        guard.suspended = false;
+        self.waiton.notify_one();// technically I don't need this to be a condvar since I only use notify_one I could have this be a lock
+        Ok(())
+    }
+
+    pub fn set_sleeping(&self, to_sleep: Duration) {
+        let mut guard = self.state.lock().unwrap();
+        guard.sleep_until = Some(Instant::now().add(to_sleep))
+    }
+
+    pub fn set_park(&self, time: Option<Duration>) {
+        let park_until = time.map(|time| Instant::now().add(time));
+        let mut guard = self.state.lock().unwrap();
+        guard.park_until = park_until;
+        guard.parks += 1;
+        self.waiton.notify_one()
+    }
+
+    pub fn set_unpark(&self) {
+        let mut guard = self.state.lock().unwrap();
+        assert!(guard.parks <= 1);
+        guard.park_until = None;
+        guard.parks -= 1;
+        self.waiton.notify_one()
+    }
+
+    pub(crate) fn get_thread_status_number(&self, thread_status: &ThreadStatus) -> jint {
+        let mut res = 0;
+        let guard = self.state.lock().unwrap();
+        if thread_status.alive {
+            res |= JVMTI_THREAD_STATE_ALIVE;
+            //todo is in native code
+            if thread_status.interrupted {
+                res |= JVMTI_THREAD_STATE_INTERRUPTED;
+            }
+            if guard.suspended {
+                res |= JVMTI_THREAD_STATE_SUSPENDED;
+            }
+            if guard.waiting_monitor_lock.is_some() {
+                res |= JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
+            } else if let Some(MonitorWait { wait_until, monitor, prev_count }) = &guard.waiting_monitor_notify {
+                res |= JVMTI_THREAD_STATE_WAITING;
+                res |= JVMTI_THREAD_STATE_IN_OBJECT_WAIT;
+                if wait_until.is_none() {
+                    res |= JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
+                } else {
+                    res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
+                }
+            } else if guard.sleep_until.is_some() {
+                res |= JVMTI_THREAD_STATE_WAITING;
+                res |= JVMTI_THREAD_STATE_SLEEPING;
+                res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
+            } else if guard.parks >= 0 {
+                res |= JVMTI_THREAD_STATE_WAITING;
+                res |= JVMTI_THREAD_STATE_PARKED;
+                if guard.park_until.is_none() {
+                    res |= JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
+                } else {
+                    res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
+                }
+            } else {
+                res |= JVMTI_THREAD_STATE_RUNNABLE;
+            }
+        } else {
+            if thread_status.terminated {
+                res |= JVMTI_THREAD_STATE_TERMINATED;
+            }
+        }
+        res as jint
+    }
 }
 
 impl SafePoint {
-    fn check(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    pub fn check(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
         let guard = self.state.lock().unwrap();
 
         if let Some(exception) = &guard.throw_exception {
@@ -89,7 +182,7 @@ impl SafePoint {
             let _ = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }
-        if guard.parks != 0 {
+        if guard.parks >= 0 {
             let _ = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }
@@ -101,21 +194,35 @@ impl SafePoint {
             let wait_until = *wait_until;
             let monitor = *monitor;
             let prev_count = *prev_count;
-            let time_to_wait = match wait_until.checked_duration_since(Instant::now()) {
+            let time_to_wait = wait_until.map(|wait_until| match wait_until.checked_duration_since(Instant::now()) {
                 None => Duration::new(0, 0),
                 Some(time_to_wait) => time_to_wait
+            });
+            let (guard, should_reacquire) = match time_to_wait {
+                None => {
+                    let guard = self.waiton.wait(guard).unwrap();
+                    let should_reacquire = guard.waiting_monitor_notify.is_none();
+                    (guard, should_reacquire)
+                }
+                Some(time_to_wait) => {
+                    let (guard, timeout) = self.waiton.wait_timeout(guard, time_to_wait).unwrap();
+                    let should_reacquire = if timeout.timed_out() {
+                        wait_until.unwrap().checked_duration_since(Instant::now()).is_none()
+                    } else {
+                        guard.waiting_monitor_notify.is_none()
+                    };
+                    (guard, should_reacquire)
+                }
             };
-            let (_, timeout) = self.waiton.wait_timeout(guard, time_to_wait).unwrap();
-            let should_reacquire = if timeout.timed_out() {
-                wait_until.checked_duration_since(Instant::now()).is_none()
-            } else {
-                let guard = self.state.lock().unwrap();
-                guard.waiting_monitor_notify.is_some()
-            };
+
+
             if should_reacquire {
                 let monitors_gaurd = jvm.monitors2.read().unwrap();
                 let monitor = &monitors_gaurd[monitor];
+                drop(guard);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
+            } else {
+                drop(guard);//shouldn't need these but they are here for now b/c I'm paranoid
             }
             return self.check(jvm, int_state);
         }
@@ -201,13 +308,13 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn wait(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, wait_duration: Duration) -> Result<(), WasException> {
+    pub fn wait(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, wait_duration: Option<Duration>) -> Result<(), WasException> {
         let mut guard = self.0.write().unwrap();
         let now = Instant::now();
-        let wait_until = match now.checked_add(wait_duration) {
+        let wait_until = wait_duration.map(|wait_duration| match now.checked_add(wait_duration) {
             None => panic!("If you are reading this there something wrong with the amount of time you are calling a wait for"),
             Some(wait_until) => wait_until,
-        };
+        });
         let current_thread = jvm.thread_state.get_current_thread();
         if guard.owner != current_thread.java_tid.into() {
             let prev_count = guard.count;
@@ -223,8 +330,8 @@ impl Monitor2 {
     }
 
     pub fn notify_reacquire(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, prev_count: usize) -> Result<(), WasException> {
-        self.lock(jvm, int_state)?;
         let mut guard = self.0.write().unwrap();
+        self.lock(jvm, int_state)?;
         let current_thread = jvm.thread_state.get_current_thread();
         guard.count = prev_count;
         guard.owner = Some(current_thread.java_tid);

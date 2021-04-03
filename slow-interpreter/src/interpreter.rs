@@ -31,7 +31,7 @@ use crate::instructions::return_::*;
 use crate::instructions::special::*;
 use crate::instructions::store::*;
 use crate::instructions::switch::*;
-use crate::interpreter_state::{InterpreterStateGuard, SuspendedStatus};
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
@@ -65,8 +65,9 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
-        suspend_check(interpreter_state);
-        run_single_instruction(jvm, interpreter_state, instruct);
+        if let Ok(()) = safepoint_check(jvm, interpreter_state) {
+            run_single_instruction(jvm, interpreter_state, instruct);
+        };
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
             for excep_table in &code.exception_table {
@@ -114,14 +115,8 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     Ok(())
 }
 
-pub fn suspend_check(interpreter_state: &mut InterpreterStateGuard) {
-    let SuspendedStatus { suspended, suspend_condvar } = &interpreter_state.thread.suspended;
-    let suspended_guard = suspended.lock().unwrap();
-    if *suspended_guard {
-        drop(interpreter_state.int_state.take());
-        drop(suspend_condvar.wait(suspended_guard).unwrap());
-        interpreter_state.int_state = interpreter_state.thread.interpreter_state.write().unwrap().into();
-    }
+pub fn safepoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    interpreter_state.thread.safepoint_state.check(jvm, interpreter_state)
 }
 
 fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard) {

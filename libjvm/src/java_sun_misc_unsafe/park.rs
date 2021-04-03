@@ -1,6 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::string::get_string_region;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
@@ -16,16 +17,17 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
     let int_state = get_interpreter_state(env);
     let current_thread = &jvm.thread_state.get_current_thread();
     if time == 0 {
-        current_thread.park(u64::MAX)//todo this is technically wrong
+        let _ = current_thread.park(jvm, int_state, None);
+        return
     }
-    if is_absolute != 0 {
+    let _ = if is_absolute != 0 {
         let now = SystemTime::now();
         let unix_time = now.duration_since(UNIX_EPOCH).unwrap().as_millis(); //todo maybe we should handle being in the past
         let amount_to_wait = time as u128 - unix_time;
-        current_thread.park(amount_to_wait as u64)
+        current_thread.park(jvm, int_state, Some(amount_to_wait))
     } else {
-        current_thread.park(time as u64)
-    }
+        current_thread.park(jvm, int_state, Some(time as u128))
+    };
 }
 
 
@@ -41,5 +43,5 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe:
     let jvm = get_state(env);
     let thread_obj = JavaValue::Object(from_object(thread)).cast_thread();
     let target_thread = thread_obj.get_java_thread(jvm);
-    target_thread.unpark();
+    target_thread.unpark(jvm, get_interpreter_state(env));
 }

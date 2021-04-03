@@ -432,7 +432,7 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
     if java_thread.is_this_thread() {
         action(get_interpreter_state(env))
     } else {
-        if !*java_thread.suspended.suspended.lock().unwrap() {
+        if todo!() {
             return jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED;
         }
         //todo check thread suspended

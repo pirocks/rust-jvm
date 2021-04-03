@@ -1,12 +1,15 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
-use std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
 use std::time::Duration;
+
+use num::Integer;
 
 use classfile_view::loading::LoaderName;
 use jvmti_jni_bindings::*;
@@ -15,8 +18,8 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::{run_function, suspend_check, WasException};
-use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState, SuspendedStatus};
+use crate::interpreter::{run_function, safepoint_check, WasException};
+use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState};
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
@@ -26,7 +29,6 @@ use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
-use crate::threading::ResumeError::NotSuspended;
 use crate::threading::safepoints::SafePoint;
 
 pub struct ThreadState {
@@ -153,14 +155,15 @@ impl ThreadState {
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
             interpreter_state: RwLock::new(InterpreterState::default()),
-            suspended: SuspendedStatus::default(),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
-            status: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
-            await_on_park: Condvar::new(),
-            num_parks: Mutex::new(0),
-            safepoint_state: SafePoint::new()
+            safepoint_state: SafePoint::new(),
+            thread_status: RwLock::new(ThreadStatus {
+                terminated: false,
+                alive: false,
+                interrupted: false,
+            }),
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive();
@@ -286,115 +289,38 @@ thread_local! {
 pub type JavaThreadId = i64;
 
 #[derive(Debug)]
-pub struct ThreadStatus {
-    alive: bool,
-    terminated: bool,
-    runnable: bool,
-    blocked_on_monitor_enter: bool,
-    waiting: bool,
-    waiting_indefinitely: bool,
-    waiting_timeout: bool,
-    sleeping: bool,
-    in_object_wait: bool,
-    parked: bool,
-    // suspended: bool,
-    interrupted: bool,
-    //todo how to handle native?
-}
-
-impl ThreadStatus {
-    fn get_thread_status_number(&self, thread: &JavaThread) -> jint {
-        let mut res = 0;
-        if self.alive {
-            res |= JVMTI_THREAD_STATE_ALIVE;
-        }
-        if self.terminated {
-            res |= JVMTI_THREAD_STATE_TERMINATED;
-        }
-        if self.runnable {
-            res |= JVMTI_THREAD_STATE_RUNNABLE;
-        }
-        if self.blocked_on_monitor_enter {
-            res |= JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
-        }
-        if self.waiting {
-            res |= JVMTI_THREAD_STATE_WAITING;
-        }
-        if self.waiting_indefinitely {
-            res |= JVMTI_THREAD_STATE_WAITING_INDEFINITELY;
-        }
-        if self.waiting_timeout {
-            res |= JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT;
-        }
-        if self.sleeping {
-            res |= JVMTI_THREAD_STATE_SLEEPING;
-        }
-        if self.in_object_wait {
-            res |= JVMTI_THREAD_STATE_IN_OBJECT_WAIT;
-        }
-        if self.parked {
-            res |= JVMTI_THREAD_STATE_PARKED;
-        }
-        if *thread.suspended.suspended.lock().unwrap() {
-            res |= JVMTI_THREAD_STATE_SUSPENDED;
-        }
-        if self.interrupted {
-            res |= JVMTI_THREAD_STATE_INTERRUPTED;
-        }
-        res as jint
-    }
-}
-
-impl Default for ThreadStatus {
-    fn default() -> Self {
-        Self {
-            alive: false,
-            terminated: false,
-            runnable: false,
-            blocked_on_monitor_enter: false,
-            waiting: false,
-            waiting_indefinitely: false,
-            waiting_timeout: false,
-            sleeping: false,
-            in_object_wait: false,
-            parked: false,
-            // suspended: false,
-            interrupted: false,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct JavaThread {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread,
     thread_object: RwLock<Option<JThread>>,
     pub interpreter_state: RwLock<InterpreterState>,
-    pub suspended: SuspendedStatus,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
-    status: RwLock<ThreadStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
-    await_on_park: Condvar,
-    num_parks: Mutex<isize>,
-    pub safepoint_state: SafePoint
+    pub safepoint_state: SafePoint,
+    pub thread_status: RwLock<ThreadStatus>,
 }
 
 impl JavaThread {
+    pub fn is_alive(&self) -> bool {
+        self.thread_status.read().unwrap().alive
+    }
+
     pub fn new(jvm: &JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: RwLock::new(InterpreterState::default()),
-            suspended: SuspendedStatus::default(),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
-            status: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
-            await_on_park: Condvar::new(),
-            num_parks: Mutex::new(0),
-            safepoint_state: SafePoint::new()
+            safepoint_state: SafePoint::new(),
+            thread_status: RwLock::new(ThreadStatus {
+                terminated: false,
+                alive: false,
+                interrupted: false,
+            }),
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         res
@@ -421,100 +347,60 @@ impl JavaThread {
     }
 
     pub fn notify_alive(&self) {
-        let mut status = self.status.write().unwrap();
+        let mut status = self.thread_status.write().unwrap();
         status.alive = true;
-        status.runnable = true;//when a thread becomes alive it defaults to runnable
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
-            obj.set_thread_status(status.get_thread_status_number(self))
+            obj.set_thread_status(self.status_number())
         }
-    }
-
-    pub fn is_alive(&self) -> bool {
-        self.status.read().unwrap().alive
-    }
-
-    pub fn is_interrupted(&self) -> bool {
-        self.status.read().unwrap().interrupted //todo should probably query suspended status as well
     }
 
 
     pub fn notify_terminated(&self) {
-        let mut status = self.status.write().unwrap();
+        let mut status = self.thread_status.write().unwrap();
 
-        status.alive = false;
-        // status.suspended = false;
-        status.interrupted = false;
-        status.runnable = false;
-        status.blocked_on_monitor_enter = false;
-        status.waiting = false;
-        status.waiting_indefinitely = false;
-        status.waiting_timeout = false;
-        status.in_object_wait = false;
-        status.parked = false;
-        status.sleeping = false;
         status.terminated = true;
 
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
-            obj.set_thread_status(status.get_thread_status_number(self))
+            obj.set_thread_status(self.safepoint_state.get_thread_status_number(status.deref()))
         }//todo duplication
     }
 
     pub fn status_number(&self) -> jint {
-        self.status.read().unwrap().get_thread_status_number(self)
+        let status_guard = self.thread_status.read().unwrap();
+        self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park(&self, time_nanos: u64) {//perhaps this u64 should be a u128 but I believe its fine within my lifetime. Also why would you park a thread that long.
+    pub fn park(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
-        let mut num_parks = self.num_parks.lock().unwrap();
-        *num_parks += 1;
-        if *num_parks > 0 {
-            self.status.write().unwrap().parked = true;
-            drop(self.await_on_park.wait_timeout(num_parks, Duration::from_nanos(time_nanos)).unwrap());
-        }
+        const NANOS_PER_SEC: u128 = 1_000_000_000u128;
+        self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
+            let (secs, nanos) = time_nanos.div_mod_floor(&NANOS_PER_SEC);
+            Duration::new(secs as u64, nanos as u32)
+        }));
+        self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark(&self) {
-        self.await_on_park.notify_one();
-        let mut num_parks_guard = self.num_parks.lock().unwrap();
-        *num_parks_guard -= 1;
-        if *num_parks_guard <= 0 {
-            self.status.write().unwrap().parked = false;
-        }
-        drop(num_parks_guard)
+    pub fn unpark(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+        self.safepoint_state.set_unpark();
+        self.safepoint_state.check(jvm, int_state)
     }
 
-    pub unsafe fn suspend_thread(&self, int_state: &mut InterpreterStateGuard) -> Result<(), SuspendError> {
-        let SuspendedStatus { suspended, suspend_condvar: _ } = &self.suspended;
-        let mut suspended_guard = suspended.lock().unwrap();
-        let res = if *suspended_guard {
-            Err(SuspendError::AlreadySuspended)
-        } else {
-            *suspended_guard = true;
-            Ok(())
-        };
+    pub unsafe fn suspend_thread(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), SuspendError> {
+        if !self.is_alive() {
+            return Err(SuspendError::NotAlive);
+        }
+        self.safepoint_state.set_suspended()?;
         if self.underlying_thread.is_this_thread() {
             assert_eq!(self.java_tid, int_state.thread.java_tid);
-            suspend_check(int_state);
+            safepoint_check(jvm, int_state)?;
         }
-        if !self.is_alive() {
-            Err(SuspendError::NotAlive)
-        } else {
-            res
-        }
+        Ok(())
     }
 
     pub unsafe fn resume_thread(&self) -> Result<(), ResumeError> {
-        let SuspendedStatus { suspended, suspend_condvar } = &self.suspended;
-        let mut suspend_guard = suspended.lock().unwrap();
-        if !*suspend_guard {
-            Err(NotSuspended)
-        } else {
-            *suspend_guard = false;
-            suspend_condvar.notify_one();//notify one and notify all should be the same here
-            Ok(())
-        }
+        self.safepoint_state.set_unsuspended()
     }
 
     pub fn is_this_thread(&self) -> bool {
@@ -522,13 +408,28 @@ impl JavaThread {
     }
 }
 
+#[derive(Debug)]
+pub struct ThreadStatus {
+    pub terminated: bool,
+    pub alive: bool,
+    pub interrupted: bool,
+}
+
+
 pub enum SuspendError {
     AlreadySuspended,
     NotAlive,
+    WasException(WasException),
 }
 
 pub enum ResumeError {
     NotSuspended
+}
+
+impl From<WasException> for SuspendError {
+    fn from(we: WasException) -> Self {
+        Self::WasException(we)
+    }
 }
 
 pub mod monitors;

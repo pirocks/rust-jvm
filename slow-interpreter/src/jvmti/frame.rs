@@ -53,10 +53,9 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     if !java_thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
-    assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
+    // assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
 
     let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
-    // dbg!(java_thread.thread_object().name().to_rust_string());
     count_ptr.write(frame_count as i32);
 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
