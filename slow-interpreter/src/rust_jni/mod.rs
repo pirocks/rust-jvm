@@ -7,6 +7,7 @@ use std::ops::Deref;
 use std::os::raw::c_void;
 use std::sync::{Arc, RwLock};
 
+use itertools::Itertools;
 use libffi::middle::Arg;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
@@ -26,7 +27,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
-use crate::jvm_state::LibJavaLoading;
+use crate::jvm_state::{LibJavaLoading, NativeLib};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::dlopen::{RTLD_GLOBAL, RTLD_LAZY};
 use crate::rust_jni::interface::get_interface;
@@ -37,25 +38,9 @@ pub mod value_conversion;
 pub mod mangling;
 
 impl LibJavaLoading {
-    pub fn new_java_loading(path: String) -> LibJavaLoading {
-        let lib = Library::new(path.clone(), (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
-        let nio_path = path.replace("libjava.so", "libnio.so");
-        let awt_path = path.replace("libjava.so", "libawt.so");
-        let xawt_path = path.replace("libjava.so", "libawt_xawt.so");
-        let zip_path = path.replace("libjava.so", "libzip.so");
-        let libfontmanager_path = path.replace("libjava.so", "libfontmanager.so");
-        let nio_lib = Library::new(nio_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap(); //todo make these expects
-        let libawt = Library::new(awt_path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
-        let libxawt = Library::new(xawt_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
-        let libzip = Library::new(zip_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
-        let libfontmanager = Library::new(libfontmanager_path, (RTLD_NOW | RTLD_GLOBAL as i32) as i32).unwrap();
+    pub fn new() -> LibJavaLoading {
         LibJavaLoading {
-            libjava: lib,
-            libnio: nio_lib,
-            libawt,
-            libxawt,
-            libzip,
-            libfontmanager,
+            native_libs: Default::default(),
             registered_natives: RwLock::new(HashMap::new()),
         }
     }
@@ -63,7 +48,7 @@ impl LibJavaLoading {
 
 
 pub fn call(
-    state: &JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     classfile: Arc<RuntimeClass>,
     method_view: MethodView,
@@ -71,48 +56,27 @@ pub fn call(
     md: MethodDescriptor,
 ) -> Result<Result<Option<JavaValue>, libloading::Error>, WasException> {
     let mangled = mangling::mangle(&method_view);
-    let raw = {
-        let symbol: Symbol<unsafe extern fn()> = unsafe {
-            match state.libjava.libjava.get(mangled.as_bytes()) {
-                Ok(o) => o,
-                Err(_) => {
-                    match state.libjava.libnio.get(mangled.as_bytes()) {
-                        Ok(o) => o,
-                        Err(_) => {
-                            match state.libjava.libawt.get(mangled.as_bytes()) {
-                                Ok(o) => o,
-                                Err(_) => {
-                                    //todo maybe do something about this nesting lol
-                                    match state.libjava.libxawt.get(mangled.as_bytes()) {
-                                        Ok(o) => o,
-                                        Err(_) => {
-                                            //todo maybe do something about this nesting lol
-                                            match state.libjava.libzip.get(mangled.as_bytes()) {
-                                                Ok(o) => o,
-                                                Err(_) => {
-                                                    match state.libjava.libfontmanager.get(mangled.as_bytes()) {
-                                                        Ok(o) => o,
-                                                        Err(e) => {
-                                                            return Ok(Err(e));
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+    let raw: unsafe extern fn() = unsafe {
+        let libraries_guard = jvm.libjava.native_libs.read().unwrap();
+        let possible_symbols = libraries_guard.values().map(|native_lib| native_lib.library.get(&mangled.as_bytes())).collect::<Result<Vec<_>, _>>();
+        match possible_symbols {
+            Ok(symbols) => {
+                if symbols.len() != 1 {
+                    dbg!(symbols.len());
+                    dbg!(mangled);
+                    todo!("handle multiple symbol matches")
                 }
+                let symbol: Symbol<unsafe extern fn()> = symbols.into_iter().next().unwrap();
+                *symbol.deref()
             }
-        };
-        *symbol.deref()
+            Err(err) => return Ok(Err(err))
+        }
     };
+
     Ok(if method_view.is_static() {
-        Ok(call_impl(state, int_state, classfile, args, md, &raw, false)?)
+        Ok(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
     } else {
-        Ok(call_impl(state, int_state, classfile, args, md, &raw, true)?)
+        Ok(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
     })
 }
 

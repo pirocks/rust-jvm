@@ -1,4 +1,4 @@
-use std::ffi::{c_void, CString};
+use std::ffi::{c_void, CString, OsString};
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::os::raw::c_char;
@@ -478,7 +478,7 @@ impl SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn load_libjdwp(jdwp_path: &str) -> SharedLibJVMTI {
+    pub fn load_libjdwp(jdwp_path: &OsString) -> SharedLibJVMTI {
         SharedLibJVMTI {
             lib: Arc::new(Library::new(jdwp_path, RTLD_NOW).unwrap()),
             vm_init_callback: RwLock::new(None),

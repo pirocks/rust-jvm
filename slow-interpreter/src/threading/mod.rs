@@ -9,6 +9,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
 use std::time::Duration;
 
+use libloading::Symbol;
 use num::Integer;
 
 use classfile_view::loading::LoaderName;
@@ -21,6 +22,7 @@ use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_init
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState};
 use crate::interpreter_util::push_new_object;
+use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
@@ -88,7 +90,6 @@ impl ThreadState {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
             let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));//todo think this is correct, check
-            unsafe { jvm.libjava.load(jvm, &mut int_state); }//todo not sure if this should be here
             //handle any excpetions from here
             int_state.pop_frame(jvm, push_guard, false);
             let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
@@ -169,6 +170,15 @@ impl ThreadState {
         bootstrap_thread.notify_alive();
         let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
         new_int_state.register_interpreter_state_guard(jvm);
+        unsafe {
+            jvm.libjava.load(jvm, &mut new_int_state, &jvm.libjava_path, "java".to_string());
+            {
+                let native_libs_guard = jvm.libjava.native_libs.read().unwrap();
+                let libjava_native_lib = native_libs_guard.get("java").unwrap();
+                let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterface_)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
+                (*setup_hack_symbol.deref())(get_invoke_interface(jvm, &mut new_int_state))
+            }
+        }
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
 

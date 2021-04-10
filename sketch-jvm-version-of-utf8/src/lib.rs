@@ -39,6 +39,9 @@ impl JVMString {
         }
     }
 
+    pub fn to_string_validated(&self) -> String {
+        String::from_utf8(self.buf.clone()).unwrap()
+    }
 
     pub fn to_string(&self) -> Result<String, ValidationError> {
         let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8()?;

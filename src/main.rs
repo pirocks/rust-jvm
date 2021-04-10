@@ -6,7 +6,9 @@ extern crate rust_jvm_common;
 extern crate slow_interpreter;
 extern crate verification;
 
+use std::ffi::OsString;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
@@ -24,14 +26,14 @@ fn main() {
     let mut class_entries: Vec<String> = vec![];
     let mut args: Vec<String> = vec![];
     let mut properties: Vec<String> = vec!["java.security.egd".to_string(), "file:/dev/urandom".to_string()];
-    let mut libjava: String = "".to_string();
+    let mut libjava: OsString = OsString::new();
     let mut enable_tracing = false;
     let mut enable_jvmti = false;
     let mut unittest_mode = false;
     let mut store_generated_options = false;
     let mut debug_print_exceptions = false;
     let mut assertions_enabled: bool = false;
-    let mut libjdwp: String = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so".to_string();
+    let mut libjdwp: OsString = OsString::from_str("/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so").unwrap();
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("A jvm written partially in rust");
@@ -43,8 +45,6 @@ fn main() {
         ap.refer(&mut main_class_name)
             .add_option(&["--main"], Store,
                         "Main class");
-        // ap.refer(&mut jars)
-        //     .add_option(&["--jars"], List, "A list of jars from which to load classes");
         ap.refer(&mut class_entries)
             .add_option(&["--classpath"], List, "A list of directories from which to load classes");
         ap.refer(&mut args)
