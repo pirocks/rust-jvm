@@ -54,29 +54,26 @@ pub fn call(
     method_view: MethodView,
     args: Vec<JavaValue>,
     md: MethodDescriptor,
-) -> Result<Result<Option<JavaValue>, libloading::Error>, WasException> {
+) -> Result<Option<Option<JavaValue>>, WasException> {
     let mangled = mangling::mangle(&method_view);
     let raw: unsafe extern fn() = unsafe {
         let libraries_guard = jvm.libjava.native_libs.read().unwrap();
-        let possible_symbols = libraries_guard.values().map(|native_lib| native_lib.library.get(&mangled.as_bytes())).collect::<Result<Vec<_>, _>>();
-        match possible_symbols {
-            Ok(symbols) => {
-                if symbols.len() != 1 {
-                    dbg!(symbols.len());
-                    dbg!(mangled);
-                    todo!("handle multiple symbol matches")
-                }
-                let symbol: Symbol<unsafe extern fn()> = symbols.into_iter().next().unwrap();
+        let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());
+        match possible_symbol {
+            Some(symbol) => {
+                let symbol: Symbol<unsafe extern fn()> = symbol;
                 *symbol.deref()
             }
-            Err(err) => return Ok(Err(err))
+            None => {
+                return Ok(None);
+            }
         }
     };
 
     Ok(if method_view.is_static() {
-        Ok(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
+        Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
     } else {
-        Ok(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
+        Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
     })
 }
 

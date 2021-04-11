@@ -76,7 +76,10 @@ impl NativeAllocator {
         if ptr.is_null() {
             return; // this is needed to be correct w/ malloc of zero size
         }
-        let allocation_type = self.allocations.read().unwrap().get(&(ptr as usize)).unwrap().clone();
+        let allocation_type = match self.allocations.read().unwrap().get(&(ptr as usize)) {
+            Some(x) => x,
+            None => return,
+        }.clone();
         match allocation_type {
             AllocationType::BoxLeak => {
                 unimplemented!()

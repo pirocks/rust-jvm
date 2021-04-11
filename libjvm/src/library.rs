@@ -20,7 +20,7 @@ unsafe extern "system" fn setup_jvm_pointer_hack(invoke_interface_: *const JNIIn
 
 
 #[no_mangle]
-unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
+unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -> *mut c_void {
     let jvm = get_state_invoke_interface(&mut INVOKE_INTERFACE);
     let path = match PossiblyJVMString::new(CStr::from_ptr(name).to_bytes().to_vec()).validate() {
         Ok(path) => match OsString::from_str(path.to_string_validated().as_str()) {
@@ -29,6 +29,7 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
         },
         Err(_) => return null_mut()
     };
+    dbg!(&path);
     let name = match Path::new(&path).file_stem() {
         None => return null_mut(),
         Some(file_name) => {
@@ -38,21 +39,28 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
             }
         }
     };
-    jvm.libjava.get_onload_ptr_and_add(&path, name) as *mut c_void
+    let res = jvm.libjava.get_onload_ptr_and_add(&path, name);
+    dbg!(res as *mut c_void);
+    res as *mut c_void
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut ::std::os::raw::c_void) {
+unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut c_void) {
     let jvm = JVM.as_ref().unwrap();
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut ::std::os::raw::c_void, name: *const ::std::os::raw::c_char) -> *mut ::std::os::raw::c_void {
+unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const ::std::os::raw::c_char) -> *mut c_void {
+    //todo handle name null
     let name = match PossiblyJVMString::new(CStr::from_ptr(name).to_bytes().to_vec()).validate() {
         Ok(name) => name.to_string_validated(),
         Err(ValidationError) => return null_mut()
     };
+    dbg!(&name);
+    if !handle.is_null() && &name == "JNI_OnLoad" {
+        return handle;
+    }
     let jvm = get_state_invoke_interface(&mut INVOKE_INTERFACE);
     match jvm.libjava.lookup_onload(name) {
         Ok(res) => res as *mut c_void,

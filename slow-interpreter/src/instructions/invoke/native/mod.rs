@@ -81,8 +81,8 @@ pub fn run_native_method(
                 return Err(WasException);
             }
         } {
-            Ok(r) => r,
-            Err(_) => {
+            Some(r) => r,
+            None => {
                 match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), &mut args) {
                     Ok(res) => res,
                     Err(_) => None
