@@ -29,7 +29,6 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
         },
         Err(_) => return null_mut()
     };
-    dbg!(&path);
     let name = match Path::new(&path).file_stem() {
         None => return null_mut(),
         Some(file_name) => {
@@ -40,7 +39,6 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
         }
     };
     let res = jvm.libjava.get_onload_ptr_and_add(&path, name);
-    dbg!(res as *mut c_void);
     res as *mut c_void
 }
 
@@ -52,12 +50,13 @@ unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut c_void) {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const ::std::os::raw::c_char) -> *mut c_void {
-    //todo handle name null
+    if name == null() {
+        todo!()
+    }
     let name = match PossiblyJVMString::new(CStr::from_ptr(name).to_bytes().to_vec()).validate() {
         Ok(name) => name.to_string_validated(),
         Err(ValidationError) => return null_mut()
     };
-    dbg!(&name);
     if !handle.is_null() && &name == "JNI_OnLoad" {
         return handle;
     }
