@@ -15,6 +15,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
@@ -37,13 +38,16 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let runtime_class = bootstrap_load(jvm, int_state, class_name.into()).unwrap(); //todo handle exception
+            let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
+                Ok(x) => x,
+                Err(WasException {}) => return null_mut(),
+            };
             let ptype = runtime_class.ptypeview();
             let mut guard = jvm.classes.write().unwrap();
             guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong loader?
             guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
             runtime_class
-        },
+        }
         Some(runtime_class) => {
             runtime_class.clone()
         }

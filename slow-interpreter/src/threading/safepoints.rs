@@ -138,7 +138,7 @@ impl SafePoint {
             }
             if guard.waiting_monitor_lock.is_some() {
                 res |= JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER;
-            } else if let Some(MonitorWait { wait_until, monitor, prev_count }) = &guard.waiting_monitor_notify {
+            } else if let Some(MonitorWait { wait_until, .. }) = &guard.waiting_monitor_notify {
                 res |= JVMTI_THREAD_STATE_WAITING;
                 res |= JVMTI_THREAD_STATE_IN_OBJECT_WAIT;
                 if wait_until.is_none() {
@@ -270,7 +270,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn unlock(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    pub fn unlock(&self, jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
         let mut guard = self.0.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if guard.owner == current_thread.java_tid.into() {
@@ -289,7 +289,7 @@ impl Monitor2 {
     }
 
 
-    pub fn notify(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    pub fn notify(&self, jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
         let mut guard = self.0.write().unwrap();
         if let Some(to_notify) = guard.waiting_notify.pop() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
@@ -299,7 +299,7 @@ impl Monitor2 {
     }
 
 
-    pub fn notify_all(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    pub fn notify_all(&self, jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
         let mut guard = self.0.write().unwrap();
         for to_notify in guard.waiting_notify.drain(..) {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);

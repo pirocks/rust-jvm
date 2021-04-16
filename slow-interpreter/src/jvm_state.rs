@@ -19,7 +19,6 @@ use classfile_view::view::ClassBackedView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classfile::ConstantKind::LiveObject;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;

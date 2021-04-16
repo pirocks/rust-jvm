@@ -204,7 +204,7 @@ pub struct Handler {
     pub class_name: Option<ClassName>,
 }
 
-pub fn handler_exception_class(vf: &VerifierContext, handler: &Handler, loader: LoaderName) -> ClassWithLoader {
+pub fn handler_exception_class(_vf: &VerifierContext, handler: &Handler, loader: LoaderName) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => { ClassWithLoader { class_name: ClassName::throwable(), loader: LoaderName::BootstrapLoader } }
@@ -222,7 +222,7 @@ pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(
     }
 }
 
-pub fn not_init_handler(vf: &VerifierContext, env: &Environment, handler: &Handler) -> bool {
+pub fn not_init_handler(_vf: &VerifierContext, _env: &Environment, _handler: &Handler) -> bool {
     unimplemented!()
 }
 

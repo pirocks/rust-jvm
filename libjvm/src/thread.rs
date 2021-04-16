@@ -149,7 +149,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
     //the dummy appears b/c stuff gets called from static native fucntion in jni, and someone didn't want to get rid of param and just have a direct function pointer
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jobjects = jvm.thread_state.get_all_alive_threads(jvm, int_state).into_iter().map(|java_thread| JavaValue::Object(java_thread.try_thread_object().map(|jthread| jthread.object()))).collect::<Vec<_>>();
+    let jobjects = jvm.thread_state.get_all_alive_threads().into_iter().map(|java_thread| JavaValue::Object(java_thread.try_thread_object().map(|jthread| jthread.object()))).collect::<Vec<_>>();
     let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, ClassName::thread().into()).unwrap_object();
     new_local_ref_public(object_array, int_state)
 }

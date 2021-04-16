@@ -7,13 +7,10 @@ use std::ops::Deref;
 use std::os::raw::c_void;
 use std::sync::{Arc, RwLock};
 
-use itertools::Itertools;
 use libffi::middle::Arg;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use libffi::middle::Type;
-use libloading::Library;
-use libloading::os::unix::RTLD_NOW;
 use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
@@ -27,9 +24,8 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
-use crate::jvm_state::{LibJavaLoading, NativeLib};
+use crate::jvm_state::LibJavaLoading;
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::dlopen::{RTLD_GLOBAL, RTLD_LAZY};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};

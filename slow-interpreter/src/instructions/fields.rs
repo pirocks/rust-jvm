@@ -104,6 +104,8 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
             let res = match fields.get(field_name.as_str()) {
                 Some(x) => x,
                 None => {
+                    dbg!(int_state.current_frame().operand_stack_types());
+                    dbg!(int_state.current_frame().local_vars_types());
                     int_state.debug_print_stack_trace();
                     panic!()
                 },

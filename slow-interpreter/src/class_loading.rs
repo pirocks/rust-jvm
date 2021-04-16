@@ -130,7 +130,10 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
                                 ReferenceTypeView::Array(sub_type) => {
                                     drop(guard);
                                     let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
-                                    Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }))
+                                    let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
+                                    let obj = create_class_object(jvm, int_state, None, loader)?;
+                                    jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(obj), ByAddress(res.clone()));
+                                    res
                                 }
                             }
                         }

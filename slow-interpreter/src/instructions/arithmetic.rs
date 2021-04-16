@@ -1,5 +1,6 @@
 use std::num::Wrapping;
 
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::StackEntry;
 
@@ -135,10 +136,11 @@ pub fn ishr(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Int(value1 >> (value2 & 63)));
 }
 
-pub fn iushr(current_frame: &mut StackEntry) {
+pub fn iushr(int_state: &mut InterpreterStateGuard) {
+    let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let value2 = current_frame.pop().unwrap_int() as u32;
     let value1 = current_frame.pop().unwrap_int() as u32;
-    let res = value1 >> (value2 & 63);
+    let res = value1 >> (value2 & 31);
     current_frame.push(JavaValue::Int(res as i32));
 }
 

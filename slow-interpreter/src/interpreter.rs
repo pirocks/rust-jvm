@@ -337,7 +337,7 @@ fn run_single_instruction(
         InstructionInfo::istore_2 => istore(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::istore_3 => istore(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::isub => isub(interpreter_state.current_frame_mut()),
-        InstructionInfo::iushr => iushr(interpreter_state.current_frame_mut()),
+        InstructionInfo::iushr => iushr(interpreter_state),
         InstructionInfo::ixor => ixor(interpreter_state.current_frame_mut()),
         InstructionInfo::jsr(target) => jsr(interpreter_state, target as i32),
         InstructionInfo::jsr_w(target) => jsr(interpreter_state, target),

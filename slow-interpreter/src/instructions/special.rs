@@ -74,11 +74,12 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             let cast_succeeds = match &a.elem_type {
                 PTypeView::Ref(_) => {
                     //todo wrong for varying depth arrays?
-                    let actual_runtime_class = match check_initing_or_inited_class(jvm, int_state, a.elem_type.unwrap_class_type().into()) {
+                    int_state.debug_print_stack_trace();
+                    let actual_runtime_class = match check_initing_or_inited_class(jvm, int_state, a.elem_type.clone()) {
                         Ok(x) => x,
                         Err(WasException {}) => return,
                     };
-                    let expected_runtime_class = match check_initing_or_inited_class(jvm, int_state, expected_type.unwrap_class_type().into()) {
+                    let expected_runtime_class = match check_initing_or_inited_class(jvm, int_state, expected_type.clone()) {
                         Ok(x) => x,
                         Err(WasException {}) => return,
                     };
@@ -94,6 +95,8 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             if cast_succeeds {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
+                dbg!(&a.elem_type);
+                dbg!(expected_type);
                 unimplemented!()
             }
         }
@@ -167,23 +170,38 @@ fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(state: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> Result<bool, WasException> {
+pub fn inherits_from(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> Result<bool, WasException> {
+    //todo it is questionable whether this logic should be here:
+    if let RuntimeClass::Array(arr) = inherits.deref() {
+        if parent.ptypeview() == ClassName::object().into() ||
+            parent.ptypeview() == ClassName::cloneable().into() ||
+            parent.ptypeview() == ClassName::serializable().into() {
+            return Ok(true)
+        }
+        if let RuntimeClass::Array(parent_arr) = parent.deref() {
+            return inherits_from(jvm, int_state, &arr.sub_class.clone(), &parent_arr.sub_class.clone())
+        }
+    }
+    if inherits.ptypeview().is_primitive() {
+        return Ok(false)
+    }
+
     if inherits.view().name() == parent.view().name() {
         return Ok(true);
     }
     let mut interfaces_match = false;
 
     for (_, i) in inherits.view().interfaces().enumerate() {
-        let interface = runtime_interface_class(state, int_state, i)?;
+        let interface = runtime_interface_class(jvm, int_state, i)?;
         interfaces_match |= interface.view().name() == parent.view().name();
     }
 
 
-    Ok((match runtime_super_class(state, int_state, inherits)? {
+    Ok((match runtime_super_class(jvm, int_state, inherits)? {
         None => false,
         Some(super_) => {
             super_.view().name() == parent.view().name() ||
-                inherits_from(state, int_state, &super_, parent)?
+                inherits_from(jvm, int_state, &super_, parent)?
         }
     }) || interfaces_match)
 }

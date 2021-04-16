@@ -279,7 +279,7 @@ impl ThreadState {
         self.all_java_threads.read().unwrap()
     }
 
-    pub fn get_all_alive_threads(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Vec<Arc<JavaThread>> {
+    pub fn get_all_alive_threads(&self) -> Vec<Arc<JavaThread>> {
         self.all_java_threads.read().unwrap().values().filter(|thread| {
             //don't use is_alive for this
             todo!()

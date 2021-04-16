@@ -624,8 +624,8 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
             let class_name = ClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
-        ConstantInfoView::MethodHandle(mh) => VType::Class(ClassWithLoader { class_name: ClassName::method_handle(), loader: vf.current_loader.clone() }),
-        ConstantInfoView::MethodType(mt) => VType::Class(ClassWithLoader { class_name: ClassName::method_type(), loader: vf.current_loader.clone() }),
+        ConstantInfoView::MethodHandle(_mh) => VType::Class(ClassWithLoader { class_name: ClassName::method_handle(), loader: vf.current_loader.clone() }),
+        ConstantInfoView::MethodType(_mt) => VType::Class(ClassWithLoader { class_name: ClassName::method_type(), loader: vf.current_loader.clone() }),
         ConstantInfoView::LiveObject(idx) => {
             let type_ = vf.live_pool_getter.elem_type(*idx);
             PTypeView::Ref(type_).to_verification_type(&vf.current_loader.clone())
