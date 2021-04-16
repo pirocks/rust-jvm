@@ -31,5 +31,6 @@ members = ["rust-jvm-common",
     "jvmti-jni-bindings",
     "threads",
     "type-safe-proc-macro-utils",
-    "sketch-jvm-version-of-utf8"
+    "sketch-jvm-version-of-utf8",
+    "gc-memory-layout-common"
 ]
