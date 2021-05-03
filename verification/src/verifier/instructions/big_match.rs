@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rust_jvm_common::classfile::{Instruction, InstructionInfo, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 
 use crate::verifier::codecorrectness::Environment;
@@ -11,7 +13,8 @@ use crate::verifier::instructions::special::*;
 use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(instruction: &Instruction, env: &Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe(instruction: &Instruction, env: &mut Environment, offset: usize, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    env.vf.verification_types.entry(env.method.method_index as u16).or_insert(HashMap::new()).insert(offset, stack_frame.clone());
     match &instruction.instruction {
         InstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         InstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),

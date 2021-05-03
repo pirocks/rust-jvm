@@ -1,5 +1,6 @@
 extern crate elapsed;
 
+use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::sync::Arc;
 
@@ -15,7 +16,7 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-pub fn verify(vf: &VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
+pub fn verify(vf: &mut VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
     class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify.name().unwrap_name(),
         loader,
@@ -33,6 +34,7 @@ pub struct VerifierContext<'l> {
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
+    pub verification_types: HashMap<u16, HashMap<usize, Frame>>
 }
 
 
@@ -42,7 +44,7 @@ pub trait ClassFileGetter {
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {
-    data: VecDeque<VType>
+    pub data: VecDeque<VType>
 }
 
 impl Clone for OperandStack {

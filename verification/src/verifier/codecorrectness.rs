@@ -137,19 +137,19 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
     }
 }
 
-pub fn method_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, method.class);
+pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
+    let method_class = get_class(vf, &method.class);
     let method_view = method_class.method_view_i(method.method_index as usize);
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())
     } else {
-        method_with_code_is_type_safe(vf, class, method)
+        method_with_code_is_type_safe(vf, class.clone(), method.clone())
     }
 }
 
-pub struct ParsedCodeAttribute<'l> {
-    pub method: &'l ClassWithLoaderMethod<'l>
+pub struct ParsedCodeAttribute {
+    pub method: ClassWithLoaderMethod,
 }
 
 pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
@@ -170,8 +170,8 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
     }).collect()
 }
 
-pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, class);
+pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
+    let method_class = get_class(vf, &class);
     let method_info = &method_class.method_view_i(method.method_index);
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
@@ -186,13 +186,13 @@ pub fn method_with_code_is_type_safe(vf: &VerifierContext, class: &ClassWithLoad
         .collect();
     let end_of_code = Instruction { offset: final_offset, instruction: InstructionInfo::EndOfCode };
     instructs.push(&end_of_code);
-    let handlers = get_handlers(vf, class, code);
-    let stack_map: Vec<StackMap> = get_stack_map_frames(vf, class, method_info);
+    let handlers = get_handlers(vf, &class, code);
+    let stack_map: Vec<StackMap> = get_stack_map_frames(vf, &class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
-    let (frame, return_type) = method_initial_stack_frame(vf, class, method, frame_size)?;
-    let env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf: vf };
+    let (frame, return_type) = method_initial_stack_frame(vf, &class, &method, frame_size)?;
+    let mut env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf };
     handlers_are_legal(&env)?;
-    merged_code_is_type_safe(&env, merged.as_slice(), FrameResult::Regular(frame))?;
+    merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
     Result::Ok(())
 }
 
@@ -215,11 +215,12 @@ pub fn handler_exception_class(_vf: &VerifierContext, handler: &Handler, loader:
 }
 
 pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
-    if not_init_handler(&_env.vf, _env, _handler) {
-        todo!()
-    } else {
-        todo!()
-    }
+    return Result::Ok(())
+    // if not_init_handler(&_env.vf, _env, _handler) {
+    //     todo!()
+    // } else {
+    //     todo!()
+    // }
 }
 
 pub fn not_init_handler(_vf: &VerifierContext, _env: &Environment, _handler: &Handler) -> bool {
@@ -234,15 +235,15 @@ pub fn not_init_handler(_vf: &VerifierContext, _env: &Environment, _handler: &Ha
 pub enum UnifiedInstruction {}
 
 #[allow(dead_code)]
-pub struct Environment<'l> {
-    pub method: &'l ClassWithLoaderMethod<'l>,
+pub struct Environment<'l, 'k> {
+    pub method: ClassWithLoaderMethod,
     pub return_type: VType,
     pub frame_size: u16,
     pub max_stack: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
     pub class_loader: LoaderName,
     pub handlers: Vec<Handler>,
-    pub vf: &'l VerifierContext<'l>,
+    pub vf: &'l mut VerifierContext<'k>,
 }
 
 #[derive(Debug)]
@@ -276,6 +277,7 @@ assumes that stackmaps and instructions are ordered
 pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
+    dbg!(&res);
     res
 }
 
@@ -352,7 +354,7 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
 
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<Option<VType>, TypeSafetyError> {
-    let method_class = get_class(vf, method.class);
+    let method_class = get_class(vf, &method.class);
     let method_view = method_class.method_view_i(method.method_index);
     if method_view.is_static() {
         let method_name = method_view.name();
@@ -367,7 +369,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
-    let classfile = get_class(vf, method.class);
+    let classfile = get_class(vf, &method.class);
     let method_name_ = classfile.method_view_i(method.method_index).name();
     let method_name = method_name_.deref();
     if method_name == "<init>" {

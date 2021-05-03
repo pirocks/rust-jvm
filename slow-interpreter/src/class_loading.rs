@@ -7,11 +7,13 @@ use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
 
-use classfile_view::loading::LoaderName;
+use classfile_view::loading::{LivePoolGetter, LoaderName};
 use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use verification::{ClassFileGetter, VerifierContext, verify};
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -157,6 +159,25 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
     }
 }
 
+pub struct DefaultClassfileGetter<'l> {
+    jvm: &'l JVMState,
+}
+
+impl ClassFileGetter for DefaultClassfileGetter<'_> {
+    fn get_classfile(&self, _loader: LoaderName, class: ClassName) -> Arc<Classfile> {
+        //todo verification needs to be better hooked in
+        self.jvm.classpath.lookup(&class).unwrap()
+    }
+}
+
+pub struct DefaultLivePoolGetter {}
+
+impl LivePoolGetter for DefaultLivePoolGetter {
+    fn elem_type(&self, _idx: usize) -> ReferenceTypeView {
+        todo!()
+    }
+}
+
 pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
     let (class_object, runtime_class) = match ptype.clone() {
         PTypeView::ByteType => (create_class_object(jvm, int_state, ClassName::new("byte").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Byte)),
@@ -177,11 +198,27 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     }
                 };
                 let class_view = Arc::new(ClassBackedView::from(classfile.clone()));
+                let mut verifier_context = VerifierContext {
+                    live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
+                    classfile_getter: Arc::new(DefaultClassfileGetter {
+                        jvm
+                    }) as Arc<dyn ClassFileGetter>,
+                    current_loader: LoaderName::BootstrapLoader,
+                    verification_types: Default::default(),
+                };
+                verify(&mut verifier_context, class_view.deref(), LoaderName::BootstrapLoader).unwrap();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     static_vars: Default::default(),
                     status: ClassStatus::UNPREPARED.into(),
                 }));
+                let verification_types = verifier_context.verification_types;
+                let mut method_table = jvm.method_table.write().unwrap();
+                for (method_i, verification_types) in verification_types {
+                    let method_id = method_table.get_method_id(res.clone(), method_i);
+                    jvm.function_frame_type_data.write().unwrap().insert(method_id, verification_types);
+                }
+                drop(method_table);
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));

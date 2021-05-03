@@ -44,7 +44,7 @@ pub enum FrameResult {
     AfterGoto,
 }
 
-pub fn merged_code_is_type_safe(env: &Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
+pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0];//infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
     match first {
@@ -638,7 +638,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
 }
 
 pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, env.method.class);
+    let view = get_class(&env.vf, &env.method.class);
     let const_ = &view.constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {
@@ -650,7 +650,7 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: Fram
 }
 
 pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, env.method.class);
+    let view = get_class(&env.vf, &env.method.class);
     let const_ = &view.constant_pool_view(cp as usize);
     let type_ = match const_ {
         ConstantInfoView::Integer(_) => VType::IntType,
@@ -664,7 +664,7 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, env.method.class);
+    let view = get_class(&env.vf, &env.method.class);
     let const_ = &view.constant_pool_view(cp as usize);
     let type_: VType = loadable_constant(&env.vf, const_);
     match type_ {

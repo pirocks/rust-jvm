@@ -57,9 +57,9 @@ pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) ->
     // unimplemented!()
 }
 
-#[derive(Debug)]
-pub struct ClassWithLoaderMethod<'l> {
-    pub class: &'l ClassWithLoader,
+#[derive(Debug, Clone)]
+pub struct ClassWithLoaderMethod {
+    pub class: ClassWithLoader,
     pub method_index: usize,
 }
 
@@ -88,7 +88,7 @@ pub enum TypeSafetyError {
     NotSafe(String),
 }
 
-pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
+pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
         if !is_bootstrap_loader(&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
@@ -105,7 +105,7 @@ pub fn class_is_type_safe(vf: &VerifierContext, class: &ClassWithLoader) -> Resu
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }
     }
-    let methods = get_class_methods(vf, class);
+    let methods = get_class_methods(vf, class.clone());
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         method_is_type_safe(vf, class, m)
     }).collect();

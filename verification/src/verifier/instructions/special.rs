@@ -32,7 +32,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stac
 
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
     passes_protected_check(env, &field_class_name, field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -41,7 +41,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
     type_transition(env, stack_frame, vec![], field_type)
 }
@@ -111,7 +111,7 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: Frame) ->
 //todo duplication with class name parsing and array logic
 pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object_class = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.current_loader.clone() };
-    let class = get_class(&env.vf, env.method.class);
+    let class = get_class(&env.vf, &env.method.class);
     let result_type = match &class.constant_pool_view(index) {
         ConstantInfoView::Class(c) => {
             let name = c.class_ref_type();
@@ -125,7 +125,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 
 
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_classfile = get_class(&env.vf, env.method.class);
+    let method_classfile = get_class(&env.vf, &env.method.class);
     if method_classfile.method_view_i(env.method.method_index).name().deref() == "<init>" {
         if let Ok(res) = instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
             return Result::Ok(res)
@@ -139,13 +139,13 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_f
 
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
-    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to isInit
-    let method_classfile = get_class(&env.vf, env.method.class);
+    let method_classfile = get_class(&env.vf, &env.method.class);
     if method_classfile.method_view_i(env.method.method_index).name().deref() != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
@@ -156,7 +156,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 }
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -188,7 +188,7 @@ pub fn extract_field_descriptor(cp: CPIndex, class: &dyn ClassView) -> (ClassNam
 }
 
 pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -205,7 +205,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
 }
 
 pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let classfile = get_class(&env.vf, env.method.class);
+    let classfile = get_class(&env.vf, &env.method.class);
     let expected_type = PTypeView::Ref(classfile.constant_pool_view(cp).unwrap_class().class_ref_type());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env, &expected_type.to_verification_type(&env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
@@ -236,7 +236,7 @@ pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment,
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(&env.vf, env.method.class).constant_pool_view(cp) {
+    match &get_class(&env.vf, &env.method.class).constant_pool_view(cp) {
         ConstantInfoView::Class(_) => {}
         _ => panic!()
     };

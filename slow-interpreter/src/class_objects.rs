@@ -19,6 +19,5 @@ pub fn get_or_create_class_object(jvm: &JVMState,
 
 pub fn get_or_create_class_object_force_loader(jvm: &JVMState, type_: PTypeView, int_state: &mut InterpreterStateGuard, loader: LoaderName) -> Result<Arc<Object>, WasException> {
     let arc = check_loaded_class_force_loader(jvm, int_state, &type_, loader)?;
-    dbg!(type_);
     Ok(jvm.classes.write().unwrap().class_object_pool.get_by_right(&ByAddress(arc.clone())).unwrap().clone().0)
 }

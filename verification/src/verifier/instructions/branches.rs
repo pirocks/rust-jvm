@@ -91,7 +91,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stac
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.class);
+    let method_class = get_class(&env.vf, &env.method.class);
     let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InvokeDynamic(i) => {
             (i.name_and_type().name(), i.name_and_type().desc_method())
@@ -111,7 +111,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
 }
 
 pub fn instruction_is_type_safe_invokeinterface(cp: usize, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, env.method.class);
+    let method_class = get_class(&env.vf, &env.method.class);
     let ((method_name, descriptor), ref_type) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InterfaceMethodref(i) => {
             ((i.name_and_type().name(), i.name_and_type().desc_method()), i.class())
@@ -146,7 +146,7 @@ fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame:
 }
 
 pub fn instruction_is_type_safe_invokespecial(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let method_class_name = match method_class_type {
         PTypeView::Ref(ReferenceTypeView::Class(c)) => c,
         _ => panic!()
@@ -249,7 +249,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                         Some(new_this) => match new_this {
                             MergedCodeInstruction::Instruction(instr) => match instr.instruction {
                                 InstructionInfo::new(this) => {
-                                    let method_class = get_class(&env.vf, env.method.class);
+                                    let method_class = get_class(&env.vf, &env.method.class);
                                     match &method_class.constant_pool_view(this as usize) {
                                         ConstantInfoView::Class(c) => {
                                             let class_name = c.class_ref_type().unwrap_name();
@@ -308,7 +308,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
 }
 
 pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class_view = get_class(&env.vf, env.method.class);
+    let method_class_view = get_class(&env.vf, &env.method.class);
     let (_class_name, method_name, parsed_descriptor) = get_method_descriptor(cp, &*method_class_view);
     if method_name.contains("arrayOf") || method_name.contains('[') || &method_name == "<init>" || &method_name == "<clinit>" {
         unimplemented!();
@@ -342,7 +342,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
 }
 
 pub fn instruction_is_type_safe_invokevirtual(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, env.method.class));
+    let (class_type, method_name, parsed_descriptor) = get_method_descriptor(cp, &*get_class(&env.vf, &env.method.class));
     let (class_name, method_class) = match class_type {
         PTypeView::Ref(r) => {
             match r {

@@ -36,10 +36,10 @@ pub fn is_bootstrap_loader(loader: &LoaderName) -> bool {
     loader == &BootstrapLoader
 }
 
-pub fn get_class_methods<'l>(vf: &VerifierContext, class: &'l ClassWithLoader) -> Vec<ClassWithLoaderMethod<'l>> {
+pub fn get_class_methods(vf: &VerifierContext, class: ClassWithLoader) -> Vec<ClassWithLoaderMethod> {
     let mut res = vec![];
-    for method_index in 0..get_class(vf, class).num_methods() {
-        res.push(ClassWithLoaderMethod { class, method_index })
+    for method_index in 0..get_class(vf, &class).num_methods() {
+        res.push(ClassWithLoaderMethod { class: class.clone(), method_index })
     }
     res
 }
@@ -318,19 +318,19 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
 
 pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if same
-    get_class(vf, method.class).method_view_i(method.method_index as usize).is_final()
+    get_class(vf, &method.class).method_view_i(method.method_index as usize).is_final()
 }
 
 
 pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if same
-    get_class(vf, method.class).method_view_i(method.method_index as usize).is_static()
+    get_class(vf, &method.class).method_view_i(method.method_index as usize).is_static()
 }
 
 pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
     //todo check if method class and class same
-//    assert!(class == method.class);
-    get_class(vf, method.class).method_view_i(method.method_index as usize).is_private()
+//    assert!(class == &method.class);
+    get_class(vf, &method.class).method_view_i(method.method_index as usize).is_private()
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
@@ -354,14 +354,14 @@ pub fn final_method_not_overridden(
     super_class: &ClassWithLoader,
     super_method_list: &[ClassWithLoaderMethod],
 ) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, method.class);
+    let method_class = get_class(vf, &method.class);
     let method_info = &method_class.method_view_i(method.method_index);
     let method_name__ = method_info.name();
     let method_name_ = method_name__.deref();
     let descriptor_string = method_info.desc_str();
     //todo this stuff needs indexing. The below is guilty of 3% total init time.
     let matching_method = super_method_list.iter().find(|x| {
-        let x_method_class = get_class(vf, x.class);
+        let x_method_class = get_class(vf, &x.class);
         let x_method_info = &x_method_class.method_view_i(x.method_index);
         let x_method_name_ = x_method_info.name();
         let x_method_name = x_method_name_.deref();
@@ -392,13 +392,13 @@ pub fn final_method_not_overridden(
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let super_class_name = class_super_class_name(vf, class);
     let super_class = loaded_class(vf, super_class_name, vf.current_loader.clone())?;
-    let super_methods_list = get_class_methods(vf, &super_class);
+    let super_methods_list = get_class_methods(vf, super_class.clone());
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }
 
 pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
     //todo why the duplicate parameters?
-    get_class(vf, method.class).method_view_i(method.method_index as usize).access_flags()
+    get_class(vf, &method.class).method_view_i(method.method_index as usize).access_flags()
 }
 
 //todo ClassName v. Name

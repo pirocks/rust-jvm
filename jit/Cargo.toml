@@ -1,0 +1,18 @@
+[package]
+name = "jit"
+version = "0.1.0"
+authors = ["Francis Nixon <13nixonf@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+jit-ir = { path = "../jit-ir" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+verification = { path = "../verification" }
+iced-x86 = "1.11.1"
+libc = "0.2.94"
+nix = "0.20.0"
+compiler_builtins = { git = "https://github.com/rust-lang/compiler-builtins" }
+

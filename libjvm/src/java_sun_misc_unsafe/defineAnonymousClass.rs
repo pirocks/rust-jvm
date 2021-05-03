@@ -56,7 +56,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader();
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader };
+    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader, verification_types: Default::default() };
     let class_view = ClassBackedView::from(parsed.clone());
     if jvm.store_generated_classes {
         File::create(class_view.type_().class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();

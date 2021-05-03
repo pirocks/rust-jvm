@@ -22,6 +22,7 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;
+use verification::verifier::Frame;
 
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -77,6 +78,8 @@ pub struct JVMState {
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<Arc<Object>>, Vec<StackTraceElement>>>,
 
     pub monitors2: RwLock<Vec<Monitor2>>,
+
+    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<usize, Frame>>>
 }
 
 pub struct Classes {
@@ -172,6 +175,7 @@ impl JVMState {
             assertions_enabled,
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             monitors2: RwLock::new(vec![]),
+            function_frame_type_data: Default::default()
         };
         jvm.add_class_class_class_object();
         (args, jvm)

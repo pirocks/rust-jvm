@@ -78,7 +78,6 @@ impl Display for LoaderName {
 }
 
 
-
 pub struct ClassWithLoader {
     pub class_name: ClassName,
     pub loader: LoaderName,
