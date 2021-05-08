@@ -81,31 +81,32 @@ rbx
 rcx
 rdx
 are reserved for temp in instructions
+r15 is reserved for context pointer
     **/
     pub fn to_x86(&self, instructions: &mut Vec<Instruction>) {
         match self {
             IRInstruction::LoadAbsolute { address_from, output_offset, size } => {
                 let mem = MemoryOperand::with_base_displ(Register::RBP, address_from.0 as i64);
-                let load_address = Instruction::with_reg_mem(Code::Movq_rm64_mm, Register::RAX, mem);
+                let load_address = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RAX, mem);
                 let load_value = match size {
                     Size::Byte => todo!(),
                     Size::Short => todo!(),
                     Size::Int => Instruction::with_reg_mem(Code::Movd_rm32_mm, Register::EBX, MemoryOperand::with_base(Register::RAX)),
-                    Size::Long => Instruction::with_reg_mem(Code::Movq_rm64_mm, Register::RBX, MemoryOperand::with_base(Register::RAX))
+                    Size::Long => Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBX, MemoryOperand::with_base(Register::RAX))
                 };
                 // let write_value = Instruction::with_reg_mem();
                 instructions.push(load_address);
                 instructions.push(load_value);
                 // instructions.push(write_value)
             }
-            IRInstruction::StoreAbsolute { .. } => {}
-            IRInstruction::CopyRelative { .. } => {}
-            IRInstruction::IntegerArithmetic { .. } => {}
-            IRInstruction::BranchUnConditional(_) => {}
-            IRInstruction::BranchIf0 { .. } => {}
-            IRInstruction::VMExit(_) => {}
-            IRInstruction::StoreConstant { .. } => {}
-            IRInstruction::Return { .. } => {}
+            IRInstruction::StoreAbsolute { .. } => todo!(),
+            IRInstruction::CopyRelative { .. } => todo!(),
+            IRInstruction::IntegerArithmetic { .. } => todo!(),
+            IRInstruction::BranchUnConditional(_) => todo!(),
+            IRInstruction::BranchIf0 { .. } => todo!(),
+            IRInstruction::VMExit(_) => todo!(),
+            IRInstruction::StoreConstant { .. } => todo!(),
+            IRInstruction::Return { .. } => todo!(),
         }
     }
 }

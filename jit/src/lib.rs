@@ -3,6 +3,7 @@
 extern crate compiler_builtins;
 
 use std::ffi::c_void;
+use std::mem::transmute;
 use std::panic::panic_any;
 use std::ptr::null_mut;
 use std::sync::atomic::{fence, Ordering};
@@ -14,7 +15,6 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use jit_ir::{Constant, IRInstruction, Size, VariableSize};
 use rust_jvm_common::classfile::{Instruction, InstructionInfo};
-
 
 pub enum JITError {
     NotSupported
@@ -302,9 +302,9 @@ const MAX_CODE_SIZE: usize = 1_000_000;
 
 impl JITedCode {
     pub unsafe fn add_code_region(&mut self, instructions: &[iced_x86::Instruction]) -> usize {
-        let prot_flags = ProtFlags::PROT_EXEC | ProtFlags::PROT_WRITE;
+        let prot_flags = ProtFlags::PROT_EXEC | ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
         let flags = MapFlags::MAP_ANONYMOUS | MapFlags::MAP_NORESERVE | MapFlags::MAP_PRIVATE;
-        let mmap_addr = mmap(null_mut(), MAX_CODE_SIZE, prot_flags, flags, -1, 0).unwrap();
+        let mmap_addr = mmap(transmute(0x1000000usize), MAX_CODE_SIZE, prot_flags, flags, -1, 0).unwrap();
         let rip_start = mmap_addr as u64;
 
         let block = InstructionBlock::new(instructions, rip_start as u64);
@@ -327,6 +327,13 @@ impl JITedCode {
 
     pub unsafe fn run_jitted_coded(&self, id: usize) {
         let as_ptr = self.code[id].raw;
+        let as_num = as_ptr as u64;
+        let rust_stack: u64 = 0xdeadbeaf;
+        let rust_frame: u64 = 0xdeadbeaf;
+        let jit_code_context = JitCodeContext {
+            previous_stack: 0xdeaddeaddeaddead
+        };
+        let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
         asm!(
         "push rbx",
         "push rbp",
@@ -334,7 +341,7 @@ impl JITedCode {
         "push r13",
         "push r14",
         "push r15",
-        // technically these need only be saved by windows
+        // technically these need only be saved on windows
         //todo perhaps should use pusha/popa here, b/c this must be really slow
         // "push xmm6",
         // "push xmm7",
@@ -348,7 +355,17 @@ impl JITedCode {
         // "push xmm15",
         "push rsp",
         //todo need to setup rsp and frame pointer for java stack
-        "jmp qword ptr [{0}]",
+        "nop",
+        // load java frame pointer
+        "mov rbp, {1}",
+        // store old stack pointer into context
+        "mov [{3}],rsp",
+        // load java stack pointer
+        "mov rsp, {2}",
+        // load context pointer into r15
+        "mov r15,{3}",
+        // jump to jitted code
+        "jmp {0}",
         "pop rsp",
         // "pop xmm15",
         // "pop xmm14",
@@ -366,10 +383,19 @@ impl JITedCode {
         "pop r12",
         "pop rbp",
         "pop rbx",
-        in(reg) as_ptr,
+        in(reg) as_num,
+        in(reg) rust_frame,
+        in(reg) rust_stack,
+        in(reg) jit_context_pointer
         );
+
         todo!("need to get return val")
     }
+}
+
+#[repr(C)]
+pub struct JitCodeContext {
+    previous_stack: u64,
 }
 
 
