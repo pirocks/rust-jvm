@@ -12,8 +12,10 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::CPIndex;
+use verification::verifier::filecorrectness::is_java_sub_class_of;
 use verification::verifier::Frame;
 
+use crate::instructions::special::inherits_from;
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
@@ -234,7 +236,7 @@ impl<'l> InterpreterStateGuard<'l> {
         Ok(())
     }
 
-    pub fn verify_frame(&self, jvm: &JVMState) {
+    pub fn verify_frame(&mut self, jvm: &JVMState) {
         if let Some(method_id) = self.current_frame().current_method_id(jvm) {
             let guard = jvm.function_frame_type_data.read().unwrap();
             let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
@@ -253,6 +255,7 @@ impl<'l> InterpreterStateGuard<'l> {
                     dbg!(type_);
                     dbg!(&stack_map.data.iter().rev().collect_vec());
                     dbg!(&java_val_stack);
+                    self.debug_print_stack_trace();
                     panic!()
                 }
             }
@@ -262,7 +265,9 @@ impl<'l> InterpreterStateGuard<'l> {
                     dbg!(jv);
                     dbg!(type_);
                     dbg!(&local_java_vals);
+                    dbg!(&local_java_vals.iter().map(|jv| jv.to_type()).collect_vec());
                     dbg!(&locals);
+                    self.debug_print_stack_trace();
                     panic!()
                 }
             }
@@ -283,7 +288,8 @@ fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
             match jv.unwrap_object() {
                 None => true,
                 Some(obj) => {
-                    obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
+                    true//todo need more granular
+                    // obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
                 }
             }
         }

@@ -404,6 +404,7 @@ pub mod string {
     use std::cell::UnsafeCell;
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::classnames::ClassName;
 
@@ -440,7 +441,7 @@ pub mod string {
             let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
             let array_object = ArrayObject {
                 elems: UnsafeCell::new(vec1),
-                elem_type: ClassName::string().into(),
+                elem_type: PTypeView::CharType,
                 monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
