@@ -1061,10 +1061,10 @@ version = "0.1.0"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
- "bimap",
- "bindgen",
- "by_address",
- "classfile-parser",
+    "bimap",
+    "bindgen",
+    "by_address",
+    "classfile-parser",
     "classfile-view",
     "errno",
     "futures-intrusive",
@@ -1118,9 +1118,9 @@ dependencies = [
     "discard",
     "rustc_version",
     "stdweb-derive",
- "stdweb-internal-macros",
- "stdweb-internal-runtime",
- "wasm-bindgen",
+    "stdweb-internal-macros",
+    "stdweb-internal-runtime",
+    "wasm-bindgen",
 ]
 
 [[package]]

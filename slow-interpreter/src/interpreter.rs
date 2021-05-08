@@ -184,6 +184,7 @@ fn run_single_instruction(
     interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
 ) {
+    interpreter_state.verify_frame(jvm);
     match instruct {
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),

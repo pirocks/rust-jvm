@@ -1,11 +1,18 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::mem::transmute;
+use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::{Arc, RwLockWriteGuard};
 
-use classfile_view::loading::LoaderName;
+use itertools::Itertools;
+
+use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::CPIndex;
+use verification::verifier::Frame;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
@@ -18,7 +25,7 @@ pub struct InterpreterState {
     pub throw: Option<Arc<Object>>,
     pub function_return: bool,
     pub(crate) call_stack: Vec<StackEntry>,
-    pub(crate) should_frame_pop_notify: HashSet<usize>
+    pub(crate) should_frame_pop_notify: HashSet<usize>,
 }
 
 impl Default for InterpreterState {
@@ -31,7 +38,7 @@ impl Default for InterpreterState {
             suspended_lock: Arc::new(Mutex::new(())),
         }),*/
             call_stack: vec![],
-            should_frame_pop_notify: HashSet::new()
+            should_frame_pop_notify: HashSet::new(),
         }
     }
 }
@@ -221,12 +228,116 @@ impl<'l> InterpreterStateGuard<'l> {
         }
         let entry = &int_state.call_stack[depth];
         if entry.is_native() || entry.try_class_pointer().is_none() {
-            return Err(Opaque)
+            return Err(Opaque);
         }
         int_state.should_frame_pop_notify.insert(depth);
         Ok(())
     }
+
+    pub fn verify_frame(&self, jvm: &JVMState) {
+        if let Some(method_id) = self.current_frame().current_method_id(jvm) {
+            let guard = jvm.function_frame_type_data.read().unwrap();
+            let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
+                Some(x) => x,
+                None => {
+                    eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
+                    return;
+                }
+            }.get(&self.current_pc()).unwrap();
+            let local_java_vals = self.current_frame().local_vars();
+            let java_val_stack = self.current_frame().operand_stack();
+            assert_eq!(stack_map.len(), java_val_stack.len());
+            for (jv, type_) in java_val_stack.iter().zip(stack_map.data.iter().rev()) {
+                if !compatible_with_type(jv, type_) {
+                    dbg!(jv);
+                    dbg!(type_);
+                    dbg!(&stack_map.data.iter().rev().collect_vec());
+                    dbg!(&java_val_stack);
+                    panic!()
+                }
+            }
+            assert_eq!(local_java_vals.len(), locals.deref().len());
+            for (jv, type_) in local_java_vals.iter().zip(locals.iter()) {
+                if !compatible_with_type(jv, type_) {
+                    dbg!(jv);
+                    dbg!(type_);
+                    dbg!(&local_java_vals);
+                    dbg!(&locals);
+                    panic!()
+                }
+            }
+        }
+    }
 }
+
+fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
+    match type_ {
+        VType::DoubleType => todo!(),
+        VType::FloatType => todo!(),
+        VType::IntType => {
+            jv.unwrap_int();
+            true
+        }
+        VType::LongType => todo!(),
+        VType::Class(ClassWithLoader { class_name, .. }) => {
+            match jv.unwrap_object() {
+                None => true,
+                Some(obj) => {
+                    obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
+                }
+            }
+        }
+        VType::ArrayReferenceType(array_ref) => {
+            let elem_type = jv.unwrap_array().elem_type.clone();
+            dbg!(&elem_type);
+            match &elem_type {
+                PTypeView::ByteType => todo!(),
+                PTypeView::CharType => todo!(),
+                PTypeView::DoubleType => todo!(),
+                PTypeView::FloatType => todo!(),
+                PTypeView::IntType => todo!(),
+                PTypeView::LongType => todo!(),
+                PTypeView::Ref(ref_) => {
+                    match ref_ {
+                        ReferenceTypeView::Class(class_) => {
+                            &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
+                        }
+                        ReferenceTypeView::Array(array_) => {
+                            todo!()
+                        }
+                    }
+                }
+                PTypeView::ShortType => todo!(),
+                PTypeView::BooleanType => todo!(),
+                PTypeView::VoidType => todo!(),
+                PTypeView::TopType => todo!(),
+                PTypeView::NullType => todo!(),
+                PTypeView::Uninitialized(_) => todo!(),
+                PTypeView::UninitializedThis => todo!(),
+                PTypeView::UninitializedThisOrClass(_) => todo!()
+            }
+        }
+        VType::VoidType => todo!(),
+        VType::TopType => todo!(),
+        VType::NullType => {
+            jv.unwrap_object().is_none()
+        }
+        VType::Uninitialized(_) => {
+            jv.unwrap_object_nonnull();
+            true
+        }
+        VType::UninitializedThis => {
+            jv.unwrap_object_nonnull();
+            true
+        }
+        VType::UninitializedThisOrClass(_) => todo!(),
+        VType::TwoWord => todo!(),
+        VType::OneWord => todo!(),
+        VType::Reference => todo!(),
+        VType::UninitializedEmpty => todo!(),
+    }
+}
+
 
 pub enum AddFrameNotifyError {
     Opaque,
@@ -236,7 +347,7 @@ pub enum AddFrameNotifyError {
 
 #[must_use = "Must handle frame push guard. "]
 pub struct FramePushGuard {
-    correctly_exited: bool
+    correctly_exited: bool,
 }
 
 impl Default for FramePushGuard {

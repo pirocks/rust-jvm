@@ -11,6 +11,7 @@ use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
+use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
 
 /// If the frame is opaque then this data is optional.
@@ -57,6 +58,8 @@ impl StackEntry {
         let max_locals = class_pointer.view().method_view_i(method_i as usize).code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
+        let mut guard = jvm.method_table.write().unwrap();
+        let method_id = guard.get_method_id(class_pointer.clone(), method_i);
         Self {
             loader,
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
@@ -182,6 +185,12 @@ impl StackEntry {
 
     pub fn is_opaque_frame(&self) -> bool {
         self.try_class_pointer().is_none() || self.try_method_i().is_none() || self.is_native()
+    }
+
+    pub fn current_method_id(&self, jvm: &JVMState) -> Option<MethodId> {
+        let optional = self.opaque_frame_optional.as_ref()?;
+        let mut guard = jvm.method_table.write().unwrap();
+        Some(guard.get_method_id(optional.class_pointer.clone(), optional.method_i))
     }
 }
 
