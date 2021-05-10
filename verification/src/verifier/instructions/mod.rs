@@ -39,6 +39,7 @@ pub enum InstructionTypeSafe {
     AfterGoto(AfterGotoFrames),
 }
 
+#[derive(Debug)]
 pub enum FrameResult {
     Regular(Frame),
     AfterGoto,
@@ -47,6 +48,10 @@ pub enum FrameResult {
 pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0];//infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
+    if env.vf.debug {
+        dbg!(first);
+        dbg!(&after_frame);
+    }
     match first {
         MergedCodeInstruction::Instruction(i) => {
             let f = match after_frame {

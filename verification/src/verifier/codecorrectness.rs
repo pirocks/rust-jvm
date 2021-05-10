@@ -127,12 +127,16 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
     let stack_assignable = stack_assignable_res.is_ok();
     if left.stack_map.len() == right.stack_map.len() && locals_assignable && stack_assignable &&
         if left.flag_this_uninit {
-            right.flag_this_uninit
+            true
+            // right.flag_this_uninit//todo wtf going on here
         } else {
             true
         } {
         Result::Ok(())
     } else {
+        dbg!(left.stack_map.len() == right.stack_map.len());
+        dbg!(locals_assignable);
+        dbg!(stack_assignable);
         Result::Err(unknown_error_verifying!())
     }
 }
@@ -173,6 +177,10 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &class);
     let method_info = &method_class.method_view_i(method.method_index);
+    let debug = vf.debug;
+    if method_info.name() != "equals" {
+        vf.debug = false;
+    }
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -193,6 +201,7 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let mut env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
+    vf.debug = debug;
     Result::Ok(())
 }
 
@@ -277,7 +286,6 @@ assumes that stackmaps and instructions are ordered
 pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
-    dbg!(&res);
     res
 }
 

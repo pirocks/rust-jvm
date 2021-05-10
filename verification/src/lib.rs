@@ -34,7 +34,8 @@ pub struct VerifierContext<'l> {
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
-    pub verification_types: HashMap<u16, HashMap<usize, Frame>>
+    pub verification_types: HashMap<u16, HashMap<usize, Frame>>,
+    pub debug: bool,
 }
 
 

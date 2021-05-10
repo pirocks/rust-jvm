@@ -107,7 +107,7 @@ pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
                     dbg!(int_state.current_frame().operand_stack_types());
                     dbg!(int_state.current_frame().local_vars_types());
                     int_state.debug_print_stack_trace();
-                    panic!()
+                    panic!()//todo need to completely revamp the way field accesses work here. so like you can't access non-existing
                 },
             }.clone();
             current_frame.push(res);

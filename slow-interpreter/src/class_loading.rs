@@ -205,6 +205,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     }) as Arc<dyn ClassFileGetter>,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
+                    debug: class_name == ClassName::string()
                 };
                 verify(&mut verifier_context, class_view.deref(), LoaderName::BootstrapLoader).unwrap();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {

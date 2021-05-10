@@ -1,8 +1,7 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::mem::transmute;
 use std::ops::Deref;
-use std::ptr::null_mut;
 use std::sync::{Arc, RwLockWriteGuard};
 
 use itertools::Itertools;
@@ -12,10 +11,9 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::CPIndex;
-use verification::verifier::filecorrectness::is_java_sub_class_of;
+use verification::OperandStack;
 use verification::verifier::Frame;
 
-use crate::instructions::special::inherits_from;
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
@@ -248,7 +246,14 @@ impl<'l> InterpreterStateGuard<'l> {
             }.get(&self.current_pc()).unwrap();
             let local_java_vals = self.current_frame().local_vars();
             let java_val_stack = self.current_frame().operand_stack();
-            assert_eq!(stack_map.len(), java_val_stack.len());
+            let stack_map = remove_tops(stack_map);
+            if stack_map.len() != java_val_stack.len() {
+                dbg!(&stack_map.data.iter().rev().collect_vec());
+                dbg!(&java_val_stack);
+                self.debug_print_stack_trace();
+                dbg!(self.current_pc());
+                panic!()
+            }
             for (jv, type_) in java_val_stack.iter().zip(stack_map.data.iter().rev()) {
                 if !compatible_with_type(jv, type_) {
                     dbg!(jv);
@@ -256,6 +261,7 @@ impl<'l> InterpreterStateGuard<'l> {
                     dbg!(&stack_map.data.iter().rev().collect_vec());
                     dbg!(&java_val_stack);
                     self.debug_print_stack_trace();
+                    dbg!(self.current_pc());
                     panic!()
                 }
             }
@@ -268,6 +274,7 @@ impl<'l> InterpreterStateGuard<'l> {
                     dbg!(&local_java_vals.iter().map(|jv| jv.to_type()).collect_vec());
                     dbg!(&locals);
                     self.debug_print_stack_trace();
+                    dbg!(self.current_pc());
                     panic!()
                 }
             }
@@ -277,13 +284,22 @@ impl<'l> InterpreterStateGuard<'l> {
 
 fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
     match type_ {
-        VType::DoubleType => todo!(),
-        VType::FloatType => todo!(),
+        VType::DoubleType => {
+            jv.unwrap_double();
+            true
+        }
+        VType::FloatType => {
+            jv.unwrap_float();
+            true
+        }
         VType::IntType => {
             jv.unwrap_int();
             true
         }
-        VType::LongType => todo!(),
+        VType::LongType => {
+            jv.unwrap_long();
+            true
+        }
         VType::Class(ClassWithLoader { class_name, .. }) => {
             match jv.unwrap_object() {
                 None => true,
@@ -294,27 +310,30 @@ fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
             }
         }
         VType::ArrayReferenceType(array_ref) => {
+            if jv.unwrap_object().is_none() {
+                return true;
+            }
             let elem_type = jv.unwrap_array().elem_type.clone();
-            dbg!(&elem_type);
             match &elem_type {
-                PTypeView::ByteType => todo!(),
-                PTypeView::CharType => todo!(),
+                PTypeView::ByteType => array_ref == &PTypeView::ByteType,
+                PTypeView::CharType => array_ref == &PTypeView::CharType,
                 PTypeView::DoubleType => todo!(),
                 PTypeView::FloatType => todo!(),
-                PTypeView::IntType => todo!(),
-                PTypeView::LongType => todo!(),
+                PTypeView::IntType => array_ref == &PTypeView::IntType,
+                PTypeView::LongType => array_ref == &PTypeView::LongType,
                 PTypeView::Ref(ref_) => {
                     match ref_ {
                         ReferenceTypeView::Class(class_) => {
-                            &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
+                            true//todo need more granular.
+                            // &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
                         }
                         ReferenceTypeView::Array(array_) => {
-                            todo!()
+                            true//todo need more granular
                         }
                     }
                 }
                 PTypeView::ShortType => todo!(),
-                PTypeView::BooleanType => todo!(),
+                PTypeView::BooleanType => array_ref == &PTypeView::BooleanType,
                 PTypeView::VoidType => todo!(),
                 PTypeView::TopType => todo!(),
                 PTypeView::NullType => todo!(),
@@ -324,9 +343,15 @@ fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
             }
         }
         VType::VoidType => todo!(),
-        VType::TopType => todo!(),
+        VType::TopType => {
+            match jv {
+                JavaValue::Top => true,
+                _ => true
+            }
+        }
         VType::NullType => {
-            jv.unwrap_object().is_none()
+            jv.unwrap_object();
+            true
         }
         VType::Uninitialized(_) => {
             jv.unwrap_object_nonnull();
@@ -336,11 +361,36 @@ fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
             jv.unwrap_object_nonnull();
             true
         }
-        VType::UninitializedThisOrClass(_) => todo!(),
+        VType::UninitializedThisOrClass(_) => {
+            jv.unwrap_object_nonnull();
+            true
+        }
         VType::TwoWord => todo!(),
         VType::OneWord => todo!(),
         VType::Reference => todo!(),
         VType::UninitializedEmpty => todo!(),
+    }
+}
+
+fn remove_tops(stack_map: &OperandStack) -> OperandStack {
+    //todo this is jank, should be idiomatic way to do this
+    let mut expecting_top = false;
+
+    let mut data = stack_map.data.iter().rev().flat_map(|cur| {
+        if expecting_top {
+            assert_eq!(cur, &VType::TopType);
+            expecting_top = false;
+            return None;
+        }
+        if &VType::LongType == cur || &VType::DoubleType == cur {
+            expecting_top = true;
+        }
+        Some(cur.clone())
+    }).collect::<VecDeque<_>>();
+    data = data.into_iter().rev().collect();
+    assert!(!expecting_top);
+    OperandStack {
+        data
     }
 }
 
