@@ -28,7 +28,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::ptype::PType;
 
-use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
+use crate::class_loading::{check_initing_or_inited_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -76,8 +76,8 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    check_loaded_class(jvm, int_state, main.ptypeview()).expect("failed to init main class");
-    let main_view = main.view();
+    check_initing_or_inited_class(jvm, int_state, jvm.main_class_name.clone().into()).expect("failed to init main class");
+    let main_view = main.view(jvm);
     let main_i = locate_main_method(&main_view);
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));

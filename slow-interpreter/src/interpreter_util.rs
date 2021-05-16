@@ -9,6 +9,7 @@ use crate::class_loading::check_resolved_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::{default_value, JavaValue, Object};
+use crate::jvm_state::ClassClass;
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
@@ -16,7 +17,7 @@ use crate::runtime_class::RuntimeClass;
 pub fn push_new_object(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
-    runtime_class: &Arc<RuntimeClass>
+    runtime_class: ClassClass
 ) {
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
@@ -57,7 +58,7 @@ fn default_init_fields(
 pub fn run_constructor(
     state: &JVMState,
     int_state: &mut InterpreterStateGuard,
-    target_classfile: Arc<RuntimeClass>,
+    target_classfile: ClassClass,
     full_args: Vec<JavaValue>,
     descriptor: String,
 ) -> Result<(), WasException> {

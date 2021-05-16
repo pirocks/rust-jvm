@@ -22,13 +22,13 @@ use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, NormalObject, Object};
-use crate::jvm_state::{ClassStatus, JVMState};
+use crate::jvm_state::{Class, ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Class, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
-    match class.deref() {
+    match class {
         RuntimeClass::Byte => {
             check_initing_or_inited_class(jvm, int_state, ClassName::byte().into())?;
             return Ok(class);
@@ -94,19 +94,19 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     }
 }
 
-pub fn assert_loaded_class(jvm: &JVMState, _int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn assert_loaded_class(jvm: &JVMState, ptype: PTypeView) -> Class {
     match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
         None => panic!(),
         Some((_, res)) => res.clone()
     }
 }
 
-pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Class, WasException> {
     let loader = int_state.current_loader();
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass>, WasException> {
+pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Class, WasException> {
 // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
@@ -205,14 +205,27 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     }) as Arc<dyn ClassFileGetter>,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
-                    debug: class_name == ClassName::string()
+                    debug: class_name == ClassName::string(),
                 };
                 verify(&mut verifier_context, class_view.deref(), LoaderName::BootstrapLoader).unwrap();
-                let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+                //todo this load parent process is duplicated elsewhere where loading occurs
+                let parent = match class_view.super_name() {
+                    Some(super_name) => {
+                        Some(check_loaded_class(jvm, int_state, super_name.into())?.unwrap_class_class())
+                    }
+                    None => None
+                };
+                let mut interfaces = vec![];
+                for interface in class_view.interfaces() {
+                    interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?.unwrap_class_class());
+                }
+                let res = Arc::new(RuntimeClass::Object(Arc::new(RuntimeClassClass {
                     class_view: class_view.clone(),
                     static_vars: Default::default(),
+                    parent,
+                    interfaces,
                     status: ClassStatus::UNPREPARED.into(),
-                }));
+                })));
                 let verification_types = verifier_context.verification_types;
                 let mut method_table = jvm.method_table.write().unwrap();
                 for (method_i, verification_types) in verification_types {
@@ -223,12 +236,6 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
-                if let Some(super_name) = class_view.super_name() {
-                    check_loaded_class(jvm, int_state, super_name.into())?;
-                }
-                for interface in class_view.interfaces() {
-                    check_loaded_class(jvm, int_state, interface.interface_name().into())?;
-                }
                 (class_object, res)
             }
             ReferenceTypeView::Array(sub_type) => {
@@ -292,8 +299,8 @@ pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     check_loaded_class(jvm, int_state, ptype)
 }
 
-pub fn assert_inited_or_initing_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
-    let class: Arc<RuntimeClass> = assert_loaded_class(jvm, int_state, ptype.clone());
+pub fn assert_inited_or_initing_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Class {
+    let class = assert_loaded_class(jvm, ptype);
     match class.status() {
         ClassStatus::UNPREPARED => panic!(),
         ClassStatus::PREPARED => panic!(),

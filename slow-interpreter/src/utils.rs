@@ -22,15 +22,16 @@ use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, JavaValue, Object};
+use crate::jvm_state::Class;
 use crate::JVMState;
-use crate::runtime_class::RuntimeClass;
+use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 
-pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Class, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Class)> {
     lookup_method_parsed_impl(state, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
-    let view = class.view();
+pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Class, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Class)> {
+    let view = class.view(jvm);
     let posible_methods = view.lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {
         if m.is_signature_polymorphic() {
@@ -42,7 +43,7 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
     assert!(filtered.len() <= 1);
     match filtered.iter().next() {
         None => {
-            let class_name = class.view().super_name().unwrap();//todo is this unwrap safe?
+            let class_name = class.view(jvm).super_name().unwrap();//todo is this unwrap safe?
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
             let super_class = assert_inited_or_initing_class(jvm, int_state, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
@@ -54,8 +55,8 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
 }
 
 
-pub fn string_obj_to_string(str_obj: Arc<Object>) -> String {
-    let temp = str_obj.lookup_field("value");
+pub fn string_obj_to_string(jvm: &JVMState, str_obj: Arc<Object>) -> String {
+    let temp = str_obj.unwrap_normal_object().get_var(jvm, jvm.assert_string(), "value", jvm.assert_char_array());
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
     char::decode_utf16(borrowed_elems.iter().map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
@@ -130,9 +131,9 @@ pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterSta
 }
 
 
-pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) -> Result<(), WasException> {
+pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Class, method_name: String, desc_str: String) -> Result<(), WasException> {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
-    let view = class.view();
+    let view = class.view(jvm);
     let res_fun = view.lookup_method(&method_name, &parsed_desc);
     let method_view = match res_fun {
         Some(x) => x,
@@ -140,9 +141,9 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
     };
     let md = method_view.desc();
     if method_view.is_static() {
-        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view)
+        invoke_static_impl(jvm, int_state, md, class, method_view.method_i(), &method_view)
     } else {
-        invoke_virtual_method_i(jvm, int_state, md, class.clone(), &method_view)
+        invoke_virtual_method_i(jvm, int_state, md, class, &method_view)
     }
 }
 

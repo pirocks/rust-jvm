@@ -19,6 +19,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{JavaValue, Object};
+use crate::jvm_state::Class;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -39,7 +40,7 @@ pub fn invoke_virtual_instruction(state: &JVMState, int_state: &mut InterpreterS
     let _ = invoke_virtual(state, int_state, &method_name, &expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass>, target_method: &MethodView) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i(state: &JVMState, int_state: &mut InterpreterStateGuard, expected_descriptor: MethodDescriptor, target_class: Class, target_method: &MethodView) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(state, int_state, expected_descriptor, target_class, target_method)
 }
 
@@ -47,7 +48,7 @@ fn invoke_virtual_method_i_impl(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
-    target_class: Arc<RuntimeClass>,
+    target_class: Class,
     target_method: &MethodView,
 ) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();

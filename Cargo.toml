@@ -34,5 +34,6 @@ members = ["rust-jvm-common",
     "sketch-jvm-version-of-utf8",
     "gc-memory-layout-common",
     "jit-ir",
-    "jit"
+    "jit",
+    "gc"
 ]

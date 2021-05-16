@@ -21,7 +21,7 @@ use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_field_descripto
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::create_class_object;
+use crate::class_loading::{check_loaded_class_force_loader, create_class_object};
 use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
@@ -662,11 +662,26 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
 
 pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue, WasException> {
     let class_name = class_view.name().unwrap_name();
-    let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+    let parent = match class_view.super_name() {
+        None => None,
+        Some(super_name) => {
+            Some(check_loaded_class_force_loader(jvm, int_state, &super_name.into(), current_loader)?.unwrap_class_class())
+        }
+    };
+
+    let interfaces = class_view.interfaces().map(|interface| {
+        let interface_name = interface.interface_name();
+        Ok(check_loaded_class_force_loader(jvm, int_state, &interface_name.into(), current_loader)?.unwrap_class_class())
+    }).collect::<Result<Vec<_>, WasException>>()?;
+
+
+    let runtime_class = Arc::new(RuntimeClass::Object(Arc::new(RuntimeClassClass {
         class_view: Arc::new(class_view),
         static_vars: Default::default(),
+        parent,
+        interfaces,
         status: RwLock::new(ClassStatus::UNPREPARED),
-    }));
+    })));
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     let current_loader = int_state.current_loader();

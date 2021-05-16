@@ -318,9 +318,16 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc1529d07bd55fa54fc6c2d8460f621cfde0ae3fd2b96b2fa7eb4883478e1703"
 dependencies = [
- "futures-core",
- "lock_api 0.3.4",
- "parking_lot 0.10.2",
+    "futures-core",
+    "lock_api 0.3.4",
+    "parking_lot 0.10.2",
+]
+
+[[package]]
+name = "gc"
+version = "0.1.0"
+dependencies = [
+    "gc-memory-layout-common",
 ]
 
 [[package]]

@@ -48,11 +48,11 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let super_name = match from_jclass(sub).as_runtime_class(jvm).view().super_name() {
+    let super_name = match from_jclass(sub).as_runtime_class(jvm).view(jvm).super_name() {
         None => return null_mut(),
         Some(n) => n,
     };
-    let _inited_class = assert_loaded_class(jvm, int_state, super_name.clone().into());
+    let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
         return null_mut();
     };

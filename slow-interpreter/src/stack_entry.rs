@@ -10,7 +10,7 @@ use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{JavaValue, Object};
-use crate::jvm_state::JVMState;
+use crate::jvm_state::{Class, ClassClass, JVMState};
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
 
@@ -54,8 +54,8 @@ impl StackEntry {
         }
     }
 
-    pub fn new_java_frame(jvm: &JVMState, class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
-        let max_locals = class_pointer.view().method_view_i(method_i as usize).code_attribute().unwrap().max_locals;
+    pub fn new_java_frame(jvm: &JVMState, class_pointer: Class, method_i: u16, args: Vec<JavaValue>) -> Self {
+        let max_locals = class_pointer.view(jvm).method_view_i(method_i as usize).code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
         let mut guard = jvm.method_table.write().unwrap();
@@ -70,7 +70,7 @@ impl StackEntry {
         }
     }
 
-    pub fn new_native_frame(jvm: &JVMState, class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
+    pub fn new_native_frame(jvm: &JVMState, class_pointer: Class, method_i: u16, args: Vec<JavaValue>) -> Self {
         Self {
             loader: jvm.classes.read().unwrap().get_initiating_loader(&class_pointer),
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),

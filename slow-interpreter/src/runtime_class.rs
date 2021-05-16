@@ -4,12 +4,13 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::{default_value, JavaValue};
-use crate::jvm_state::ClassStatus;
+use crate::jvm_state::{Class, ClassClass, ClassStatus};
 
 #[derive(Debug)]
 pub enum RuntimeClass {
@@ -28,19 +29,31 @@ pub enum RuntimeClass {
 
 #[derive(Debug)]
 pub struct RuntimeClassArray {
-    pub sub_class: Arc<RuntimeClass>,
+    pub sub_class: Class,
 }
 
 
 pub struct RuntimeClassClass {
     pub class_view: Arc<dyn ClassView>,
-    pub static_vars: RwLock<HashMap<String, JavaValue>>,
+    pub static_vars: HashMap<String, RwLock<JavaValue>>,
+    pub parent: Option<ClassClass>,
+    pub interfaces: Vec<ClassClass>,
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
 }
 
+impl RuntimeClassClass {
+    pub fn view(&self) -> Arc<dyn ClassView> {
+        self.class_view.clone()
+    }
+
+    pub fn name(&self) -> ClassName {
+        self.class_view.name().unwrap_name()
+    }
+}
+
 impl RuntimeClass {
-    pub fn ptypeview(&self) -> PTypeView {
+    pub fn ptypeview(&self, jvm: &JVMState) -> PTypeView {
         match self {
             RuntimeClass::Byte => PTypeView::ByteType,
             RuntimeClass::Boolean => PTypeView::BooleanType,
@@ -52,14 +65,14 @@ impl RuntimeClass {
             RuntimeClass::Double => PTypeView::DoubleType,
             RuntimeClass::Void => PTypeView::VoidType,
             RuntimeClass::Array(arr) => {
-                PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview()))
+                PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview(jvm)))
             }
             RuntimeClass::Object(o) => {
                 PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name().unwrap_name()))
             }
         }
     }
-    pub fn view(&self) -> Arc<dyn ClassView> {
+    pub fn view(&self, jvm: &JVMState) -> Arc<dyn ClassView> {
         match self {
             RuntimeClass::Byte => Arc::new(PrimitiveView::Byte),
             RuntimeClass::Boolean => Arc::new(PrimitiveView::Boolean),
@@ -72,31 +85,31 @@ impl RuntimeClass {
             RuntimeClass::Void => Arc::new(PrimitiveView::Void),
             RuntimeClass::Array(arr) => {
                 Arc::new(ArrayView {
-                    sub: arr.sub_class.view()
+                    sub: arr.sub_class.view(jvm)
                 })
             }
             RuntimeClass::Object(o) => o.class_view.clone(),
         }
     }
 
-    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
-        match self {
-            RuntimeClass::Byte => panic!(),
-            RuntimeClass::Boolean => panic!(),
-            RuntimeClass::Short => panic!(),
-            RuntimeClass::Char => panic!(),
-            RuntimeClass::Int => panic!(),
-            RuntimeClass::Long => panic!(),
-            RuntimeClass::Float => panic!(),
-            RuntimeClass::Double => panic!(),
-            RuntimeClass::Void => panic!(),
-            RuntimeClass::Array(_) => panic!(),
-            RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
-        }
-    }
+    // pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
+    //     match self {
+    //         RuntimeClass::Byte => panic!(),
+    //         RuntimeClass::Boolean => panic!(),
+    //         RuntimeClass::Short => panic!(),
+    //         RuntimeClass::Char => panic!(),
+    //         RuntimeClass::Int => panic!(),
+    //         RuntimeClass::Long => panic!(),
+    //         RuntimeClass::Float => panic!(),
+    //         RuntimeClass::Double => panic!(),
+    //         RuntimeClass::Void => panic!(),
+    //         RuntimeClass::Array(_) => panic!(),
+    //         RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
+    //     }
+    // }
 
 
-    pub fn status(&self) -> ClassStatus {
+    pub fn status(&self, jvm: &JVMState) -> ClassStatus {
         match self {
             RuntimeClass::Byte => ClassStatus::INITIALIZED,
             RuntimeClass::Boolean => ClassStatus::INITIALIZED,
@@ -107,16 +120,23 @@ impl RuntimeClass {
             RuntimeClass::Float => ClassStatus::INITIALIZED,
             RuntimeClass::Double => ClassStatus::INITIALIZED,
             RuntimeClass::Void => ClassStatus::INITIALIZED,
-            RuntimeClass::Array(a) => a.sub_class.status(),
+            RuntimeClass::Array(a) => *a.sub_class.runtime_class_class(&jvm.classes.read().unwrap()).status.read().unwrap(),
             RuntimeClass::Object(o) => *o.status.read().unwrap()
         }
     }
 
-    pub fn set_status(&self, status: ClassStatus) {
+    pub fn set_status(&self, jvm: &JVMState, status: ClassStatus) {
         match self {
-            RuntimeClass::Array(a) => a.sub_class.set_status(status),
+            RuntimeClass::Array(a) => *a.sub_class.runtime_class_class(&jvm.classes.read().unwrap()).status.write().unwrap() = status,
             RuntimeClass::Object(o) => *o.status.write().unwrap() = status,
             _ => {}
+        }
+    }
+
+    pub fn unwrap_class_class(&self) -> &RuntimeClassClass {
+        match self {
+            RuntimeClass::Object(class_class) => class_class,
+            _ => todo!()
         }
     }
 }
@@ -145,24 +165,17 @@ pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clas
 }
 
 
-impl std::convert::From<RuntimeClassClass> for RuntimeClass {
-    fn from(rcc: RuntimeClassClass) -> Self {
-        Self::Object(rcc)
-    }
-}
-
 pub fn initialize_class(
-    runtime_class: Arc<RuntimeClass>,
+    runtime_class: Class,
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
-) -> Result<Arc<RuntimeClass>, WasException> {
+) -> Result<Class, WasException> {
     assert!(interpreter_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
     {
-        let view = &runtime_class.view();
-        // dbg!(view.name());
+        let view = &runtime_class.view(jvm);
         for field in view.fields() {
             if field.is_static() && field.is_final() {
                 //todo do I do this for non-static? Should I?
@@ -172,12 +185,14 @@ pub fn initialize_class(
                 };
                 let constant_value = from_constant_pool_entry(&constant_info_view, jvm, interpreter_state);
                 let name = field.field_name();
-                runtime_class.static_vars().insert(name, constant_value);
+                let guard = jvm.classes.read().unwrap();
+                let static_vars = &runtime_class.runtime_class_class(&guard).static_vars;
+                *static_vars.get(&name).unwrap().write().unwrap() = constant_value;
             }
         }
     }
     //todo detecting if assertions are enabled?
-    let view = &runtime_class.view();
+    let view = &runtime_class.view(jvm);
     let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {

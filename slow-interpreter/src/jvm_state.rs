@@ -5,7 +5,7 @@ use std::ffi::{c_void, OsString};
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
@@ -15,7 +15,7 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
-use classfile_view::view::ClassBackedView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
@@ -24,6 +24,7 @@ use rust_jvm_common::string_pool::StringPool;
 use verification::ClassFileGetter;
 use verification::verifier::Frame;
 
+use crate::class_loading::assert_loaded_class;
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -35,7 +36,7 @@ use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
-use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::runtime_class::{RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -82,14 +83,72 @@ pub struct JVMState {
     pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<usize, Frame>>>
 }
 
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct Class(usize);
+
+impl Class {
+    pub fn int() -> Self {
+        Self(0)
+    }
+
+    pub fn byte() -> Self {
+        Self(1)
+    }
+
+    pub fn char() -> Self {
+        Self(2)
+    }
+
+    pub fn long() -> Self {
+        Self(3)
+    }
+
+    pub fn unwrap_class_class(&self, jvm: &JVMState) -> ClassClass {
+        todo!("need to assert actually is a classclass")
+    }
+
+    pub fn view(self, jvm: &JVMState) -> Arc<dyn ClassView> {
+        jvm.classes.read().unwrap().runtime_classes[self.0].view(jvm)
+    }
+
+    pub fn ptypeview(&self, jvm: &JVMState) -> PTypeView {
+        jvm.classes.read().unwrap().runtime_classes[self.0].ptypeview(jvm)
+    }
+
+    pub fn runtime_class_class<'l, 'k>(&'k self, guard: &'l RwLockReadGuard<'l, Classes>) -> &'l RuntimeClassClass {
+        match &guard.runtime_classes[self.0] {
+            RuntimeClass::Object(res) => res,
+            _ => panic!()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct ClassClass(usize);
+
+impl ClassClass {
+    pub fn to_class(&self) -> Class {
+        Class(self.0)
+    }
+
+    pub fn runtime_class_class<'l, 'k>(&'k self, guard: &'l RwLockReadGuard<'l, Classes>) -> &'l RuntimeClassClass {
+        match &guard.runtime_classes[self.0] {
+            RuntimeClass::Object(res) => res,
+            _ => panic!()
+        }
+    }
+}
+
 pub struct Classes {
     //todo needs to be used for all instances of getClass
-    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass>>>,
-    pub initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>)>,
-    pub class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>>,
-    pub anon_classes: RwLock<Vec<Arc<RuntimeClass>>>,
-    pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
-    pub class_class: Arc<RuntimeClass>,
+    loaded_classes_by_type: HashMap<LoaderName, HashMap<PTypeView, Class>>,
+    initiating_loaders: HashMap<PTypeView, (LoaderName, Class)>,
+    class_object_pool: BiMap<ByAddress<Arc<Object>>, Class>,
+    anon_classes: RwLock<Vec<Class>>,
+    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
+    class_class: ClassClass,
+    runtime_classes: Vec<RuntimeClass>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -106,20 +165,24 @@ impl Classes {
     }
 
 
-    pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass>> {
+    pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Class> {
         self.initiating_loaders.get(&ptype)?.1.clone().into()
     }
 
-    pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass>) -> LoaderName {
-        let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview()).unwrap();
-        assert!(Arc::ptr_eq(class_, actual_class));
+    pub fn get_initiating_loader(&self, jvm: &JVMState, class_: &Class) -> LoaderName {
+        let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview(jvm)).unwrap();
+        assert_eq!(class_, actual_class);
         *res
     }
 
     pub fn get_class_obj(&self, ptypeview: PTypeView) -> Option<Arc<Object>> {
         let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
-        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
+        let obj = self.class_object_pool.get_by_right(&runtime_class.clone()).unwrap().clone().0;
         Some(obj)
+    }
+
+    pub fn lookup_class_object(&self, obj: Arc<Object>) -> Class {
+        todo!()
     }
 }
 
@@ -189,20 +252,22 @@ impl JVMState {
         fields.insert("classLoader".to_string(), JavaValue::Object(None));
         let class_object = Arc::new(Object::Object(NormalObject {
             monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
-            fields: UnsafeCell::new(fields),
-            class_pointer: classes.class_class.clone(),
+            fields: todo!(),
+            class_pointer: classes.class_class,
         }));
-        let runtime_class = ByAddress(classes.class_class.clone());
+        let runtime_class = classes.class_class;
         classes.class_object_pool.insert(ByAddress(class_object), runtime_class);
     }
 
     fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
         //todo turn this into a ::new
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
+        let class_class = RuntimeClass::Object(RuntimeClassClass {
             class_view: Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
             static_vars: Default::default(),
+            parent: None,//todo!("object has to go here"), this is still true but I don't want to deal with this bs
+            interfaces: vec![],//todo why does Class have to implement a bunch of interfaces, anyway needs to be filled out here
             status: ClassStatus::UNPREPARED.into(),
-        }));
+        });
         let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();
         initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>> = Default::default();
@@ -330,6 +395,42 @@ impl JVMState {
         Arc::new(BootstrapLoaderClassGetter {
             jvm: self
         })
+    }
+
+    pub fn assert_object(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::object().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_string(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::string().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_thread(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::thread().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_thread_group(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::thread_group().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_integer_obj(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::int().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_class(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::class().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_member_name(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::member_name().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_method_type(&self) -> ClassClass {
+        assert_loaded_class(self, ClassName::method_type().into()).unwrap_class_class(self)
+    }
+
+    pub fn assert_char_array(&self) -> Class {
+        assert_loaded_class(self, PTypeView::Ref(ReferenceTypeView::Array(box PTypeView::CharType)))
     }
 }
 

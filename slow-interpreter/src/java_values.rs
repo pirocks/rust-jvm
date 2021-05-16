@@ -1,21 +1,91 @@
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
+use itertools::Either;
+
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
-use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::jvm_state::JVMState;
-use crate::runtime_class::RuntimeClass;
+use crate::jvm_state::{Class, ClassClass, JVMState};
 use crate::threading::monitors::Monitor;
+
+// #[derive(Clone, Eq, PartialEq, Debug)]
+// pub enum RuntimeType {
+//     Long,
+//     Int,
+//     Float,
+//     Double,
+//     Object(ByAddress<Arc<RuntimeClass>>),
+//     Top,
+// }
+//
+//
+// #[derive(Clone)]
+// pub struct SafeRawJavaValue {
+//     type_: RuntimeType,
+//     value: RawJavaValue,
+// }
+//
+// #[repr(C)]
+// #[derive(Copy, Clone)]
+// pub union RawJavaValue {
+//     long: u64,
+//     int: u32,
+//     float: f32,
+//     double: f64,
+//     object_pointer: usize,
+// }
+//
+//
+// impl SafeRawJavaValue {
+//     fn to_jv(&self) -> JavaValue {
+//         match &self.type_ {
+//             RuntimeType::Long => JavaValue::Long(self.value.long as i64),
+//             RuntimeType::Int => JavaValue::Int(self.value.int as i32),
+//             RuntimeType::Float => JavaValue::Float(self.value.float),
+//             RuntimeType::Double => JavaValue::Double(self.value.double),
+//             RuntimeType::Object(pointer) => {
+//                 todo!()
+//             }
+//             RuntimeType::Top => panic!()
+//         }
+//     }
+//
+//     fn from(jv: JavaValue) -> Self {
+//         match jv {
+//             JavaValue::Long(long) => SafeRawJavaValue { type_: RuntimeType::Long, value: RawJavaValue { long: long as u64 } },
+//             JavaValue::Int(int) => SafeRawJavaValue { type_: RuntimeType::Int, value: RawJavaValue { int: int as u32 } },
+//             JavaValue::Short(short) => SafeRawJavaValue { type_: RuntimeType::Int, value: RawJavaValue { int: short as u32 } },
+//             JavaValue::Byte(byte) => SafeRawJavaValue { type_: RuntimeType::Int, value: RawJavaValue { int: byte as u32 } },
+//             JavaValue::Boolean(bool) => SafeRawJavaValue { type_: RuntimeType::Int, value: RawJavaValue { int: bool as u32 } },
+//             JavaValue::Char(char) => SafeRawJavaValue { type_: RuntimeType::Int, value: RawJavaValue { int: char as u32 } },
+//             JavaValue::Float(float) => SafeRawJavaValue { type_: RuntimeType::Float, value: RawJavaValue { float } },
+//             JavaValue::Double(double) => SafeRawJavaValue { type_: RuntimeType::Double, value: RawJavaValue { double } },
+//             JavaValue::Object(_) => todo!(),
+//             JavaValue::Top => SafeRawJavaValue { type_: RuntimeType::Top, value: panic!() }
+//         }
+//     }
+// }
+//
+// impl From<Arc<RuntimeClass>> for RuntimeType {
+//     fn from(rc: Arc<RuntimeClass>) -> Self {
+//         RuntimeType::Object(ByAddress(rc))
+//     }
+// }
+//
+// impl From<Arc<RuntimeClassArray>> for RuntimeType{
+//     fn from(_: Arc<_>) -> Self {
+//         todo!()
+//     }
+// }
 
 // #[derive(Copy)]
 pub enum JavaValue {
@@ -95,33 +165,36 @@ impl CycleDetectingDebug for Object {
 
 impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let o = self;
-        if o.class_pointer.view().name() == ClassName::class().into() {
-            write!(f, "need a jvm pointer here to give more info on class object")?;
-        } else if o.class_pointer.view().name() == ClassName::string().into() {
-            let fields_borrow = o.fields_mut();
-            let value_field = fields_borrow.get("value").unwrap();
-            match &value_field.unwrap_object() {
-                None => {
-                    write!(f, "(String Object: {:?})", "weird af string obj.")?;
-                }
-                Some(_) => {
-                    write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
-                }
-            }
-        } else {
-            write!(f, "{:?}", &o.class_pointer.view().name())?;
-            write!(f, "-")?;
+
+        // let o = self;
+        // if o.class_pointer.view().name() == ClassName::class().into() {
+        //     write!(f, "need a jvm pointer here to give more info on class object")?;
+        // } else if o.class_pointer.view().name() == ClassName::string().into() {
+        // let fields_borrow = o.fields_mut();
+        // let value_field = fields_borrow.get("value").unwrap();
+        // match &value_field.unwrap_object() {
+        //     None => {
+        //         write!(f, "(String Object: {:?})", "weird af string obj.")?;
+        //     }
+        //     Some(_) => {
+        //         write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
+        //     }
+        // }
+        todo!()
+        // } else {
+        // write!(f, "{:?}", &o.class_pointer.view().name())?;
+        // write!(f, "-")?;
 //        write!(f, "{:?}", self.class_pointer.static_vars)?;
-            write!(f, "-")?;
-            o.fields_mut().iter().for_each(|(n, v)| {
-                write!(f, "({},", n).unwrap();
-                v.cycle_fmt(prev, f).unwrap();
-                write!(f, ")").unwrap();
-            });
-            write!(f, "-")?;
-        }
-        Result::Ok(())
+//             write!(f, "-")?;
+        // o.fields_mut().iter().for_each(|(n, v)| {
+        //     write!(f, "({},", n).unwrap();
+        //     v.cycle_fmt(prev, f).unwrap();
+        //     write!(f, ")").unwrap();
+        // });
+        // write!(f, "-")?;
+        // todo!()
+        // }
+        // Result::Ok(())
     }
 }
 
@@ -282,12 +355,12 @@ impl JavaValue {
             jvm.thread_state.new_monitor("".to_string()),
         )?)))))
     }
-    pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
-        assert!(!runtime_class.view().is_abstract());
+    pub fn new_object(jvm: &JVMState, runtime_class: ClassClass) -> Option<Arc<Object>> {
+        assert!(!runtime_class.to_class().view(jvm).is_abstract());
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
             class_pointer: runtime_class,
-            fields: UnsafeCell::new(HashMap::new()),
+            fields: todo!(),
         })).into()
     }
 
@@ -305,11 +378,12 @@ impl JavaValue {
         )?))))
     }
 
-    pub fn new_vec_from_vec(jvm: &JVMState, vals: Vec<JavaValue>, elem_type: PTypeView) -> JavaValue {
+    pub fn new_vec_from_vec(jvm: &JVMState, vals: Vec<JavaValue>, this_array_class_pointer: Class, subtype_class_pointer: Class) -> JavaValue {
         JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject {
             elems: UnsafeCell::new(vals),
-            elem_type,
+            this_array_class_pointer,
             monitor: jvm.thread_state.new_monitor("".to_string()),
+            subtype_class_pointer,
         }))))
     }
 
@@ -346,7 +420,7 @@ impl JavaValue {
         // }
     }
 
-    pub fn to_type(&self) -> PTypeView {
+    pub fn to_type(&self, jvm: &JVMState) -> PTypeView {
         match self {
             JavaValue::Long(_) => PTypeView::LongType,
             JavaValue::Int(_) => PTypeView::IntType,
@@ -359,14 +433,14 @@ impl JavaValue {
             JavaValue::Object(obj) => {
                 match obj {
                     None => PTypeView::NullType,
-                    Some(not_null) => PTypeView::Ref(match not_null.deref() {
+                    Some(not_null) => match not_null.deref() {
                         Object::Array(array) => {
-                            ReferenceTypeView::Array(array.elem_type.clone().into())
+                            return array.this_array_class_pointer.ptypeview(jvm)
                         }
                         Object::Object(obj) => {
-                            ReferenceTypeView::Class(obj.class_pointer.ptypeview().unwrap_class_type())
+                            return obj.class_pointer.to_class().ptypeview(jvm)
                         }
-                    })
+                    }
                 }
             }
             JavaValue::Top => PTypeView::TopType
@@ -495,10 +569,6 @@ unsafe impl Send for Object {}
 unsafe impl Sync for Object {}
 
 impl Object {
-    pub fn lookup_field(&self, s: &str) -> JavaValue {
-        self.unwrap_normal_object().fields_mut().get(s).unwrap().clone()
-    }
-
     pub fn unwrap_normal_object(&self) -> &NormalObject {
         match self {
             Object::Array(_) => panic!(),
@@ -524,15 +594,16 @@ impl Object {
         match &self {
             Object::Array(a) => {
                 let sub_array = unsafe { a.elems.get().as_ref() }.unwrap().iter().map(|x| x.deep_clone(jvm)).collect();
-                Object::Array(ArrayObject { elems: UnsafeCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
+                Object::Array(ArrayObject { elems: UnsafeCell::new(sub_array), this_array_class_pointer: a.this_array_class_pointer, subtype_class_pointer: a.subtype_class_pointer, monitor: jvm.thread_state.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
-                let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
-                Object::Object(NormalObject {
-                    monitor: jvm.thread_state.new_monitor("".to_string()),
-                    fields: new_fields,
-                    class_pointer: o.class_pointer.clone(),
-                })
+                todo!()
+                // let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
+                // Object::Object(NormalObject {
+                //     monitor: jvm.thread_state.new_monitor("".to_string()),
+                //     fields: new_fields,
+                //     class_pointer: o.class_pointer.clone(),
+                // })
             }
         }
     }
@@ -566,9 +637,10 @@ impl Object {
 
 #[derive(Debug)]
 pub struct ArrayObject {
-    pub elems: UnsafeCell<Vec<JavaValue>>,
-    pub elem_type: PTypeView,
-    pub monitor: Arc<Monitor>,
+    pub(crate) elems: UnsafeCell<Vec<JavaValue>>,
+    pub(crate) this_array_class_pointer: Class,
+    pub(crate) subtype_class_pointer: Class,
+    pub(crate) monitor: Arc<Monitor>,
 }
 
 impl ArrayObject {
@@ -580,22 +652,63 @@ impl ArrayObject {
         check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())))?;
         Ok(Self {
             elems: UnsafeCell::new(elems),
-            elem_type: type_,
+            this_array_class_pointer: todo!(),
+            subtype_class_pointer: todo!(),
             monitor,
         })
     }
 }
 
 pub struct NormalObject {
-    pub monitor: Arc<Monitor>,
-    pub fields: UnsafeCell<HashMap<String, JavaValue>>,
-    //todo this refcell should be by class pointer, to avoid same name clashes.
-    pub class_pointer: Arc<RuntimeClass>,
+    pub(crate) monitor: Arc<Monitor>,
+    pub(crate) fields: HashMap<ClassClass, HashMap<String, UnsafeCell<JavaValue>>>,
+    pub(crate) class_pointer: ClassClass,
 }
 
 impl NormalObject {
-    pub fn fields_mut(&self) -> &mut HashMap<String, JavaValue> {
-        unsafe { self.fields.get().as_mut().unwrap() }
+    fn get_all_parents(jvm: &JVMState, class: ClassClass) -> HashSet<ClassClass> {
+        let guard = jvm.classes.read().unwrap();
+        let interfaces = class.runtime_class_class(&guard).interfaces.iter().flat_map(|interface| {
+            Self::get_all_parents(jvm, *interface).into_iter()
+        });
+        let with_super = interfaces
+            .chain(class.runtime_class_class(&guard).parent.map(|parent| Either::Left(Self::get_all_parents(jvm, class).into_iter()))
+                .unwrap_or(Either::Right(std::iter::empty::<_>())));
+        with_super
+            .chain(std::iter::once(class))
+            .collect::<HashSet<_>>()
+    }
+
+    fn self_check(&self, jvm: &JVMState, on: ClassClass) {
+        let fields = &self.fields;
+        // assert!(fields.contains_key(&ByAddress(rc.clone())));
+        // let all_parents = Self::get_all_parents(rc);
+        // for rcc in all_parents.iter() {
+        //     assert!(fields.contains_key(rcc))
+        // }
+        // for rcc in fields.keys() {
+        //     assert!(all_parents.contains(rcc))
+        // }
+        todo!()
+    }
+
+    pub fn get_var(&self, jvm: &JVMState, on: ClassClass, name: impl Into<String>, expected_type: Class) -> JavaValue {
+        self.self_check(jvm, on);
+        // let fields = &self.fields;
+        // let res = fields.get(&ByAddress(rc)).unwrap().get(name.into().as_str()).unwrap().clone();
+        todo!()
+        // assert_eq!(res.type_, expected_type);
+        // res.to_jv()
+    }
+
+    pub fn set_var(&self, jvm: &JVMState, on: ClassClass, name: impl Into<String>, jv: JavaValue, expected_type: Class) {
+        self.self_check(jvm, on);
+        let fields = &self.fields;
+        let current_class_fields = fields.get(&on).unwrap();
+        let res = current_class_fields.get(name.into().as_str()).unwrap().clone();
+        // assert_eq!(res.type_, expected_type);
+        // current_class_fields.insert(name.into(), SafeRawJavaValue::from(jv));
+        todo!()
     }
 }
 
@@ -637,11 +750,11 @@ impl ArrayObject {
         self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }
     pub fn unwrap_byte_array(&self) -> Vec<jbyte> {
-        assert_eq!(self.elem_type, PTypeView::ByteType);
+        assert_eq!(self.subtype_class_pointer, Class::byte());
         self.mut_array().iter().map(|x| { x.unwrap_byte() }).collect()
     }
     pub fn unwrap_char_array(&self) -> String {
-        assert_eq!(self.elem_type, PTypeView::CharType);
+        assert_eq!(self.subtype_class_pointer, Class::char());
         let mut res = String::new();
         unsafe { self.elems.get().as_ref() }.unwrap().iter().for_each(|x| { res.push(x.unwrap_int() as u8 as char) });
         res

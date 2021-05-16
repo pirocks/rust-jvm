@@ -34,30 +34,36 @@ pub mod method_type {
         pub fn from_method_descriptor_string(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str: crate::java::lang::string::JString, class_loader: Option<ClassLoader>) -> Result<MethodType, WasException> {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
-            let method_type: Arc<RuntimeClass> = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
-            run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
+            let method_type = assert_inited_or_initing_class(jvm, int_state, ClassName::method_type().into());
+            run_static_or_virtual(jvm, int_state, method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
 
-        pub fn set_rtype(&self, rtype: JClass) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("rtype".to_string(), rtype.java_value());
+        pub fn set_rtype(&self, jvm: &JVMState, rtype: JClass) {
+            self.normal_object.unwrap_normal_object().set_var(jvm, jvm.assert_method_type(), "rtype".to_string(), rtype.java_value(), jvm.assert_class().to_class());
         }
 
-        getter_gen!(rtype,JClass,cast_class);
+        pub fn get_rtype(&self, jvm: &JVMState) -> JClass {
+            self.normal_object.unwrap_normal_object().get_var(jvm, jvm.assert_method_type(), "rtype".to_string(), jvm.assert_class().to_class()).cast_class(jvm).unwrap()
+        }
+
+        // getter_gen!(rtype,JClass,cast_class);//todo
 
         pub fn get_rtype_as_type(&self, jvm: &JVMState) -> PType {
-            self.get_rtype().as_type(jvm).to_ptype()
+            self.get_rtype(jvm).as_type(jvm).to_ptype()
         }
 
-        pub fn set_ptypes(&self, ptypes: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("ptypes".to_string(), ptypes);
+        pub fn set_ptypes(&self, jvm: &JVMState, ptypes: JavaValue) {
+            self.normal_object.unwrap_normal_object().set_var(jvm, todo!(), "ptypes".to_string(), ptypes, todo!())
         }
 
-        getter_gen!(ptypes,JavaValue,clone);
+        pub fn get_ptypes(&self, jvm: &JVMState) -> JavaValue {
+            self.normal_object.unwrap_normal_object().get_var(jvm, todo!(), "ptypes".to_string(), todo!())
+        }
 
         pub fn get_ptypes_as_types(&self, jvm: &JVMState) -> Vec<PType> {
-            self.get_ptypes().unwrap_array().unwrap_object_array().iter()
-                .map(|x| JavaValue::Object(x.clone()).cast_class().unwrap().as_type(jvm).to_ptype()).collect()
+            self.get_ptypes(jvm).unwrap_array().unwrap_object_array().iter()
+                .map(|x| JavaValue::Object(x.clone()).cast_class(jvm).unwrap().as_type(jvm).to_ptype()).collect()
         }
 
         pub fn set_form(&self, form: MethodTypeForm) {
