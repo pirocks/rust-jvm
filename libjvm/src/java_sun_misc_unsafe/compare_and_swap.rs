@@ -41,9 +41,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let curval = normal_obj.get_var(rc, field_name.as_str(), PTypeView::TopType);
+    let curval = normal_obj.get_var(rc.clone(), field_name.as_str(), PTypeView::TopType);
     (if curval.unwrap_int() == old {
-        normal_obj.set_var_unknown(field_name, JavaValue::Int(new));
+        normal_obj.set_var(rc, field_name, JavaValue::Int(new), PTypeView::TopType);
         1
     } else {
         0

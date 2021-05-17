@@ -633,8 +633,9 @@ pub mod thread {
             self.normal_object.lookup_field("daemon").unwrap_int() != 0
         }
 
-        pub fn set_thread_status(&self, thread_status: jint) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("threadStatus".to_string(), JavaValue::Int(thread_status));
+        pub fn set_thread_status(&self, jvm: &JVMState, thread_status: jint) {
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            self.normal_object.unwrap_normal_object().set_var(thread_class, "threadStatus".to_string(), JavaValue::Int(thread_status), PTypeView::IntType);
         }
 
 

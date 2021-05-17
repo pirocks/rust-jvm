@@ -21,7 +21,7 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = int_state.current_class_view();
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
+    let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
@@ -34,7 +34,7 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
                     None => {
                         return throw_npe(jvm, int_state);
                     }
-                }.unwrap_normal_object().set_var(target_class, field_name, val);
+                }.unwrap_normal_object().set_var(target_class, field_name, val, PTypeView::from_ptype(&field_type));
             }
         }
         _ => {
@@ -93,8 +93,6 @@ pub fn get_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16,
     let object_ref = int_state.current_frame_mut().pop();
     match object_ref {
         JavaValue::Object(o) => {
-            dbg!(target_class_pointer.view().name());
-            int_state.debug_print_stack_trace();
             let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name, PTypeView::from_ptype(&field_type));
             int_state.current_frame_mut().push(res);
         }

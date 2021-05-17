@@ -73,7 +73,7 @@ impl ThreadState {
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             assert!(main_thread.interpreter_state.read().unwrap().call_stack.is_empty());
             let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
-            main_thread.notify_alive();//is this too early?
+            main_thread.notify_alive(jvm);//is this too early?
             int_state.register_interpreter_state_guard(jvm);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
@@ -96,7 +96,7 @@ impl ThreadState {
             run_main(args, jvm, &mut int_state).unwrap();
             //todo handle exception exit from main
             int_state.pop_frame(jvm, main_frame_guard, false);
-            main_thread.notify_terminated()
+            main_thread.notify_terminated(jvm)
         }, box ());
         (main_thread_clone, main_send)
     }
@@ -167,7 +167,7 @@ impl ThreadState {
             }),
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
-        bootstrap_thread.notify_alive();
+        bootstrap_thread.notify_alive(jvm);
         let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
@@ -193,7 +193,7 @@ impl ThreadState {
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
         new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
-        bootstrap_thread.notify_terminated();
+        bootstrap_thread.notify_terminated(jvm);
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
@@ -250,7 +250,7 @@ impl ThreadState {
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             jvm.thread_state.set_current_thread(java_thread.clone());
-            java_thread.notify_alive();
+            java_thread.notify_alive(jvm);
             let mut interpreter_state_guard = InterpreterStateGuard::new(jvm, &java_thread);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
             interpreter_state_guard.register_interpreter_state_guard(jvm);
 
@@ -269,7 +269,7 @@ impl ThreadState {
             }
 
             interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
-            java_thread.notify_terminated();
+            java_thread.notify_terminated(jvm);
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
@@ -356,25 +356,25 @@ impl JavaThread {
         self.thread_object.read().unwrap().clone()
     }
 
-    pub fn notify_alive(&self) {
+    pub fn notify_alive(&self, jvm: &JVMState) {
         let mut status = self.thread_status.write().unwrap();
         status.alive = true;
-        self.update_thread_object(status)
+        self.update_thread_object(jvm, status)
     }
 
-    fn update_thread_object(&self, status: RwLockWriteGuard<ThreadStatus>) {
+    fn update_thread_object(&self, jvm: &JVMState, status: RwLockWriteGuard<ThreadStatus>) {
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
-            obj.set_thread_status(self.safepoint_state.get_thread_status_number(status.deref()))
+            obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()))
         }
     }
 
 
-    pub fn notify_terminated(&self) {
+    pub fn notify_terminated(&self, jvm: &JVMState) {
         let mut status = self.thread_status.write().unwrap();
 
         status.terminated = true;
-        self.update_thread_object(status)
+        self.update_thread_object(jvm, status)
     }
 
 

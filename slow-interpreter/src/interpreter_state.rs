@@ -240,7 +240,7 @@ impl<'l> InterpreterStateGuard<'l> {
             let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
                 Some(x) => x,
                 None => {
-                    eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
+                    // eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
                     return;
                 }
             }.get(&self.current_pc()).unwrap();

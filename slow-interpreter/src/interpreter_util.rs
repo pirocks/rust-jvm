@@ -2,7 +2,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use rust_jvm_common::classfile::ObjectVariableInfo;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};

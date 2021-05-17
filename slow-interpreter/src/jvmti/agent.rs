@@ -39,7 +39,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
 
 
         jvm.thread_state.set_current_thread(java_thread.clone());
-        java_thread.notify_alive();
+        java_thread.notify_alive(jvm);
 
         let mut int_state = InterpreterStateGuard::new(jvm, &java_thread);
         int_state.register_interpreter_state_guard(jvm);
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
         let frame_for_agent = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
         proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
         int_state.pop_frame(jvm, frame_for_agent, false);
-        java_thread.notify_terminated()
+        java_thread.notify_terminated(jvm)
     }, box ());
 
     //todo handle join handles somehow
