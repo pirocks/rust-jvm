@@ -3,14 +3,16 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::ClassView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<Object>, String), WasException> {
+unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass>, Arc<Object>, String), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
@@ -24,7 +26,7 @@ unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jo
         }
         Some(notnull) => notnull
     };
-    Ok((notnull, field_name))
+    Ok((rc, notnull, field_name))
 }
 
 #[no_mangle]
@@ -34,15 +36,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
                                                                  old: jint,
                                                                  new: jint,
 ) -> jboolean {
-    let (notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-        Ok((notnull, field_name)) => (notnull, field_name),
+    let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
+        Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let mut fields_borrow = normal_obj.fields_mut();
-    let curval = fields_borrow.get(field_name.as_str()).unwrap();
+    let curval = normal_obj.get_var(rc, field_name.as_str(), PTypeView::TopType);
     (if curval.unwrap_int() == old {
-        fields_borrow.insert(field_name, JavaValue::Int(new));
+        normal_obj.set_var_unknown(field_name, JavaValue::Int(new));
         1
     } else {
         0
@@ -56,15 +57,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
                                                                   old: jlong,
                                                                   new: jlong,
 ) -> jboolean {
-    let (notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-        Ok((notnull, field_name)) => (notnull, field_name),
+    let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
+        Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let mut fields_borrow = normal_obj.fields_mut();
-    let curval = fields_borrow.get(field_name.as_str()).unwrap();
+    let curval = normal_obj.get_var_top_level(field_name.as_str());
     (if curval.unwrap_long() == old {
-        fields_borrow.insert(field_name, JavaValue::Long(new));
+        normal_obj.set_var_top_level(field_name, JavaValue::Long(new));
         1
     } else {
         0
@@ -98,14 +98,15 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             do_swap(curval, old, new)
         }
         Object::Object(normal_obj) => {
-            let (notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-                Ok((notnull, field_name)) => (notnull, field_name),
+            let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
+                Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
                 Err(WasException {}) => return jboolean::MAX
             };
-            let mut fields_borrow = normal_obj.fields_mut();
-            let curval = fields_borrow.get_mut(field_name.as_str()).unwrap();
+            let mut curval = normal_obj.get_var_top_level(field_name.as_str());
             let old = from_object(old);
-            do_swap(curval, old, new)
+            let res = do_swap(&mut curval, old, new);
+            normal_obj.set_var_top_level(field_name, curval);
+            res
         }
     }
 }

@@ -22,7 +22,7 @@ pub mod unsafe_ {
 
     impl Unsafe {
         pub fn the_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
-            let unsafe_class = assert_inited_or_initing_class(jvm, int_state, ClassName::unsafe_().into());
+            let unsafe_class = assert_inited_or_initing_class(jvm, ClassName::unsafe_().into());
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
@@ -31,7 +31,7 @@ pub mod unsafe_ {
             let desc_str = "(Ljava/lang/reflect/Field;)J";
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(field.java_value());
-            let rc = self.normal_object.unwrap_normal_object().class_pointer.clone();
+            let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             run_static_or_virtual(jvm, int_state, &rc, "objectFieldOffset".to_string(), desc_str.to_string())?;
             Ok(int_state.pop_current_operand_stack())
         }

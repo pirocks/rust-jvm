@@ -44,13 +44,13 @@ pub enum InitAssertionCase {
 
 
 pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
-    if target.unwrap_normal_object().class_pointer.view().name() == ClassName::method().into() {
+    if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::method().into() {
         let target = target.cast_method();
         method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().class_pointer.view().name() == ClassName::constructor().into() {
+    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::constructor().into() {
         let target = target.cast_constructor();
         constructor_init(mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().class_pointer.view().name() == ClassName::field().into() {
+    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::field().into() {
         todo!()
     } else {
         todo!()

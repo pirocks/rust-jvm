@@ -104,7 +104,7 @@ impl ThreadState {
     fn jvm_init_from_main_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        let system_class = assert_inited_or_initing_class(jvm, int_state, ClassName::system().into());
+        let system_class = assert_inited_or_initing_class(jvm, ClassName::system().into());
 
         let system = &system_class;
         let system_view = system.view();
@@ -197,10 +197,10 @@ impl ThreadState {
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
-    pub fn get_current_thread_name(&self) -> String {
+    pub fn get_current_thread_name(&self, jvm: &JVMState) -> String {
         let current_thread = self.get_current_thread();
         let thread_object = current_thread.thread_object.read().unwrap();
-        thread_object.as_ref().map(|jthread| jthread.name().to_rust_string())
+        thread_object.as_ref().map(|jthread| jthread.name(jvm).to_rust_string())
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
@@ -242,7 +242,7 @@ impl ThreadState {
     }
 
     pub fn start_thread_from_obj(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, obj: JThread, invisible_to_java: bool) -> Arc<JavaThread> {
-        let underlying = self.threads.create_thread(obj.name().to_rust_string().into());
+        let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string().into());
 
         let (send, recv) = channel();
         let java_thread = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
@@ -318,7 +318,7 @@ impl JavaThread {
 
     pub fn new(jvm: &JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
         let res = Arc::new(JavaThread {
-            java_tid: thread_obj.tid(),
+            java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: RwLock::new(InterpreterState::default()),

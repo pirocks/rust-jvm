@@ -1,5 +1,3 @@
-use std::ops::DerefMut;
-
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::java_values::JavaValue;
@@ -16,8 +14,7 @@ unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val:
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    let mut field_borrow = notnull.unwrap_normal_object().fields_mut();
-    field_borrow.deref_mut().insert(name, val);
+    notnull.unwrap_normal_object().set_var_top_level(name, val);
 }
 
 pub unsafe extern "C" fn set_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jboolean) {

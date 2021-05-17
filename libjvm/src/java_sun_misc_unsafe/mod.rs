@@ -161,8 +161,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
         Some(notnull) => {
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let field_borrow = notnull.unwrap_normal_object().fields_mut();
-            field_borrow.get(&field_name).unwrap().unwrap_int()
+            notnull.unwrap_normal_object().get_var_top_level(field_name).unwrap_int()
         }
         None => {
             //static
@@ -271,7 +270,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     let field_view = runtime_class_view.field(i as usize);
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
-                    obj.fields_mut().insert(name, JavaValue::Object(from_object(to_put)));
+                    obj.set_var_top_level(name, JavaValue::Object(from_object(to_put)));
                 }
             }
         }

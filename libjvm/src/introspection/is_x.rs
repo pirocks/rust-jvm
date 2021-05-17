@@ -38,6 +38,7 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
         RuntimeClass::Object(_) => {
             runtime_class.view().is_interface()
         }
+        _ => panic!()
     }) as jboolean
 }
 

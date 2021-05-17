@@ -665,6 +665,8 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
         static_vars: Default::default(),
+        parent: todo!(),
+        interfaces: todo!(),
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;

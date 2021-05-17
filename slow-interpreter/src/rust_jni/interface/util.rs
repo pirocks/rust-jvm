@@ -17,7 +17,7 @@ pub fn class_object_to_runtime_class(obj: &JClass, jvm: &JVMState, int_state: &m
     //todo needs to be reimplemented when loaded class set is fixed.
     match obj.as_type(jvm).unwrap_ref_type() {
         ReferenceTypeView::Class(class_name) => {
-            assert_loaded_class(jvm, int_state, class_name.clone().into()).into()//todo a better way?
+            assert_loaded_class(jvm, class_name.clone().into()).into()//todo a better way?
         }
         ReferenceTypeView::Array(_) => {
             None

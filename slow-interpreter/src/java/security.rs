@@ -43,7 +43,7 @@ pub mod access_control_context {
 
     impl AccessControlContext {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, protection_domains: Vec<ProtectionDomain>) -> Result<Self, WasException> {
-            let access_control_context_class = assert_inited_or_initing_class(jvm, int_state, ClassName::Str("java/security/AccessControlContext".to_string()).into());
+            let access_control_context_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/security/AccessControlContext".to_string()).into());
             push_new_object(jvm, int_state, &access_control_context_class);
             let access_control_object = int_state.pop_current_operand_stack();
             let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.into_iter().map(|pd| pd.java_value()).collect(), ClassName::new("java/security/ProtectionDomain").into());

@@ -44,7 +44,7 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
         None => {
             let class_name = class.view().super_name().unwrap();//todo is this unwrap safe?
             let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
-            let super_class = assert_inited_or_initing_class(jvm, int_state, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
+            let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
         }
         Some(method_view) => {

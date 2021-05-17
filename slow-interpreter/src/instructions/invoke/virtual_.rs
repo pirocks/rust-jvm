@@ -200,13 +200,12 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
 //todo so spec seems vague about this, but basically assume this is an Object
             let object_class = assert_inited_or_initing_class(
                 jvm,
-                int_state,
                 ClassName::object().into(),
             );
             object_class
         }
         Object::Object(o) => {
-            o.class_pointer.clone()
+            o.objinfo.class_pointer.clone()
         }
     };
 

@@ -50,7 +50,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
                 Ok(x) => x,
                 Err(WasException {}) => return,
             };
-            let object_class = o.class_pointer.clone();
+            let object_class = o.objinfo.class_pointer.clone();
             if match inherits_from(jvm, int_state, &object_class, &instanceof_class) {
                 Ok(x) => x,
                 Err(WasException {}) => return
@@ -142,7 +142,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
             match instance_of_class_type {
                 ReferenceTypeView::Class(instance_of_class_name) => {
                     let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into())?;//todo check if this should be here
-                    let object_class = object.class_pointer.clone();
+                    let object_class = object.objinfo.class_pointer.clone();
                     if inherits_from(jvm, int_state, &object_class, &instanceof_class)? {
                         int_state.push_current_operand_stack(JavaValue::Int(1))
                     } else {

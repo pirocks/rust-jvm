@@ -27,7 +27,7 @@ pub unsafe extern "C" fn run_agent_thread(env: *mut jvmtiEnv, thread: jthread, p
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(thread)).cast_thread();
-    let java_thread = JavaThread::new(jvm, thread_object.clone(), jvm.thread_state.threads.create_thread(thread_object.name().to_rust_string().into()), true);
+    let java_thread = JavaThread::new(jvm, thread_object.clone(), jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string().into()), true);
     let args = ThreadArgWrapper { proc_, arg };
     java_thread.clone().get_underlying().start_thread(box move |_| {
         let ThreadArgWrapper { proc_, arg } = args;

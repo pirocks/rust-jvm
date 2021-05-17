@@ -18,7 +18,7 @@ pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i
     let this_pointer_o = args[0].unwrap_object().unwrap();//todo handle npe
     let this_pointer = this_pointer_o.unwrap_normal_object();
     *int_state.current_frame_mut().operand_stack_mut() = checkpoint;
-    let target_class = this_pointer.class_pointer.clone();
+    let target_class = this_pointer.objinfo.class_pointer.clone();
     let (target_method_i, final_target_class) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
     let _ = invoke_virtual_method_i(jvm, int_state, expected_descriptor, final_target_class.clone(), &final_target_class.view().method_view_i(target_method_i));

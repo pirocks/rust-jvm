@@ -69,7 +69,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
             run_single_instruction(jvm, interpreter_state, instruct);
         };
         if interpreter_state.throw().is_some() {
-            let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().class_pointer.clone();
+            let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();
             for excep_table in &code.exception_table {
                 let pc = interpreter_state.current_pc();
                 if excep_table.start_pc as usize <= pc && pc < (excep_table.end_pc as usize) {//todo exclusive
@@ -268,7 +268,7 @@ fn run_single_instruction(
         InstructionInfo::fstore_2 => fstore(interpreter_state.current_frame_mut(), 2),
         InstructionInfo::fstore_3 => fstore(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::fsub => fsub(interpreter_state.current_frame_mut()),
-        InstructionInfo::getfield(cp) => get_field(interpreter_state, cp, false),
+        InstructionInfo::getfield(cp) => get_field(jvm, interpreter_state, cp, false),
         InstructionInfo::getstatic(cp) => get_static(jvm, interpreter_state, cp),
         InstructionInfo::goto_(target) => goto_(interpreter_state.current_frame_mut(), target as i32),
         InstructionInfo::goto_w(target) => goto_(interpreter_state.current_frame_mut(), target),

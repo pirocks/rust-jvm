@@ -36,7 +36,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
-    let runtime_class = &prop_obj.unwrap_normal_object().class_pointer;
+    let runtime_class = &prop_obj.unwrap_normal_object().objinfo.class_pointer;
     let class_view = &runtime_class.view();
     let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());
     let meth = candidate_meth.get(0).unwrap();

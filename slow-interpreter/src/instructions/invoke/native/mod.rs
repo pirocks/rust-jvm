@@ -26,7 +26,7 @@ pub fn run_native_method(
     method_i: usize) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
-    assert_inited_or_initing_class(jvm, int_state, view.type_());
+    assert_inited_or_initing_class(jvm, view.type_());
     assert_eq!(before, int_state.current_frame().operand_stack().len());
     let method = view.method_view_i(method_i);
     if !method.is_static() {

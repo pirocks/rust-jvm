@@ -52,7 +52,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         None => return null_mut(),
         Some(n) => n,
     };
-    let _inited_class = assert_loaded_class(jvm, int_state, super_name.clone().into());
+    let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
         return null_mut();
     };

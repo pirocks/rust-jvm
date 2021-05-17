@@ -1,4 +1,7 @@
+use classfile_view::view::ptype_view::PTypeView;
+use jvmti_jni_bindings::jio_fprintf;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::descriptor_parser::FieldDescriptor;
 use verification::verifier::instructions::special::extract_field_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -10,7 +13,7 @@ use crate::utils::throw_npe;
 pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
-    let target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
+    let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let stack = int_state.current_frame_mut().operand_stack_mut();
     let field_value = stack.pop().unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
@@ -19,7 +22,7 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
 pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = int_state.current_class_view();
     let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
-    let _target_classfile = assert_inited_or_initing_class(jvm, int_state, field_class_name.clone().into());
+    let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let stack = &mut int_state.current_frame_mut().operand_stack_mut();
     let val = stack.pop().unwrap();
     let object_ref = stack.pop().unwrap();
@@ -30,8 +33,8 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
                     Some(x) => x,
                     None => {
                         return throw_npe(jvm, int_state);
-                    },
-                }.unwrap_normal_object().fields_mut().insert(field_name, val);
+                    }
+                }.unwrap_normal_object().set_var(target_class, field_name, val);
             }
         }
         _ => {
@@ -82,35 +85,18 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
     Ok(field_value)
 }
 
-pub fn get_field(int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
+pub fn get_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
     let current_frame: &mut StackEntry = int_state.current_frame_mut();
     let view = current_frame.class_pointer().view();
-    let (_field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
-    let object_ref = current_frame.pop();
+    let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
+    let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
+    let object_ref = int_state.current_frame_mut().pop();
     match object_ref {
         JavaValue::Object(o) => {
-            let fields = match o.as_ref() {
-                Some(x) => x,
-                None => {
-                    int_state.debug_print_stack_trace();
-                    unimplemented!()
-                }
-            }.unwrap_normal_object().fields_mut();
-            if fields.get(field_name.as_str()).is_none() {
-                dbg!(&o);
-                dbg!(&fields.keys());
-                dbg!(&field_name);
-            }
-            let res = match fields.get(field_name.as_str()) {
-                Some(x) => x,
-                None => {
-                    dbg!(int_state.current_frame().operand_stack_types());
-                    dbg!(int_state.current_frame().local_vars_types());
-                    int_state.debug_print_stack_trace();
-                    panic!()//todo need to completely revamp the way field accesses work here. so like you can't access non-existing
-                },
-            }.clone();
-            current_frame.push(res);
+            dbg!(target_class_pointer.view().name());
+            int_state.debug_print_stack_trace();
+            let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name, PTypeView::from_ptype(&field_type));
+            int_state.current_frame_mut().push(res);
         }
         _ => panic!(),
     }

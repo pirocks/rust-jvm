@@ -40,7 +40,6 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     let java_lang_string = ClassName::string();
     let string_class = assert_inited_or_initing_class(
         jvm,
-        interpreter_state,
         java_lang_string.into(),
     );
     let str_as_vec = res_string.chars();

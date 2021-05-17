@@ -114,21 +114,21 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name_func(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JString>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_string())
         }
 
         pub fn is_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<bool, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string())?;
             Ok(int_state.pop_current_operand_stack().unwrap_boolean() != 0)
         }
 
         pub fn get_name_or_null(&self) -> Option<JString> {
-            let str_jvalue = self.normal_object.unwrap_normal_object().fields_mut().get(&"name".to_string()).unwrap().clone();
+            let str_jvalue = self.normal_object.lookup_field("name");
             if str_jvalue.unwrap_object().is_none() {
                 None
             } else {
@@ -142,11 +142,11 @@ pub mod member_name {
 
 
         pub fn set_name(&self, new_val: JString) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("name".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level("name", new_val.java_value());
         }
 
         pub fn get_clazz_or_null(&self) -> Option<JClass> {
-            let possibly_null = self.normal_object.unwrap_normal_object().fields_mut().get(&"clazz".to_string()).unwrap().clone();
+            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level("clazz").clone();
             if possibly_null.unwrap_object().is_none() {
                 None
             } else {
@@ -159,46 +159,46 @@ pub mod member_name {
         }
 
         pub fn set_clazz(&self, new_val: JClass) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("clazz".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level("clazz".to_string(), new_val.java_value());
         }
 
         pub fn set_type(&self, new_val: MethodType) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("type".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level("type".to_string(), new_val.java_value());
         }
 
 
         pub fn get_type(&self) -> JavaValue {
-            self.normal_object.unwrap_normal_object().fields_mut().get("type").unwrap().clone()
+            self.normal_object.unwrap_normal_object().get_var_top_level("type").clone()
         }
 
         pub fn set_flags(&self, new_val: jint) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("flags".to_string(), JavaValue::Int(new_val));
+            self.normal_object.unwrap_normal_object().set_var_top_level("flags".to_string(), JavaValue::Int(new_val));
         }
 
 
         getter_gen!(flags,jint,unwrap_int);
 
         pub fn set_resolution(&self, new_val: JavaValue) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("resolution".to_string(), new_val);
+            self.normal_object.unwrap_normal_object().set_var_top_level("resolution".to_string(), new_val);
         }
 
         pub fn get_resolution(&self) -> JavaValue {
-            self.normal_object.unwrap_normal_object().fields_mut().get(&"resolution".to_string()).unwrap().clone()
+            self.normal_object.unwrap_normal_object().get_var_top_level(&"resolution".to_string()).clone()
         }
 
         pub fn clazz(&self) -> Option<JClass> {
-            self.normal_object.unwrap_normal_object().fields_mut().get("clazz").unwrap().cast_class()
+            self.normal_object.unwrap_normal_object().get_var_top_level("clazz").cast_class()
         }
 
         pub fn get_method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodType, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_method_type())
         }
 
         pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JClass>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, int_state, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string())?;
             Ok(int_state.pop_current_operand_stack().cast_class())
@@ -278,7 +278,7 @@ pub mod class {
             run_static_or_virtual(
                 state,
                 int_state,
-                &self.normal_object.unwrap_normal_object().class_pointer,
+                &self.normal_object.unwrap_normal_object().objinfo.class_pointer,
                 "getClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             )?;
@@ -330,7 +330,7 @@ pub mod class {
 
         pub fn set_name_(&self, name: JString) {
             let normal_object = self.normal_object.unwrap_normal_object();
-            normal_object.fields_mut().insert("name".to_string(), name.java_value());
+            normal_object.set_var_top_level("name".to_string(), name.java_value());
         }
 
         as_object_or_java_value!();
@@ -384,7 +384,7 @@ pub mod class_loader {
         pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) -> Result<JClass, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(name.java_value());
-            let class_loader = assert_inited_or_initing_class(jvm, int_state, ClassName::classloader().into());
+            let class_loader = assert_inited_or_initing_class(jvm, ClassName::classloader().into());
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -513,7 +513,7 @@ pub mod integer {
         }
 
         pub fn value(&self) -> jint {
-            self.normal_object.unwrap_normal_object().fields_mut().get("value").unwrap().unwrap_int()
+            self.normal_object.unwrap_normal_object().get_var_top_level("value").unwrap_int()
         }
 
         as_object_or_java_value!();
@@ -542,9 +542,9 @@ pub mod object {
 }
 
 pub mod thread {
-    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
 
@@ -555,7 +555,7 @@ pub mod thread {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
-    use crate::java_values::{NormalObject, Object};
+    use crate::java_values::{NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
     use crate::threading::{JavaThread, JavaThreadId};
@@ -589,36 +589,36 @@ pub mod thread {
             JThread {
                 normal_object: Arc::new(Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
-                    fields: UnsafeCell::new(Default::default()),
-                    class_pointer: Arc::new(RuntimeClass::Byte),
+
+                    objinfo: ObjectFieldsAndClass {
+                        fields: Default::default(),
+                        parent: None,
+                        class_pointer: Arc::new(RuntimeClass::Top),
+                    },
                 }))
             }
         }
 
-        pub fn tid(&self) -> JavaThreadId {
-            match self.normal_object.unwrap_normal_object().fields_mut().get("tid") {
-                Some(x) => x,
-                None => {
-                    dbg!(&self.normal_object);
-                    panic!()
-                }
-            }.unwrap_long()
+        pub fn tid(&self, jvm: &JVMState) -> JavaThreadId {
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            self.normal_object.unwrap_normal_object().get_var(thread_class, "tid", PTypeView::LongType).unwrap_long()
         }
 
         pub fn run(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-            let thread_class = self.normal_object.unwrap_normal_object().class_pointer.clone();
+            let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string())
         }
 
         pub fn exit(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-            let thread_class = self.normal_object.unwrap_normal_object().class_pointer.clone();
+            let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &thread_class, "exit".to_string(), "()V".to_string())
         }
 
-        pub fn name(&self) -> JString {
-            self.normal_object.lookup_field("name").cast_string().expect("threads are known to have nonnull names")
+        pub fn name(&self, jvm: &JVMState) -> JString {
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            self.normal_object.unwrap_normal_object().get_var(thread_class, "name", ClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
         }
 
         pub fn priority(&self) -> i32 {
@@ -626,7 +626,7 @@ pub mod thread {
         }
 
         pub fn set_priority(&self, priority: i32) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("priority".to_string(), JavaValue::Int(priority));
+            self.normal_object.unwrap_normal_object().set_var_top_level("priority".to_string(), JavaValue::Int(priority));
         }
 
         pub fn daemon(&self) -> bool {
@@ -634,12 +634,12 @@ pub mod thread {
         }
 
         pub fn set_thread_status(&self, thread_status: jint) {
-            self.normal_object.unwrap_normal_object().fields_mut().insert("threadStatus".to_string(), JavaValue::Int(thread_status));
+            self.normal_object.unwrap_normal_object().set_var_top_level("threadStatus".to_string(), JavaValue::Int(thread_status));
         }
 
 
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> Result<JThread, WasException> {
-            let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::thread().into());
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             push_new_object(jvm, int_state, &thread_class);
             let thread_object = int_state.pop_current_operand_stack();
             let thread_name = JString::from_rust(jvm, int_state, thread_name)?;
@@ -653,12 +653,12 @@ pub mod thread {
         }
 
         pub fn try_get_java_thread(&self, jvm: &JVMState) -> Option<Arc<JavaThread>> {
-            let tid = self.tid();
+            let tid = self.tid(jvm);
             jvm.thread_state.try_get_thread_by_tid(tid)
         }
 
         pub fn is_alive(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<jboolean, WasException> {
-            let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::thread().into());
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
                 jvm,
@@ -673,7 +673,7 @@ pub mod thread {
 
 
         pub fn get_context_class_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<ClassLoader>, WasException> {
-            let thread_class = assert_inited_or_initing_class(jvm, int_state, ClassName::thread().into());
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
                 jvm,
@@ -724,7 +724,7 @@ pub mod thread_group {
         pub fn try_cast_thread_group(&self) -> Option<JThreadGroup> {
             match self.try_unwrap_normal_object() {
                 Some(normal_object) => {
-                    if normal_object.class_pointer.view().name() == ClassName::thread_group().into() {
+                    if normal_object.objinfo.class_pointer.view().name() == ClassName::thread_group().into() {
                         return JThreadGroup { normal_object: self.unwrap_object_nonnull() }.into();
                     }
                     None

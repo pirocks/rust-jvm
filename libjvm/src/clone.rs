@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use classfile_view::vtype::VType::Uninitialized;
 use jvmti_jni_bindings::{JNIEnv, jobject};
-use slow_interpreter::java_values::{ArrayObject, NormalObject, Object};
+use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::sun::misc::unsafe_::Unsafe;
@@ -29,8 +29,11 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 Object::Object(o) => {
                     Arc::new(Object::Object(NormalObject {
                         monitor: jvm.thread_state.new_monitor("".to_string()),
-                        fields: UnsafeCell::new(o.fields_mut().iter().map(|(k, v)| { (k.clone(), v.clone()) }).collect()),
-                        class_pointer: o.class_pointer.clone(),
+                        objinfo: ObjectFieldsAndClass {
+                            fields: todo!(),
+                            parent: todo!(),
+                            class_pointer: todo!(),
+                        },
                     })).into()
                 }
             }

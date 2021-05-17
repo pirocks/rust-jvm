@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -6,7 +7,11 @@ use std::ops::Deref;
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
+use itertools::Itertools;
+
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::vtype::VType::Reference;
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
 use rust_jvm_common::classnames::ClassName;
 
@@ -95,33 +100,34 @@ impl CycleDetectingDebug for Object {
 
 impl CycleDetectingDebug for NormalObject {
     fn cycle_fmt(&self, prev: &Vec<&Arc<Object>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let o = self;
-        if o.class_pointer.view().name() == ClassName::class().into() {
-            write!(f, "need a jvm pointer here to give more info on class object")?;
-        } else if o.class_pointer.view().name() == ClassName::string().into() {
-            let fields_borrow = o.fields_mut();
-            let value_field = fields_borrow.get("value").unwrap();
-            match &value_field.unwrap_object() {
-                None => {
-                    write!(f, "(String Object: {:?})", "weird af string obj.")?;
-                }
-                Some(_) => {
-                    write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
-                }
-            }
-        } else {
-            write!(f, "{:?}", &o.class_pointer.view().name())?;
-            write!(f, "-")?;
-//        write!(f, "{:?}", self.class_pointer.static_vars)?;
-            write!(f, "-")?;
-            o.fields_mut().iter().for_each(|(n, v)| {
-                write!(f, "({},", n).unwrap();
-                v.cycle_fmt(prev, f).unwrap();
-                write!(f, ")").unwrap();
-            });
-            write!(f, "-")?;
-        }
-        Result::Ok(())
+//         let o = self;
+//         if o.class_pointer.view().name() == ClassName::class().into() {
+//             write!(f, "need a jvm pointer here to give more info on class object")?;
+//         } else if o.class_pointer.view().name() == ClassName::string().into() {
+//             let fields_borrow = o.fields_mut();
+//             let value_field = fields_borrow.get("value").unwrap();
+//             match &value_field.unwrap_object() {
+//                 None => {
+//                     write!(f, "(String Object: {:?})", "weird af string obj.")?;
+//                 }
+//                 Some(_) => {
+//                     write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
+//                 }
+//             }
+//         } else {
+//             write!(f, "{:?}", &o.class_pointer.view().name())?;
+//             write!(f, "-")?;
+// //        write!(f, "{:?}", self.class_pointer.static_vars)?;
+//             write!(f, "-")?;
+//             o.fields_mut().iter().for_each(|(n, v)| {
+//                 write!(f, "({},", n).unwrap();
+//                 v.cycle_fmt(prev, f).unwrap();
+//                 write!(f, ")").unwrap();
+//             });
+//             write!(f, "-")?;
+//         }
+//         Result::Ok(())
+        todo!()
     }
 }
 
@@ -282,12 +288,27 @@ impl JavaValue {
             jvm.thread_state.new_monitor("".to_string()),
         )?)))))
     }
+
+    fn new_object_impl(runtime_class: &Arc<RuntimeClass>) -> ObjectFieldsAndClass {
+        let fields = runtime_class.view().fields().flat_map(|field| {
+            if field.is_static() {
+                return None;
+            }
+            return Some((field.field_name(), UnsafeCell::new(JavaValue::Top)));
+        }).collect::<HashMap<_, _>>();
+        ObjectFieldsAndClass {
+            fields,
+            parent: runtime_class.unwrap_class_class().parent.as_ref().map(|it| box Self::new_object_impl(it)),
+            class_pointer: runtime_class.clone(),
+        }
+    }
+
     pub fn new_object(jvm: &JVMState, runtime_class: Arc<RuntimeClass>) -> Option<Arc<Object>> {
         assert!(!runtime_class.view().is_abstract());
+
         Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
-            class_pointer: runtime_class,
-            fields: UnsafeCell::new(HashMap::new()),
+            objinfo: Self::new_object_impl(&runtime_class),
         })).into()
     }
 
@@ -364,7 +385,7 @@ impl JavaValue {
                             ReferenceTypeView::Array(array.elem_type.clone().into())
                         }
                         Object::Object(obj) => {
-                            ReferenceTypeView::Class(obj.class_pointer.ptypeview().unwrap_class_type())
+                            ReferenceTypeView::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
                         }
                     })
                 }
@@ -496,7 +517,7 @@ unsafe impl Sync for Object {}
 
 impl Object {
     pub fn lookup_field(&self, s: &str) -> JavaValue {
-        self.unwrap_normal_object().fields_mut().get(s).unwrap().clone()
+        unsafe { self.unwrap_normal_object().objinfo.fields.get(s).unwrap().get().as_ref() }.unwrap().clone()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -527,12 +548,13 @@ impl Object {
                 Object::Array(ArrayObject { elems: UnsafeCell::new(sub_array), elem_type: a.elem_type.clone(), monitor: jvm.thread_state.new_monitor("".to_string()) })
             }
             Object::Object(o) => {
-                let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
-                Object::Object(NormalObject {
-                    monitor: jvm.thread_state.new_monitor("".to_string()),
-                    fields: new_fields,
-                    class_pointer: o.class_pointer.clone(),
-                })
+                todo!()
+                // let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
+                // Object::Object(NormalObject {
+                //     monitor: jvm.thread_state.new_monitor("".to_string()),
+                //     fields: new_fields,
+                //     class_pointer: o.class_pointer.clone(),
+                // })
             }
         }
     }
@@ -586,16 +608,192 @@ impl ArrayObject {
     }
 }
 
-pub struct NormalObject {
-    pub monitor: Arc<Monitor>,
-    pub fields: UnsafeCell<HashMap<String, JavaValue>>,
-    //todo this refcell should be by class pointer, to avoid same name clashes.
+pub struct ObjectFieldsAndClass {
+    pub fields: HashMap<String, UnsafeCell<JavaValue>>,
+    pub parent: Option<Box<ObjectFieldsAndClass>>,
     pub class_pointer: Arc<RuntimeClass>,
 }
 
+pub struct NormalObject {
+    pub monitor: Arc<Monitor>,
+    pub objinfo: ObjectFieldsAndClass,
+}
+
 impl NormalObject {
-    pub fn fields_mut(&self) -> &mut HashMap<String, JavaValue> {
-        unsafe { self.fields.get().as_mut().unwrap() }
+    pub fn set_var_top_level(&self, name: impl Into<String>, jv: JavaValue) {
+        *unsafe {
+            let string = name.into();
+            match self.objinfo.fields.get(&string) {
+                Some(x) => x,
+                None => {
+                    dbg!(string);
+                    dbg!(&self.objinfo.fields.keys().collect_vec());
+                    dbg!(self.objinfo.class_pointer.view().name());
+                    panic!()
+                }
+            }.get().as_mut()
+        }.unwrap() = jv;
+    }
+
+    pub fn set_var(&self, _class_pointer: Arc<RuntimeClass>, name: impl Into<String>, jv: JavaValue) {
+        //todo type check
+        unsafe { Self::set_var_impl(&self.objinfo, name, jv) }
+    }
+
+    pub fn set_var_unknown(&self, name: impl Into<String>, jv: JavaValue) {
+        unsafe { Self::set_var_impl(&self.objinfo, name, jv) }
+    }
+
+    unsafe fn set_var_impl(objinfo: &ObjectFieldsAndClass, name: impl Into<String>, jv: JavaValue) {
+        let name = name.into();
+        if name == "ucp" {
+            dbg!(objinfo.fields.keys().collect_vec());
+        }
+        *match objinfo.fields.get(&name) {
+            Some(x) => x,
+            None => {
+                if let Some(objinfo) = objinfo.parent.as_ref() {
+                    return Self::set_var_impl(objinfo.deref(), name, jv);
+                } else {
+                    panic!()
+                }
+            }
+        }.get().as_mut().unwrap() = jv.clone();
+    }
+
+    pub fn get_var_top_level(&self, name: impl Into<String>) -> JavaValue {
+        unsafe {
+            let name = name.into();
+            match self.objinfo.fields.get(&name) {
+                Some(x) => x,
+                None => {
+                    dbg!(&self.objinfo.class_pointer);
+                    dbg!(name);
+                    dbg!(self.objinfo.fields.keys().collect_vec());
+                    panic!()
+                }
+            }.get().as_ref()
+        }.unwrap().clone()
+    }
+
+
+    pub fn get_var_unknown(&self, name: impl Into<String>) -> JavaValue {
+        unsafe { Self::get_var_impl(&self.objinfo, None, name) }
+    }
+
+    pub fn type_check(&self, class_pointer: Arc<RuntimeClass>) -> bool {
+        Self::type_check_impl(&self.objinfo, class_pointer)
+    }
+
+    fn type_check_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Arc<RuntimeClass>) -> bool {
+        if objinfo.class_pointer.view().name() == class_pointer.view().name() {
+            return true;
+        }
+        return Self::type_check_impl(match objinfo.parent.as_ref() {
+            Some(x) => x,
+            None => return false,
+        }, class_pointer);
+    }
+
+    fn find_matching_cname(objinfo: &ObjectFieldsAndClass, c_name: ReferenceTypeView) -> bool {
+        if objinfo.class_pointer.view().name() == ReferenceTypeView::Class(ClassName::class()) && c_name == ReferenceTypeView::Class(ClassName::object()) {
+            return true;
+        }
+        if objinfo.class_pointer.view().name() == c_name {
+            return true;
+        }
+        let super_ = objinfo.parent.as_ref().map(|parent| Self::find_matching_cname(parent.deref(), c_name.clone())).unwrap_or(false);
+        let interfaces = objinfo.class_pointer.unwrap_class_class().interfaces.iter().any(|interface| interface.view().name() == c_name.clone());
+        return interfaces || super_;
+    }
+
+    pub fn get_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, expected_type: PTypeView) -> JavaValue {
+        let name = name.into();
+        if !self.type_check(class_pointer.clone()) {
+            dbg!(name);
+            dbg!(class_pointer.view().name());
+            dbg!(self.objinfo.class_pointer.view().name());
+            panic!()
+        }
+        let res = unsafe { Self::get_var_impl(&self.objinfo, Some(class_pointer.clone()), &name) };
+        match expected_type {
+            PTypeView::ByteType => {}
+            PTypeView::CharType => {}
+            PTypeView::DoubleType => {}
+            PTypeView::FloatType => {}
+            PTypeView::IntType => {}
+            PTypeView::LongType => {}
+            PTypeView::Ref(ref_) => match ref_ {
+                ReferenceTypeView::Class(c_name) => {
+                    if !Self::find_matching_cname(&match match res.unwrap_object() {
+                        Some(x) => x,
+                        None => return res,
+                    }.try_unwrap_normal_object() {
+                        Some(x) => x,
+                        None => return res,
+                    }.objinfo, ReferenceTypeView::Class(c_name.clone())) {
+                        dbg!(name);
+                        dbg!(class_pointer.view().name());
+                        dbg!(self.objinfo.class_pointer.view().name());
+                        dbg!(res.unwrap_normal_object().objinfo.class_pointer.view().name());
+                        dbg!(c_name);
+                        panic!()
+                    }
+                }
+                ReferenceTypeView::Array(_) => {}
+            }
+            PTypeView::ShortType => {}
+            PTypeView::BooleanType => {}
+            PTypeView::VoidType => {}
+            PTypeView::TopType => {}
+            PTypeView::NullType => {}
+            PTypeView::Uninitialized(_) => {}
+            PTypeView::UninitializedThis => {}
+            PTypeView::UninitializedThisOrClass(_) => {}
+        };
+        res
+    }
+
+    unsafe fn get_var_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Option<Arc<RuntimeClass>>, name: impl Into<String>) -> JavaValue {
+        let name = name.into();
+        if name == "ucp" {
+            dbg!(objinfo.fields.keys().collect_vec());
+            dbg!(objinfo.fields.values().map(|val| val.get().as_ref().unwrap().to_type()).collect_vec());
+        }
+        if let Some(class_pointer) = class_pointer.clone() {
+            if objinfo.class_pointer.view().name() == class_pointer.view().name() {
+                return match objinfo.fields.get(&name) {
+                    Some(x) => x,
+                    None => {
+                        if let Some(objinfo) = objinfo.parent.as_ref() {
+                            return Self::get_var_impl(objinfo.deref(), None, name);
+                        } else {
+                            dbg!(&name);
+                            panic!()
+                        }
+                    }
+                }.get().as_ref().unwrap().clone();
+            } else {
+                if let Some(objinfo) = objinfo.parent.as_ref() {
+                    return Self::get_var_impl(objinfo.deref(), Some(class_pointer), name);
+                } else {
+                    dbg!(&name);
+                    panic!()
+                }
+            }
+        } else {
+            return match objinfo.fields.get(&name) {
+                Some(x) => x,
+                None => {
+                    if let Some(objinfo) = objinfo.parent.as_ref() {
+                        return Self::get_var_impl(objinfo.deref(), class_pointer, name);
+                    } else {
+                        dbg!(&name);
+                        panic!()
+                    }
+                }
+            }.get().as_ref().unwrap().clone();
+        }
     }
 }
 

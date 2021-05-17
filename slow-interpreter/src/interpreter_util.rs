@@ -1,14 +1,14 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassView, HasAccessFlags};
+use rust_jvm_common::classfile::ObjectVariableInfo;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::check_resolved_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, JavaValue, Object};
+use crate::java_values::{default_value, JavaValue, ObjectFieldsAndClass};
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
@@ -21,22 +21,17 @@ pub fn push_new_object(
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
-    default_init_fields(jvm, int_state, loader, object_pointer, &*runtime_class.view()).unwrap();//todo pass the error up
+    default_init_fields(jvm, &object_pointer.unwrap().unwrap_normal_object().objinfo);
     int_state.current_frame_mut().push(new_obj);
 }
 
 fn default_init_fields(
     jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    loader: LoaderName,
-    object_pointer: Option<Arc<Object>>,
-    view: &dyn ClassView,
-) -> Result<(), WasException> {
-    if let Some(super_name) = view.super_name() {
-        let loaded_super = check_resolved_class(jvm, int_state, super_name.into())?;
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &*loaded_super.view())?;
+    object_pointer: &ObjectFieldsAndClass) {
+    if let Some(super_) = object_pointer.parent.as_ref() {
+        default_init_fields(jvm, super_.deref());
     }
-    for field in view.fields() {
+    for field in object_pointer.class_pointer.view().fields() {
         if !field.is_static() {
             //todo should I look for constant val attributes?
             /*let _value_i = match field.constant_value_attribute() {
@@ -46,12 +41,11 @@ fn default_init_fields(
             let name = field.field_name();
             let type_ = field.field_type();
             let val = default_value(type_);
-            {
-                object_pointer.clone().unwrap().unwrap_normal_object().fields_mut().insert(name, val);
+            unsafe {
+                *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
             }
         }
     }
-    Ok(())
 }
 
 pub fn run_constructor(

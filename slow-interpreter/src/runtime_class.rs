@@ -24,6 +24,7 @@ pub enum RuntimeClass {
     Void,
     Array(RuntimeClassArray),
     Object(RuntimeClassClass),
+    Top
 }
 
 #[derive(Debug)]
@@ -35,6 +36,8 @@ pub struct RuntimeClassArray {
 pub struct RuntimeClassClass {
     pub class_view: Arc<dyn ClassView>,
     pub static_vars: RwLock<HashMap<String, JavaValue>>,
+    pub parent: Option<Arc<RuntimeClass>>,
+    pub interfaces: Vec<Arc<RuntimeClass>>,
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
 }
@@ -57,6 +60,7 @@ impl RuntimeClass {
             RuntimeClass::Object(o) => {
                 PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name().unwrap_name()))
             }
+            RuntimeClass::Top => panic!()
         }
     }
     pub fn view(&self) -> Arc<dyn ClassView> {
@@ -76,6 +80,7 @@ impl RuntimeClass {
                 })
             }
             RuntimeClass::Object(o) => o.class_view.clone(),
+            RuntimeClass::Top => panic!()
         }
     }
 
@@ -92,6 +97,7 @@ impl RuntimeClass {
             RuntimeClass::Void => panic!(),
             RuntimeClass::Array(_) => panic!(),
             RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
+            RuntimeClass::Top => panic!()
         }
     }
 
@@ -108,7 +114,8 @@ impl RuntimeClass {
             RuntimeClass::Double => ClassStatus::INITIALIZED,
             RuntimeClass::Void => ClassStatus::INITIALIZED,
             RuntimeClass::Array(a) => a.sub_class.status(),
-            RuntimeClass::Object(o) => *o.status.read().unwrap()
+            RuntimeClass::Object(o) => *o.status.read().unwrap(),
+            RuntimeClass::Top => panic!()
         }
     }
 
@@ -117,6 +124,13 @@ impl RuntimeClass {
             RuntimeClass::Array(a) => a.sub_class.set_status(status),
             RuntimeClass::Object(o) => *o.status.write().unwrap() = status,
             _ => {}
+        }
+    }
+
+    pub fn unwrap_class_class(&self) -> &RuntimeClassClass {
+        match self {
+            RuntimeClass::Object(classclass) => classclass,
+            _ => panic!()
         }
     }
 }

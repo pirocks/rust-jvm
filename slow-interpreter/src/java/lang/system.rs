@@ -13,7 +13,7 @@ pub struct System {
 
 impl System {
     pub fn props(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Properties {
-        let system_class = assert_inited_or_initing_class(jvm, int_state, ClassName::system().into());
+        let system_class = assert_inited_or_initing_class(jvm, ClassName::system().into());
         let prop_jv = system_class.static_vars().get("props").unwrap().clone();
         prop_jv.cast_properties()
     }

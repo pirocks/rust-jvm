@@ -17,14 +17,14 @@ pub mod properties {
     impl JavaValue {
         pub fn cast_properties(&self) -> Properties {
             let res = Properties { normal_object: self.unwrap_object_nonnull() };
-            assert_eq!(res.normal_object.unwrap_normal_object().class_pointer.view().name(), ClassName::properties().into());
+            assert_eq!(res.normal_object.unwrap_normal_object().objinfo.class_pointer.view().name(), ClassName::properties().into());
             res
         }
     }
 
     impl Properties {
         pub fn set_property(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, key: JString, value: JString) -> Result<(), WasException> {
-            let properties_class = assert_inited_or_initing_class(jvm, int_state, ClassName::properties().into());
+            let properties_class = assert_inited_or_initing_class(jvm, ClassName::properties().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());

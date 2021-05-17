@@ -1,4 +1,3 @@
-use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -29,7 +28,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
-use crate::java_values::{JavaValue, NormalObject, Object};
+use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
@@ -189,8 +188,11 @@ impl JVMState {
         fields.insert("classLoader".to_string(), JavaValue::Object(None));
         let class_object = Arc::new(Object::Object(NormalObject {
             monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
-            fields: UnsafeCell::new(fields),
-            class_pointer: classes.class_class.clone(),
+            objinfo: ObjectFieldsAndClass {
+                fields: Default::default(),
+                parent: None,
+                class_pointer: classes.class_class.clone(),
+            },
         }));
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddress(class_object), runtime_class);
@@ -201,6 +203,8 @@ impl JVMState {
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
             class_view: Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
             static_vars: Default::default(),
+            parent: None,
+            interfaces: vec![],
             status: ClassStatus::UNPREPARED.into(),
         }));
         let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();

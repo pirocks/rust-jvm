@@ -21,7 +21,7 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{JavaValue, NormalObject, Object};
+use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -94,7 +94,7 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     }
 }
 
-pub fn assert_loaded_class(jvm: &JVMState, _int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn assert_loaded_class(jvm: &JVMState, ptype: PTypeView) -> Arc<RuntimeClass> {
     match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
         None => panic!(),
         Some((_, res)) => res.clone()
@@ -205,12 +205,24 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     }) as Arc<dyn ClassFileGetter>,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
-                    debug: class_name == ClassName::string()
+                    debug: class_name == ClassName::string(),
                 };
                 verify(&mut verifier_context, class_view.deref(), LoaderName::BootstrapLoader).unwrap();
+                let parent = match class_view.super_name() {
+                    Some(super_name) => {
+                        Some(check_loaded_class(jvm, int_state, super_name.into())?)
+                    }
+                    None => None
+                };
+                let mut interfaces = vec![];
+                for interface in class_view.interfaces() {
+                    interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
+                }
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     static_vars: Default::default(),
+                    parent,
+                    interfaces,
                     status: ClassStatus::UNPREPARED.into(),
                 }));
                 let verification_types = verifier_context.verification_types;
@@ -223,12 +235,6 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
-                if let Some(super_name) = class_view.super_name() {
-                    check_loaded_class(jvm, int_state, super_name.into())?;
-                }
-                for interface in class_view.interfaces() {
-                    check_loaded_class(jvm, int_state, interface.interface_name().into())?;
-                }
                 (class_object, res)
             }
             ReferenceTypeView::Array(sub_type) => {
@@ -256,16 +262,19 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         }
     };
     if name == ClassName::new("java/lang/Object").into() {
-        let mut fields: HashMap<String, JavaValue, RandomState> = Default::default();
-        fields.insert("name".to_string(), JavaValue::Object(None));
-        fields.insert("classLoader".to_string(), JavaValue::Object(None));
-        fields.insert("reflectionData".to_string(), JavaValue::Object(None));
-        fields.insert("genericInfo".to_string(), JavaValue::Object(None));
-        fields.insert("classRedefinedCount".to_string(), JavaValue::Int(0));
+        let mut fields: HashMap<String, UnsafeCell<JavaValue>> = Default::default();
+        fields.insert("name".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        fields.insert("classLoader".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        fields.insert("reflectionData".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        fields.insert("genericInfo".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        fields.insert("classRedefinedCount".to_string(), UnsafeCell::new(JavaValue::Int(0)));
         return Ok(Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
-            fields: UnsafeCell::new(fields),
-            class_pointer: jvm.classes.read().unwrap().class_class.clone(),
+            objinfo: ObjectFieldsAndClass {
+                fields,
+                parent: None,//todo this should be obj class
+                class_pointer: jvm.classes.read().unwrap().class_class.clone(),
+            },
         })));
     }
     let class_object = match loader {
@@ -292,8 +301,8 @@ pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     check_loaded_class(jvm, int_state, ptype)
 }
 
-pub fn assert_inited_or_initing_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Arc<RuntimeClass> {
-    let class: Arc<RuntimeClass> = assert_loaded_class(jvm, int_state, ptype.clone());
+pub fn assert_inited_or_initing_class(jvm: &JVMState, ptype: PTypeView) -> Arc<RuntimeClass> {
+    let class: Arc<RuntimeClass> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
         ClassStatus::UNPREPARED => panic!(),
         ClassStatus::PREPARED => panic!(),
