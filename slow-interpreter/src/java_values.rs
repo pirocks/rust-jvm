@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
+use std::process::Output;
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
@@ -125,7 +126,7 @@ impl CycleDetectingDebug for NormalObject {
 //             write!(f, "-")?;
 //         }
 //         Result::Ok(())
-        todo!()
+        writeln!(f, "object")
     }
 }
 
@@ -635,7 +636,15 @@ impl NormalObject {
 
     pub fn set_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, jv: JavaValue, expected_type: PTypeView) {
         let name = name.into();
-        self.expected_type_check(class_pointer.clone(), expected_type, name.clone(), &jv);
+        self.expected_type_check(class_pointer.clone(), expected_type.clone(), name.clone(), &jv);
+        // if name == "this$0" && expected_type == ClassName::new("java/util/ArrayList").into() {
+        //     dbg!(&jv.to_type());
+        // }
+        // if name == "cursor" && expected_type == PTypeView::IntType{
+        //     dbg!(self.objinfo.fields.keys().collect_vec());
+        //     dbg!(self.objinfo.parent.as_ref().unwrap().fields.keys().collect_vec());
+        //     dbg!(&jv);
+        // }
         unsafe { Self::set_var_impl(&self.objinfo, class_pointer, name, jv, true) }
     }
 
@@ -699,7 +708,9 @@ impl NormalObject {
         return interfaces || super_;
     }
 
+
     pub fn get_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, expected_type: PTypeView) -> JavaValue {
+        static mut OUTPUT: bool = false;
         let name = name.into();
         if !self.type_check(class_pointer.clone()) {
             dbg!(name);
@@ -708,6 +719,21 @@ impl NormalObject {
             panic!()
         }
         let res = unsafe { Self::get_var_impl(&self.objinfo, class_pointer.clone(), &name, true) };
+        // if name == "this$0" && expected_type == ClassName::new("java/util/ArrayList").into(){
+        //     dbg!(&res.to_type());
+        //     unsafe { OUTPUT = true; }
+        // }
+        // unsafe {
+        //     if name == "size" && expected_type == PTypeView::IntType && OUTPUT {
+        //         dbg!(&res);
+        //         unsafe { OUTPUT = false; }
+        //     }
+        // }
+        // if name == "cursor" && expected_type == PTypeView::IntType{
+        //     dbg!(self.objinfo.fields.keys().collect_vec());
+        //     dbg!(self.objinfo.parent.as_ref().unwrap().fields.keys().collect_vec());
+        //     dbg!(&res);
+        // }
         self.expected_type_check(class_pointer, expected_type, name, &res);
         res
     }

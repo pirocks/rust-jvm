@@ -621,16 +621,18 @@ pub mod thread {
             self.normal_object.unwrap_normal_object().get_var(thread_class, "name", ClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
         }
 
-        pub fn priority(&self) -> i32 {
-            self.normal_object.lookup_field("priority").unwrap_int()
+        pub fn priority(&self, jvm: &JVMState) -> i32 {
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            self.normal_object.unwrap_normal_object().get_var(thread_class, "priority", PTypeView::IntType).unwrap_int()
         }
 
         pub fn set_priority(&self, priority: i32) {
             self.normal_object.unwrap_normal_object().set_var_top_level("priority".to_string(), JavaValue::Int(priority));
         }
 
-        pub fn daemon(&self) -> bool {
-            self.normal_object.lookup_field("daemon").unwrap_int() != 0
+        pub fn daemon(&self, jvm: &JVMState) -> bool {
+            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            self.normal_object.unwrap_normal_object().get_var(thread_class, "daemon", PTypeView::BooleanType).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &JVMState, thread_status: jint) {

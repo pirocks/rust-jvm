@@ -8,6 +8,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
+use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
 use crate::class_objects::get_or_create_class_object;
@@ -108,7 +109,13 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }
-    jvm.tracing.function_exit_guard(function_enter_guard);
+    let res = if interpreter_state.call_stack_depth() >= 2 {
+        let frame = interpreter_state.previous_frame();
+        frame.operand_stack().last().unwrap_or(&JavaValue::Top).clone()
+    } else {
+        JavaValue::Top
+    };
+    jvm.tracing.function_exit_guard(function_enter_guard, res);
     if interpreter_state.throw().is_some() {
         return Err(WasException);
     }
@@ -179,12 +186,34 @@ pub fn monitor_for_function(
     }
 }
 
+pub static mut TIMES: usize = 0;
+
 fn run_single_instruction(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
 ) {
+    unsafe {
+        TIMES += 1;
+        if TIMES % 10000000 == 0 {
+            interpreter_state.debug_print_stack_trace();
+        }
+    };
     interpreter_state.verify_frame(jvm);
+    if interpreter_state.call_stack_depth() > 2 {
+        let current_method_i = interpreter_state.current_frame().method_i();
+        let current_view = interpreter_state.current_frame().class_pointer().view();
+
+        if jvm.vm_live() && current_view.method_view_i(current_method_i as usize).name().as_str() == "hasNext" && current_view.name().unwrap_name() == ClassName::new("java/util/ArrayList$Itr") {
+            let previous_method_i = interpreter_state.previous_frame().method_i();
+            let previous_view = interpreter_state.previous_frame().class_pointer().view();
+            if jvm.vm_live() && previous_view.method_view_i(previous_method_i as usize).name().as_str() == "<init>" && previous_view.name().unwrap_name() == ClassName::new("bed")
+            {
+                dbg!(&instruct);
+                dbg!(interpreter_state.current_frame().operand_stack());
+            }
+        }
+    }
     match instruct {
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),

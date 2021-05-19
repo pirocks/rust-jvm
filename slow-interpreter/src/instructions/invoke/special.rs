@@ -1,6 +1,8 @@
+use std::panic::panic_any;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -47,7 +49,13 @@ pub fn invoke_special_impl(
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state, &parsed_descriptor, &mut args, max_locals);
         assert!(args[0].unwrap_object().is_some());
-        let next_entry = StackEntry::new_java_frame(jvm, final_target_class, target_m_i as u16, args);
+        let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
+        let arc = final_target_class.view();
+        if arc.method_view_i(target_m_i).name() == "<init>" && arc.name() == ClassName::Str("bed".to_string()).into() {
+            // dbg!(arc.name());
+            // interpreter_state.debug_print_stack_trace();
+            // panic!();
+        }
         let function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {

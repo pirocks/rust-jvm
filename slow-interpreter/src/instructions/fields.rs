@@ -1,5 +1,4 @@
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::jio_fprintf;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::FieldDescriptor;
 use verification::verifier::instructions::special::extract_field_descriptor;

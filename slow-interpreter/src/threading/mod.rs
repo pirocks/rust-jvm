@@ -282,7 +282,8 @@ impl ThreadState {
     pub fn get_all_alive_threads(&self) -> Vec<Arc<JavaThread>> {
         self.all_java_threads.read().unwrap().values().filter(|thread| {
             //don't use is_alive for this
-            todo!()
+            // todo!()
+            true
             // thread.thread_object().is_alive(jvm, int_state) != 0
         }).cloned().collect::<Vec<_>>()
     }

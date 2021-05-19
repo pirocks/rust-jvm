@@ -1,9 +1,12 @@
+use std::env::current_exe;
 use std::sync::RwLock;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
+use crate::interpreter::TIMES;
+use crate::java_values::JavaValue;
 use crate::JVMState;
 use crate::threading::JavaThreadId;
 use crate::threading::monitors::Monitor;
@@ -63,9 +66,17 @@ impl TracingSettings {
     }
 
     pub fn trace_function_enter<'l>(&self, classname: &'l PTypeView, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
-        if *self.trace_function_start.read().unwrap() {
-            println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
+        unsafe {
+            // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
+            //     && !meth_name.contains("hashCode")
+            //     && !meth_name.contains("equals"){
+            //     println!("{:indent$}start:{:?} {} {}","", classname, meth_name, method_desc,indent = current_depth);
+            // }
         }
+        //IN BEG.<INIT>, second iterator
+        //
+        // if *self.trace_function_start.read().unwrap() {
+        // }
         FunctionEnterExitTraceGuard {
             classname,
             meth_name,
@@ -142,7 +153,14 @@ impl TracingSettings {
         }
     }
 
-    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard) {
+    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, res: JavaValue) {
+        unsafe {
+            // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
+            //     && !guard.meth_name.contains("hashCode")
+            //     && !guard.meth_name.contains("equals"){
+            //     println!("{:indent$}exit:{} {} {}","", guard.classname.class_name_representation(), guard.meth_name,res.try_unwrap_int().map(|int|int.to_string()).unwrap_or("not int".to_string()),indent= guard.current_depth);
+            // }
+        }
         drop(guard);
     }
 
