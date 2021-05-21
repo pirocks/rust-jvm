@@ -221,7 +221,7 @@ version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
-    "bitflags",
+ "bitflags",
 ]
 
 [[package]]
@@ -329,10 +329,10 @@ dependencies = [
 name = "gc-memory-layout-common"
 version = "0.1.0"
 dependencies = [
-    "iced-x86",
-    "itertools",
-    "libc",
-    "verification",
+ "iced-x86",
+ "itertools",
+ "libc",
+ "verification",
 ]
 
 [[package]]
@@ -382,7 +382,7 @@ version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
 dependencies = [
-    "quick-error",
+ "quick-error",
 ]
 
 [[package]]
@@ -391,8 +391,8 @@ version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97b85a147f5dcb22ece887da5b99187954cc046939f22416e953dd7c336e85a1"
 dependencies = [
-    "lazy_static",
-    "static_assertions",
+ "lazy_static",
+ "static_assertions",
 ]
 
 [[package]]
@@ -401,7 +401,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
-    "cfg-if 1.0.0",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -423,57 +423,57 @@ checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 name = "jar-manipulation"
 version = "0.1.0"
 dependencies = [
-    "classfile-parser",
-    "ntest_timeout",
-    "regex",
-    "rust-jvm-common",
-    "tempfile",
-    "timebomb",
-    "zip",
+ "classfile-parser",
+ "ntest_timeout",
+ "regex",
+ "rust-jvm-common",
+ "tempfile",
+ "timebomb",
+ "zip",
 ]
 
 [[package]]
 name = "jit"
 version = "0.1.0"
 dependencies = [
-    "compiler_builtins",
-    "gc-memory-layout-common",
-    "iced-x86",
-    "jit-ir",
-    "libc",
-    "nix 0.20.0",
-    "rust-jvm-common",
-    "verification",
+ "compiler_builtins",
+ "gc-memory-layout-common",
+ "iced-x86",
+ "jit-ir",
+ "libc",
+ "nix 0.20.0",
+ "rust-jvm-common",
+ "verification",
 ]
 
 [[package]]
 name = "jit-ir"
 version = "0.1.0"
 dependencies = [
-    "gc-memory-layout-common",
-    "iced-x86",
+ "gc-memory-layout-common",
+ "iced-x86",
 ]
 
 [[package]]
 name = "jvm"
 version = "0.1.0"
 dependencies = [
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "heapsize",
-    "jvmti-jni-bindings",
-    "lazy_static",
-    "libc",
-    "lock_api 0.3.4",
-    "nix 0.17.0",
-    "num_cpus",
-    "parking_lot 0.10.2",
-    "regex",
-    "rust-jvm-common",
-    "sketch-jvm-version-of-utf8",
-    "slow-interpreter",
-    "verification",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "heapsize",
+ "jvmti-jni-bindings",
+ "lazy_static",
+ "libc",
+ "lock_api 0.3.4",
+ "nix 0.17.0",
+ "num_cpus",
+ "parking_lot 0.10.2",
+ "regex",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "slow-interpreter",
+ "verification",
 ]
 
 [[package]]
@@ -595,11 +595,11 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "50e4785f2c3b7589a0d0c1dd60285e1188adac4006e8abd6dd578e1567027363"
 dependencies = [
-    "bitflags",
-    "cc",
-    "cfg-if 0.1.10",
-    "libc",
-    "void",
+ "bitflags",
+ "cc",
+ "cfg-if 0.1.10",
+ "libc",
+ "void",
 ]
 
 [[package]]
@@ -608,10 +608,10 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa9b4819da1bc61c0ea48b63b7bc8604064dd43013e7cc325df098d49cd7c18a"
 dependencies = [
-    "bitflags",
-    "cc",
-    "cfg-if 1.0.0",
-    "libc",
+ "bitflags",
+ "cc",
+ "cfg-if 1.0.0",
+ "libc",
 ]
 
 [[package]]
@@ -620,8 +620,8 @@ version = "5.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffb4262d26ed83a1c0a33a38fe2bb15797329c85770da05e6b828ddb782627af"
 dependencies = [
-    "memchr",
-    "version_check",
+ "memchr",
+ "version_check",
 ]
 
 [[package]]
@@ -1063,31 +1063,31 @@ version = "0.1.0"
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
-    "bimap",
-    "bindgen",
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "errno",
-    "futures-intrusive",
-    "itertools",
-    "jar-manipulation",
-    "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading 0.6.5",
-    "lock_api 0.3.4",
-    "nix 0.17.0",
-    "num",
-    "parking_lot 0.11.1",
-    "regex",
-    "rust-jvm-common",
-    "sketch-jvm-version-of-utf8",
-    "thread-priority",
-    "threads",
-    "type-safe-proc-macro-utils",
-    "va_list",
-    "verification",
+ "bimap",
+ "bindgen",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "errno",
+ "futures-intrusive",
+ "itertools",
+ "jar-manipulation",
+ "jvmti-jni-bindings",
+ "libc",
+ "libffi",
+ "libloading 0.6.5",
+ "lock_api 0.3.4",
+ "nix 0.17.0",
+ "num",
+ "parking_lot 0.11.1",
+ "regex",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "thread-priority",
+ "threads",
+ "type-safe-proc-macro-utils",
+ "va_list",
+ "verification",
 ]
 
 [[package]]
@@ -1102,7 +1102,7 @@ version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2beb4d1860a61f571530b3f855a1b538d0200f7871c63331ecd6f17b1f014f8"
 dependencies = [
-    "version_check",
+ "version_check",
 ]
 
 [[package]]
@@ -1117,12 +1117,12 @@ version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d022496b16281348b52d0e30ae99e01a73d737b2f45d38fed4edf79f9325a1d5"
 dependencies = [
-    "discard",
-    "rustc_version",
-    "stdweb-derive",
-    "stdweb-internal-macros",
-    "stdweb-internal-runtime",
-    "wasm-bindgen",
+ "discard",
+ "rustc_version",
+ "stdweb-derive",
+ "stdweb-internal-macros",
+ "stdweb-internal-runtime",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1263,11 +1263,11 @@ dependencies = [
 name = "threads"
 version = "0.1.0"
 dependencies = [
-    "bindgen",
-    "libc",
-    "lock_api 0.3.4",
-    "nix 0.17.0",
-    "parking_lot 0.10.2",
+ "bindgen",
+ "libc",
+ "lock_api 0.3.4",
+ "nix 0.17.0",
+ "parking_lot 0.10.2",
 ]
 
 [[package]]

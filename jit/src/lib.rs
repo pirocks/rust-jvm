@@ -83,8 +83,12 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
         InstructionInfo::dastore => Err(JITError::NotSupported),
         InstructionInfo::dcmpg => Err(JITError::NotSupported),
         InstructionInfo::dcmpl => Err(JITError::NotSupported),
-        InstructionInfo::dconst_0 => Err(JITError::NotSupported),
-        InstructionInfo::dconst_1 => Err(JITError::NotSupported),
+        InstructionInfo::dconst_0 => {
+            constant(current_jit_state, Constant::Double(0f64))
+        },
+        InstructionInfo::dconst_1 => {
+            constant(current_jit_state, Constant::Double(1f64))
+        },
         InstructionInfo::ddiv => Err(JITError::NotSupported),
         InstructionInfo::dload(_) => Err(JITError::NotSupported),
         InstructionInfo::dload_0 => Err(JITError::NotSupported),
@@ -411,7 +415,7 @@ pub mod test {
     #[test]
     pub fn test() {
         let mut instructions: Vec<Instruction> = vec![];
-        IRInstruction::LoadAbsolute { address_from: FramePointerOffset(10), output_offset: FramePointerOffset(10), size: Size::Long }.to_x86(&mut instructions);
+        IRInstruction::LoadAbsolute { address_from: FramePointerOffset(10), output_offset: FramePointerOffset(10), size: Size::Int }.to_x86(&mut instructions);
         let mut formatter = IntelFormatter::new();
         let mut res = String::new();
         for instruction in &instructions {

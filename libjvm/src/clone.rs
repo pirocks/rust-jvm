@@ -30,9 +30,8 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                     Arc::new(Object::Object(NormalObject {
                         monitor: jvm.thread_state.new_monitor("".to_string()),
                         objinfo: ObjectFieldsAndClass {
-                            fields: todo!(),
-                            parent: todo!(),
-                            class_pointer: todo!(),
+                            fields: o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect(),
+                            class_pointer: o.objinfo.class_pointer.clone(),
                         },
                     })).into()
                 }

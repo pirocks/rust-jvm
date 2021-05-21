@@ -24,7 +24,7 @@ pub enum RuntimeClass {
     Void,
     Array(RuntimeClassArray),
     Object(RuntimeClassClass),
-    Top
+    Top,
 }
 
 #[derive(Debug)]
@@ -35,6 +35,7 @@ pub struct RuntimeClassArray {
 
 pub struct RuntimeClassClass {
     pub class_view: Arc<dyn ClassView>,
+    pub field_numbers: HashMap<String, usize>,
     pub static_vars: RwLock<HashMap<String, JavaValue>>,
     pub parent: Option<Arc<RuntimeClass>>,
     pub interfaces: Vec<Arc<RuntimeClass>>,
@@ -138,6 +139,12 @@ impl RuntimeClass {
 impl Debug for RuntimeClassClass {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
+    }
+}
+
+impl RuntimeClassClass {
+    pub fn num_vars(&self) -> usize {
+        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
     }
 }
 

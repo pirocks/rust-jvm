@@ -7,7 +7,7 @@ use std::process::Output;
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
-use itertools::Itertools;
+use itertools::{Itertools, repeat_n};
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -18,7 +18,7 @@ use crate::class_loading::check_resolved_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
-use crate::runtime_class::RuntimeClass;
+use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::monitors::Monitor;
 
 // #[derive(Copy)]
@@ -289,15 +289,16 @@ impl JavaValue {
     }
 
     fn new_object_impl(runtime_class: &Arc<RuntimeClass>) -> ObjectFieldsAndClass {
-        let fields = runtime_class.view().fields().flat_map(|field| {
-            if field.is_static() {
-                return None;
-            }
-            return Some((field.field_name(), UnsafeCell::new(JavaValue::Top)));
-        }).collect::<HashMap<_, _>>();
+        // let fields = runtime_class.view().fields().flat_map(|field| {
+        //     if field.is_static() {
+        //         return None;
+        //     }
+        //     return Some((field.field_name(), UnsafeCell::new(JavaValue::Top)));
+        // }).collect::<HashMap<_, _>>();
+        let class_class = runtime_class.unwrap_class_class();
+        let fields = repeat_n(JavaValue::Top, runtime_class.unwrap_class_class().num_vars()).map(|jv| UnsafeCell::new(jv)).collect_vec();
         ObjectFieldsAndClass {
             fields,
-            parent: runtime_class.unwrap_class_class().parent.as_ref().map(|it| box Self::new_object_impl(it)),
             class_pointer: runtime_class.clone(),
         }
     }
@@ -516,7 +517,9 @@ unsafe impl Sync for Object {}
 
 impl Object {
     pub fn lookup_field(&self, s: &str) -> JavaValue {
-        unsafe { self.unwrap_normal_object().objinfo.fields.get(s).unwrap().get().as_ref() }.unwrap().clone()
+        let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
+        let field_number = class_pointer.unwrap_class_class().field_numbers[s];
+        unsafe { self.unwrap_normal_object().objinfo.fields[field_number].get().as_ref() }.unwrap().clone()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject {
@@ -608,8 +611,8 @@ impl ArrayObject {
 }
 
 pub struct ObjectFieldsAndClass {
-    pub fields: HashMap<String, UnsafeCell<JavaValue>>,
-    pub parent: Option<Box<ObjectFieldsAndClass>>,
+    //ordered by alphabetical and super first
+    pub fields: Vec<UnsafeCell<JavaValue>>,
     pub class_pointer: Arc<RuntimeClass>,
 }
 
@@ -620,46 +623,34 @@ pub struct NormalObject {
 
 impl NormalObject {
     pub fn set_var_top_level(&self, name: impl Into<String>, jv: JavaValue) {
+        let name = name.into();
+        let field_index = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         *unsafe {
-            let string = name.into();
-            match self.objinfo.fields.get(&string) {
-                Some(x) => x,
-                None => {
-                    dbg!(string);
-                    dbg!(&self.objinfo.fields.keys().collect_vec());
-                    dbg!(self.objinfo.class_pointer.view().name());
-                    panic!()
-                }
-            }.get().as_mut()
+            self.objinfo.fields[*field_index].get().as_mut()
         }.unwrap() = jv;
     }
 
     pub fn set_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, jv: JavaValue, expected_type: PTypeView) {
         let name = name.into();
-        self.expected_type_check(class_pointer.clone(), expected_type.clone(), name.clone(), &jv);
-        // if name == "this$0" && expected_type == ClassName::new("java/util/ArrayList").into() {
-        //     dbg!(&jv.to_type());
-        // }
-        // if name == "cursor" && expected_type == PTypeView::IntType{
-        //     dbg!(self.objinfo.fields.keys().collect_vec());
-        //     dbg!(self.objinfo.parent.as_ref().unwrap().fields.keys().collect_vec());
-        //     dbg!(&jv);
-        // }
-        unsafe { Self::set_var_impl(&self.objinfo, class_pointer, name, jv, true) }
+        // self.expected_type_check(class_pointer.clone(), expected_type.clone(), name.clone(), &jv);
+        unsafe { self.set_var_impl(&self.objinfo.class_pointer.unwrap_class_class(), class_pointer, name, jv, true) }
     }
 
-    unsafe fn set_var_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, jv: JavaValue, mut do_class_check: bool) {
+    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, jv: JavaValue, mut do_class_check: bool) {
         let name = name.into();
-        if objinfo.class_pointer.view().name() == class_pointer.view().name() || !do_class_check {
-            match objinfo.fields.get(&name).map(|set| *set.get().as_mut().unwrap() = jv.clone()) {
-                Some(_) => { return; }
+        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+            let field_index = match current_class_pointer.field_numbers.get(&name) {
                 None => {
-                    do_class_check = false
+                    do_class_check = false;
                 }
-            }
+                Some(field_index) => {
+                    self.objinfo.fields.get(*field_index).map(|set| *set.get().as_mut().unwrap() = jv.clone());
+                    return
+                }
+            };
         }
-        if let Some(objinfo) = objinfo.parent.as_ref() {
-            Self::set_var_impl(objinfo.deref(), class_pointer, name, jv, do_class_check);
+        if let Some(parent_class) = current_class_pointer.parent.as_ref() {
+            self.set_var_impl(parent_class.unwrap_class_class(), class_pointer, name, jv, do_class_check);
         } else {
             panic!()
         }
@@ -667,26 +658,19 @@ impl NormalObject {
 
 
     pub fn get_var_top_level(&self, name: impl Into<String>) -> JavaValue {
+        let name = name.into();
+        let field_index = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         unsafe {
-            let name = name.into();
-            match self.objinfo.fields.get(&name) {
-                Some(x) => x,
-                None => {
-                    dbg!(&self.objinfo.class_pointer);
-                    dbg!(name);
-                    dbg!(self.objinfo.fields.keys().collect_vec());
-                    panic!()
-                }
-            }.get().as_ref()
+            self.objinfo.fields[*field_index].get().as_ref()
         }.unwrap().clone()
     }
 
 
-    pub fn type_check(&self, class_pointer: Arc<RuntimeClass>) -> bool {
-        Self::type_check_impl(&self.objinfo, class_pointer)
-    }
+    // pub fn type_check(&self, class_pointer: Arc<RuntimeClass>) -> bool {
+    //     Self::type_check_impl(&self.objinfo, class_pointer)
+    // }
 
-    fn type_check_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Arc<RuntimeClass>) -> bool {
+    /*fn type_check_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Arc<RuntimeClass>) -> bool {
         if objinfo.class_pointer.view().name() == class_pointer.view().name() {
             return true;
         }
@@ -694,9 +678,9 @@ impl NormalObject {
             Some(x) => x,
             None => return false,
         }, class_pointer);
-    }
+    }*/
 
-    fn find_matching_cname(objinfo: &ObjectFieldsAndClass, c_name: ReferenceTypeView) -> bool {
+    /*fn find_matching_cname(objinfo: &ObjectFieldsAndClass, c_name: ReferenceTypeView) -> bool {
         if objinfo.class_pointer.view().name() == ReferenceTypeView::Class(ClassName::class()) && c_name == ReferenceTypeView::Class(ClassName::object()) {
             return true;
         }
@@ -706,39 +690,24 @@ impl NormalObject {
         let super_ = objinfo.parent.as_ref().map(|parent| Self::find_matching_cname(parent.deref(), c_name.clone())).unwrap_or(false);
         let interfaces = objinfo.class_pointer.unwrap_class_class().interfaces.iter().any(|interface| interface.view().name() == c_name.clone());
         return interfaces || super_;
-    }
+    }*/
 
 
     pub fn get_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, expected_type: PTypeView) -> JavaValue {
         static mut OUTPUT: bool = false;
         let name = name.into();
-        if !self.type_check(class_pointer.clone()) {
-            dbg!(name);
-            dbg!(class_pointer.view().name());
-            dbg!(self.objinfo.class_pointer.view().name());
-            panic!()
-        }
-        let res = unsafe { Self::get_var_impl(&self.objinfo, class_pointer.clone(), &name, true) };
-        // if name == "this$0" && expected_type == ClassName::new("java/util/ArrayList").into(){
-        //     dbg!(&res.to_type());
-        //     unsafe { OUTPUT = true; }
+        // if !self.type_check(class_pointer.clone()) {
+        //     dbg!(name);
+        //     dbg!(class_pointer.view().name());
+        //     dbg!(self.objinfo.class_pointer.view().name());
+        //     panic!()
         // }
-        // unsafe {
-        //     if name == "size" && expected_type == PTypeView::IntType && OUTPUT {
-        //         dbg!(&res);
-        //         unsafe { OUTPUT = false; }
-        //     }
-        // }
-        // if name == "cursor" && expected_type == PTypeView::IntType{
-        //     dbg!(self.objinfo.fields.keys().collect_vec());
-        //     dbg!(self.objinfo.parent.as_ref().unwrap().fields.keys().collect_vec());
-        //     dbg!(&res);
-        // }
-        self.expected_type_check(class_pointer, expected_type, name, &res);
+        let res = unsafe { Self::get_var_impl(self, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), &name, true) };
+        // self.expected_type_check(class_pointer, expected_type, name, &res);
         res
     }
 
-    fn expected_type_check(&self, class_pointer: Arc<RuntimeClass>, expected_type: PTypeView, name: String, res: &JavaValue) {
+    /*fn expected_type_check(&self, class_pointer: Arc<RuntimeClass>, expected_type: PTypeView, name: String, res: &JavaValue) {
         match expected_type {
             PTypeView::ByteType => {}
             PTypeView::CharType => {}
@@ -775,20 +744,22 @@ impl NormalObject {
             PTypeView::UninitializedThis => {}
             PTypeView::UninitializedThisOrClass(_) => {}
         };
-    }
+    }*/
 
-    unsafe fn get_var_impl(objinfo: &ObjectFieldsAndClass, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, mut do_class_check: bool) -> JavaValue {
+    unsafe fn get_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, mut do_class_check: bool) -> JavaValue {
         let name = name.into();
-        if objinfo.class_pointer.view().name() == class_pointer.view().name() || !do_class_check {
-            match objinfo.fields.get(&name).map(|get| get.get().as_ref().unwrap().clone()) {
-                Some(res) => { return res; }
+        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+            match current_class_pointer.field_numbers.get(&name) {
+                Some(field_number) => {
+                    return self.objinfo.fields[*field_number].get().as_ref().unwrap().clone()
+                }
                 None => {
                     do_class_check = false;
                 }
             }
         }
-        if let Some(objinfo) = objinfo.parent.as_ref() {
-            return Self::get_var_impl(objinfo.deref(), class_pointer, name, do_class_check);
+        if let Some(parent_class) = current_class_pointer.parent.as_ref() {
+            return self.get_var_impl(parent_class.unwrap_class_class(), class_pointer, name, do_class_check);
         } else {
             panic!()
         }

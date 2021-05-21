@@ -1,17 +1,20 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
+use itertools::Itertools;
 
 use classfile_view::loading::{LivePoolGetter, LoaderName};
 use classfile_view::loading::LoaderName::BootstrapLoader;
-use classfile_view::view::{ClassBackedView, ClassView};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use sketch_jvm_version_of_utf8::ValidationError::UnexpectedEndOfString;
 use verification::{ClassFileGetter, VerifierContext, verify};
 
 use crate::interpreter::WasException;
@@ -165,7 +168,14 @@ pub struct DefaultClassfileGetter<'l> {
 impl ClassFileGetter for DefaultClassfileGetter<'_> {
     fn get_classfile(&self, _loader: LoaderName, class: ClassName) -> Arc<Classfile> {
         //todo verification needs to be better hooked in
-        self.jvm.classpath.lookup(&class).unwrap()
+        match self.jvm.classpath.lookup(&class) {
+            Ok(x) => x,
+            Err(err) => {
+                dbg!(err);
+                dbg!(class);
+                panic!()
+            },
+        }
     }
 }
 
@@ -177,7 +187,15 @@ impl LivePoolGetter for DefaultLivePoolGetter {
     }
 }
 
+static mut BOOTSRAP_LOAD_COUNT: usize = 0;
+
 pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+    unsafe {
+        BOOTSRAP_LOAD_COUNT += 1;
+        if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
+            dbg!(BOOTSRAP_LOAD_COUNT);
+        }
+    }
     let (class_object, runtime_class) = match ptype.clone() {
         PTypeView::ByteType => (create_class_object(jvm, int_state, ClassName::new("byte").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Byte)),
         PTypeView::CharType => (create_class_object(jvm, int_state, ClassName::new("char").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Char)),
@@ -217,8 +235,12 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                 for interface in class_view.interfaces() {
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
+                let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
+                // (start_field_number..start_field_number+class_view.num_fields()).map(||)
+                let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| name.field_name()).sorted().enumerate().map(|(index, name)| (name, index + start_field_number)).collect::<HashMap<_, _>>();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
+                    field_numbers,
                     static_vars: Default::default(),
                     parent,
                     interfaces,
@@ -261,17 +283,16 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         }
     };
     if name == ClassName::new("java/lang/Object").into() {
-        let mut fields: HashMap<String, UnsafeCell<JavaValue>> = Default::default();
-        fields.insert("name".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        fields.insert("classLoader".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        fields.insert("reflectionData".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        fields.insert("genericInfo".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        fields.insert("classRedefinedCount".to_string(), UnsafeCell::new(JavaValue::Int(0)));
+        // let mut fields: HashMap<String, UnsafeCell<JavaValue>> = Default::default();
+        // fields.insert("name".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        // fields.insert("classLoader".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        // fields.insert("reflectionData".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        // fields.insert("genericInfo".to_string(), UnsafeCell::new(JavaValue::Object(None)));
+        // fields.insert("classRedefinedCount".to_string(), UnsafeCell::new(JavaValue::Int(0)));
         return Ok(Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields,
-                parent: None,//todo this should be obj class
+                fields: JVMState::get_class_field_numbers().into_values().map(|_| UnsafeCell::new(JavaValue::Top)).collect_vec(),
                 class_pointer: jvm.classes.read().unwrap().class_class.clone(),
             },
         })));

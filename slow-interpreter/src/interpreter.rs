@@ -200,20 +200,20 @@ fn run_single_instruction(
         }
     };
     interpreter_state.verify_frame(jvm);
-    if interpreter_state.call_stack_depth() > 2 {
-        let current_method_i = interpreter_state.current_frame().method_i();
-        let current_view = interpreter_state.current_frame().class_pointer().view();
-
-        if jvm.vm_live() && current_view.method_view_i(current_method_i as usize).name().as_str() == "hasNext" && current_view.name().unwrap_name() == ClassName::new("java/util/ArrayList$Itr") {
-            let previous_method_i = interpreter_state.previous_frame().method_i();
-            let previous_view = interpreter_state.previous_frame().class_pointer().view();
-            if jvm.vm_live() && previous_view.method_view_i(previous_method_i as usize).name().as_str() == "<init>" && previous_view.name().unwrap_name() == ClassName::new("bed")
-            {
-                dbg!(&instruct);
-                dbg!(interpreter_state.current_frame().operand_stack());
-            }
-        }
-    }
+    // if interpreter_state.call_stack_depth() > 2 {
+    //     let current_method_i = interpreter_state.current_frame().method_i();
+    //     let current_view = interpreter_state.current_frame().class_pointer().view();
+    //
+    //     if jvm.vm_live() && current_view.method_view_i(current_method_i as usize).name().as_str() == "hasNext" && current_view.name().unwrap_name() == ClassName::new("java/util/ArrayList$Itr") {
+    //         let previous_method_i = interpreter_state.previous_frame().method_i();
+    //         let previous_view = interpreter_state.previous_frame().class_pointer().view();
+    //         if jvm.vm_live() && previous_view.method_view_i(previous_method_i as usize).name().as_str() == "<init>" && previous_view.name().unwrap_name() == ClassName::new("bed")
+    //         {
+    //             // dbg!(&instruct);
+    //             // dbg!(interpreter_state.current_frame().operand_stack());
+    //         }
+    //     }
+    // }
     match instruct {
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),

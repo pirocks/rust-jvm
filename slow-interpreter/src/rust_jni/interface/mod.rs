@@ -664,6 +664,7 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     let class_name = class_view.name().unwrap_name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
+        field_numbers: todo!(),
         static_vars: Default::default(),
         parent: todo!(),
         interfaces: todo!(),

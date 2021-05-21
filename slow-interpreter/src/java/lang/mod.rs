@@ -592,7 +592,6 @@ pub mod thread {
 
                     objinfo: ObjectFieldsAndClass {
                         fields: Default::default(),
-                        parent: None,
                         class_pointer: Arc::new(RuntimeClass::Top),
                     },
                 }))

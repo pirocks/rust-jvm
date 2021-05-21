@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
+use std::iter::FromIterator;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -10,6 +11,7 @@ use std::time::Instant;
 
 use bimap::BiMap;
 use by_address::ByAddress;
+use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
@@ -78,7 +80,7 @@ pub struct JVMState {
 
     pub monitors2: RwLock<Vec<Monitor2>>,
 
-    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<usize, Frame>>>
+    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<usize, Frame>>>,
 }
 
 pub struct Classes {
@@ -174,7 +176,7 @@ impl JVMState {
             assertions_enabled,
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             monitors2: RwLock::new(vec![]),
-            function_frame_type_data: Default::default()
+            function_frame_type_data: Default::default(),
         };
         jvm.add_class_class_class_object();
         (args, jvm)
@@ -190,7 +192,6 @@ impl JVMState {
             monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
                 fields: Default::default(),
-                parent: None,
                 class_pointer: classes.class_class.clone(),
             },
         }));
@@ -200,8 +201,10 @@ impl JVMState {
 
     fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
         //todo turn this into a ::new
+        let field_numbers = JVMState::get_class_field_numbers();
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
             class_view: Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
+            field_numbers,
             static_vars: Default::default(),
             parent: None,
             interfaces: vec![],
@@ -219,6 +222,24 @@ impl JVMState {
             class_class,
         });
         classes
+    }
+
+    pub fn get_class_field_numbers() -> HashMap<String, usize> {
+        let class_class_fields = vec![
+            "cachedConstructor",
+            "newInstanceCallerCache",
+            "name",
+            "classLoader",
+            "reflectionData",
+            "classRedefinedCount",
+            "genericInfo",
+            "enumConstants",
+            "enumConstantDirectory",
+            "annotationData",
+            "annotationType",
+            "classValueMap"];
+        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted().enumerate().map(|(_1, _2)| (_2.to_string(), _1)).collect_vec().into_iter());
+        field_numbers
     }
 
 
@@ -252,12 +273,12 @@ pub struct JVMTIState {
 }
 
 struct LivePoolGetterImpl {
-    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>
+    anon_class_live_object_ldc_pool: Arc<RwLock<Vec<Arc<Object>>>>,
 }
 
 #[derive(Debug)]
 pub struct NativeLib {
-    pub library: Library
+    pub library: Library,
 }
 
 
@@ -338,7 +359,7 @@ impl JVMState {
 }
 
 pub struct BootstrapLoaderClassGetter<'l> {
-    jvm: &'l JVMState
+    jvm: &'l JVMState,
 }
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
@@ -350,5 +371,5 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_> {
 
 
 pub struct StringInternment {
-    pub strings: HashMap<Vec<u16>, Arc<Object>>
+    pub strings: HashMap<Vec<u16>, Arc<Object>>,
 }
