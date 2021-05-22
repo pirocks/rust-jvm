@@ -35,6 +35,7 @@ pub enum Constant {
     Pointer(usize),
     Double(f64),
     Float(f32),
+    Long(i64),
     Int(i32),
     Short(i16),
     Byte(i8),
@@ -167,7 +168,7 @@ r15 is reserved for context pointer
                     Size::Long => Instruction::with_reg_mem(Code::Mov_rm64_r64, Register::RBX, input_load_memory_operand_b.clone())
                 };
 
-                match arithmetic_type {
+                let arithmetic = match arithmetic_type {
                     ArithmeticType::Add => {
                         match size {
                             Size::Byte => Instruction::with_reg_mem(Code::Add_r8_rm8, Register::AL, input_load_memory_operand_b),
@@ -249,7 +250,7 @@ r15 is reserved for context pointer
                             Size::Long => Instruction::with_reg_reg(if *signed { todo!() } else { Code::Ror_rm64_CL }, Register::RAX, Register::RBX),
                         }
                     }
-                }
+                };
             }
             IRInstruction::BranchUnConditional(_) => todo!(),
             IRInstruction::BranchIf0 { .. } => todo!(),
