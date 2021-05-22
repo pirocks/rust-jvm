@@ -25,7 +25,7 @@ pub enum ArithmeticType {
     BinaryXor,
     LeftShift,
     RightShift,
-    Rotate,
+    RotateRight,
 
 }
 
@@ -150,8 +150,107 @@ r15 is reserved for context pointer
                 };
                 instructions.push(load_value);
                 instructions.push(write_value);
-            },
-            IRInstruction::IntegerArithmetic { .. } => todo!(),
+            }
+            IRInstruction::IntegerArithmetic { input_offset_a, input_offset_b, output_offset, size, signed, arithmetic_type } => {
+                let input_load_memory_operand_a = MemoryOperand::with_base_displ(Register::RBP, input_offset_a.0 as i64);
+                let load_value_a = match size {
+                    Size::Byte => Instruction::with_reg_mem(Code::Mov_rm8_r8, Register::AL, input_load_memory_operand_a),
+                    Size::Short => Instruction::with_reg_mem(Code::Mov_rm16_r16, Register::AX, input_load_memory_operand_a),
+                    Size::Int => Instruction::with_reg_mem(Code::Mov_rm32_r32, Register::EAX, input_load_memory_operand_a),
+                    Size::Long => Instruction::with_reg_mem(Code::Mov_rm64_r64, Register::RAX, input_load_memory_operand_a)
+                };
+                let input_load_memory_operand_b = MemoryOperand::with_base_displ(Register::RBP, input_offset_b.0 as i64);
+                let load_value_b = match size {
+                    Size::Byte => Instruction::with_reg_mem(Code::Mov_rm8_r8, Register::BL, input_load_memory_operand_b.clone()),
+                    Size::Short => Instruction::with_reg_mem(Code::Mov_rm16_r16, Register::BX, input_load_memory_operand_b.clone()),
+                    Size::Int => Instruction::with_reg_mem(Code::Mov_rm32_r32, Register::EBX, input_load_memory_operand_b.clone()),
+                    Size::Long => Instruction::with_reg_mem(Code::Mov_rm64_r64, Register::RBX, input_load_memory_operand_b.clone())
+                };
+
+                match arithmetic_type {
+                    ArithmeticType::Add => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_mem(Code::Add_r8_rm8, Register::AL, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_reg_mem(Code::Add_r16_rm16, Register::AX, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_reg_mem(Code::Add_r32_rm32, Register::EAX, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_reg_mem(Code::Add_r64_rm64, Register::RAX, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::Sub => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_mem(Code::Sub_r8_rm8, Register::AL, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_reg_mem(Code::Sub_r16_rm16, Register::AX, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_reg_mem(Code::Sub_r32_rm32, Register::EAX, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_reg_mem(Code::Sub_r64_rm64, Register::RAX, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::Mul => {
+                        match size {
+                            Size::Byte => Instruction::with_mem(if *signed { Code::Imul_rm8 } else { Code::Mul_rm8 }, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_mem(if *signed { Code::Imul_rm16 } else { Code::Mul_rm16 }, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_mem(if *signed { Code::Imul_rm32 } else { Code::Mul_rm32 }, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_mem(if *signed { Code::Imul_rm64 } else { Code::Mul_rm64 }, input_load_memory_operand_b)
+                        }
+                        //result now in a
+                    }
+                    ArithmeticType::Div => {
+                        match size {
+                            Size::Byte => Instruction::with_mem(if *signed { Code::Idiv_rm8 } else { Code::Div_rm8 }, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_mem(if *signed { Code::Idiv_rm16 } else { Code::Div_rm16 }, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_mem(if *signed { Code::Idiv_rm32 } else { Code::Div_rm32 }, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_mem(if *signed { Code::Idiv_rm64 } else { Code::Div_rm64 }, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::BinaryAnd => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_mem(Code::And_r8_rm8, Register::AL, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_reg_mem(Code::And_r16_rm16, Register::AX, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_reg_mem(Code::And_r32_rm32, Register::EAX, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_reg_mem(Code::And_r64_rm64, Register::RAX, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::BinaryOr => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_mem(Code::Or_r8_rm8, Register::AL, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_reg_mem(Code::Or_r16_rm16, Register::AX, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_reg_mem(Code::Or_r32_rm32, Register::EAX, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_reg_mem(Code::Or_r64_rm64, Register::RAX, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::BinaryXor => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_mem(Code::Xor_r8_rm8, Register::AL, input_load_memory_operand_b),
+                            Size::Short => Instruction::with_reg_mem(Code::Xor_r16_rm16, Register::AX, input_load_memory_operand_b),
+                            Size::Int => Instruction::with_reg_mem(Code::Xor_r32_rm32, Register::EAX, input_load_memory_operand_b),
+                            Size::Long => Instruction::with_reg_mem(Code::Xor_r64_rm64, Register::RAX, input_load_memory_operand_b)
+                        }
+                    }
+                    ArithmeticType::LeftShift => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_reg(if *signed { Code::Sal_rm8_CL } else { Code::Shl_rm8_CL }, Register::AL, Register::BL),
+                            Size::Short => Instruction::with_reg_reg(if *signed { Code::Sal_rm16_CL } else { Code::Shl_rm16_CL }, Register::AX, Register::AL),
+                            Size::Int => Instruction::with_reg_reg(if *signed { Code::Sal_rm32_CL } else { Code::Shl_rm32_CL }, Register::EAX, Register::EBX),
+                            Size::Long => Instruction::with_reg_reg(if *signed { Code::Sal_rm64_CL } else { Code::Shl_rm64_CL }, Register::RAX, Register::RBX),
+                        }
+                    }
+                    ArithmeticType::RightShift => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_reg(if *signed { Code::Sar_rm8_CL } else { Code::Shr_rm8_CL }, Register::AL, Register::BL),
+                            Size::Short => Instruction::with_reg_reg(if *signed { Code::Sar_rm16_CL } else { Code::Shr_rm16_CL }, Register::AX, Register::AL),
+                            Size::Int => Instruction::with_reg_reg(if *signed { Code::Sar_rm32_CL } else { Code::Shr_rm32_CL }, Register::EAX, Register::EBX),
+                            Size::Long => Instruction::with_reg_reg(if *signed { Code::Sar_rm64_CL } else { Code::Shr_rm64_CL }, Register::RAX, Register::RBX),
+                        }
+                    }
+                    ArithmeticType::RotateRight => {
+                        match size {
+                            Size::Byte => Instruction::with_reg_reg(if *signed { todo!() } else { Code::Ror_rm8_CL }, Register::AL, Register::BL),
+                            Size::Short => Instruction::with_reg_reg(if *signed { todo!() } else { Code::Ror_rm16_CL }, Register::AX, Register::AL),
+                            Size::Int => Instruction::with_reg_reg(if *signed { todo!() } else { Code::Ror_rm32_CL }, Register::EAX, Register::EBX),
+                            Size::Long => Instruction::with_reg_reg(if *signed { todo!() } else { Code::Ror_rm64_CL }, Register::RAX, Register::RBX),
+                        }
+                    }
+                }
+            }
             IRInstruction::BranchUnConditional(_) => todo!(),
             IRInstruction::BranchIf0 { .. } => todo!(),
             IRInstruction::VMExit(_) => todo!(),
