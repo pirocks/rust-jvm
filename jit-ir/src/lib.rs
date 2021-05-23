@@ -26,10 +26,23 @@ pub enum ArithmeticType {
     LeftShift,
     RightShift,
     RotateRight,
-
 }
 
-pub enum VMExitType {}
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub enum VMExitType {
+    CheckCast,
+    InstanceOf,
+    Exception,
+    InvokeDynamic,
+    InvokeStatic,
+    InvokeVirtual,
+    InvokeSpecial,
+    InvokeInterface,
+    MonitorEnter,
+    MonitorExit,
+    MultiNewArray,
+}
 
 pub enum Constant {
     Pointer(usize),
@@ -53,7 +66,7 @@ pub enum IRInstruction {
         size: Size,
     },
     StoreConstant {
-        address_to: FramePointerOffset,
+        output_offset: FramePointerOffset,
         constant: Constant,
     },
     CopyRelative {

@@ -119,6 +119,7 @@ impl ArrayMemoryLayout {
 }
 
 
+#[derive(Copy, Clone)]
 pub struct FramePointerOffset(pub usize);
 
 pub struct StackframeMemoryLayout {
@@ -128,6 +129,14 @@ pub struct StackframeMemoryLayout {
 }
 
 impl StackframeMemoryLayout {
+    pub fn new(max_stack: usize, max_locals: usize, frame_vtypes: HashMap<usize, Frame>) -> Self {
+        Self {
+            method_frames: frame_vtypes,
+            max_stack,
+            max_locals,
+        }
+    }
+
     pub fn local_var_entry(&self, pc: usize, i: usize) -> FramePointerOffset {
         let locals = self.method_frames.get(&pc).unwrap().locals.clone();//todo this rc could cross threads
         FramePointerOffset(locals.iter().take(i).map(|_local_type| 8).sum())//for now everything is 8 bytes
@@ -141,6 +150,10 @@ impl StackframeMemoryLayout {
     }
 
     pub fn full_frame_size(&self) -> usize {
+        todo!()
+    }
+
+    pub fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
         todo!()
     }
 }
