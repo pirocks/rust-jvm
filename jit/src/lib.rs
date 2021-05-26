@@ -12,10 +12,12 @@ use std::ptr::null_mut;
 use std::sync::atomic::{fence, Ordering};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, Encoder, InstructionBlock};
+use iced_x86::CC_l::l;
+use iced_x86::ImmSize::Size1;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, StackframeMemoryLayout};
-use jit_ir::{ArithmeticType, Constant, IRInstruction, Size, VariableSize, VMExitType};
+use jit_ir::{ArithmeticType, BranchType, Constant, IRInstruction, IRLabel, Size, VariableSize, VMExitType};
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
 use verification::verifier::Frame;
 
@@ -23,89 +25,77 @@ pub enum JITError {
     NotSupported
 }
 
-// pub struct Label{
-//     id: usize,
-//     bytecode_index: usize,
-//     true_index: usize,
-// }
+
+pub struct JitBlock {
+    java_pc_to_ir: HashMap<u16, usize>,
+    instructions: Vec<IRInstruction>,
+}
+
+impl JitBlock {
+    pub fn add_instruction(&mut self, instruction: IRInstruction) {
+        todo!()
+    }
+}
+
+pub struct JitIROutput {
+    blocks: Vec<JitBlock>,
+}
+
+impl JitIROutput {
+    pub fn add_block(&mut self, block: JitBlock) {
+        todo!()
+    }
+}
 
 pub struct JitState {
     memory_layout: StackframeMemoryLayout,
     java_pc: usize,
     next_pc: Option<NonZeroUsize>,
-    output: Vec<IRInstruction>,
+    output: JitIROutput,
+}
+
+impl JitState {
+    pub fn new_ir_label(&self) -> IRLabel {
+        todo!()
+    }
 }
 
 const MAX_INTERMEDIATE_VALUE_PADDING: usize = 3;
 
-pub fn code_to_ir(code: &Code, frame_vtypes: HashMap<usize, Frame>) -> Result<Vec<IRInstruction>, JITError> {
+pub fn code_to_ir(code: &Code, frame_vtypes: HashMap<usize, Frame>) -> Result<JitIROutput, JITError> {
     let mut jit_state = JitState {
         memory_layout: StackframeMemoryLayout::new((code.max_stack + MAX_INTERMEDIATE_VALUE_PADDING) as usize, code.max_locals as usize, frame_vtypes),
         java_pc: 0,
         next_pc: None,
-        output: vec![],
+        output: JitIROutput { blocks: vec![] },
     };
     let mut current_instr = None;
+    let mut main_block = JitBlock {
+        java_pc_to_ir: Default::default(),
+        instructions: vec![],
+    };
     for future_instr in &code.code {
         if let Some(current_instr) = current_instr.take() {
             jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset).unwrap());
             jit_state.java_pc = current_instr.offset;
-            byte_code_to_ir(current_instr, &mut jit_state)?;
+            byte_code_to_ir(current_instr, &mut jit_state, &mut main_block)?;
         }
         jit_state.next_pc = None;
         current_instr = Some(future_instr.clone());
     }
-    byte_code_to_ir(current_instr.unwrap(), &mut jit_state)?;
+    byte_code_to_ir(current_instr.unwrap(), &mut jit_state, &mut main_block)?;
+    jit_state.output.add_block(main_block);
     Ok(jit_state.output)
 }
 
 
-pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState) {
+pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState, main_block: &mut JitBlock) {
     let Instruction { offset, instruction: instruction_info } = bytecode;
     current_jit_state.java_pc = *offset;
     let java_pc = current_jit_state.java_pc;
     match instruction_info {
         InstructionInfo::aaload => {
-            // array, i
-            //todo need to handle index check
-            let array_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 1);
-            let index_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 0);
-            let shift_constant_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
-            let shift_amount = IRInstruction::StoreConstant { output_offset: shift_constant_location, constant: Constant::Long(size_of::<usize>() as i64) };
-            let shift_instruction = IRInstruction::IntegerArithmetic {
-                input_offset_a: index_operand,
-                input_offset_b: shift_constant_location,
-                output_offset: index_operand,
-                size: Size::Long,
-                signed: false,
-                arithmetic_type: ArithmeticType::LeftShift,
-            };
-            let layout: ArrayMemoryLayout = todo!();
-            let base_offset = layout.elem_0_entry();
-            let base_offset_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
-            let base_offset_instruction = IRInstruction::StoreConstant {
-                output_offset: base_offset_location,
-                constant: Constant::Long(base_offset as i64),
-            };
-            let base_offset_add = IRInstruction::IntegerArithmetic {
-                input_offset_a: base_offset_location,
-                input_offset_b: array_operand,
-                output_offset: array_operand,
-                size: Size::Long,
-                signed: false,
-                arithmetic_type: ArithmeticType::Add,
-            };
-            let index_add = IRInstruction::IntegerArithmetic {
-                input_offset_a: array_operand,
-                input_offset_b: index_operand,
-                output_offset: array_operand,
-                size: Size::Long,
-                signed: false,
-                arithmetic_type: ArithmeticType::Add,
-            };
-            todo!();
-
-            Ok(())
+            array_load(current_jit_state, main_block, Size::Long)
         }
         InstructionInfo::aastore => Err(JITError::NotSupported),
         InstructionInfo::aconst_null => {
@@ -128,7 +118,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
         }
         InstructionInfo::anewarray(_) => Err(JITError::NotSupported),
         InstructionInfo::areturn => {
-            current_jit_state.output.push(IRInstruction::Return {
+            main_block.add_instruction(IRInstruction::Return {
                 return_value: Some(current_jit_state.memory_layout.operand_stack_entry(java_pc, 0)),
                 to_pop: VariableSize(current_jit_state.memory_layout.full_frame_size()),
             });
@@ -156,23 +146,29 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
             astore_n(current_jit_state, 3)
         }
         InstructionInfo::athrow => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::Exception));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::Exception));
             Ok(())
+        }
+        InstructionInfo::baload => {
+            array_load(current_jit_state, main_block, Size::Byte)
         },
-        InstructionInfo::baload => Err(JITError::NotSupported),
         InstructionInfo::bastore => Err(JITError::NotSupported),
         InstructionInfo::bipush(_) => Err(JITError::NotSupported),
-        InstructionInfo::caload => Err(JITError::NotSupported),
-        InstructionInfo::castore => { Err(JITError::NotSupported) },
-        InstructionInfo::checkcast(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::CheckCast));
-            Ok(())
+        InstructionInfo::caload => {
+            array_load(current_jit_state, main_block, Size::Short)
         },
+        InstructionInfo::castore => { Err(JITError::NotSupported) }
+        InstructionInfo::checkcast(_) => {
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast));
+            Ok(())
+        }
         InstructionInfo::d2f => Err(JITError::NotSupported),
         InstructionInfo::d2i => Err(JITError::NotSupported),
         InstructionInfo::d2l => Err(JITError::NotSupported),
         InstructionInfo::dadd => Err(JITError::NotSupported),
-        InstructionInfo::daload => Err(JITError::NotSupported),
+        InstructionInfo::daload => {
+            array_load(current_jit_state, main_block, Size::Long)
+        },
         InstructionInfo::dastore => Err(JITError::NotSupported),
         InstructionInfo::dcmpg => Err(JITError::NotSupported),
         InstructionInfo::dcmpl => Err(JITError::NotSupported),
@@ -228,7 +224,9 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
         InstructionInfo::f2i => Err(JITError::NotSupported),
         InstructionInfo::f2l => Err(JITError::NotSupported),
         InstructionInfo::fadd => Err(JITError::NotSupported),
-        InstructionInfo::faload => Err(JITError::NotSupported),
+        InstructionInfo::faload => {
+            array_load(current_jit_state, main_block, Size::Int)
+        },
         InstructionInfo::fastore => Err(JITError::NotSupported),
         InstructionInfo::fcmpg => Err(JITError::NotSupported),
         InstructionInfo::fcmpl => Err(JITError::NotSupported),
@@ -296,10 +294,12 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Add,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
-        InstructionInfo::iaload => Err(JITError::NotSupported),
+        InstructionInfo::iaload => {
+            array_load(current_jit_state, main_block, Size::Int)
+        },
         InstructionInfo::iand => {
             binary_and(current_jit_state, java_pc, Size::Int)
         }
@@ -334,7 +334,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Div,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::if_acmpeq(_) => Err(JITError::NotSupported),
@@ -378,36 +378,36 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Mul,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::ineg => {
             todo!()
         }
         InstructionInfo::instanceof(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InstanceOf));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf));
             Ok(())
-        },
+        }
         InstructionInfo::invokedynamic(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InvokeDynamic));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic));
             Ok(())
-        },
+        }
         InstructionInfo::invokeinterface(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InvokeInterface));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeInterface));
             Ok(())
-        },
+        }
         InstructionInfo::invokespecial(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InvokeSpecial));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecial));
             Ok(())
-        },
+        }
         InstructionInfo::invokestatic(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InvokeStatic));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStatic));
             Ok(())
-        },
+        }
         InstructionInfo::invokevirtual(_) => {
-            current_jit_state.output.push(IRInstruction::VMExit(VMExitType::InvokeVirtual));
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtual));
             Ok(())
-        },
+        }
         InstructionInfo::ior => {
             let instruct = IRInstruction::IntegerArithmetic {
                 input_offset_a: current_jit_state.memory_layout.operand_stack_entry(java_pc, 1),
@@ -417,7 +417,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::BinaryOr,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::irem => Err(JITError::NotSupported),
@@ -431,7 +431,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::LeftShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::ishr => {
@@ -443,7 +443,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::RightShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::istore(n) => {
@@ -470,7 +470,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Sub,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::iushr => {
@@ -482,7 +482,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::RightShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::ixor => {
@@ -494,7 +494,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::BinaryXor,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::jsr(_) => Err(JITError::NotSupported),
@@ -503,7 +503,9 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
         InstructionInfo::l2f => Err(JITError::NotSupported),
         InstructionInfo::l2i => Err(JITError::NotSupported),
         InstructionInfo::ladd => Err(JITError::NotSupported),
-        InstructionInfo::laload => Err(JITError::NotSupported),
+        InstructionInfo::laload => {
+            array_load(current_jit_state, main_block, Size::Long)
+        },
         InstructionInfo::land => {
             binary_and(current_jit_state, java_pc, Size::Long)
         }
@@ -527,7 +529,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Div,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lload(n) => {
@@ -554,7 +556,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::Mul,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lneg => Err(JITError::NotSupported),
@@ -568,7 +570,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::BinaryOr,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lrem => Err(JITError::NotSupported),
@@ -582,7 +584,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::LeftShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lshr => {
@@ -594,7 +596,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: true,
                 arithmetic_type: ArithmeticType::RightShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lstore(n) => {
@@ -622,7 +624,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::Sub,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lushr => {
@@ -634,7 +636,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::RightShift,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::lxor => {
@@ -646,22 +648,39 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
                 signed: false,
                 arithmetic_type: ArithmeticType::BinaryXor,
             };
-            current_jit_state.output.push(instruct);
+            main_block.add_instruction(instruct);
             Ok(())
         }
-        InstructionInfo::monitorenter => Err(JITError::NotSupported),
-        InstructionInfo::monitorexit => Err(JITError::NotSupported),
-        InstructionInfo::multianewarray(_) => Err(JITError::NotSupported),
+        InstructionInfo::monitorenter => {
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter));
+            Ok(())
+        },
+        InstructionInfo::monitorexit => {
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit));
+            Ok(())
+        },
+        InstructionInfo::multianewarray(_) => {
+            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray));
+            Ok(())
+        },
         InstructionInfo::new(_) => Err(JITError::NotSupported),
         InstructionInfo::newarray(_) => Err(JITError::NotSupported),
-        InstructionInfo::nop => {}
-        InstructionInfo::pop => {}
-        InstructionInfo::pop2 => {}
+        InstructionInfo::nop => {
+            Ok(())
+        }
+        InstructionInfo::pop => {
+            Ok(())
+        }
+        InstructionInfo::pop2 => {
+            Ok(())
+        }
         InstructionInfo::putfield(_) => Err(JITError::NotSupported),
         InstructionInfo::putstatic(_) => Err(JITError::NotSupported),
         InstructionInfo::ret(_) => Err(JITError::NotSupported),
         InstructionInfo::return_ => Err(JITError::NotSupported),
-        InstructionInfo::saload => Err(JITError::NotSupported),
+        InstructionInfo::saload => {
+            array_load(current_jit_state, main_block, Size::Short)
+        },
         InstructionInfo::sastore => Err(JITError::NotSupported),
         InstructionInfo::sipush(_) => Err(JITError::NotSupported),
         InstructionInfo::swap => Err(JITError::NotSupported),
@@ -670,6 +689,114 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
         InstructionInfo::EndOfCode => Err(JITError::NotSupported),
     }?
 }
+
+fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset: FramePointerOffset) -> Result<(JitBlock, IRLabel), JITError> {
+    let mut block = JitBlock {
+        java_pc_to_ir: Default::default(),
+        instructions: vec![],
+    };
+    let label = current_jit_state.new_ir_label();
+    block.add_instruction(IRInstruction::Label(label));
+    block.add_instruction(IRInstruction::VMExit(VMExitType::ArrayOutOfBounds));
+    Ok((block, label))
+}
+
+
+fn array_load(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
+    // array, i
+    let array_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 1);
+    let layout: ArrayMemoryLayout = current_jit_state.memory_layout.operand_stack_entry_array_layout(java_pc, 1);
+    let index_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 0);
+
+    let zero = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+    let load_zero = IRInstruction::Constant { output_offset: zero.clone(), constant: Constant::Int(0) };
+    main_block.add_instruction(load_zero);
+    let (exception_block, excpetion_block_label) = array_out_of_bounds_block(current_jit_state, index_operand)?;
+    current_jit_state.output.add_block(exception_block);
+    let branch_if_zero_or_less = IRInstruction::BranchIfComparison {
+        offset_a: index_operand,
+        offset_b: zero,
+        size: Size::Int,
+        to: excpetion_block_label,
+        branch_type: BranchType::Less,
+    };
+    main_block.add_instruction(branch_if_zero_or_less);
+    let length_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+    let length_offset = IRInstruction::Constant {
+        output_offset: length_location,
+        constant: Constant::Pointer(layout.len_entry()),
+    };
+    main_block.add_instruction(length_offset);
+    let length_offset_add = IRInstruction::IntegerArithmetic {
+        input_offset_a: length_location,
+        input_offset_b: array_operand,
+        output_offset: length_location,
+        size: Size::Long,
+        signed: false,
+        arithmetic_type: ArithmeticType::Add,
+    };
+    main_block.add_instruction(length_offset_add);
+    let length = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+    let length_load = IRInstruction::LoadAbsolute {
+        address_from: length_location,
+        output_offset: length,
+        size: Size::Int,
+    };
+    main_block.add_instruction(length_load);
+    let length_branch_if_index_too_big = IRInstruction::BranchIfComparison {
+        offset_a: index_operand,
+        offset_b: length,
+        size: Size::Int,
+        to: excpetion_block_label,
+        branch_type: BranchType::MoreEqual,
+    };
+    main_block.add_instruction(length_branch_if_index_too_big);
+    let shift_constant_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+    let shift_amount = IRInstruction::Constant { output_offset: shift_constant_location, constant: Constant::Long(size_of::<usize>() as i64) };
+    main_block.add_instruction(shift_amount);
+    let shift_instruction = IRInstruction::IntegerArithmetic {
+        input_offset_a: index_operand,
+        input_offset_b: shift_constant_location,
+        output_offset: index_operand,
+        size: Size::Long,
+        signed: false,
+        arithmetic_type: ArithmeticType::LeftShift,
+    };
+    main_block.add_instruction(shift_instruction);
+    let base_offset = layout.elem_0_entry();
+    let base_offset_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
+    let base_offset_instruction = IRInstruction::Constant {
+        output_offset: base_offset_location,
+        constant: Constant::Long(base_offset as i64),
+    };
+    main_block.add_instruction(base_offset_instruction);
+    let base_offset_add = IRInstruction::IntegerArithmetic {
+        input_offset_a: base_offset_location,
+        input_offset_b: array_operand,
+        output_offset: array_operand,
+        size: Size::Long,
+        signed: false,
+        arithmetic_type: ArithmeticType::Add,
+    };
+    main_block.add_instruction(base_offset_add);
+    let index_add = IRInstruction::IntegerArithmetic {
+        input_offset_a: array_operand,
+        input_offset_b: index_operand,
+        output_offset: array_operand,
+        size: Size::Long,
+        signed: false,
+        arithmetic_type: ArithmeticType::Add,
+    };
+    main_block.add_instruction(index_add);
+    let load = IRInstruction::LoadAbsolute {
+        address_from: array_operand,
+        output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc.unwrap().get(), 0),
+        size,
+    };
+    main_block.add_instruction(load);
+    Ok(())
+}
+
 
 fn binary_and(current_jit_state: &mut JitState, offset: usize, size: Size) -> Result<(), JITError> {
     let instruct = IRInstruction::IntegerArithmetic {
@@ -687,7 +814,7 @@ fn binary_and(current_jit_state: &mut JitState, offset: usize, size: Size) -> Re
 fn constant(current_jit_state: &mut JitState, constant: Constant) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, .. } = current_jit_state;
     let null_offset = memory_layout.operand_stack_entry(*java_pc, 0);//todo this is wrong
-    output.push(IRInstruction::StoreConstant {
+    output.push(IRInstruction::Constant {
         output_offset: null_offset,
         constant,
     });

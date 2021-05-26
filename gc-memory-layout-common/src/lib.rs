@@ -4,6 +4,7 @@ use std::fs::read;
 use std::mem::size_of;
 
 use iced_x86::ConditionCode::s;
+use iced_x86::test_utils::from_str_conv::to_decoder_error;
 use itertools::{Either, Itertools};
 
 use verification::verifier::Frame;
@@ -147,6 +148,14 @@ impl StackframeMemoryLayout {
         let len = operand_stack.len();
         let entry_idx = len - 1 - from_end;
         FramePointerOffset(self.max_locals * 8 + entry_idx)
+    }
+
+    pub fn operand_stack_entry_array_layout(&self, pc: usize, from_end: usize) -> ArrayMemoryLayout {
+        todo!()
+    }
+
+    pub fn operand_stack_entry_object_layout(&self, pc: usize, from_end: usize) -> ObjectMemoryLayout {
+        todo!()
     }
 
     pub fn full_frame_size(&self) -> usize {

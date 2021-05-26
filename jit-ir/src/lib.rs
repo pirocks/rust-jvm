@@ -33,7 +33,7 @@ pub enum ArithmeticType {
 pub enum VMExitType {
     CheckCast,
     InstanceOf,
-    Exception,
+    Throw,
     InvokeDynamic,
     InvokeStatic,
     InvokeVirtual,
@@ -42,6 +42,8 @@ pub enum VMExitType {
     MonitorEnter,
     MonitorExit,
     MultiNewArray,
+    ArrayOutOfBounds,
+
 }
 
 pub enum Constant {
@@ -52,6 +54,35 @@ pub enum Constant {
     Int(i32),
     Short(i16),
     Byte(i8),
+}
+
+#[derive(Clone, Copy)]
+pub struct IRLabel {
+    id: usize,
+}
+
+pub enum BranchType0 {
+    Equal0,
+    Less0,
+    More0,
+    LessEqual0,
+    MoreEqual0,
+}
+
+pub enum BranchType {
+    Equal,
+    Less,
+    More,
+    LessEqual,
+    MoreEqual,
+}
+
+pub enum BranchTypeFloat {
+    EqualFloat,
+    LessFloat,
+    MoreFloat,
+    LessEqualFloat,
+    MoreEqualFloat,
 }
 
 pub enum IRInstruction {
@@ -65,7 +96,7 @@ pub enum IRInstruction {
         input_offset: FramePointerOffset,
         size: Size,
     },
-    StoreConstant {
+    Constant {
         output_offset: FramePointerOffset,
         constant: Constant,
     },
@@ -82,16 +113,26 @@ pub enum IRInstruction {
         signed: bool,
         arithmetic_type: ArithmeticType,
     },
-    BranchUnConditional(RelativeAddress),
-    BranchIf0 {
+    BranchUnConditional(IRLabel),
+    BranchIf {
         offset: FramePointerOffset,
         size: Size,
+        to: IRLabel,
+        branch_type: BranchType0,
+    },
+    BranchIfComparison {
+        offset_a: FramePointerOffset,
+        offset_b: FramePointerOffset,
+        size: Size,
+        to: IRLabel,
+        branch_type: BranchType,
     },
     Return {
         return_value: Option<FramePointerOffset>,
         to_pop: VariableSize,
     },
     VMExit(VMExitType),
+    Label(IRLabel)
 }
 
 impl IRInstruction {
@@ -268,7 +309,7 @@ r15 is reserved for context pointer
             IRInstruction::BranchUnConditional(_) => todo!(),
             IRInstruction::BranchIf0 { .. } => todo!(),
             IRInstruction::VMExit(_) => todo!(),
-            IRInstruction::StoreConstant { .. } => todo!(),
+            IRInstruction::Constant { .. } => todo!(),
             IRInstruction::Return { .. } => todo!(),
         }
     }
