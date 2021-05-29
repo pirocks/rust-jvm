@@ -80,7 +80,7 @@ impl PossiblyJVMString {
 
     pub fn to_regular_utf8(&self) -> Result<Vec<u8>, ValidationError> {
         let mut res = String::new();
-        let mut buf_iter = self.buf.iter();
+        let mut buf_iter = self.buf.iter().peekable();
         loop {
             let x = match buf_iter.next() {
                 None => break,
@@ -92,7 +92,7 @@ impl PossiblyJVMString {
             } else if (x >> 5) == 0b110 {
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
@@ -104,14 +104,14 @@ impl PossiblyJVMString {
             } else if x != 0b11101101 {
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
                 }
                 let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
@@ -122,38 +122,46 @@ impl PossiblyJVMString {
                 let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
                 res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
             } else {
-                let _u = x;
+                let u = x;
                 let v = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (v >> 4) != 0b1010 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
                 }
                 let w = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (w >> 6) != 0b10 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let x = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
-                if x != 0b11101101 {
-                    dbg!(buf_iter.collect_vec());
-                    dbg!(&self.buf);
-                    panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                let x = buf_iter.peek().cloned().cloned();
+                if x != Some(0b11101101) {
+                    let x_u16 = u as u16;
+                    let y_u16 = v as u16;
+                    let z_u16 = w as u16;
+                    let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
+                    dbg!(codepoint);
+                    res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
+                    if x.is_none() {
+                        break
+                    } else {
+                        continue
+                    }
                 }
+                buf_iter.next().unwrap();
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 4) != 0b1010 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);
                 }
                 let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
-                    dbg!(buf_iter.collect_vec());
+                    dbg!(buf_iter);
                     dbg!(&self.buf);
                     panic!();
                     return Err(ValidationError::UnexpectedBits);

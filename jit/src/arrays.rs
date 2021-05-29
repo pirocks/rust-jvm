@@ -5,7 +5,7 @@ use jit_ir::{ArithmeticType, BranchType, Constant, IRInstruction, IRLabel, Size,
 
 use crate::{JitBlock, JITError, JitState};
 
-fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset: FramePointerOffset) -> Result<(JitBlock, IRLabel), JITError> {
+pub fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset: FramePointerOffset) -> Result<(JitBlock, IRLabel), JITError> {
     let mut block = JitBlock {
         java_pc_to_ir: Default::default(),
         instructions: vec![],
@@ -17,7 +17,7 @@ fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset: Fr
 }
 
 
-fn array_store(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
+pub fn array_store(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
     // array, i, val
     let array_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 2);
     let layout: ArrayMemoryLayout = current_jit_state.memory_layout.operand_stack_entry_array_layout(java_pc, 2);
@@ -35,7 +35,7 @@ fn array_store(current_jit_state: &mut JitState, main_block: &mut JitBlock, size
     Ok(())
 }
 
-fn array_bounds_check(current_jit_state: &mut JitState, main_block: &mut JitBlock, array_operand: FramePointerOffset, layout: &ArrayMemoryLayout, index_operand: FramePointerOffset) -> Result<(), JITError> {
+pub fn array_bounds_check(current_jit_state: &mut JitState, main_block: &mut JitBlock, array_operand: FramePointerOffset, layout: &ArrayMemoryLayout, index_operand: FramePointerOffset) -> Result<(), JITError> {
     let zero = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let load_zero = IRInstruction::Constant { output_offset: zero.clone(), constant: Constant::Int(0) };
     main_block.add_instruction(load_zero);
@@ -82,7 +82,7 @@ fn array_bounds_check(current_jit_state: &mut JitState, main_block: &mut JitBloc
     Ok(())
 }
 
-fn array_load(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
+pub fn array_load(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
     // array, i
     let array_operand = current_jit_state.memory_layout.operand_stack_entry(java_pc, 1);
     let layout: ArrayMemoryLayout = current_jit_state.memory_layout.operand_stack_entry_array_layout(java_pc, 1);
@@ -99,7 +99,7 @@ fn array_load(current_jit_state: &mut JitState, main_block: &mut JitBlock, size:
     Ok(())
 }
 
-fn array_final_address(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: &Size, array_operand: FramePointerOffset, layout: ArrayMemoryLayout, index_operand: FramePointerOffset) -> Result<FramePointerOffset, JITError> {
+pub fn array_final_address(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: &Size, array_operand: FramePointerOffset, layout: ArrayMemoryLayout, index_operand: FramePointerOffset) -> Result<FramePointerOffset, JITError> {
     let shift_amount = match size {
         Size::Byte => Constant::Long(size_of::<jbyte>() as i64),
         Size::Short => Constant::Long(size_of::<jshort>() as i64),
