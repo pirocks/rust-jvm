@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 iced-x86 = "1.11.1"
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+memoffset = "0.6"
+jit-common = { path = "../jit-common" }
+rangemap = "0.1.10"

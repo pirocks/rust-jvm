@@ -1,31 +1,30 @@
 #![feature(asm)]
+#![feature(const_maybe_uninit_as_ptr)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_raw_ptr_to_usize_cast)]
 
 extern crate compiler_builtins;
 
 use std::collections::HashMap;
-use std::env::current_exe;
 use std::ffi::c_void;
-use std::mem::{size_of, transmute};
+use std::mem::transmute;
 use std::num::NonZeroUsize;
-use std::panic::panic_any;
-use std::ptr::null_mut;
 use std::sync::atomic::{fence, Ordering};
 
-use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, Encoder, InstructionBlock};
-use iced_x86::CC_b::c;
-use iced_x86::CC_l::l;
-use iced_x86::Code::Adc_r16_rm16;
-use iced_x86::ImmSize::Size1;
+use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, InstructionBlock};
+use iced_x86::Mnemonic::Iret;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
-use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, StackframeMemoryLayout};
-use jit_ir::{ArithmeticType, BranchType, Constant, IRInstruction, IRLabel, Size, VariableSize, VMExitType};
+use gc_memory_layout_common::{ArrayMemoryLayout, FrameBackedStackframeMemoryLayout, StackframeMemoryLayout};
+use jit_common::VMExitType;
+use jit_ir::{ArithmeticType, Constant, IRInstruction, IRLabel, Size, VariableSize};
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
 use verification::verifier::Frame;
 
 use crate::arrays::{array_load, array_store};
 use crate::integer_arithmetic::{binary_and, binary_or, binary_xor, integer_add, integer_div, integer_mul, integer_sub, shift, ShiftDirection};
 
+#[derive(Debug)]
 pub enum JITError {
     NotSupported
 }
@@ -38,12 +37,13 @@ pub struct JitBlock {
 
 impl JitBlock {
     pub fn add_instruction(&mut self, instruction: IRInstruction) {
-        todo!()
+        self.instructions.push(instruction);//todo need to handle java_pc somehow
     }
 }
 
 pub struct JitIROutput {
-    blocks: Vec<JitBlock>,
+    main_block: JitBlock,
+    additional_blocks: Vec<JitBlock>,
 }
 
 impl JitIROutput {
@@ -52,14 +52,14 @@ impl JitIROutput {
     }
 }
 
-pub struct JitState {
-    memory_layout: StackframeMemoryLayout,
+pub struct JitState<'l> {
+    memory_layout: &'l dyn StackframeMemoryLayout,
     java_pc: usize,
     next_pc: Option<NonZeroUsize>,
     output: JitIROutput,
 }
 
-impl JitState {
+impl JitState<'_> {
     pub fn new_ir_label(&self) -> IRLabel {
         todo!()
     }
@@ -71,43 +71,38 @@ impl JitState {
 
 const MAX_INTERMEDIATE_VALUE_PADDING: usize = 3;
 
-pub fn code_to_ir(code: &Code, frame_vtypes: HashMap<usize, Frame>) -> Result<JitIROutput, JITError> {
+pub fn code_to_ir(code: Vec<Instruction>, memory_layout: &dyn StackframeMemoryLayout) -> Result<JitIROutput, JITError> {
+    // let  = StackframeMemoryLayout::new((code.max_stack as usize + MAX_INTERMEDIATE_VALUE_PADDING) as usize, code.max_locals as usize, frame_vtypes);
     let mut jit_state = JitState {
-        memory_layout: StackframeMemoryLayout::new((code.max_stack + MAX_INTERMEDIATE_VALUE_PADDING) as usize, code.max_locals as usize, frame_vtypes),
+        memory_layout,
         java_pc: 0,
         next_pc: None,
-        output: JitIROutput { blocks: vec![] },
+        output: JitIROutput { main_block: JitBlock { java_pc_to_ir: Default::default(), instructions: vec![] }, additional_blocks: vec![] },
     };
-    let mut current_instr = None;
-    let mut main_block = JitBlock {
-        java_pc_to_ir: Default::default(),
-        instructions: vec![],
-    };
-    for future_instr in &code.code {
+    let mut current_instr: Option<&Instruction> = None;
+    for future_instr in &code {
         if let Some(current_instr) = current_instr.take() {
             jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset).unwrap());
             jit_state.java_pc = current_instr.offset;
-            byte_code_to_ir(current_instr, &mut jit_state, &mut main_block)?;
+            byte_code_to_ir(current_instr, &mut jit_state)?;
         }
         jit_state.next_pc = None;
         current_instr = Some(future_instr.clone());
     }
-    byte_code_to_ir(current_instr.unwrap(), &mut jit_state, &mut main_block)?;
-    jit_state.output.add_block(main_block);
+    byte_code_to_ir(current_instr.unwrap(), &mut jit_state)?;
     Ok(jit_state.output)
 }
 
-
-pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState, main_block: &mut JitBlock) {
+pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState) -> Result<(), JITError> {
     let Instruction { offset, instruction: instruction_info } = bytecode;
     current_jit_state.java_pc = *offset;
     let java_pc = current_jit_state.java_pc;
     match instruction_info {
         InstructionInfo::aaload => {
-            array_load(current_jit_state, main_block, Size::Long)
+            array_load(current_jit_state, Size::Long)
         }
         InstructionInfo::aastore => {
-            array_store(current_jit_state, main_block, Size::Long)
+            array_store(current_jit_state, Size::Long)
         }
         InstructionInfo::aconst_null => {
             constant(current_jit_state, Constant::Pointer(0))
@@ -129,9 +124,9 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         }
         InstructionInfo::anewarray(_) => Err(JITError::NotSupported),
         InstructionInfo::areturn => {
-            main_block.add_instruction(IRInstruction::Return {
-                return_value: Some(current_jit_state.memory_layout.operand_stack_entry(java_pc, 0)),
-                to_pop: VariableSize(current_jit_state.memory_layout.full_frame_size()),
+            current_jit_state.output.main_block.add_instruction(IRInstruction::Return {
+                return_value: current_jit_state.memory_layout.operand_stack_entry(java_pc, 0),
+                return_value_size: Size::Long,
             });
             Ok(())
         }
@@ -157,22 +152,22 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
             astore_n(current_jit_state, 3)
         }
         InstructionInfo::athrow => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw));
             Ok(())
         }
         InstructionInfo::baload => {
-            array_load(current_jit_state, main_block, Size::Byte)
+            array_load(current_jit_state, Size::Byte)
         }
         InstructionInfo::bastore => {
-            array_store(current_jit_state, main_block, Size::Byte)
+            array_store(current_jit_state, Size::Byte)
         }
         InstructionInfo::bipush(_) => Err(JITError::NotSupported),
         InstructionInfo::caload => {
-            array_load(current_jit_state, main_block, Size::Short)
+            array_load(current_jit_state, Size::Short)
         }
         InstructionInfo::castore => { Err(JITError::NotSupported) }
         InstructionInfo::checkcast(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast));
             Ok(())
         }
         InstructionInfo::d2f => Err(JITError::NotSupported),
@@ -180,10 +175,10 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::d2l => Err(JITError::NotSupported),
         InstructionInfo::dadd => Err(JITError::NotSupported),
         InstructionInfo::daload => {
-            array_load(current_jit_state, main_block, Size::Long)
+            array_load(current_jit_state, Size::Long)
         }
         InstructionInfo::dastore => {
-            array_store(current_jit_state, main_block, Size::Long)
+            array_store(current_jit_state, Size::Long)
         }
         InstructionInfo::dcmpg => Err(JITError::NotSupported),
         InstructionInfo::dcmpl => Err(JITError::NotSupported),
@@ -240,10 +235,10 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::f2l => Err(JITError::NotSupported),
         InstructionInfo::fadd => Err(JITError::NotSupported),
         InstructionInfo::faload => {
-            array_load(current_jit_state, main_block, Size::Int)
+            array_load(current_jit_state, Size::Int)
         }
         InstructionInfo::fastore => {
-            array_store(current_jit_state, main_block, Size::Int)
+            array_store(current_jit_state, Size::Int)
         }
         InstructionInfo::fcmpg => Err(JITError::NotSupported),
         InstructionInfo::fcmpl => Err(JITError::NotSupported),
@@ -303,16 +298,16 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::i2l => Err(JITError::NotSupported),
         InstructionInfo::i2s => Err(JITError::NotSupported),
         InstructionInfo::iadd => {
-            integer_add(current_jit_state, main_block, Size::Int)
+            integer_add(current_jit_state, Size::Int)
         }
         InstructionInfo::iaload => {
-            array_load(current_jit_state, main_block, Size::Int)
+            array_load(current_jit_state, Size::Int)
         }
         InstructionInfo::iand => {
             binary_and(current_jit_state, Size::Int)
         }
         InstructionInfo::iastore => {
-            array_store(current_jit_state, main_block, Size::Int)
+            array_store(current_jit_state, Size::Int)
         }
         InstructionInfo::iconst_m1 => {
             constant(current_jit_state, Constant::Int(-1))
@@ -336,7 +331,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
             constant(current_jit_state, Constant::Int(5))
         }
         InstructionInfo::idiv => {
-            integer_div(current_jit_state, main_block, Size::Int)
+            integer_div(current_jit_state, Size::Int)
         }
         InstructionInfo::if_acmpeq(_) => Err(JITError::NotSupported),
         InstructionInfo::if_acmpne(_) => Err(JITError::NotSupported),
@@ -379,46 +374,51 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
                 signed: true,
                 arithmetic_type: ArithmeticType::Mul,
             };
-            main_block.add_instruction(instruct);
+            current_jit_state.output.main_block.add_instruction(instruct);
             Ok(())
         }
         InstructionInfo::ineg => {
             todo!()
         }
         InstructionInfo::instanceof(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf));
             Ok(())
         }
         InstructionInfo::invokedynamic(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic));
             Ok(())
         }
         InstructionInfo::invokeinterface(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeInterface));
+            let resolved_function_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+            let local_var_and_operand_stack_size_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
+            let exit_to_get_target = IRInstruction::VMExit(VMExitType::InvokeInterfaceResolveTarget { resolved: resolved_function_location });
+            current_jit_state.output.main_block.add_instruction(exit_to_get_target);
+            let call = IRInstruction::Call { resolved_destination: resolved_function_location, local_var_and_operand_stack_size: local_var_and_operand_stack_size_location, return_location: todo!() };
+            current_jit_state.output.main_block.add_instruction(call);
             Ok(())
         }
         InstructionInfo::invokespecial(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecial));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecialResolveTarget { resolved: todo!() }));
             Ok(())
         }
         InstructionInfo::invokestatic(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStatic));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStaticResolveTarget { resolved: todo!() }));
             Ok(())
         }
         InstructionInfo::invokevirtual(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtual));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtualResolveTarget { resolved: todo!() }));
             Ok(())
         }
         InstructionInfo::ior => {
-            binary_or(current_jit_state, main_block, Size::Int)
+            binary_or(current_jit_state, Size::Int)
         }
         InstructionInfo::irem => Err(JITError::NotSupported),
         InstructionInfo::ireturn => Err(JITError::NotSupported),
         InstructionInfo::ishl => {
-            shift(current_jit_state, main_block, java_pc, Size::Int, ShiftDirection::ArithmeticLeft)
+            shift(current_jit_state, java_pc, Size::Int, ShiftDirection::ArithmeticLeft)
         }
         InstructionInfo::ishr => {
-            shift(current_jit_state, main_block, java_pc, Size::Int, ShiftDirection::ArithmeticRight)
+            shift(current_jit_state, java_pc, Size::Int, ShiftDirection::ArithmeticRight)
         }
         InstructionInfo::istore(n) => {
             store_n(current_jit_state, *n as usize, Size::Int)
@@ -436,13 +436,13 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
             store_n(current_jit_state, 3, Size::Int)
         }
         InstructionInfo::isub => {
-            integer_sub(current_jit_state, main_block, Size::Int)
+            integer_sub(current_jit_state, Size::Int)
         }
         InstructionInfo::iushr => {
-            shift(current_jit_state, main_block, java_pc, Size::Int, ShiftDirection::LogicalRight)
+            shift(current_jit_state, java_pc, Size::Int, ShiftDirection::LogicalRight)
         }
         InstructionInfo::ixor => {
-            binary_xor(current_jit_state, main_block, Size::Int)
+            binary_xor(current_jit_state, Size::Int)
         }
         InstructionInfo::jsr(_) => Err(JITError::NotSupported),
         InstructionInfo::jsr_w(_) => Err(JITError::NotSupported),
@@ -450,16 +450,16 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::l2f => Err(JITError::NotSupported),
         InstructionInfo::l2i => Err(JITError::NotSupported),
         InstructionInfo::ladd => {
-            integer_add(current_jit_state, main_block, Size::Long)
-        },
+            integer_add(current_jit_state, Size::Long)
+        }
         InstructionInfo::laload => {
-            array_load(current_jit_state, main_block, Size::Long)
+            array_load(current_jit_state, Size::Long)
         }
         InstructionInfo::land => {
             binary_and(current_jit_state, Size::Long)
         }
         InstructionInfo::lastore => {
-            array_store(current_jit_state, main_block, Size::Long)
+            array_store(current_jit_state, Size::Long)
         }
         InstructionInfo::lcmp => Err(JITError::NotSupported),
         InstructionInfo::lconst_0 => {
@@ -472,7 +472,7 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::ldc_w(_) => Err(JITError::NotSupported),
         InstructionInfo::ldc2_w(_) => Err(JITError::NotSupported),
         InstructionInfo::ldiv => {
-            integer_div(current_jit_state, main_block, Size::Long)
+            integer_div(current_jit_state, Size::Long)
         }
         InstructionInfo::lload(n) => {
             load_n(current_jit_state, *n as usize, Size::Long)
@@ -490,20 +490,20 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
             load_n(current_jit_state, 3, Size::Long)
         }
         InstructionInfo::lmul => {
-            integer_mul(current_jit_state, main_block, Size::Long)
+            integer_mul(current_jit_state, Size::Long)
         }
         InstructionInfo::lneg => Err(JITError::NotSupported),
         InstructionInfo::lookupswitch(_) => Err(JITError::NotSupported),
         InstructionInfo::lor => {
-            binary_or(current_jit_state, main_block, Size::Long)
+            binary_or(current_jit_state, Size::Long)
         }
         InstructionInfo::lrem => Err(JITError::NotSupported),
         InstructionInfo::lreturn => Err(JITError::NotSupported),
         InstructionInfo::lshl => {
-            shift(current_jit_state, main_block, java_pc, Size::Long, ShiftDirection::ArithmeticLeft)
+            shift(current_jit_state, java_pc, Size::Long, ShiftDirection::ArithmeticLeft)
         }
         InstructionInfo::lshr => {
-            shift(current_jit_state, main_block, java_pc, Size::Long, ShiftDirection::ArithmeticRight)
+            shift(current_jit_state, java_pc, Size::Long, ShiftDirection::ArithmeticRight)
         }
         InstructionInfo::lstore(n) => {
             store_n(current_jit_state, *n as usize, Size::Long)
@@ -521,24 +521,24 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
             store_n(current_jit_state, 3, Size::Long)
         }
         InstructionInfo::lsub => {
-            integer_sub(current_jit_state, main_block, Size::Long)
+            integer_sub(current_jit_state, Size::Long)
         }
         InstructionInfo::lushr => {
-            shift(current_jit_state, main_block, java_pc, Size::Long, ShiftDirection::LogicalRight)
+            shift(current_jit_state, java_pc, Size::Long, ShiftDirection::LogicalRight)
         }
         InstructionInfo::lxor => {
-            binary_xor(current_jit_state, main_block, Size::Long)
+            binary_xor(current_jit_state, Size::Long)
         }
         InstructionInfo::monitorenter => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter));
             Ok(())
         }
         InstructionInfo::monitorexit => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit));
             Ok(())
         }
         InstructionInfo::multianewarray(_) => {
-            main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray));
             Ok(())
         }
         InstructionInfo::new(_) => Err(JITError::NotSupported),
@@ -555,24 +555,27 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState,
         InstructionInfo::putfield(_) => Err(JITError::NotSupported),
         InstructionInfo::putstatic(_) => Err(JITError::NotSupported),
         InstructionInfo::ret(_) => Err(JITError::NotSupported),
-        InstructionInfo::return_ => Err(JITError::NotSupported),
+        InstructionInfo::return_ => {
+            current_jit_state.output.main_block.add_instruction(IRInstruction::ReturnNone);
+            Ok(())
+        }
         InstructionInfo::saload => {
-            array_load(current_jit_state, main_block, Size::Short)
+            array_load(current_jit_state, Size::Short)
         }
         InstructionInfo::sastore => {
-            array_store(current_jit_state, main_block, Size::Short)
+            array_store(current_jit_state, Size::Short)
         }
         InstructionInfo::sipush(_) => Err(JITError::NotSupported),
         InstructionInfo::swap => {
-            swap(current_jit_state, main_block)
-        },
+            swap(current_jit_state)
+        }
         InstructionInfo::tableswitch(_) => Err(JITError::NotSupported),
         InstructionInfo::wide(_) => Err(JITError::NotSupported),
         InstructionInfo::EndOfCode => Err(JITError::NotSupported),
-    }?
+    }
 }
 
-fn swap(current_jit_state: &mut JitState, main_block: &mut JitBlock) -> Result<(), JITError> {
+fn swap(current_jit_state: &mut JitState) -> Result<(), JITError> {
     let a = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 0);
     let b = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 1);
     let temp = current_jit_state.memory_layout.safe_temp_location(current_jit_state.java_pc, 0);
@@ -583,7 +586,7 @@ fn swap(current_jit_state: &mut JitState, main_block: &mut JitBlock) -> Result<(
         output_size: Size::Int,
         signed: false,
     };
-    main_block.add_instruction(copy_to_temp);
+    current_jit_state.output.main_block.add_instruction(copy_to_temp);
     let b_to_a = IRInstruction::CopyRelative {
         input_offset: b,
         output_offset: a,
@@ -591,7 +594,7 @@ fn swap(current_jit_state: &mut JitState, main_block: &mut JitBlock) -> Result<(
         output_size: Size::Int,
         signed: false,
     };
-    main_block.add_instruction(b_to_a);
+    current_jit_state.output.main_block.add_instruction(b_to_a);
     let temp_to_b = IRInstruction::CopyRelative {
         input_offset: temp,
         output_offset: b,
@@ -599,7 +602,7 @@ fn swap(current_jit_state: &mut JitState, main_block: &mut JitBlock) -> Result<(
         output_size: Size::Int,
         signed: false,
     };
-    main_block.add_instruction(temp_to_b);
+    current_jit_state.output.main_block.add_instruction(temp_to_b);
     Ok(())
 }
 
@@ -609,7 +612,7 @@ pub mod integer_arithmetic;
 fn constant(current_jit_state: &mut JitState, constant: Constant) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, .. } = current_jit_state;
     let null_offset = memory_layout.operand_stack_entry(*java_pc, 0);//todo this is wrong
-    output.push(IRInstruction::Constant {
+    current_jit_state.output.main_block.add_instruction(IRInstruction::Constant {
         output_offset: null_offset,
         constant,
     });
@@ -623,9 +626,9 @@ fn aload_n(current_jit_state: &mut JitState, variable_index: usize) -> Result<()
 fn load_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, next_pc } = current_jit_state;
     let local_var_offset = memory_layout.local_var_entry(*java_pc, variable_index);
-    output.push(IRInstruction::CopyRelative {
+    current_jit_state.output.main_block.add_instruction(IRInstruction::CopyRelative {
         input_offset: local_var_offset,
-        output_offset: memory_layout.operand_stack_entry(*next_pc.unwrap(), 0),
+        output_offset: memory_layout.operand_stack_entry(next_pc.unwrap().get(), 0),
         input_size: size,
         output_size: size,
         signed: false,
@@ -637,11 +640,12 @@ fn astore_n(current_jit_state: &mut JitState, variable_index: usize) -> Result<(
     store_n(current_jit_state, variable_index, Size::Long)
 }
 
+//todo these should all return not mutate
 fn store_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, next_pc } = current_jit_state;
     let local_var_offset = memory_layout.local_var_entry(*java_pc, variable_index);
-    output.push(IRInstruction::CopyRelative {
-        input_offset: memory_layout.operand_stack_entry(*java_pc.unwrap(), 0),
+    current_jit_state.output.main_block.add_instruction(IRInstruction::CopyRelative {
+        input_offset: memory_layout.operand_stack_entry(*java_pc, 0),
         output_offset: local_var_offset,
         input_size: size,
         output_size: size,
@@ -650,144 +654,4 @@ fn store_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) 
     Ok(())
 }
 
-pub struct JITedCode {
-    code: Vec<CodeRegion>,
-}
-
-struct CodeRegion {
-    raw: *mut c_void,
-}
-
-const MAX_CODE_SIZE: usize = 1_000_000;
-
-impl JITedCode {
-    pub unsafe fn add_code_region(&mut self, instructions: &[iced_x86::Instruction]) -> usize {
-        let prot_flags = ProtFlags::PROT_EXEC | ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
-        let flags = MapFlags::MAP_ANONYMOUS | MapFlags::MAP_NORESERVE | MapFlags::MAP_PRIVATE;
-        let mmap_addr = mmap(transmute(0x1000000usize), MAX_CODE_SIZE, prot_flags, flags, -1, 0).unwrap();
-        let rip_start = mmap_addr as u64;
-
-        let block = InstructionBlock::new(instructions, rip_start as u64);
-        let BlockEncoderResult { mut code_buffer, .. } = BlockEncoder::encode(64, block, BlockEncoderOptions::NONE).unwrap();
-        let len_before = self.code.len();
-
-        if code_buffer.len() > MAX_CODE_SIZE {
-            panic!("exceeded max code size");
-        }
-
-        libc::memcpy(mmap_addr, code_buffer.as_ptr() as *const c_void, code_buffer.len());
-
-        self.code.push(CodeRegion {
-            raw: mmap_addr as *mut c_void
-        });
-        fence(Ordering::SeqCst);
-        // __clear_cache();//todo should use this
-        return len_before;
-    }
-
-    pub unsafe fn run_jitted_coded(&self, id: usize) {
-        let as_ptr = self.code[id].raw;
-        let as_num = as_ptr as u64;
-        let rust_stack: u64 = 0xdeadbeaf;
-        let rust_frame: u64 = 0xdeadbeaf;
-        let jit_code_context = JitCodeContext {
-            previous_stack: 0xdeaddeaddeaddead
-        };
-        let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
-        asm!(
-        "push rbx",
-        "push rbp",
-        "push r12",
-        "push r13",
-        "push r14",
-        "push r15",
-        // technically these need only be saved on windows
-        //todo perhaps should use pusha/popa here, b/c this must be really slow
-        // "push xmm6",
-        // "push xmm7",
-        // "push xmm8",
-        // "push xmm9",
-        // "push xmm10",
-        // "push xmm11",
-        // "push xmm12",
-        // "push xmm13",
-        // "push xmm14",
-        // "push xmm15",
-        "push rsp",
-        //todo need to setup rsp and frame pointer for java stack
-        "nop",
-        // load java frame pointer
-        "mov rbp, {1}",
-        // store old stack pointer into context
-        "mov [{3}],rsp",
-        // load java stack pointer
-        "mov rsp, {2}",
-        // load context pointer into r15
-        "mov r15,{3}",
-        // jump to jitted code
-        "jmp {0}",
-        "pop rsp",
-        // "pop xmm15",
-        // "pop xmm14",
-        // "pop xmm13",
-        // "pop xmm12",
-        // "pop xmm11",
-        // "pop xmm10",
-        // "pop xmm9",
-        // "pop xmm8",
-        // "pop xmm7",
-        // "pop xmm6",
-        "pop r15",
-        "pop r14",
-        "pop r13",
-        "pop r12",
-        "pop rbp",
-        "pop rbx",
-        in(reg) as_num,
-        in(reg) rust_frame,
-        in(reg) rust_stack,
-        in(reg) jit_context_pointer
-        );
-
-        todo!("need to get return val")
-    }
-}
-
-#[repr(C)]
-pub struct JitCodeContext {
-    previous_stack: u64,
-}
-
-
-#[cfg(test)]
-pub mod test {
-    use iced_x86::{Formatter, Instruction, InstructionBlock, IntelFormatter};
-
-    use gc_memory_layout_common::FramePointerOffset;
-    use jit_ir::{IRInstruction, Size};
-
-    use crate::JITedCode;
-
-    #[test]
-    pub fn test() {
-        let mut instructions: Vec<Instruction> = vec![];
-        IRInstruction::LoadAbsolute { address_from: FramePointerOffset(10), output_offset: FramePointerOffset(10), size: Size::Int }.to_x86(&mut instructions);
-        let mut formatter = IntelFormatter::new();
-        let mut res = String::new();
-        for instruction in &instructions {
-            formatter.format(instruction, &mut res);
-            res.push_str("\n")
-        }
-        println!("{}", res);
-        let mut jitted_code = JITedCode {
-            code: vec![]
-        };
-        let id = unsafe { jitted_code.add_code_region(instructions.as_slice()) };
-        unsafe { jitted_code.run_jitted_coded(id); }
-    }
-
-    #[test]
-    pub fn test2() {}
-}
-
-
+pub mod native;

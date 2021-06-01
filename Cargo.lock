@@ -436,22 +436,37 @@ dependencies = [
 name = "jit"
 version = "0.1.0"
 dependencies = [
- "compiler_builtins",
- "gc-memory-layout-common",
- "iced-x86",
- "jit-ir",
- "libc",
- "nix 0.20.0",
- "rust-jvm-common",
- "verification",
+    "compiler_builtins",
+    "gc-memory-layout-common",
+    "iced-x86",
+    "jit-common",
+    "jit-ir",
+    "jvmti-jni-bindings",
+    "libc",
+    "memoffset",
+    "nix 0.20.0",
+    "rust-jvm-common",
+    "verification",
+]
+
+[[package]]
+name = "jit-common"
+version = "0.1.0"
+dependencies = [
+    "gc-memory-layout-common",
+    "libc",
+    "nix 0.20.0",
 ]
 
 [[package]]
 name = "jit-ir"
 version = "0.1.0"
 dependencies = [
- "gc-memory-layout-common",
- "iced-x86",
+    "gc-memory-layout-common",
+    "iced-x86",
+    "jit-common",
+    "memoffset",
+    "rangemap",
 ]
 
 [[package]]
@@ -581,12 +596,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
+name = "memoffset"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59accc507f1338036a0477ef61afdae33cde60840f4dfe481319ce3ad116ddf9"
+dependencies = [
+    "autocfg",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "791daaae1ed6889560f8c4359194f56648355540573244a5448a83ba1ecc7435"
 dependencies = [
- "adler32",
+    "adler32",
 ]
 
 [[package]]
@@ -902,8 +926,14 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3190ef7066a446f2e7f42e239d161e905420ccab01eb967c9eb27d21b2322a73"
 dependencies = [
- "rand_core",
+    "rand_core",
 ]
+
+[[package]]
+name = "rangemap"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90531bef860f96441c4cb74a1e43c281cd1366143928f944546ef0b1c60392b0"
 
 [[package]]
 name = "redox_syscall"

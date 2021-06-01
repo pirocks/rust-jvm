@@ -4,7 +4,6 @@ use std::fs::read;
 use std::mem::size_of;
 
 use iced_x86::ConditionCode::s;
-use iced_x86::test_utils::from_str_conv::to_decoder_error;
 use itertools::{Either, Itertools};
 
 use verification::verifier::Frame;
@@ -120,16 +119,25 @@ impl ArrayMemoryLayout {
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct FramePointerOffset(pub usize);
 
-pub struct StackframeMemoryLayout {
+pub trait StackframeMemoryLayout {
+    fn local_var_entry(&self, pc: usize, i: usize) -> FramePointerOffset;
+    fn operand_stack_entry(&self, pc: usize, from_end: usize) -> FramePointerOffset;
+    fn operand_stack_entry_array_layout(&self, pc: usize, from_end: usize) -> ArrayMemoryLayout;
+    fn operand_stack_entry_object_layout(&self, pc: usize, from_end: usize) -> ObjectMemoryLayout;
+    fn full_frame_size(&self) -> usize;
+    fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset;
+}
+
+pub struct FrameBackedStackframeMemoryLayout {
     method_frames: HashMap<usize, Frame>,
     max_stack: usize,
     max_locals: usize,
 }
 
-impl StackframeMemoryLayout {
+impl FrameBackedStackframeMemoryLayout {
     pub fn new(max_stack: usize, max_locals: usize, frame_vtypes: HashMap<usize, Frame>) -> Self {
         Self {
             method_frames: frame_vtypes,
@@ -137,32 +145,34 @@ impl StackframeMemoryLayout {
             max_locals,
         }
     }
+}
 
-    pub fn local_var_entry(&self, pc: usize, i: usize) -> FramePointerOffset {
+impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
+    fn local_var_entry(&self, pc: usize, i: usize) -> FramePointerOffset {
         let locals = self.method_frames.get(&pc).unwrap().locals.clone();//todo this rc could cross threads
         FramePointerOffset(locals.iter().take(i).map(|_local_type| 8).sum())//for now everything is 8 bytes
     }
 
-    pub fn operand_stack_entry(&self, pc: usize, from_end: usize) -> FramePointerOffset {
+    fn operand_stack_entry(&self, pc: usize, from_end: usize) -> FramePointerOffset {
         let operand_stack = &self.method_frames.get(&pc).unwrap().stack_map.data;
         let len = operand_stack.len();
         let entry_idx = len - 1 - from_end;
         FramePointerOffset(self.max_locals * 8 + entry_idx)
     }
 
-    pub fn operand_stack_entry_array_layout(&self, pc: usize, from_end: usize) -> ArrayMemoryLayout {
+    fn operand_stack_entry_array_layout(&self, pc: usize, from_end: usize) -> ArrayMemoryLayout {
         todo!()
     }
 
-    pub fn operand_stack_entry_object_layout(&self, pc: usize, from_end: usize) -> ObjectMemoryLayout {
+    fn operand_stack_entry_object_layout(&self, pc: usize, from_end: usize) -> ObjectMemoryLayout {
         todo!()
     }
 
-    pub fn full_frame_size(&self) -> usize {
+    fn full_frame_size(&self) -> usize {
         todo!()
     }
 
-    pub fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
+    fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
         todo!()
     }
 }

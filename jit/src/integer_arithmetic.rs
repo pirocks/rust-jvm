@@ -1,3 +1,4 @@
+use gc_memory_layout_common::StackframeMemoryLayout;
 use jit_ir::{ArithmeticType, Constant, IRInstruction, Size};
 
 use crate::{JitBlock, JITError, JitState};
@@ -29,7 +30,7 @@ impl ShiftDirection {
     }
 }
 
-pub fn shift(current_jit_state: &mut JitState, main_block: &mut JitBlock, java_pc: usize, size: Size, shift_direction: ShiftDirection) -> Result<(), JITError> {
+pub fn shift(current_jit_state: &mut JitState, java_pc: usize, size: Size, shift_direction: ShiftDirection) -> Result<(), JITError> {
     let mask = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let value_to_shift = current_jit_state.memory_layout.operand_stack_entry(java_pc, 1);
     let amount_to_shift_by = current_jit_state.memory_layout.operand_stack_entry(java_pc, 0);
@@ -43,7 +44,7 @@ pub fn shift(current_jit_state: &mut JitState, main_block: &mut JitBlock, java_p
             Size::Long => Constant::Int(0x3f)
         },
     };
-    main_block.add_instruction(mask_constant);
+    current_jit_state.output.main_block.add_instruction(mask_constant);
     let mask_shift_value = IRInstruction::IntegerArithmetic {
         input_offset_a: value_to_shift,
         input_offset_b: mask,
@@ -52,7 +53,7 @@ pub fn shift(current_jit_state: &mut JitState, main_block: &mut JitBlock, java_p
         signed: false,
         arithmetic_type: ArithmeticType::BinaryAnd,
     };
-    main_block.add_instruction(mask_shift_value);
+    current_jit_state.output.main_block.add_instruction(mask_shift_value);
     let copy_int_to_long = IRInstruction::CopyRelative {
         input_offset: amount_to_shift_by,
         output_offset: amount_to_shift_by,
@@ -60,7 +61,7 @@ pub fn shift(current_jit_state: &mut JitState, main_block: &mut JitBlock, java_p
         output_size: Size::Long,
         signed: true,
     };
-    main_block.add_instruction(copy_int_to_long);
+    current_jit_state.output.main_block.add_instruction(copy_int_to_long);
     let instruct = IRInstruction::IntegerArithmetic {
         input_offset_a: value_to_shift,
         input_offset_b: amount_to_shift_by,
@@ -69,12 +70,12 @@ pub fn shift(current_jit_state: &mut JitState, main_block: &mut JitBlock, java_p
         signed: shift_direction.signed(),
         arithmetic_type: shift_direction.to_arithmetic_type(),
     };
-    main_block.add_instruction(instruct);
+    current_jit_state.output.main_block.add_instruction(instruct);
     Ok(())
 }
 
 
-pub fn arithmetic_common(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size, atype: ArithmeticType) -> Result<(), JITError> {
+pub fn arithmetic_common(current_jit_state: &mut JitState, size: Size, atype: ArithmeticType) -> Result<(), JITError> {
     let instruct = IRInstruction::IntegerArithmetic {
         input_offset_a: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 1),
         input_offset_b: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 0),
@@ -83,36 +84,36 @@ pub fn arithmetic_common(current_jit_state: &mut JitState, main_block: &mut JitB
         signed: false,
         arithmetic_type: atype,
     };
-    main_block.add_instruction(instruct);
+    current_jit_state.output.main_block.add_instruction(instruct);
     Ok(())
 }
 
-pub fn integer_mul(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::Mul)
+pub fn integer_mul(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::Mul)
 }
 
 
-pub fn integer_div(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::Div)
+pub fn integer_div(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::Div)
 }
 
 
-pub fn integer_sub(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::Sub)
+pub fn integer_sub(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::Sub)
 }
 
-pub fn integer_add(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::Add)
+pub fn integer_add(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::Add)
 }
 
-pub fn binary_or(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::BinaryOr)
+pub fn binary_or(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::BinaryOr)
 }
 
-pub fn binary_xor(current_jit_state: &mut JitState, main_block: &mut JitBlock, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::BinaryXor)
+pub fn binary_xor(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
+    arithmetic_common(current_jit_state, size, ArithmeticType::BinaryXor)
 }
 
 pub fn binary_and(current_jit_state: &mut JitState, size: Size) -> Result<(), JITError> {
-    arithmetic_common(current_jit_state, main_block, size, ArithmeticType::BinaryAnd)
+    arithmetic_common(current_jit_state, size, ArithmeticType::BinaryAnd)
 }
