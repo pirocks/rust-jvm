@@ -160,7 +160,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
 }
 
 pub struct DefaultClassfileGetter<'l> {
-    jvm: &'l JVMState,
+    pub(crate) jvm: &'l JVMState,
 }
 
 impl ClassFileGetter for DefaultClassfileGetter<'_> {
@@ -234,7 +234,6 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-                // (start_field_number..start_field_number+class_view.num_fields()).map(||)
                 let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| name.field_name()).sorted().enumerate().map(|(index, name)| (name, index + start_field_number)).collect::<HashMap<_, _>>();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
@@ -245,12 +244,7 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
                     status: ClassStatus::UNPREPARED.into(),
                 }));
                 let verification_types = verifier_context.verification_types;
-                let mut method_table = jvm.method_table.write().unwrap();
-                for (method_i, verification_types) in verification_types {
-                    let method_id = method_table.get_method_id(res.clone(), method_i);
-                    jvm.function_frame_type_data.write().unwrap().insert(method_id, verification_types);
-                }
-                drop(method_table);
+                jvm.sink_function_verification_date(&verification_types, res.clone());
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
@@ -281,12 +275,6 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
         }
     };
     if name == ClassName::new("java/lang/Object").into() {
-        // let mut fields: HashMap<String, UnsafeCell<JavaValue>> = Default::default();
-        // fields.insert("name".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        // fields.insert("classLoader".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        // fields.insert("reflectionData".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        // fields.insert("genericInfo".to_string(), UnsafeCell::new(JavaValue::Object(None)));
-        // fields.insert("classRedefinedCount".to_string(), UnsafeCell::new(JavaValue::Int(0)));
         return Ok(Arc::new(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {

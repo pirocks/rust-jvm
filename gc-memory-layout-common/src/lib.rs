@@ -186,7 +186,7 @@ impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
     }
 
     fn full_frame_size(&self) -> usize {
-        todo!()
+        size_of::<FrameHeader>() + self.max_stack + self.max_locals
     }
 
     fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
@@ -200,14 +200,43 @@ pub enum FrameInfo {
         loader: LoaderName
     },
     Native {
-        runtime_class_id: usize,
-        method_id: u16,
+        method_id: usize,
         loader: LoaderName,
         native_local_refs: Vec<HashSet<jobject>>,
     },
     JavaFrame {
-        runtime_class_id: usize,
-        method_id: u16,
+        method_id: usize,
         loader: LoaderName,
     },
+}
+
+pub struct FullyOpaqueFrame {
+    pub max_stack: usize,
+    pub max_frame: usize,
+}
+
+impl StackframeMemoryLayout for FullyOpaqueFrame {
+    fn local_var_entry(&self, pc: usize, i: usize) -> FramePointerOffset {
+        todo!()
+    }
+
+    fn operand_stack_entry(&self, pc: usize, from_end: usize) -> FramePointerOffset {
+        todo!()
+    }
+
+    fn operand_stack_entry_array_layout(&self, pc: usize, from_end: usize) -> ArrayMemoryLayout {
+        todo!()
+    }
+
+    fn operand_stack_entry_object_layout(&self, pc: usize, from_end: usize) -> ObjectMemoryLayout {
+        todo!()
+    }
+
+    fn full_frame_size(&self) -> usize {
+        size_of::<FrameHeader>()
+    }
+
+    fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
+        todo!()
+    }
 }

@@ -1,7 +1,6 @@
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::null_mut;
-use std::slice::SliceIndex;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};

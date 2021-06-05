@@ -152,13 +152,11 @@ impl TracingSettings {
     }
 
     pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, res: JavaValue) {
-        unsafe {
-            // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
-            //     && !guard.meth_name.contains("hashCode")
-            //     && !guard.meth_name.contains("equals"){
-            //     println!("{:indent$}exit:{} {} {}","", guard.classname.class_name_representation(), guard.meth_name,res.try_unwrap_int().map(|int|int.to_string()).unwrap_or("not int".to_string()),indent= guard.current_depth);
-            // }
-        }
+        // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
+        //     && !guard.meth_name.contains("hashCode")
+        //     && !guard.meth_name.contains("equals"){
+        //     println!("{:indent$}exit:{} {} {}","", guard.classname.class_name_representation(), guard.meth_name,res.try_unwrap_int().map(|int|int.to_string()).unwrap_or("not int".to_string()),indent= guard.current_depth);
+        // }
         drop(guard);
     }
 

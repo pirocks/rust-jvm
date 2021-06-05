@@ -70,9 +70,8 @@ fn main() {
     let (args, jvm) = JVMState::new(jvm_options);
     let jvm_ref: &'static JVMState = Box::leak(box jvm);
     unsafe { JVM = Some(jvm_ref) }
-    let jvm: &'static JVMState = unsafe { JVM.as_ref().unwrap() };
-    let thread_state = &jvm.thread_state;
-    let (main_thread, main_send) = thread_state.setup_main_thread(jvm);
+    let thread_state = &jvm_ref.thread_state;
+    let (main_thread, main_send) = thread_state.setup_main_thread(jvm_ref);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
 
 

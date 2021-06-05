@@ -8,14 +8,16 @@ use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
-use jit_common::java_stack::JavaStack;
+use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, StackframeMemoryLayout};
+use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
 use verification::OperandStack;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
-use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryRef};
+use crate::rust_jni::native_util::from_object;
+use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef};
 use crate::threading::JavaThread;
 
 #[derive(Debug)]
@@ -31,9 +33,9 @@ pub enum InterpreterState {
     },
 }
 
-impl Default for InterpreterState {
-    fn default() -> Self {
-        let call_stack = JavaStack::new(0);
+impl InterpreterState {
+    pub(crate) fn new(thread_status_ptr: *mut JavaStatus) -> Self {
+        let call_stack = JavaStack::new(0, thread_status_ptr);
         InterpreterState::Jit {
             call_stack,
         }
@@ -92,7 +94,7 @@ impl<'l> InterpreterStateGuard<'l> {
                 StackEntryRef::LegacyInterpreter { entry: call_stack.last().unwrap() }
             }
             InterpreterState::Jit { call_stack } => {
-                StackEntryRef::Jit { frame_view: call_stack.current_frame(call_stack.saved_registers().frame_pointer) }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr()) }
             }
         }
     }
@@ -104,7 +106,7 @@ impl<'l> InterpreterStateGuard<'l> {
                 StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
             }
             InterpreterState::Jit { call_stack } => {
-                StackEntryMut::Jit { frame_view: call_stack.current_frame(call_stack.saved_registers().frame_pointer) }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr()) }
             }
         }
     }
@@ -194,7 +196,7 @@ impl<'l> InterpreterStateGuard<'l> {
                     throw.clone()
                 }
                 InterpreterState::Jit { call_stack, .. } => {
-                    todo!()
+                    unsafe { from_object(call_stack.throw()) }
                 }
             },
         }
@@ -210,14 +212,54 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn push_frame(&mut self, frame: StackEntry) -> FramePushGuard {
+    pub fn push_frame(&mut self, frame: StackEntry, jvm: &JVMState) -> FramePushGuard {
         let int_state = self.int_state.as_mut().unwrap().deref_mut();
         match int_state {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 call_stack.push(frame)
             }
             InterpreterState::Jit { call_stack, .. } => {
-                todo!()
+                let StackEntry {
+                    loader,
+                    opaque_frame_optional,
+                    non_native_data,
+                    local_vars,
+                    operand_stack,
+                    native_local_refs
+                } = frame;
+                if let Some(NonNativeFrameData { pc, pc_offset }) = non_native_data {
+                    if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
+                        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
+                        let class_view = class_pointer.view();
+                        dbg!(class_view.name());
+                        let method_view = class_view.method_view_i(method_id);
+                        dbg!(method_view.name());
+                        let code = method_view.code_attribute().unwrap();
+                        let frame_vtype = &jvm.function_frame_type_data.read().unwrap()[&(method_i as usize)];
+                        let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
+                        unsafe {
+                            call_stack.push_frame(&memory_layout, FrameInfo::JavaFrame {
+                                method_id,
+                                loader,
+                            });
+                        }
+                    } else {
+                        panic!()
+                    }
+                } else if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
+                    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+                    unsafe {
+                        call_stack.push_frame(todo!(), FrameInfo::Native {
+                            method_id,
+                            loader,
+                            native_local_refs,
+                        })
+                    }
+                } else {
+                    unsafe {
+                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader })
+                    }
+                }
             }
         };
         FramePushGuard::default()

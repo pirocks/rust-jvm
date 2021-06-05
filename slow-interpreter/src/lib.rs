@@ -80,7 +80,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i).code_attribute().unwrap().max_locals;
     let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
-    let main_frame_guard = int_state.push_frame(stack_entry);
+    let main_frame_guard = int_state.push_frame(stack_entry, jvm);
 
     setup_program_args(&jvm, int_state, args);
     jvm.include_name_field.store(true, Ordering::SeqCst);
@@ -117,7 +117,7 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
 
 
 fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()));
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()), jvm);
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

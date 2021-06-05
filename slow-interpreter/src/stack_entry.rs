@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ffi::c_void;
 use std::ops::{Index, IndexMut};
 use std::sync::Arc;
@@ -20,10 +21,14 @@ use crate::runtime_class::RuntimeClass;
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FrameView(*mut c_void);
 
 impl FrameView {
+    pub fn new(ptr: *mut c_void) -> Self {
+        Self(ptr)
+    }
+
     fn get_header(&self) -> &FrameHeader {
         unsafe { (self.0 as *const FrameHeader).as_ref() }.unwrap()
     }
@@ -39,42 +44,34 @@ impl FrameView {
             FrameInfo::JavaFrame { loader, .. } => loader
         }
     }
-
-    pub fn try_class_pointer(&self) -> Option<RuntimeClassClassId> {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => None,
-            FrameInfo::Native { runtime_class_id, .. } => Some(RuntimeClassClassId(*runtime_class_id)),
-            FrameInfo::JavaFrame { runtime_class_id, .. } => Some(RuntimeClassClassId(*runtime_class_id))
-        }
-    }
 }
 
 
 /// If the frame is opaque then this data is optional.
 /// This data would typically be present in a native function call, but not be present in JVMTI frames
 #[derive(Debug, Clone)]
-struct OpaqueFrameOptional {
-    class_pointer: Arc<RuntimeClass>,
-    method_i: CPIndex,
+pub struct OpaqueFrameOptional {
+    pub class_pointer: Arc<RuntimeClass>,
+    pub method_i: CPIndex,
 }
 
 ///This data is only present in non-native frames,
 /// program counter is not meaningful in a native frame
 #[derive(Debug, Clone)]
-struct NonNativeFrameData {
-    pc: usize,
+pub struct NonNativeFrameData {
+    pub pc: usize,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pc_offset: isize,
+    pub pc_offset: isize,
 }
 
 #[derive(Debug, Clone)]
 pub struct StackEntry {
-    loader: LoaderName,
-    opaque_frame_optional: Option<OpaqueFrameOptional>,
-    non_native_data: Option<NonNativeFrameData>,
-    local_vars: Vec<JavaValue>,
-    operand_stack: Vec<JavaValue>,
-    native_local_refs: Vec<BiMap<ByAddress<Arc<Object>>, jobject>>,
+    pub(crate) loader: LoaderName,
+    pub(crate) opaque_frame_optional: Option<OpaqueFrameOptional>,
+    pub(crate) non_native_data: Option<NonNativeFrameData>,
+    pub(crate) local_vars: Vec<JavaValue>,
+    pub(crate) operand_stack: Vec<JavaValue>,
+    pub(crate) native_local_refs: Vec<HashSet<jobject>>,
 }
 
 #[derive(Debug)]
@@ -104,10 +101,10 @@ impl StackEntryMut<'_> {
         }
     }
 
-    pub fn to_ref<'l>(&'l self) -> StackEntryRef<'l> {
+    pub fn to_ref(&self) -> StackEntryRef {
         match self {
             StackEntryMut::LegacyInterpreter { entry, .. } => StackEntryRef::LegacyInterpreter { entry },
-            StackEntryMut::Jit { frame_view, .. } => StackEntryRef::Jit { frame_view }
+            StackEntryMut::Jit { frame_view, .. } => StackEntryRef::Jit { frame_view: frame_view.clone() }
         }
     }
 
@@ -335,7 +332,7 @@ pub enum StackEntryRef<'l> {
         entry: &'l StackEntry
     },
     Jit {
-        frame_view: &'l FrameView
+        frame_view: FrameView
     },
 }
 
@@ -347,7 +344,7 @@ impl StackEntryRef<'_> {
                 entry.loader()
             }
             StackEntryRef::Jit { frame_view, .. } => {
-                todo!()
+                frame_view.loader()
             }
         }
     }
@@ -432,7 +429,7 @@ impl StackEntry {
             non_native_data: None,
             local_vars: vec![],
             operand_stack: vec![],
-            native_local_refs: vec![BiMap::new()],
+            native_local_refs: vec![HashSet::new()],
         }
     }
 
@@ -459,7 +456,7 @@ impl StackEntry {
             non_native_data: None,
             local_vars: args,
             operand_stack: vec![],
-            native_local_refs: vec![BiMap::new()],
+            native_local_refs: vec![HashSet::new()],
         }
     }
 

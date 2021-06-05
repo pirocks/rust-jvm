@@ -233,7 +233,7 @@ pub fn initialize_class(
 
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
-    let new_function_frame = interpreter_state.push_frame(new_stack);
+    let new_function_frame = interpreter_state.push_frame(new_stack, jvm);
     match run_function(jvm, interpreter_state) {
         Ok(()) => {
             interpreter_state.pop_frame(jvm, new_function_frame, true);

@@ -92,10 +92,11 @@ impl PossiblyJVMString {
             } else if (x >> 5) == 0b110 {
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let x_u16 = x as u16;
                 let y_u16 = y as u16;
@@ -104,17 +105,19 @@ impl PossiblyJVMString {
             } else if x != 0b11101101 {
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let x_u16 = x as u16;
                 let y_u16 = y as u16;
@@ -125,17 +128,19 @@ impl PossiblyJVMString {
                 let u = x;
                 let v = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (v >> 4) != 0b1010 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let w = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (w >> 6) != 0b10 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let x = buf_iter.peek().cloned().cloned();
                 if x != Some(0b11101101) {
@@ -154,17 +159,19 @@ impl PossiblyJVMString {
                 buf_iter.next().unwrap();
                 let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 4) != 0b1010 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
-                    dbg!(buf_iter);
+                    dbg!(&buf_iter);
+                    dbg!(buf_iter.collect::<Vec<_>>());
                     dbg!(&self.buf);
                     panic!();
-                    return Err(ValidationError::UnexpectedBits);
+                    // return Err(ValidationError::UnexpectedBits);
                 }
                 let y_u32 = y as u32;
                 let z_u32 = z as u32;

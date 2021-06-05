@@ -22,9 +22,10 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::string_pool::StringPool;
-use verification::ClassFileGetter;
+use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::Frame;
 
+use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -172,7 +173,6 @@ impl JVMState {
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
-            // int_state_guard: &INT_STATE_GUARD
             unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
@@ -185,6 +185,33 @@ impl JVMState {
         };
         jvm.add_class_class_class_object();
         (args, jvm)
+    }
+
+    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<usize, Frame>>, rc: Arc<RuntimeClass>) {
+        let mut method_table = self.method_table.write().unwrap();
+        for (method_i, verification_types) in verification_types {
+            let method_id = method_table.get_method_id(rc.clone(), *method_i);
+            self.function_frame_type_data.write().unwrap().insert(method_id, verification_types.clone());
+        }
+    }
+
+    pub fn verify_class_and_object(&self, object_runtime_class: Arc<RuntimeClass>, class_runtime_class: Arc<RuntimeClass>) {
+        let mut context = VerifierContext {
+            live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
+            classfile_getter: Arc::new(DefaultClassfileGetter {
+                jvm: self
+            }) as Arc<dyn ClassFileGetter>,
+            current_loader: LoaderName::BootstrapLoader,
+            verification_types: Default::default(),
+            debug: false,
+        };
+        let lookup = self.classpath.lookup(&ClassName::object()).expect("Can not find Object class");
+        verify(&mut context, &ClassBackedView::from(lookup), LoaderName::BootstrapLoader).expect("Object doesn't verify");
+        self.sink_function_verification_date(&context.verification_types, object_runtime_class);
+        context.verification_types.clear();
+        let lookup = self.classpath.lookup(&ClassName::class()).expect("Can not find Class class");
+        verify(&mut context, &ClassBackedView::from(lookup), LoaderName::BootstrapLoader).expect("Class doesn't verify");
+        self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
 
     fn add_class_class_class_object(&mut self) {

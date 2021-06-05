@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
@@ -76,7 +76,7 @@ fn invoke_virtual_method_i_impl(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state, &expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let frame_for_function = interpreter_state.push_frame(next_entry);
+        let frame_for_function = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 assert!(!interpreter_state.throw().is_some());

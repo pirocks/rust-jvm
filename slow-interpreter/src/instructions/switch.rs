@@ -1,7 +1,6 @@
 use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
 
 use crate::stack_entry::StackEntryMut;
-use crate::StackEntry;
 
 pub fn invoke_lookupswitch(ls: &LookupSwitch, mut frame: StackEntryMut) {
     let key = frame.pop().unwrap_int();

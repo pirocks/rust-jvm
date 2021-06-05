@@ -55,7 +55,7 @@ pub fn invoke_special_impl(
             // interpreter_state.debug_print_stack_trace();
             // panic!();
         }
-        let function_call_frame = interpreter_state.push_frame(next_entry);
+        let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);

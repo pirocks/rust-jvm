@@ -13,12 +13,13 @@ use libloading::Symbol;
 use num::Integer;
 
 use classfile_view::loading::LoaderName;
+use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, run_main, set_properties};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState};
 use crate::interpreter_util::push_new_object;
@@ -92,10 +93,10 @@ impl ThreadState {
             if let Some(jvmti) = jvm.jvmti_state.as_ref() {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
-            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));//todo think this is correct, check
+            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader), jvm);//todo think this is correct, check
             //handle any excpetions from here
             int_state.pop_frame(jvm, push_guard, false);
-            let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader));
+            let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader), jvm);
             run_main(args, jvm, &mut int_state).unwrap();
             //todo handle exception exit from main
             int_state.pop_frame(jvm, main_frame_guard, false);
@@ -118,7 +119,7 @@ impl ThreadState {
             locals.push(JavaValue::Top);
         }
         let initialize_system_frame = StackEntry::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard = int_state.push_frame(initialize_system_frame);
+        let init_frame_guard = int_state.push_frame(initialize_system_frame, jvm);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         match run_function(&jvm, int_state) {
             Ok(_) => {}
@@ -158,7 +159,7 @@ impl ThreadState {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
-            interpreter_state: RwLock::new(InterpreterState::default()),
+            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus { throw: null_mut() }) as *mut JavaStatus)),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
@@ -183,8 +184,11 @@ impl ThreadState {
             }
         }
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
-        let frame_for_bootstrapping = new_int_state.push_frame(frame);
+        let frame_for_bootstrapping = new_int_state.push_frame(frame, jvm);
 
+        let object_rc = check_loaded_class(jvm, &mut new_int_state, ClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
+        // let class_rc = check_loaded_class(jvm,&mut new_int_state, ClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
+        jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::thread().into()).expect("couldn't load thread class");
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);
@@ -261,7 +265,7 @@ impl ThreadState {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
             }
 
-            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name));
+            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name), jvm);
             if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
                 JavaValue::Object(interpreter_state_guard.throw()).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
                 interpreter_state_guard.set_throw(None);
@@ -325,7 +329,7 @@ impl JavaThread {
             java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
-            interpreter_state: RwLock::new(InterpreterState::default()),
+            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus { throw: null_mut() }) as *mut JavaStatus)),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
