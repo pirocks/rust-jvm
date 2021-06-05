@@ -19,7 +19,7 @@ use crate::runtime_class::RuntimeClass;
 pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
-    let view = int_state.current_class_view();
+    let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name = class_name_type.unwrap_class_type();
     //todo  spec says where check_ is allowed. need to match that
@@ -52,13 +52,14 @@ pub fn invoke_static_impl(
     target_method: &MethodView,
 ) -> Result<(), WasException> {
     let mut args = vec![];
-    let current_frame = interpreter_state.current_frame_mut();
+    let mut current_frame = interpreter_state.current_frame_mut();
     let target_class_view = target_class.view();
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();
         if name == "linkToStatic" {
-            let op_stack = interpreter_state.current_frame().operand_stack();
+            let current_frame = interpreter_state.current_frame();
+            let op_stack = current_frame.operand_stack();
             // dbg!(interpreter_state.current_frame().operand_stack_types());
             let member_name = op_stack[op_stack.len() - 1].cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());

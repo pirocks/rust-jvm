@@ -27,7 +27,7 @@ use slow_interpreter::jvm_state::{ClassStatus, JVMState};
 use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use slow_interpreter::rust_jni::interface::define_class_safe;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::stack_entry::StackEntry;
+use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
 use verification::{VerifierContext, verify};
 
 #[no_mangle]
@@ -50,7 +50,7 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array().iter().map(|b| *b as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
     if args[3].unwrap_object().is_some() {
-        patch_all(jvm, &int_state.current_frame_mut(), &mut args, &mut unpatched);
+        patch_all(jvm, int_state.current_frame(), &mut args, &mut unpatched);
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
@@ -68,14 +68,14 @@ pub fn defineAnonymousClass(jvm: &JVMState, int_state: &mut InterpreterStateGuar
 }
 
 
-fn patch_all(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
+fn patch_all(jvm: &JVMState, frame: StackEntryRef, args: &mut Vec<JavaValue>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {
         match maybe_patch {
             None => {}
             Some(patch) => {
-                patch_single(patch, jvm, frame, unpatched, i);
+                patch_single(patch, jvm, &frame, unpatched, i);
             }
         }
     });
@@ -91,7 +91,7 @@ fn patch_all(jvm: &JVMState, frame: &StackEntry, args: &mut Vec<JavaValue>, unpa
 fn patch_single(
     patch: &Arc<Object>,
     state: &JVMState,
-    _frame: &StackEntry,
+    _frame: &StackEntryRef,
     unpatched: &mut Classfile,
     i: usize,
 ) {

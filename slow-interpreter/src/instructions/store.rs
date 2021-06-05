@@ -4,10 +4,10 @@ use jvmti_jni_bindings::jbyte;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::StackEntry;
+use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
-pub fn astore(current_frame: &mut StackEntry, n: usize) {
+pub fn astore(mut current_frame: StackEntryMut, n: usize) {
     let object_ref = current_frame.pop();
     match object_ref {
         JavaValue::Object(_) => {}
@@ -19,7 +19,7 @@ pub fn astore(current_frame: &mut StackEntry, n: usize) {
     current_frame.local_vars_mut()[n] = object_ref;
 }
 
-pub fn lstore(current_frame: &mut StackEntry, n: usize) {
+pub fn lstore(mut current_frame: StackEntryMut, n: usize) {
     let val = current_frame.pop();
     match val {
         JavaValue::Long(_) => {}
@@ -31,7 +31,7 @@ pub fn lstore(current_frame: &mut StackEntry, n: usize) {
     current_frame.local_vars_mut()[n] = val;
 }
 
-pub fn dstore(current_frame: &mut StackEntry, n: usize) {
+pub fn dstore(mut current_frame: StackEntryMut, n: usize) {
     let jv = current_frame.pop();
     match jv {
         JavaValue::Double(_) => {}
@@ -43,14 +43,14 @@ pub fn dstore(current_frame: &mut StackEntry, n: usize) {
     current_frame.local_vars_mut()[n] = jv;
 }
 
-pub fn fstore(current_frame: &mut StackEntry, n: usize) {
+pub fn fstore(mut current_frame: StackEntryMut, n: usize) {
     let jv = current_frame.pop();
     jv.unwrap_float();
     current_frame.local_vars_mut()[n] = jv;
 }
 
 pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
@@ -65,7 +65,7 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int() as jbyte;// int value is truncated
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
@@ -81,7 +81,7 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_short();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
@@ -97,7 +97,7 @@ pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_float();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
@@ -112,7 +112,7 @@ pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_double();
     let index = current_frame.pop().unwrap_int();
     let array_ref_o = match current_frame.pop().unwrap_object() {
@@ -127,7 +127,7 @@ pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_int();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = match current_frame.pop().unwrap_object() {
@@ -143,7 +143,7 @@ pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop();
     let index = current_frame.pop().unwrap_int();
     let arrary_ref_o = match current_frame.pop().unwrap_object() {
@@ -161,14 +161,14 @@ pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn istore(current_frame: &mut StackEntry, n: usize) {
+pub fn istore(mut current_frame: StackEntryMut, n: usize) {
     let object_ref = current_frame.pop();
     current_frame.local_vars_mut()[n] = JavaValue::Int(object_ref.unwrap_int());
 }
 
 
 pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop().unwrap_long();
     let index = current_frame.pop().unwrap_int();
     let arrar_ref_o = match current_frame.pop().unwrap_object() {

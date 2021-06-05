@@ -1,7 +1,7 @@
 use crate::java_values::JavaValue;
-use crate::StackEntry;
+use crate::stack_entry::StackEntryMut;
 
-pub fn pop2(current_frame: &mut StackEntry) {
+pub fn pop2(mut current_frame: StackEntryMut) {
     match current_frame.pop() {
         JavaValue::Long(_) | JavaValue::Double(_) => {}
         _ => {
@@ -12,4 +12,4 @@ pub fn pop2(current_frame: &mut StackEntry) {
     };
 }
 
-pub fn pop(current_frame: &mut StackEntry) { current_frame.pop(); }
+pub fn pop(mut current_frame: StackEntryMut) { current_frame.pop(); }

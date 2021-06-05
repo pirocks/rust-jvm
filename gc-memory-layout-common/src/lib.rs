@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
-use std::fs::read;
 use std::mem::size_of;
 
-use iced_x86::ConditionCode::s;
 use itertools::{Either, Itertools};
 
+use classfile_view::loading::LoaderName;
+use jvmti_jni_bindings::jobject;
 use verification::verifier::Frame;
 
 pub struct GCState {
@@ -119,6 +119,23 @@ impl ArrayMemoryLayout {
 }
 
 
+pub const MAGIC_1_EXPECTED: u64 = 0xDEADBEEFDEADBEAF;
+pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
+
+
+//todo frane info will need to be reworked to be based of rip
+#[repr(C, packed)]
+#[derive(Debug, Clone, Copy)]
+pub struct FrameHeader {
+    pub prev_rip: *mut c_void,
+    pub prev_rpb: *mut c_void,
+    pub frame_info_ptr: *const FrameInfo,
+    pub debug_ptr: *mut c_void,
+    pub magic_part_1: u64,
+    pub magic_part_2: u64,
+}
+
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct FramePointerOffset(pub usize);
 
@@ -175,4 +192,22 @@ impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
     fn safe_temp_location(&self, pc: usize, i: usize) -> FramePointerOffset {
         todo!()
     }
+}
+
+
+pub enum FrameInfo {
+    FullyOpaque {
+        loader: LoaderName
+    },
+    Native {
+        runtime_class_id: usize,
+        method_id: u16,
+        loader: LoaderName,
+        native_local_refs: Vec<HashSet<jobject>>,
+    },
+    JavaFrame {
+        runtime_class_id: usize,
+        method_id: u16,
+        loader: LoaderName,
+    },
 }

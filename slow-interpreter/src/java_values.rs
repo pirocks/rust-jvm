@@ -1,18 +1,14 @@
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
-use std::process::Output;
 use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
 use itertools::{Itertools, repeat_n};
 
-use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
-use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::WasException;

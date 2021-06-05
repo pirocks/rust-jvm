@@ -8,7 +8,6 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
-use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::check_resolved_class;
 use crate::class_objects::get_or_create_class_object;
@@ -36,14 +35,14 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
-use crate::stack_entry::StackEntry;
+use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::threading::monitors::Monitor;
 
 #[derive(Debug)]
 pub struct WasException;
 
 pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-    let view = interpreter_state.current_class_view().clone();
+    let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i();
     let method = view.method_view_i(method_i as usize);
     let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
@@ -56,14 +55,15 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
     let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!*interpreter_state.function_return_mut());
-    let class_pointer = interpreter_state.current_frame().class_pointer();
+    let current_frame = interpreter_state.current_frame();
+    let class_pointer = current_frame.class_pointer();
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized);
 
 
     while !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
-        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame_mut(), &code);
+        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame(), &code);
         *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
         breakpoint_check(jvm, interpreter_state, method_id);
         if let Ok(()) = safepoint_check(jvm, interpreter_state) {
@@ -82,7 +82,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
                     } else {
-                        let catch_runtime_name = interpreter_state.current_class_view().constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_ref_type().unwrap_name();
+                        let catch_runtime_name = interpreter_state.current_class_view(jvm).constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_ref_type().unwrap_name();
                         let saved_throw = interpreter_state.throw().clone();
                         interpreter_state.set_throw(None);
                         let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
@@ -155,7 +155,7 @@ fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     }
 }
 
-fn current_instruction(current_frame: &StackEntry, code: &Code) -> (InstructionInfo, usize) {
+fn current_instruction(current_frame: StackEntryRef, code: &Code) -> (InstructionInfo, usize) {
     let current = &code.code_raw[current_frame.pc()..];
     let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
     let parsedq = parse_instruction(&mut context).expect("but this parsed the first time round");
@@ -199,7 +199,7 @@ fn run_single_instruction(
             interpreter_state.debug_print_stack_trace();
         }
     };
-    interpreter_state.verify_frame(jvm);
+    // interpreter_state.verify_frame(jvm);
     // if interpreter_state.call_stack_depth() > 2 {
     //     let current_method_i = interpreter_state.current_frame().method_i();
     //     let current_view = interpreter_state.current_frame().class_pointer().view();
@@ -336,7 +336,7 @@ fn run_single_instruction(
         InstructionInfo::ifnonnull(offset) => ifnonnull(interpreter_state.current_frame_mut(), offset),
         InstructionInfo::ifnull(offset) => ifnull(interpreter_state.current_frame_mut(), offset),
         InstructionInfo::iinc(iinc) => {
-            let current_frame = interpreter_state.current_frame_mut();
+            let mut current_frame = interpreter_state.current_frame_mut();
             let val = current_frame.local_vars()[iinc.index as usize].unwrap_int();
             let res = val + iinc.const_ as i32;
             current_frame.local_vars_mut()[iinc.index as usize] = JavaValue::Int(res);
@@ -432,7 +432,7 @@ fn run_single_instruction(
     }
 }
 
-fn l2d(current_frame: &mut StackEntry) {
+fn l2d(mut current_frame: StackEntryMut) {
     let val = current_frame.pop().unwrap_long();
     current_frame.push(JavaValue::Double(val as f64))
 }
@@ -443,7 +443,7 @@ fn jsr(interpreter_state: &mut InterpreterStateGuard, target: i32) {
     *interpreter_state.current_pc_offset_mut() = target as isize
 }
 
-fn f2l(current_frame: &mut StackEntry) {
+fn f2l(mut current_frame: StackEntryMut) {
     let val = current_frame.pop().unwrap_float();
     let res = if val.is_infinite() {
         if val.is_sign_positive() {
@@ -459,7 +459,7 @@ fn f2l(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Long(res))
 }
 
-fn dup2_x2(current_frame: &mut StackEntry) {
+fn dup2_x2(mut current_frame: StackEntryMut) {
     let value1 = current_frame.pop();
     let value2 = current_frame.pop();
     if value1.is_size_2() {
@@ -501,19 +501,19 @@ fn dup2_x2(current_frame: &mut StackEntry) {
     }
 }
 
-fn frem(current_frame: &mut StackEntry) {
+fn frem(mut current_frame: StackEntryMut) {
     let value2 = current_frame.pop().unwrap_float();
     let value1 = current_frame.pop().unwrap_float();
     let res = drem_impl(value2 as f64, value1 as f64) as f32;
     current_frame.push(JavaValue::Float(res));
 }
 
-fn fneg(current_frame: &mut StackEntry) {
+fn fneg(mut current_frame: StackEntryMut) {
     let val = current_frame.pop().unwrap_float();
     current_frame.push(JavaValue::Float(-val))
 }
 
-fn drem(current_frame: &mut StackEntry) {
+fn drem(mut current_frame: StackEntryMut) {
     let value2 = current_frame.pop().unwrap_double();//divisor
     let value1 = current_frame.pop().unwrap_double();
     let res = drem_impl(value2, value1);
@@ -543,25 +543,25 @@ fn drem_impl(value2: f64, value1: f64) -> f64 {
     res
 }
 
-fn dneg(current_frame: &mut StackEntry) {
+fn dneg(mut current_frame: StackEntryMut) {
     let val = current_frame.pop().unwrap_double();
     current_frame.push(JavaValue::Double(-val))
 }
 
-fn swap(current_frame: &mut StackEntry) {
+fn swap(mut current_frame: StackEntryMut) {
     let first = current_frame.pop();
     let second = current_frame.pop();
     current_frame.push(first);
     current_frame.push(second);
 }
 
-pub fn ret(current_frame: &mut StackEntry, local_var_index: usize) {
+pub fn ret(mut current_frame: StackEntryMut, local_var_index: usize) {
     let ret = current_frame.local_vars()[local_var_index].unwrap_long();
     *current_frame.pc_mut() = ret as usize;
     *current_frame.pc_offset_mut() = 0;
 }
 
-fn dcmpl(current_frame: &mut StackEntry) {
+fn dcmpl(mut current_frame: StackEntryMut) {
     let val2 = current_frame.pop().unwrap_double();
     let val1 = current_frame.pop().unwrap_double();
     if val2.is_nan() || val1.is_nan() {
@@ -570,7 +570,7 @@ fn dcmpl(current_frame: &mut StackEntry) {
     dcmp_common(current_frame, val2, val1);
 }
 
-fn dcmp_common(current_frame: &mut StackEntry, val2: f64, val1: f64) {
+fn dcmp_common(mut current_frame: StackEntryMut, val2: f64, val1: f64) {
     let res = if val1 > val2 {
         1
     } else if val1 == val2 {
@@ -583,7 +583,7 @@ fn dcmp_common(current_frame: &mut StackEntry, val2: f64, val1: f64) {
     current_frame.push(JavaValue::Int(res));
 }
 
-fn dcmpg(current_frame: &mut StackEntry) {
+fn dcmpg(mut current_frame: StackEntryMut) {
     let val2 = current_frame.pop().unwrap_double();
     let val1 = current_frame.pop().unwrap_double();
     if val2.is_nan() || val1.is_nan() {

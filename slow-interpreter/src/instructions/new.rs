@@ -11,7 +11,7 @@ use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: usize) {
-    let view = &int_state.current_frame_mut().class_pointer().view();
+    let view = &int_state.current_frame().class_pointer().view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
     let target_classfile = check_initing_or_inited_class(jvm,
                                                          int_state, target_class_name.clone().into()).unwrap();
@@ -24,7 +24,7 @@ pub fn anewarray(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u1
         JavaValue::Int(i) => i,
         _ => panic!()
     };
-    let view = &int_state.current_frame_mut().class_pointer().view();
+    let view = &int_state.current_frame().class_pointer().view();
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantInfoView::Class(c) => {
@@ -89,7 +89,7 @@ pub fn newarray(jvm: &JVMState, int_state: &mut InterpreterStateGuard, a_type: A
 
 pub fn multi_a_new_array(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: MultiNewArray) {
     let dims = cp.dims;
-    let view = int_state.current_frame_mut().class_pointer().view();
+    let view = int_state.current_frame().class_pointer().view();
     let temp = view.constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_ref_type();
 

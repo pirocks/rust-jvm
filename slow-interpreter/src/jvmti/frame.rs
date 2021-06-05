@@ -1,5 +1,7 @@
 use std::mem::{size_of, transmute};
+use std::ops::Deref;
 use std::ptr::null_mut;
+use std::slice::SliceIndex;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
@@ -7,6 +9,7 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter_state::InterpreterState;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::native_util::from_object;
@@ -55,7 +58,10 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     }
     // assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
 
-    let frame_count = java_thread.interpreter_state.read().unwrap().call_stack.len();
+    let frame_count = match java_thread.interpreter_state.read().unwrap().deref() {
+        InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),
+        InterpreterState::Jit { .. } => todo!()
+    };
     count_ptr.write(frame_count as i32);
 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -113,7 +119,11 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     if !thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
-    let call_stack_guard = &thread.interpreter_state.read().unwrap().call_stack;
+    let read_guard = thread.interpreter_state.read().unwrap();
+    let call_stack_guard = match read_guard.deref() {
+        InterpreterState::LegacyInterpreter { call_stack, .. } => { call_stack }
+        InterpreterState::Jit { .. } => todo!()
+    };
     let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
         None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
         Some(stack_entry) => stack_entry,

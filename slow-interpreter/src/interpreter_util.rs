@@ -1,14 +1,12 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, JavaValue, Object, ObjectFieldsAndClass};
+use crate::java_values::{default_value, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state

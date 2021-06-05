@@ -1,4 +1,3 @@
-use std::panic::panic_any;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
@@ -15,7 +14,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame_mut().class_pointer().view());
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame().class_pointer().view());
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = match check_initing_or_inited_class(
         jvm,

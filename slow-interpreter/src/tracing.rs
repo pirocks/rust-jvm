@@ -1,11 +1,9 @@
-use std::env::current_exe;
 use std::sync::RwLock;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::interpreter::TIMES;
 use crate::java_values::JavaValue;
 use crate::JVMState;
 use crate::threading::JavaThreadId;

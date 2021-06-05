@@ -1,44 +1,41 @@
 use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
 use std::mem::transmute;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
-
-use itertools::Itertools;
 
 use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
+use jit_common::java_stack::JavaStack;
 use rust_jvm_common::classfile::CPIndex;
 use verification::OperandStack;
-use verification::verifier::Frame;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
-use crate::stack_entry::StackEntry;
+use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryRef};
 use crate::threading::JavaThread;
 
 #[derive(Debug)]
-pub struct InterpreterState {
-    pub throw: Option<Arc<Object>>,
-    pub function_return: bool,
-    pub(crate) call_stack: Vec<StackEntry>,
-    pub(crate) should_frame_pop_notify: HashSet<usize>,
+pub enum InterpreterState {
+    LegacyInterpreter {
+        throw: Option<Arc<Object>>,
+        function_return: bool,
+        call_stack: Vec<StackEntry>,
+        should_frame_pop_notify: HashSet<usize>,
+    },
+    Jit {
+        call_stack: JavaStack,
+    },
 }
 
 impl Default for InterpreterState {
     fn default() -> Self {
-        InterpreterState {
-            throw: None,
-            function_return: false,
-            /*suspended: RwLock::new(SuspendedStatus {
-            suspended: false,
-            suspended_lock: Arc::new(Mutex::new(())),
-        }),*/
-            call_stack: vec![],
-            should_frame_pop_notify: HashSet::new(),
+        let call_stack = JavaStack::new(0);
+        InterpreterState::Jit {
+            call_stack,
         }
     }
 }
@@ -82,18 +79,34 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame().loader()
     }
 
-    pub fn current_class_view(&self) -> Arc<dyn ClassView> {
-        self.current_frame().class_pointer().view()
+    pub fn current_class_view(&self, jvm: &JVMState) -> Arc<dyn ClassView> {
+        self.current_frame().try_class_pointer().unwrap().view()
     }
 
 
-    pub fn current_frame(&'l self) -> &'l StackEntry {
-        self.int_state.as_ref().unwrap().call_stack.last().unwrap()
+    //TODO FIX THESE BOXES
+    pub fn current_frame(&'l self) -> StackEntryRef {
+        let interpreter_state = self.int_state.as_ref().unwrap();
+        match interpreter_state.deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                StackEntryRef::LegacyInterpreter { entry: call_stack.last().unwrap() }
+            }
+            InterpreterState::Jit { call_stack } => {
+                StackEntryRef::Jit { frame_view: call_stack.current_frame(call_stack.saved_registers().frame_pointer) }
+            }
+        }
     }
 
-    pub fn current_frame_mut(&mut self) -> &mut StackEntry {
-        self.int_state.as_mut().unwrap()
-            .call_stack.last_mut().unwrap()
+    pub fn current_frame_mut(&mut self) -> StackEntryMut {
+        let interpreter_state = self.int_state.as_mut().unwrap().deref_mut();
+        match interpreter_state {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
+            }
+            InterpreterState::Jit { call_stack } => {
+                StackEntryMut::Jit { frame_view: call_stack.current_frame(call_stack.saved_registers().frame_pointer) }
+            }
+        }
     }
 
     pub fn push_current_operand_stack(&mut self, jval: JavaValue) {
@@ -101,81 +114,156 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn pop_current_operand_stack(&mut self) -> JavaValue {
-        if self.int_state.as_ref().unwrap().call_stack.last().unwrap().operand_stack().is_empty() {
-            self.debug_print_stack_trace();
-            panic!()
+        self.current_frame_mut().operand_stack_mut().pop().unwrap()
+    }
+
+    pub fn previous_frame_mut(&mut self) -> StackEntryMut {
+        match self.int_state.as_mut().unwrap().deref_mut() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                let len = call_stack.len();
+                StackEntryMut::LegacyInterpreter { entry: &mut call_stack[len - 2] }
+            }
+            InterpreterState::Jit { call_stack } => {
+                StackEntryMut::Jit { frame_view: todo!() }
+            }
         }
-        let int_state = self.int_state.as_mut().unwrap();
-        let current_frame = int_state.call_stack.last_mut().unwrap();
-        current_frame.operand_stack_mut().pop().unwrap()
     }
 
-    pub fn previous_frame_mut(&mut self) -> &mut StackEntry {
-        let call_stack = &mut self.int_state.as_mut().unwrap().call_stack;
-        let len = call_stack.len();
-        &mut call_stack[len - 2]
-    }
-
-    pub fn previous_frame(&self) -> &StackEntry {
-        let call_stack = &self.int_state.as_ref().unwrap().call_stack;
-        let len = call_stack.len();
-        &call_stack[len - 2]
+    pub fn previous_frame(&self) -> StackEntryRef {
+        match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                let len = call_stack.len();
+                StackEntryRef::LegacyInterpreter { entry: &call_stack[len - 2] }
+            }
+            InterpreterState::Jit { call_stack } => {
+                StackEntryRef::Jit { frame_view: todo!() }
+            }
+        }
     }
 
     pub fn set_throw(&mut self, val: Option<Arc<Object>>) {
         match self.int_state.as_mut() {
             None => {
-                self.thread.interpreter_state.write().unwrap().throw = val
+                let mut guard = self.thread.interpreter_state.write().unwrap();
+                match guard.deref_mut() {
+                    InterpreterState::LegacyInterpreter { throw, .. } => {
+                        *throw = val;
+                    }
+                    InterpreterState::Jit { .. } => todo!()
+                }
             }
             Some(val_mut) => {
-                val_mut.throw = val;
+                match val_mut.deref_mut() {
+                    InterpreterState::LegacyInterpreter { throw, .. } => {
+                        *throw = val;
+                    }
+                    InterpreterState::Jit { .. } => {
+                        todo!()
+                    }
+                }
             }
         }
     }
 
 
     pub fn function_return_mut(&mut self) -> &mut bool {
-        &mut self.int_state.as_mut().unwrap().function_return
+        let int_state = self.int_state.as_mut().unwrap();
+        match int_state.deref_mut() {
+            InterpreterState::LegacyInterpreter { function_return, .. } => {
+                function_return
+            }
+            InterpreterState::Jit { call_stack, .. } => todo!()
+        }
     }
 
 
     pub fn throw(&self) -> Option<Arc<Object>> {
         match self.int_state.as_ref() {
             None => {
-                self.thread.interpreter_state.read().unwrap().throw.clone()
+                match self.thread.interpreter_state.read().unwrap().deref() {
+                    InterpreterState::LegacyInterpreter { throw, .. } => {
+                        throw.clone()
+                    }
+                    InterpreterState::Jit { .. } => {
+                        todo!()
+                    }
+                }
             }
-            Some(int_state) => int_state.throw.clone(),
+            Some(int_state) => match int_state.deref() {
+                InterpreterState::LegacyInterpreter { throw, .. } => {
+                    throw.clone()
+                }
+                InterpreterState::Jit { call_stack, .. } => {
+                    todo!()
+                }
+            },
         }
     }
 
     pub fn function_return(&self) -> &bool {
-        &self.int_state.as_ref().unwrap().function_return
+        let int_state = self.int_state.as_ref().unwrap().deref();
+        match int_state {
+            InterpreterState::LegacyInterpreter { function_return, .. } => {
+                function_return
+            }
+            InterpreterState::Jit { call_stack, .. } => todo!()
+        }
     }
 
     pub fn push_frame(&mut self, frame: StackEntry) -> FramePushGuard {
-        self.int_state.as_mut().unwrap().call_stack.push(frame);
+        let int_state = self.int_state.as_mut().unwrap().deref_mut();
+        match int_state {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                call_stack.push(frame)
+            }
+            InterpreterState::Jit { call_stack, .. } => {
+                todo!()
+            }
+        };
         FramePushGuard::default()
     }
 
     pub fn pop_frame(&mut self, jvm: &JVMState, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard.correctly_exited = true;
-        let depth = self.int_state.as_mut().unwrap().call_stack.len();
-        if self.int_state.as_mut().unwrap().should_frame_pop_notify.contains(&depth) {
-            let runtime_class = self.current_frame().class_pointer();
+        let depth = match self.int_state.as_mut().unwrap().deref_mut() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                call_stack.len()
+            }
+            InterpreterState::Jit { call_stack, .. } => {
+                todo!()
+            }
+        };
+        if match self.int_state.as_mut().unwrap().deref_mut() {
+            InterpreterState::LegacyInterpreter { should_frame_pop_notify, .. } => should_frame_pop_notify,
+            InterpreterState::Jit { .. } => todo!()
+        }.contains(&depth) {
+            let stack_entry_ref = self.current_frame();
+            let runtime_class = stack_entry_ref.class_pointer();
             let method_i = self.current_method_i();
             let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
             jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
         }
-        self.int_state.as_mut().unwrap().call_stack.pop();
+        match self.int_state.as_mut().unwrap().deref_mut() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                call_stack.pop()
+            }
+            InterpreterState::Jit { call_stack, .. } => {
+                todo!()
+            }
+        };
         assert!(self.thread.is_alive());
     }
 
     pub fn call_stack_depth(&self) -> usize {
-        self.int_state.as_ref().unwrap().call_stack.len()
+        match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),
+            InterpreterState::Jit { .. } => { todo!() }
+        }
     }
 
     pub fn current_pc_mut(&mut self) -> &mut usize {
-        self.current_frame_mut().pc_mut()
+        todo!()
+        // self.current_frame_mut().pc_mut()
     }
 
     pub fn current_pc(&self) -> usize {
@@ -183,7 +271,8 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_pc_offset_mut(&mut self) -> &mut isize {
-        self.current_frame_mut().pc_offset_mut()
+        todo!()
+        // self.current_frame_mut().pc_offset_mut()
     }
 
     pub fn current_pc_offset(&self) -> isize {
@@ -195,7 +284,12 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn debug_print_stack_trace(&self) {
-        for (i, stack_entry) in self.int_state.as_ref().unwrap().call_stack.iter().enumerate().rev() {
+        for (i, stack_entry) in match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                call_stack.iter().enumerate().rev()
+            }
+            InterpreterState::Jit { .. } => todo!()
+        } {
             if stack_entry.try_method_i().is_some() /*&& stack_entry.method_i() > 0*/ {
                 let type_ = stack_entry.class_pointer().view().type_();
                 let view = stack_entry.class_pointer().view();
@@ -216,72 +310,89 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn cloned_stack_snapshot(&self) -> Vec<StackEntry> {
-        self.int_state.as_ref().unwrap().call_stack.clone()
+        match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.to_vec(),
+            InterpreterState::Jit { .. } => todo!()
+        }
     }
 
     pub fn depth(&self) -> usize {
-        self.int_state.as_ref().unwrap().call_stack.len()
+        match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),
+            InterpreterState::Jit { .. } => todo!()
+        }
     }
 
     pub fn add_should_frame_pop_notify(&mut self, depth: usize) -> Result<(), AddFrameNotifyError> {
-        let int_state = self.int_state.as_mut().unwrap();
-        if depth >= int_state.call_stack.len() {
+        let call_stack_depth = self.call_stack_depth();
+        let int_state = self.int_state.as_mut().unwrap().deref_mut();
+        if depth >= call_stack_depth {
             return Err(NothingAtDepth);
         }
-        let entry = &int_state.call_stack[depth];
+        let entry = &match int_state {
+            InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                &call_stack[depth]
+            }
+            InterpreterState::Jit { .. } => todo!()
+        };
         if entry.is_native() || entry.try_class_pointer().is_none() {
             return Err(Opaque);
         }
-        int_state.should_frame_pop_notify.insert(depth);
+        match int_state {
+            InterpreterState::LegacyInterpreter { should_frame_pop_notify, .. } => {
+                should_frame_pop_notify.insert(depth);
+            }
+            InterpreterState::Jit { .. } => todo!()
+        };
         Ok(())
     }
 
-    pub fn verify_frame(&mut self, jvm: &JVMState) {
-        if let Some(method_id) = self.current_frame().current_method_id(jvm) {
-            let guard = jvm.function_frame_type_data.read().unwrap();
-            let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
-                Some(x) => x,
-                None => {
-                    // eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
-                    return;
-                }
-            }.get(&self.current_pc()).unwrap();
-            let local_java_vals = self.current_frame().local_vars();
-            let java_val_stack = self.current_frame().operand_stack();
-            let stack_map = remove_tops(stack_map);
-            if stack_map.len() != java_val_stack.len() {
-                dbg!(&stack_map.data.iter().rev().collect_vec());
-                dbg!(&java_val_stack);
-                self.debug_print_stack_trace();
-                dbg!(self.current_pc());
-                panic!()
-            }
-            for (jv, type_) in java_val_stack.iter().zip(stack_map.data.iter().rev()) {
-                if !compatible_with_type(jv, type_) {
-                    dbg!(jv);
-                    dbg!(type_);
-                    dbg!(&stack_map.data.iter().rev().collect_vec());
-                    dbg!(&java_val_stack);
-                    self.debug_print_stack_trace();
-                    dbg!(self.current_pc());
-                    panic!()
-                }
-            }
-            assert_eq!(local_java_vals.len(), locals.deref().len());
-            for (jv, type_) in local_java_vals.iter().zip(locals.iter()) {
-                if !compatible_with_type(jv, type_) {
-                    dbg!(jv);
-                    dbg!(type_);
-                    dbg!(&local_java_vals);
-                    dbg!(&local_java_vals.iter().map(|jv| jv.to_type()).collect_vec());
-                    dbg!(&locals);
-                    self.debug_print_stack_trace();
-                    dbg!(self.current_pc());
-                    panic!()
-                }
-            }
-        }
-    }
+    // pub fn verify_frame(&mut self, jvm: &JVMState) {
+    //     if let Some(method_id) = self.current_frame().current_method_id(jvm) {
+    //         let guard = jvm.function_frame_type_data.read().unwrap();
+    //         let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
+    //             Some(x) => x,
+    //             None => {
+    //                 // eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
+    //                 return;
+    //             }
+    //         }.get(&self.current_pc()).unwrap();
+    //         let local_java_vals = self.current_frame().local_vars();
+    //         let java_val_stack = self.current_frame().operand_stack();
+    //         let stack_map = remove_tops(stack_map);
+    //         if stack_map.len() != java_val_stack.len() {
+    //             dbg!(&stack_map.data.iter().rev().collect_vec());
+    //             dbg!(&java_val_stack);
+    //             self.debug_print_stack_trace();
+    //             dbg!(self.current_pc());
+    //             panic!()
+    //         }
+    //         for (jv, type_) in java_val_stack.iter().zip(stack_map.data.iter().rev()) {
+    //             if !compatible_with_type(jv, type_) {
+    //                 dbg!(jv);
+    //                 dbg!(type_);
+    //                 dbg!(&stack_map.data.iter().rev().collect_vec());
+    //                 dbg!(&java_val_stack);
+    //                 self.debug_print_stack_trace();
+    //                 dbg!(self.current_pc());
+    //                 panic!()
+    //             }
+    //         }
+    //         assert_eq!(local_java_vals.len(), locals.deref().len());
+    //         for (jv, type_) in local_java_vals.iter().zip(locals.iter()) {
+    //             if !compatible_with_type(jv, type_) {
+    //                 dbg!(jv);
+    //                 dbg!(type_);
+    //                 dbg!(&local_java_vals);
+    //                 dbg!(&local_java_vals.iter().map(|jv| jv.to_type()).collect_vec());
+    //                 dbg!(&locals);
+    //                 self.debug_print_stack_trace();
+    //                 dbg!(self.current_pc());
+    //                 panic!()
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {

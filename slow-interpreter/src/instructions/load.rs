@@ -1,8 +1,9 @@
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
+use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_array_out_of_bounds;
 
-pub fn aload(current_frame: &mut StackEntry, n: usize) {
+pub fn aload(mut current_frame: StackEntryMut, n: usize) {
     let ref_ = current_frame.local_vars()[n].clone();
     match ref_ {
         JavaValue::Object(_) => {}
@@ -16,27 +17,27 @@ pub fn aload(current_frame: &mut StackEntry, n: usize) {
     current_frame.push(ref_);
 }
 
-pub fn iload(current_frame: &mut StackEntry, n: usize) {
+pub fn iload(mut current_frame: StackEntryMut, n: usize) {
     let java_val = current_frame.local_vars()[n].clone();
     java_val.unwrap_int();
     current_frame.push(java_val)
 }
 
-pub fn lload(current_frame: &mut StackEntry, n: usize) {
+pub fn lload(mut current_frame: StackEntryMut, n: usize) {
     let java_val = current_frame.local_vars()[n].clone();
     match java_val {
         JavaValue::Long(_) => {}
         _ => {
             dbg!(java_val);
             // current_frame.print_stack_trace();
-            dbg!(&current_frame.local_vars()[1..]);
+            // dbg!(&current_frame.local_vars()[1..]);
             panic!()
         }
     }
     current_frame.push(java_val)
 }
 
-pub fn fload(current_frame: &mut StackEntry, n: usize) {
+pub fn fload(mut current_frame: StackEntryMut, n: usize) {
     let java_val = current_frame.local_vars()[n].clone();
     match java_val {
         JavaValue::Float(_) => {}
@@ -48,7 +49,7 @@ pub fn fload(current_frame: &mut StackEntry, n: usize) {
     current_frame.push(java_val)
 }
 
-pub fn dload(current_frame: &mut StackEntry, n: usize) {
+pub fn dload(mut current_frame: StackEntryMut, n: usize) {
     let java_val = current_frame.local_vars()[n].clone();
     match java_val {
         JavaValue::Double(_) => {}
@@ -62,8 +63,7 @@ pub fn dload(current_frame: &mut StackEntry, n: usize) {
 
 
 pub fn aaload(int_state: &mut InterpreterStateGuard) {
-    // int_state.print_stack_trace();
-    let current_frame: &mut StackEntry = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -91,7 +91,7 @@ pub fn caload(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn iaload(current_frame: &mut StackEntry) {
+pub fn iaload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -101,7 +101,7 @@ pub fn iaload(current_frame: &mut StackEntry) {
 }
 
 
-pub fn laload(current_frame: &mut StackEntry) {
+pub fn laload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -111,7 +111,7 @@ pub fn laload(current_frame: &mut StackEntry) {
 }
 
 
-pub fn faload(current_frame: &mut StackEntry) {
+pub fn faload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -120,7 +120,7 @@ pub fn faload(current_frame: &mut StackEntry) {
     current_frame.push(JavaValue::Float(f))
 }
 
-pub fn daload(current_frame: &mut StackEntry) {
+pub fn daload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -130,7 +130,7 @@ pub fn daload(current_frame: &mut StackEntry) {
 }
 
 
-pub fn saload(current_frame: &mut StackEntry) {
+pub fn saload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();
@@ -140,7 +140,7 @@ pub fn saload(current_frame: &mut StackEntry) {
 }
 
 
-pub fn baload(current_frame: &mut StackEntry) {
+pub fn baload(mut current_frame: StackEntryMut) {
     let index = current_frame.pop().unwrap_int();
     let temp = current_frame.pop();
     let unborrowed = temp.unwrap_array();

@@ -13,6 +13,8 @@ verification = { path = "../verification" }
 classfile-view = { path = "../classfile-view" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+jit-common = { path = "../jit-common" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 threads = { path = "../threads" }
 type-safe-proc-macro-utils = { path = "../type-safe-proc-macro-utils" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }

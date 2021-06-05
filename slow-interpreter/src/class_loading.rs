@@ -1,6 +1,5 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -14,7 +13,6 @@ use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
-use sketch_jvm_version_of_utf8::ValidationError::UnexpectedEndOfString;
 use verification::{ClassFileGetter, VerifierContext, verify};
 
 use crate::interpreter::WasException;

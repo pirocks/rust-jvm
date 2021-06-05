@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+use std::ops::{Index, IndexMut};
 use std::sync::Arc;
 
 use bimap::BiMap;
@@ -6,6 +8,7 @@ use by_address::ByAddress;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
+use gc_memory_layout_common::{FrameHeader, FrameInfo};
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::classfile::CPIndex;
 
@@ -13,6 +16,39 @@ use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct RuntimeClassClassId(usize);
+
+#[derive(Debug, Clone)]
+pub struct FrameView(*mut c_void);
+
+impl FrameView {
+    fn get_header(&self) -> &FrameHeader {
+        unsafe { (self.0 as *const FrameHeader).as_ref() }.unwrap()
+    }
+
+    fn get_frame_info(&self) -> &FrameInfo {
+        unsafe { self.get_header().frame_info_ptr.as_ref() }.unwrap()
+    }
+
+    pub fn loader(&self) -> LoaderName {
+        *match self.get_frame_info() {
+            FrameInfo::FullyOpaque { loader } => loader,
+            FrameInfo::Native { loader, .. } => loader,
+            FrameInfo::JavaFrame { loader, .. } => loader
+        }
+    }
+
+    pub fn try_class_pointer(&self) -> Option<RuntimeClassClassId> {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => None,
+            FrameInfo::Native { runtime_class_id, .. } => Some(RuntimeClassClassId(*runtime_class_id)),
+            FrameInfo::JavaFrame { runtime_class_id, .. } => Some(RuntimeClassClassId(*runtime_class_id))
+        }
+    }
+}
+
 
 /// If the frame is opaque then this data is optional.
 /// This data would typically be present in a native function call, but not be present in JVMTI frames
@@ -38,7 +74,353 @@ pub struct StackEntry {
     non_native_data: Option<NonNativeFrameData>,
     local_vars: Vec<JavaValue>,
     operand_stack: Vec<JavaValue>,
-    pub(crate) native_local_refs: Vec<BiMap<ByAddress<Arc<Object>>, jobject>>,
+    native_local_refs: Vec<BiMap<ByAddress<Arc<Object>>, jobject>>,
+}
+
+#[derive(Debug)]
+pub enum StackEntryMut<'l> {
+    LegacyInterpreter {
+        entry: &'l mut StackEntry
+    },
+    Jit {
+        frame_view: FrameView
+    },
+}
+
+impl StackEntryMut<'_> {
+    pub fn pc_mut(&mut self) -> &mut usize {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => { entry.pc_mut() }
+            StackEntryMut::Jit { .. } => todo!(),
+        }
+    }
+
+    pub fn pc_offset_mut(&mut self) -> &mut isize {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                entry.pc_offset_mut()
+            }
+            StackEntryMut::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn to_ref<'l>(&'l self) -> StackEntryRef<'l> {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => StackEntryRef::LegacyInterpreter { entry },
+            StackEntryMut::Jit { frame_view, .. } => StackEntryRef::Jit { frame_view }
+        }
+    }
+
+    pub fn class_pointer(&self) -> Arc<RuntimeClass> {
+        self.to_ref().class_pointer().clone()
+    }
+}
+
+//todo maybe I should do something about all the boilerplate but leaving as is for now
+#[derive(Debug)]
+pub enum LocalVarsMut<'l> {
+    LegacyInterpreter {
+        vars: &'l mut Vec<JavaValue>
+    },
+    Jit {
+        frame_view: &'l mut FrameView
+    },
+}
+
+impl Index<usize> for LocalVarsMut<'_> {
+    type Output = JavaValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            LocalVarsMut::LegacyInterpreter { vars } => {
+                &vars[index]
+            }
+            LocalVarsMut::Jit { .. } => {
+                todo!()
+            }
+        }
+    }
+}
+
+impl IndexMut<usize> for LocalVarsMut<'_> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match self {
+            LocalVarsMut::LegacyInterpreter { vars } => {
+                &mut vars[index]
+            }
+            LocalVarsMut::Jit { frame_view } => {
+                todo!()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum LocalVarsRef<'l> {
+    LegacyInterpreter {
+        vars: &'l Vec<JavaValue>
+    },
+    Jit {
+        frame_view: &'l FrameView
+    },
+}
+
+impl Index<usize> for LocalVarsRef<'_> {
+    type Output = JavaValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
+    }
+}
+
+pub enum OperandStackRef<'l> {
+    LegacyInterpreter {
+        operand_stack: &'l Vec<JavaValue>
+    },
+    Jit {
+        frame_view: &'l FrameView
+    },
+}
+
+impl OperandStackRef<'_> {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            OperandStackRef::LegacyInterpreter { .. } => todo!(),
+            OperandStackRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            OperandStackRef::LegacyInterpreter { .. } => todo!(),
+            OperandStackRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn last(&self) -> Option<&JavaValue> {
+        todo!()
+    }
+}
+
+impl Index<usize> for OperandStackRef<'_> {
+    type Output = JavaValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
+    }
+}
+
+impl Index<usize> for OperandStackMut<'_> {
+    type Output = JavaValue;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
+    }
+}
+
+impl IndexMut<usize> for OperandStackMut<'_> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        todo!()
+    }
+}
+
+pub enum OperandStackMut<'l> {
+    LegacyInterpreter {
+        operand_stack: &'l mut Vec<JavaValue>
+    },
+    Jit {
+        frame_view: &'l mut FrameView
+    },
+}
+
+
+impl OperandStackMut<'_> {
+    pub fn push(&mut self, j: JavaValue) {
+        match self {
+            OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
+                operand_stack.push(j);
+            }
+            OperandStackMut::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<JavaValue> {
+        match self {
+            OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
+                operand_stack.pop()
+            }
+            OperandStackMut::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn insert(&self, index: usize, j: JavaValue) {
+        match self {
+            OperandStackMut::LegacyInterpreter { .. } => todo!(),
+            OperandStackMut::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            OperandStackMut::LegacyInterpreter { .. } => todo!(),
+            OperandStackMut::Jit { .. } => todo!()
+        }
+    }
+}
+
+impl StackEntryMut<'_> {
+    pub fn local_vars_mut(&mut self) -> LocalVarsMut {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry } => {
+                LocalVarsMut::LegacyInterpreter { vars: entry.local_vars_mut() }
+            }
+            StackEntryMut::Jit { frame_view } => {
+                LocalVarsMut::Jit { frame_view: frame_view }
+            }
+        }
+    }
+
+    pub fn local_vars(&mut self) -> LocalVarsRef {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry } => {
+                LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut() }
+            }
+            StackEntryMut::Jit { frame_view } => {
+                LocalVarsRef::Jit { frame_view: frame_view }
+            }
+        }
+    }
+
+    pub fn push(&mut self, j: JavaValue) {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                entry.push(j);
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn pop(&mut self) -> JavaValue {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                entry.pop()
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn operand_stack_mut(&mut self) -> OperandStackMut {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                OperandStackMut::Jit { frame_view }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum StackEntryRef<'l> {
+    LegacyInterpreter {
+        entry: &'l StackEntry
+    },
+    Jit {
+        frame_view: &'l FrameView
+    },
+}
+
+
+impl StackEntryRef<'_> {
+    pub fn loader(&self) -> LoaderName {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => {
+                entry.loader()
+            }
+            StackEntryRef::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn try_class_pointer(&self) -> Option<&Arc<RuntimeClass>> {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => {
+                entry.try_class_pointer()
+            }
+            StackEntryRef::Jit { frame_view, .. } => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn class_pointer(&self) -> &Arc<RuntimeClass> {
+        self.try_class_pointer().unwrap()
+    }
+
+    pub fn pc(&self) -> usize {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => {
+                entry.pc()
+            }
+            StackEntryRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn pc_offset(&self) -> isize {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => { entry.pc_offset() }
+            StackEntryRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn method_i(&self) -> CPIndex {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => { entry.method_i() }
+            StackEntryRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn operand_stack(&self) -> OperandStackRef {
+        match self {
+            StackEntryRef::LegacyInterpreter { .. } => todo!(),
+            StackEntryRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => entry.is_native(),
+            StackEntryRef::Jit { .. } => todo!()
+        }
+    }
+
+    pub fn native_local_refs(&self) -> &mut Vec<BiMap<ByAddress<Arc<Object>>, jobject>> {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry, .. } => todo!(),
+            StackEntryRef::Jit { frame_view, .. } => todo!()
+        }
+    }
+
+    pub fn local_vars(&self) -> LocalVarsRef {
+        match self {
+            StackEntryRef::LegacyInterpreter { entry } => {
+                LocalVarsRef::LegacyInterpreter { vars: entry.local_vars() }
+            }
+            StackEntryRef::Jit { frame_view } => {
+                LocalVarsRef::Jit { frame_view }
+            }
+        }
+    }
 }
 
 impl StackEntry {
@@ -100,7 +482,7 @@ impl StackEntry {
             Some(x) => x,
             None => {
                 unimplemented!()
-            },
+            }
         }.class_pointer
     }
 
@@ -194,3 +576,14 @@ impl StackEntry {
     }
 }
 
+impl AsRef<StackEntry> for StackEntry {
+    fn as_ref(&self) -> &StackEntry {
+        self
+    }
+}
+
+impl AsMut<StackEntry> for StackEntry {
+    fn as_mut(&mut self) -> &mut StackEntry {
+        self
+    }
+}

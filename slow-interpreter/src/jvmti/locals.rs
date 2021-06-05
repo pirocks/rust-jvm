@@ -1,6 +1,8 @@
 use std::ptr::null_mut;
 use std::sync::Arc;
 
+use regex::internal::Input;
+
 use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
 use crate::java_values::JavaValue;
@@ -183,11 +185,11 @@ unsafe fn get_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint) 
     }
 
     let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
-    let call_stack = &java_thread.interpreter_state.read().unwrap().call_stack;
-    let stack_frame: &StackEntry = match call_stack.get(call_stack.len() - 1 - depth as usize) {
+    let call_stack = todo!();//&java_thread.interpreter_state.read().unwrap().call_stack;
+    let stack_frame: &StackEntry = todo!()/*match call_stack.get(call_stack.len() - 1 - depth as usize) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
         Some(entry) => entry,
-    };
+    }*/;
     if stack_frame.is_native() {
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
@@ -202,13 +204,13 @@ unsafe fn set_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint, 
     }
 
     let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
-    let mut guard = java_thread.interpreter_state.write().unwrap();
-    let call_stack = &mut guard.call_stack;
-    let len = call_stack.len();
-    let stack_frame: &mut StackEntry = match call_stack.get_mut(len - 1 - depth as usize) {
+    let mut guard = todo!();//java_thread.interpreter_state.write().unwrap();
+    let call_stack = todo!()/*&mut guard.call_stack*/;
+    let len: usize = todo!();//call_stack.len();
+    let stack_frame: &mut StackEntry = todo!()/*match call_stack.get_mut(len - 1 - depth as usize) {
         None => return Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
         Some(entry) => entry,
-    };
+    }*/;
     if stack_frame.is_native() {
         return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }

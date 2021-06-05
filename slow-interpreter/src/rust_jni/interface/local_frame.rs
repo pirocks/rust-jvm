@@ -91,5 +91,6 @@ fn get_top_local_ref_frame<'l>(interpreter_state: &'l mut InterpreterStateGuard)
 }
 
 fn current_native_local_refs<'l>(interpreter_state: &'l mut InterpreterStateGuard) -> &'l mut Vec<BiMap<ByAddress<Arc<Object>>, jobject>> {
-    &mut interpreter_state.current_frame_mut().native_local_refs
+    todo!()
+    //interpreter_state.current_frame().native_local_refs()
 }

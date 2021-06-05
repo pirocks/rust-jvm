@@ -37,11 +37,12 @@ use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::stack_entry::RuntimeClassClassId;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
 
-pub static mut JVM: Option<JVMState> = None;
+pub static mut JVM: Option<&'static JVMState> = None;
 
 
 pub struct JVMState {
@@ -121,6 +122,10 @@ impl Classes {
         let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
         let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
         Some(obj)
+    }
+
+    pub fn convert_runtime_class_class_id(&self, id: RuntimeClassClassId) -> &RuntimeClassClass {
+        todo!()
     }
 }
 
@@ -202,14 +207,12 @@ impl JVMState {
     fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_field_numbers();
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-            class_view: Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap())),
-            field_numbers,
-            static_vars: Default::default(),
-            parent: None,
-            interfaces: vec![],
-            status: ClassStatus::UNPREPARED.into(),
-        }));
+        let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap()));
+        let static_vars = Default::default();
+        let parent = None;
+        let interfaces = vec![];
+        let status = ClassStatus::UNPREPARED.into();
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, static_vars, parent, interfaces, status)));
         let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass>), RandomState> = Default::default();
         initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddress<Arc<Object>>, ByAddress<Arc<RuntimeClass>>> = Default::default();

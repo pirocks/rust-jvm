@@ -6,7 +6,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{IInc, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::classnames::ClassName;
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
 use crate::instructions::load::{aload, dload, fload, iload, lload};
 use crate::instructions::store::{astore, dstore, fstore, istore, lstore};
@@ -15,10 +15,11 @@ use crate::java_values;
 use crate::java_values::JavaValue;
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
+use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
 pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
-    let current_frame = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     let array_o = match current_frame.pop().unwrap_object() {
         Some(x) => x,
         None => {
@@ -44,7 +45,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
     };
     match object.deref() {
         Object(o) => {
-            let view = &int_state.current_frame_mut().class_pointer().view();
+            let view = &int_state.current_frame().class_pointer().view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
             let instanceof_class = match check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()) {
                 Ok(x) => x,
@@ -64,7 +65,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             }
         }
         Array(a) => {
-            let current_frame_class = &int_state.current_frame_mut().class_pointer().view();
+            let current_frame_class = &int_state.current_frame().class_pointer().view();
             let instance_of_class = current_frame_class
                 .constant_pool_view(cp as usize)
                 .unwrap_class().class_ref_type();
@@ -104,12 +105,12 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
 }
 
 
-pub fn invoke_instanceof(state: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_instanceof(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let possibly_null = int_state.pop_current_operand_stack().unwrap_object();
     if let Some(unwrapped) = possibly_null {
-        let view = &int_state.current_class_view();
+        let view = &int_state.current_class_view(jvm);
         let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
-        if let Err(WasException {}) = instance_of_impl(state, int_state, unwrapped, instance_of_class_type) {
+        if let Err(WasException {}) = instance_of_impl(jvm, int_state, unwrapped, instance_of_class_type) {
             return;
         }
     } else {
@@ -205,7 +206,7 @@ pub fn inherits_from(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inhe
     }) || interfaces_match)
 }
 
-pub fn wide(current_frame: &mut StackEntry, w: Wide) {
+pub fn wide(mut current_frame: StackEntryMut, w: Wide) {
     match w {
         Wide::Iload(WideIload { index }) => {
             iload(current_frame, index as usize)

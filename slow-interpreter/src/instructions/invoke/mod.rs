@@ -59,7 +59,7 @@ pub mod dynamic {
             int_state,
             ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
         )?;
-        let class_pointer_view = int_state.current_class_view().clone();
+        let class_pointer_view = int_state.current_class_view(jvm).clone();
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
@@ -199,7 +199,7 @@ pub mod dynamic {
 }
 
 fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Result<Option<(Arc<RuntimeClass>, String, MethodDescriptor)>, WasException> {
-    let view = int_state.current_class_view();
+    let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name_ = match class_name_type {
         PTypeView::Ref(r) => match r {

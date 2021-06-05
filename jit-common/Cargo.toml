@@ -9,3 +9,6 @@ edition = "2018"
 libc = "0.2.94"
 nix = "0.20.0"
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+classfile-view = { path = "../classfile-view" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }

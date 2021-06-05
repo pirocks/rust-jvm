@@ -52,9 +52,9 @@ fn invoke_virtual_method_i_impl(
 ) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
-        let current_frame = interpreter_state.current_frame_mut();
+        let mut current_frame = interpreter_state.current_frame_mut();
 
-        let op_stack = current_frame.operand_stack();
+        let op_stack = current_frame.operand_stack_mut();
         let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
         let form: LambdaForm = method_handle.get_form();
         let vmentry: MemberName = form.get_vmentry();
@@ -128,7 +128,7 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 }
 
 pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue>, max_locals: u16) {
-    let current_frame = int_state.current_frame_mut();
+    let mut current_frame = int_state.current_frame_mut();
     // dbg!(current_frame.operand_stack_types());
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
@@ -172,7 +172,8 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
 
 //Let C be the class of objectref.
     let this_pointer = {
-        let operand_stack = &int_state.current_frame().operand_stack();
+        let current_frame = int_state.current_frame();
+        let operand_stack = &current_frame.operand_stack();
         // int_state.print_stack_trace();
         // dbg!(&operand_stack);
         &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
@@ -184,14 +185,14 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
             let method_i = int_state.current_frame().method_i();
             let class_view = int_state.current_frame().class_pointer().view();
             let method_view = class_view.method_view_i(method_i as usize);
-            dbg!(&method_view.code_attribute().unwrap().code);
-            dbg!(&int_state.current_frame().operand_stack_types());
-            dbg!(&int_state.current_frame().local_vars_types());
-            dbg!(&int_state.current_frame().pc());
-            dbg!(method_view.name());
-            dbg!(method_view.desc_str());
-            dbg!(method_view.classview().name());
-            dbg!(method_name);
+            // dbg!(&method_view.code_attribute().unwrap().code);
+            // dbg!(&int_state.current_frame().operand_stack_types());
+            // dbg!(&int_state.current_frame().local_vars_types());
+            // dbg!(&int_state.current_frame().pc());
+            // dbg!(method_view.name());
+            // dbg!(method_view.desc_str());
+            // dbg!(method_view.classview().name());
+            // dbg!(method_name);
             int_state.debug_print_stack_trace();
             panic!()
         }
@@ -249,14 +250,14 @@ pub fn virtual_method_lookup(
         dbg!(md);
         dbg!(c.view().name());
         int_state.debug_print_stack_trace();
-        dbg!(int_state.current_frame().operand_stack_types());
-        dbg!(int_state.current_frame().local_vars_types());
-        dbg!(int_state.previous_frame().operand_stack_types());
-        dbg!(int_state.previous_frame().local_vars_types());
-        let call_stack = &int_state.int_state.as_ref().unwrap().call_stack;
-        let prev_prev_frame = &call_stack[call_stack.len() - 3];
-        dbg!(prev_prev_frame.operand_stack_types());
-        dbg!(prev_prev_frame.local_vars_types());
+        // dbg!(int_state.current_frame().operand_stack_types());
+        // dbg!(int_state.current_frame().local_vars_types());
+        // dbg!(int_state.previous_frame().operand_stack_types());
+        // dbg!(int_state.previous_frame().local_vars_types());
+        // let call_stack = &int_state.int_state.as_ref().unwrap().call_stack;
+        // let prev_prev_frame = &call_stack[call_stack.len() - 3];
+        // dbg!(prev_prev_frame.operand_stack_types());
+        // dbg!(prev_prev_frame.local_vars_types());
         panic!()
     });
     Ok((final_target_class.clone(), *new_i))

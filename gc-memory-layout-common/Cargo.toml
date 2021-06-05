@@ -11,3 +11,6 @@ libc = "0.2.93"
 itertools = "0.10.0"
 iced-x86 = "1.11.1"
 verification = { path = "../verification" }
+classfile-view = { path = "../classfile-view" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }

@@ -4,7 +4,6 @@
 #![feature(vec_into_raw_parts)]
 #![feature(core_intrinsics)]
 #![feature(entry_insert)]
-#![feature(try_trait)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
@@ -111,7 +110,8 @@ fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, arg
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
     ).expect("todo")))));
-    let local_vars = int_state.current_frame_mut().local_vars_mut();
+    let mut current_frame_mut = int_state.current_frame_mut();
+    let mut local_vars = current_frame_mut.local_vars_mut();
     local_vars[0] = arg_array;
 }
 

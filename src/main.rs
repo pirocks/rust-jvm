@@ -1,3 +1,4 @@
+#![feature(box_syntax)]
 extern crate argparse;
 extern crate classfile_parser;
 extern crate classfile_view;
@@ -67,8 +68,9 @@ fn main() {
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
 
     let (args, jvm) = JVMState::new(jvm_options);
-    unsafe { JVM = (jvm).into() }
-    let jvm: &JVMState = unsafe { JVM.as_ref().unwrap() };
+    let jvm_ref: &'static JVMState = Box::leak(box jvm);
+    unsafe { JVM = Some(jvm_ref) }
+    let jvm: &'static JVMState = unsafe { JVM.as_ref().unwrap() };
     let thread_state = &jvm.thread_state;
     let (main_thread, main_send) = thread_state.setup_main_thread(jvm);
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));

@@ -71,7 +71,10 @@ impl ThreadState {
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-            assert!(main_thread.interpreter_state.read().unwrap().call_stack.is_empty());
+            assert!(match main_thread.interpreter_state.read().unwrap().deref() {
+                InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
+                InterpreterState::Jit { .. } => todo!()
+            });
             let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
             main_thread.notify_alive(jvm);//is this too early?
             int_state.register_interpreter_state_guard(jvm);

@@ -27,22 +27,6 @@ pub enum RuntimeClass {
     Top,
 }
 
-#[derive(Debug)]
-pub struct RuntimeClassArray {
-    pub sub_class: Arc<RuntimeClass>,
-}
-
-
-pub struct RuntimeClassClass {
-    pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<String, usize>,
-    pub static_vars: RwLock<HashMap<String, JavaValue>>,
-    pub parent: Option<Arc<RuntimeClass>>,
-    pub interfaces: Vec<Arc<RuntimeClass>>,
-    //class may not be prepared
-    pub status: RwLock<ClassStatus>,
-}
-
 impl RuntimeClass {
     pub fn ptypeview(&self) -> PTypeView {
         match self {
@@ -136,15 +120,49 @@ impl RuntimeClass {
     }
 }
 
-impl Debug for RuntimeClassClass {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
+
+#[derive(Debug)]
+pub struct RuntimeClassArray {
+    pub sub_class: Arc<RuntimeClass>,
+}
+
+pub struct RuntimeClassClass {
+    pub class_view: Arc<dyn ClassView>,
+    pub field_numbers: HashMap<String, usize>,
+    pub static_vars: RwLock<HashMap<String, JavaValue>>,
+    pub parent: Option<Arc<RuntimeClass>>,
+    pub interfaces: Vec<Arc<RuntimeClass>>,
+    //class may not be prepared
+    pub status: RwLock<ClassStatus>,
+}
+
+//todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static 
+
+impl RuntimeClassClass {
+    pub fn new(class_view: Arc<dyn ClassView>,
+               field_numbers: HashMap<String, usize>,
+               static_vars: RwLock<HashMap<String, JavaValue>>,
+               parent: Option<Arc<RuntimeClass>>,
+               interfaces: Vec<Arc<RuntimeClass>>,
+               status: RwLock<ClassStatus>) -> Self {
+        Self {
+            class_view,
+            field_numbers,
+            static_vars,
+            parent,
+            interfaces,
+            status,
+        }
+    }
+
+    pub fn num_vars(&self) -> usize {
+        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
     }
 }
 
-impl RuntimeClassClass {
-    pub fn num_vars(&self) -> usize {
-        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
+impl Debug for RuntimeClassClass {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
 

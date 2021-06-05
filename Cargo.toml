@@ -35,5 +35,6 @@ members = ["rust-jvm-common",
     "gc-memory-layout-common",
     "jit-ir",
     "jit",
-    "jit-common"
+    "jit-common",
+    "add-only-static-vec"
 ]

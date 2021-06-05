@@ -14,6 +14,7 @@ use crate::interpreter_util::push_new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
+use crate::stack_entry::StackEntryMut;
 
 fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) -> Result<(), WasException> {
     let res_class_name = c.class_ref_type();
@@ -76,7 +77,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     Ok(())
 }
 
-pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) {
+pub fn ldc2_w(mut current_frame: StackEntryMut, cp: u16) {
     let view = current_frame.class_pointer().view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -92,7 +93,7 @@ pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) {
 
 
 pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let view = int_state.current_class_view().clone();
+    let view = int_state.current_class_view(jvm).clone();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::String(s) => {

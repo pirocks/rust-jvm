@@ -50,7 +50,7 @@ pub fn run_native_method(
         panic!();
     }
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
-    assert!(int_state.current_frame_mut().is_native());
+    assert!(int_state.current_frame().is_native());
 
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
