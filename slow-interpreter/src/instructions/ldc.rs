@@ -115,7 +115,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
         }
         _ => {
             dbg!(cp);
-            int_state.debug_print_stack_trace();
+            int_state.debug_print_stack_trace(jvm);
             dbg!(&pool_entry);
             unimplemented!()
         }

@@ -250,7 +250,7 @@ pub fn initialize_class(
         Err(WasException {}) => {
             interpreter_state.pop_frame(jvm, new_function_frame, false);
             dbg!(JavaValue::Object(interpreter_state.throw().clone()).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string());
-            interpreter_state.debug_print_stack_trace();
+            interpreter_state.debug_print_stack_trace(jvm);
             return Err(WasException);
         }
     };

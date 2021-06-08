@@ -90,7 +90,7 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
             sleep(Duration::new(100, 0));//todo need to wait for other threads or something
         }
         Err(WasException {}) => {
-            int_state.debug_print_stack_trace();
+            int_state.debug_print_stack_trace(jvm);
             todo!()
         }
     }

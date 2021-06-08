@@ -5,6 +5,8 @@ use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
 
+use itertools::Either;
+
 use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -18,7 +20,7 @@ use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::native_util::from_object;
-use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef};
+use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
 
 #[derive(Debug)]
@@ -219,7 +221,7 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn push_frame(&mut self, frame: StackEntry, jvm: &JVMState) -> FramePushGuard {
-        self.debug_print_stack_trace();
+        self.debug_print_stack_trace(jvm);
         let int_state = self.int_state.as_mut().unwrap().deref_mut();
         match int_state {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
@@ -240,11 +242,9 @@ impl<'l> InterpreterStateGuard<'l> {
                         let class_view = class_pointer.view();
                         let method_view = class_view.method_view_i(method_i);
                         let code = method_view.code_attribute().unwrap();
-                        let frame_vtype = &jvm.function_frame_type_data.read().unwrap()[&(method_i as usize)];
+                        let frame_vtype = &jvm.function_frame_type_data.read().unwrap()[&(method_id as usize)];//TODO MAKE SAFE TYPE WRAPPERS FOR METHOD ID AND I
                         let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
-                        dbg!(method_id);
                         assert!(operand_stack.is_empty());//todo setup operand stack
-                        dbg!(pc_offset);
                         unsafe {
                             call_stack.push_frame(&memory_layout, FrameInfo::JavaFrame {
                                 method_id,
@@ -345,12 +345,14 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame().method_i(jvm)
     }
 
-    pub fn debug_print_stack_trace(&self) {
+    pub fn debug_print_stack_trace(&self, jvm: &JVMState) {
         for (i, stack_entry) in match self.int_state.as_ref().unwrap().deref() {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                call_stack.iter().enumerate().rev()
+                Either::Left(call_stack.iter().cloned().enumerate().rev())
             }
-            InterpreterState::Jit { .. } => {}
+            InterpreterState::Jit { call_stack, .. } => {
+                Either::Right(StackIter::new(jvm, call_stack).into_iter().enumerate())
+            }
         } {
             if stack_entry.try_method_i().is_some() /*&& stack_entry.method_i() > 0*/ {
                 let type_ = stack_entry.class_pointer().view().type_();

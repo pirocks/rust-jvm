@@ -114,13 +114,13 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     if synchronized {//todo synchronize better so that natives are synced
         monitor.unwrap().unlock(jvm);
     }
-    let res = if interpreter_state.call_stack_depth() >= 2 {
-        let frame = interpreter_state.previous_frame();
-        frame.operand_stack().last().unwrap_or(&JavaValue::Top).clone()
-    } else {
-        JavaValue::Top
-    };
-    jvm.tracing.function_exit_guard(function_enter_guard, res);
+    // let res = if interpreter_state.call_stack_depth() >= 2 {
+    //     let frame = interpreter_state.previous_frame();
+    //     frame.operand_stack().last().unwrap_or(&JavaValue::Top).clone()
+    // } else {
+    //     JavaValue::Top
+    // };
+    jvm.tracing.function_exit_guard(function_enter_guard, JavaValue::Top);//todo put actual res in here again
     if interpreter_state.throw().is_some() {
         return Err(WasException);
     }
@@ -204,7 +204,7 @@ fn run_single_instruction(
     unsafe {
         TIMES += 1;
         if TIMES % 10000000 == 0 {
-            interpreter_state.debug_print_stack_trace();
+            interpreter_state.debug_print_stack_trace(jvm);
         }
     };
     // interpreter_state.verify_frame(jvm);
@@ -625,7 +625,7 @@ fn athrow(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     if jvm.debug_print_exceptions {
         println!("EXCEPTION:");
         dbg!(exception_obj.lookup_field("detailMessage"));
-        interpreter_state.debug_print_stack_trace();
+        interpreter_state.debug_print_stack_trace(jvm);
     }
 
     interpreter_state.set_throw(exception_obj.into());

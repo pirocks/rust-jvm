@@ -31,7 +31,7 @@ impl Default for JavaStatus {
 
 #[derive(Debug)]
 pub struct JavaStack {
-    top: *mut c_void,
+    pub top: *mut c_void,
     saved_registers: RwLock<Option<SavedRegisters>>,
 }
 
@@ -81,6 +81,9 @@ impl JavaStack {
     }
 
     pub fn current_frame_ptr(&self) -> *mut c_void {
+        if self.frame_pointer() == self.top {
+            return self.top;//don't want to assert in this case
+        }
         let header = self.frame_pointer() as *const FrameHeader;
         let header = unsafe { header.as_ref() }.unwrap();
         assert_eq!({ header.magic_part_1 }, MAGIC_1_EXPECTED);

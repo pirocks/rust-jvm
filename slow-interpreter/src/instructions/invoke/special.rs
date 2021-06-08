@@ -38,7 +38,7 @@ pub fn invoke_special_impl(
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
     if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {
-        interpreter_state.debug_print_stack_trace();
+        interpreter_state.debug_print_stack_trace(jvm);
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {

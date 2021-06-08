@@ -11,6 +11,7 @@ use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use gc_memory_layout_common::{FrameHeader, FrameInfo, StackframeMemoryLayout};
+use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::classfile::CPIndex;
 
@@ -155,8 +156,6 @@ impl FrameView {
                 }
                 JavaValue::Object(val) => {
                     let to_write = to_object(val);
-                    dbg!(&to_write);
-                    dbg!(target);
                     (target as *mut jobject).write(to_write)
                 }
                 JavaValue::Top => panic!()
@@ -234,6 +233,69 @@ impl FrameView {
     pub fn get_local_var(&self, i: u16, expected_type: PTypeView) -> JavaValue {
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::read_target(target, expected_type)
+    }
+
+
+    pub fn as_stack_entry_partially_correct(&self, jvm: &JVMState) -> StackEntry {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { loader, .. } => {
+                StackEntry::new_completely_opaque_frame(*loader)
+            }
+            FrameInfo::Native { method_id, loader, operand_stack_depth: _, native_local_refs } => {
+                let (class_pointer, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                StackEntry {
+                    loader: *loader,
+                    opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
+                    non_native_data: None,
+                    local_vars: vec![],
+                    operand_stack: vec![],
+                    native_local_refs: native_local_refs.clone(),
+                }
+            }
+            FrameInfo::JavaFrame { method_id, loader, java_pc, pc_offset, .. } => {
+                let (class_pointer, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                StackEntry {
+                    loader: *loader,
+                    opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
+                    non_native_data: Some(NonNativeFrameData { pc: *java_pc, pc_offset: *pc_offset }),
+                    local_vars: vec![],
+                    operand_stack: vec![],
+                    native_local_refs: Default::default(),
+                }
+            }
+        }
+    }
+}
+
+
+pub struct StackIter<'l> {
+    jvm: &'l JVMState,
+    current_frame: *mut c_void,
+    top: *mut c_void,
+}
+
+impl<'l> StackIter<'l> {
+    pub fn new(jvm: &'l JVMState, java_stack: &JavaStack) -> Self {
+        Self {
+            jvm,
+            current_frame: java_stack.current_frame_ptr(),
+            top: java_stack.top,
+        }
+    }
+}
+
+impl Iterator for StackIter<'_> {
+    type Item = StackEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_frame != self.top {
+            let frame_view = FrameView::new(self.current_frame);
+            let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));
+            self.current_frame = frame_view.get_header().prev_rpb;
+            res
+        } else {
+            None
+        }
     }
 }
 

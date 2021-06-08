@@ -181,7 +181,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
-            int_state.debug_print_stack_trace();
+            int_state.debug_print_stack_trace(jvm);
             let method_i = int_state.current_frame().method_i(jvm);
             let class_view = int_state.current_frame().class_pointer(jvm).view();
             let method_view = class_view.method_view_i(method_i);
@@ -193,7 +193,7 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
             // dbg!(method_view.desc_str());
             // dbg!(method_view.classview().name());
             // dbg!(method_name);
-            int_state.debug_print_stack_trace();
+            int_state.debug_print_stack_trace(jvm);
             panic!()
         }
     }.deref() {
@@ -217,13 +217,13 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
 }
 
 pub fn virtual_method_lookup(
-    state: &JVMState,
+    jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     method_name: &str,
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
 ) -> Result<(Arc<RuntimeClass>, u16), WasException> {
-    let all_methods = get_all_methods(state, int_state, c.clone(), false)?;
+    let all_methods = get_all_methods(jvm, int_state, c.clone(), false)?;
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let final_target_class_view = c.view();
         let method_view = final_target_class_view.method_view_i(*i);
@@ -249,7 +249,7 @@ pub fn virtual_method_lookup(
         dbg!(method_name);
         dbg!(md);
         dbg!(c.view().name());
-        int_state.debug_print_stack_trace();
+        int_state.debug_print_stack_trace(jvm);
         // dbg!(int_state.current_frame().operand_stack_types());
         // dbg!(int_state.current_frame().local_vars_types());
         // dbg!(int_state.previous_frame().operand_stack_types());
