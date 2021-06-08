@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::ops::{Index, IndexMut};
+use std::intrinsics::size_of;
+use std::ops::{DerefMut, Index, IndexMut};
 use std::sync::Arc;
 
 use bimap::BiMap;
@@ -8,15 +9,16 @@ use by_address::ByAddress;
 
 use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
-use gc_memory_layout_common::{FrameHeader, FrameInfo};
-use jvmti_jni_bindings::jobject;
+use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use gc_memory_layout_common::{FrameHeader, FrameInfo, StackframeMemoryLayout};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::native_util::{from_object, to_object};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);
@@ -37,12 +39,201 @@ impl FrameView {
         unsafe { self.get_header().frame_info_ptr.as_ref() }.unwrap()
     }
 
+    fn get_frame_info_mut(&mut self) -> &mut FrameInfo {
+        unsafe { self.get_header().frame_info_ptr.as_mut() }.unwrap()
+    }
+
     pub fn loader(&self) -> LoaderName {
         *match self.get_frame_info() {
-            FrameInfo::FullyOpaque { loader } => loader,
+            FrameInfo::FullyOpaque { loader, .. } => loader,
             FrameInfo::Native { loader, .. } => loader,
             FrameInfo::JavaFrame { loader, .. } => loader
         }
+    }
+
+    pub fn method_id(&self) -> Option<MethodId> {
+        Some(match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => None?,
+            FrameInfo::Native { method_id, .. } => *method_id,
+            FrameInfo::JavaFrame { method_id, .. } => *method_id
+        })
+    }
+
+    pub fn pc(&self) -> u16 {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { java_pc, .. } => *java_pc
+        }
+    }
+
+    pub fn pc_mut(&mut self) -> &mut u16 {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { java_pc, .. } => java_pc
+        }
+    }
+
+
+    pub fn pc_offset_mut(&mut self) -> &mut i32 {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { pc_offset, .. } => pc_offset
+        }
+    }
+
+    pub fn pc_offset(&self) -> i32 {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { pc_offset, .. } => *pc_offset
+        }
+    }
+
+    pub fn operand_stack_length(&self) -> u16 {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { operand_stack_depth, .. } => *operand_stack_depth
+        }
+    }
+
+    pub fn is_native(&self) -> bool {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => false,
+            FrameInfo::Native { .. } => true,
+            FrameInfo::JavaFrame { .. } => false
+        }
+    }
+
+    fn max_locals(&self) -> u16 {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => 0,
+            FrameInfo::Native { .. } => 0,
+            FrameInfo::JavaFrame { num_locals: max_locals, .. } => *max_locals
+        }
+    }
+
+    fn get_operand_stack_base(&self) -> *mut c_void {
+        //todo should be based of actual layout instead of this
+        unsafe { self.0.offset((size_of::<FrameHeader>() + size_of::<u64>() * (self.max_locals() as usize)) as isize) }
+    }
+
+    fn get_local_var_base(&self) -> *mut c_void {
+        //todo should be based of actual layout instead of this
+        unsafe { self.0.offset((size_of::<FrameHeader>()) as isize) }
+    }
+
+    fn write_target(target: *mut c_void, j: JavaValue) {
+        unsafe {
+            match j {
+                JavaValue::Long(val) => {
+                    (target as *mut jlong).write(val)
+                }
+                JavaValue::Int(val) => {
+                    (target as *mut jint).write(val)
+                }
+                JavaValue::Short(val) => {
+                    (target as *mut jshort).write(val)
+                }
+                JavaValue::Byte(val) => {
+                    (target as *mut jbyte).write(val)
+                }
+                JavaValue::Boolean(val) => {
+                    (target as *mut jboolean).write(val)
+                }
+                JavaValue::Char(val) => {
+                    (target as *mut jchar).write(val)
+                }
+                JavaValue::Float(val) => {
+                    (target as *mut jfloat).write(val)
+                }
+                JavaValue::Double(val) => {
+                    (target as *mut jdouble).write(val)
+                }
+                JavaValue::Object(val) => {
+                    let to_write = to_object(val);
+                    dbg!(&to_write);
+                    dbg!(target);
+                    (target as *mut jobject).write(to_write)
+                }
+                JavaValue::Top => panic!()
+            }
+        }
+    }
+
+    fn read_target(target: *const c_void, expected_type: PTypeView) -> JavaValue {
+        unsafe {
+            match expected_type {
+                PTypeView::ByteType => {
+                    JavaValue::Byte((target as *const jbyte).read())
+                }
+                PTypeView::CharType => {
+                    JavaValue::Char((target as *const jchar).read())
+                }
+                PTypeView::DoubleType => {
+                    JavaValue::Double((target as *const jdouble).read())
+                }
+                PTypeView::FloatType => {
+                    JavaValue::Float((target as *const jfloat).read())
+                }
+                PTypeView::IntType => {
+                    JavaValue::Int((target as *const jint).read())
+                }
+                PTypeView::LongType => {
+                    JavaValue::Long((target as *const jlong).read())
+                }
+                PTypeView::Ref(ref_) => {
+                    JavaValue::Object(from_object((target as *const jobject).read()))
+                }
+                PTypeView::ShortType => {
+                    JavaValue::Short((target as *const jshort).read())
+                }
+                PTypeView::BooleanType => {
+                    JavaValue::Boolean((target as *const jboolean).read())
+                }
+                PTypeView::VoidType |
+                PTypeView::TopType |
+                PTypeView::NullType |
+                PTypeView::Uninitialized(_) |
+                PTypeView::UninitializedThis |
+                PTypeView::UninitializedThisOrClass(_) => todo!()
+            }
+        }
+    }
+
+    pub fn push_operand_stack(&mut self, j: JavaValue) {
+        let operand_stack_depth = self.get_frame_info_mut().operand_stack_depth_mut();
+        let current_depth = *operand_stack_depth;
+        *operand_stack_depth += 1;
+        let operand_stack_base = self.get_operand_stack_base();
+        let target = unsafe { operand_stack_base.offset(((current_depth as usize) * size_of::<jlong>()) as isize) };
+        Self::write_target(target, j)
+    }
+
+    pub fn pop_operand_stack(&mut self, expected_type: PTypeView) -> Option<JavaValue> {
+        let operand_stack_depth_mut = self.get_frame_info_mut().operand_stack_depth_mut();
+        let current_depth = *operand_stack_depth_mut;
+        if current_depth == 0 {
+            return None;
+        }
+        *operand_stack_depth_mut -= 1;
+        let new_current_depth = *operand_stack_depth_mut;
+        let operand_stack_base = self.get_operand_stack_base();
+        let target = unsafe { operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize) };
+        Some(Self::read_target(target, expected_type))
+    }
+
+    pub fn set_local_var(&mut self, i: u16, jv: JavaValue) {
+        let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
+        Self::write_target(target, jv)
+    }
+
+    pub fn get_local_var(&self, i: u16, expected_type: PTypeView) -> JavaValue {
+        let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
+        Self::read_target(target, expected_type)
     }
 }
 
@@ -59,9 +250,9 @@ pub struct OpaqueFrameOptional {
 /// program counter is not meaningful in a native frame
 #[derive(Debug, Clone)]
 pub struct NonNativeFrameData {
-    pub pc: usize,
+    pub pc: u16,
     //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: isize,
+    pub pc_offset: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -80,19 +271,23 @@ pub enum StackEntryMut<'l> {
         entry: &'l mut StackEntry
     },
     Jit {
-        frame_view: FrameView
+        frame_view: FrameView,
     },
 }
 
 impl StackEntryMut<'_> {
-    pub fn pc_mut(&mut self) -> &mut usize {
+    pub fn set_pc(&mut self, new_pc: u16) {
         match self {
-            StackEntryMut::LegacyInterpreter { entry, .. } => { entry.pc_mut() }
-            StackEntryMut::Jit { .. } => todo!(),
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                *entry.pc_mut() = new_pc;
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                *frame_view.pc_mut() = new_pc;
+            }
         }
     }
 
-    pub fn pc_offset_mut(&mut self) -> &mut isize {
+    pub fn pc_offset_mut(&mut self) -> &mut i32 {
         match self {
             StackEntryMut::LegacyInterpreter { entry, .. } => {
                 entry.pc_offset_mut()
@@ -108,8 +303,74 @@ impl StackEntryMut<'_> {
         }
     }
 
-    pub fn class_pointer(&self) -> Arc<RuntimeClass> {
-        self.to_ref().class_pointer().clone()
+    pub fn class_pointer(&self, jvm: &JVMState) -> Arc<RuntimeClass> {
+        self.to_ref().class_pointer(jvm).clone()
+    }
+
+    pub fn local_vars_mut(&mut self) -> LocalVarsMut {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry } => {
+                LocalVarsMut::LegacyInterpreter { vars: entry.local_vars_mut() }
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                LocalVarsMut::Jit { frame_view }
+            }
+        }
+    }
+
+    pub fn local_vars(&mut self) -> LocalVarsRef {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry } => {
+                LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut() }
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                LocalVarsRef::Jit { frame_view }
+            }
+        }
+    }
+
+    pub fn push(&mut self, j: JavaValue) {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                entry.push(j);
+            }
+            StackEntryMut::Jit { .. } => {
+                self.operand_stack_mut().push(j);
+            }
+        }
+    }
+
+    pub fn pop(&mut self, expected_type: PTypeView) -> JavaValue {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                entry.pop()
+            }
+            StackEntryMut::Jit { .. } => {
+                self.operand_stack_mut().pop(expected_type).unwrap()
+            }
+        }
+    }
+
+    pub fn operand_stack_mut(&mut self) -> OperandStackMut {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                OperandStackMut::Jit { frame_view }
+            }
+        }
+    }
+
+    pub fn set_pc_offset(&mut self, offset: i32) {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                *entry.pc_offset_mut() = offset
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                *frame_view.pc_offset_mut() = offset;
+            }
+        }
     }
 }
 
@@ -124,29 +385,12 @@ pub enum LocalVarsMut<'l> {
     },
 }
 
-impl Index<usize> for LocalVarsMut<'_> {
-    type Output = JavaValue;
-
-    fn index(&self, index: usize) -> &Self::Output {
+impl LocalVarsMut<'_> {
+    pub fn set(&mut self, i: u16, to: JavaValue) {
         match self {
-            LocalVarsMut::LegacyInterpreter { vars } => {
-                &vars[index]
-            }
-            LocalVarsMut::Jit { .. } => {
-                todo!()
-            }
-        }
-    }
-}
-
-impl IndexMut<usize> for LocalVarsMut<'_> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        match self {
-            LocalVarsMut::LegacyInterpreter { vars } => {
-                &mut vars[index]
-            }
-            LocalVarsMut::Jit { frame_view } => {
-                todo!()
+            LocalVarsMut::LegacyInterpreter { .. } => todo!(),
+            LocalVarsMut::Jit { frame_view, .. } => {
+                frame_view.set_local_var(i, to)
             }
         }
     }
@@ -162,11 +406,14 @@ pub enum LocalVarsRef<'l> {
     },
 }
 
-impl Index<usize> for LocalVarsRef<'_> {
-    type Output = JavaValue;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        todo!()
+impl LocalVarsRef<'_> {
+    pub fn get(&self, i: u16, expected_type: PTypeView) -> JavaValue {
+        match self {
+            LocalVarsRef::LegacyInterpreter { .. } => todo!(),
+            LocalVarsRef::Jit { frame_view, .. } => {
+                frame_view.get_local_var(i, expected_type)
+            }
+        }
     }
 }
 
@@ -187,10 +434,12 @@ impl OperandStackRef<'_> {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub fn len(&self) -> u16 {
         match self {
             OperandStackRef::LegacyInterpreter { .. } => todo!(),
-            OperandStackRef::Jit { .. } => todo!()
+            OperandStackRef::Jit { frame_view, .. } => {
+                frame_view.operand_stack_length()
+            }
         }
     }
 
@@ -221,15 +470,15 @@ impl IndexMut<usize> for OperandStackMut<'_> {
     }
 }
 
+
 pub enum OperandStackMut<'l> {
     LegacyInterpreter {
         operand_stack: &'l mut Vec<JavaValue>
     },
     Jit {
-        frame_view: &'l mut FrameView
+        frame_view: &'l mut FrameView,
     },
 }
-
 
 impl OperandStackMut<'_> {
     pub fn push(&mut self, j: JavaValue) {
@@ -237,19 +486,19 @@ impl OperandStackMut<'_> {
             OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.push(j);
             }
-            OperandStackMut::Jit { frame_view, .. } => {
-                todo!()
+            OperandStackMut::Jit { frame_view } => {
+                frame_view.push_operand_stack(j)
             }
         }
     }
 
-    pub fn pop(&mut self) -> Option<JavaValue> {
+    pub fn pop(&mut self, ptypeview: PTypeView) -> Option<JavaValue> {
         match self {
             OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.pop()
             }
             OperandStackMut::Jit { frame_view, .. } => {
-                todo!()
+                frame_view.pop_operand_stack(ptypeview)
             }
         }
     }
@@ -269,70 +518,13 @@ impl OperandStackMut<'_> {
     }
 }
 
-impl StackEntryMut<'_> {
-    pub fn local_vars_mut(&mut self) -> LocalVarsMut {
-        match self {
-            StackEntryMut::LegacyInterpreter { entry } => {
-                LocalVarsMut::LegacyInterpreter { vars: entry.local_vars_mut() }
-            }
-            StackEntryMut::Jit { frame_view } => {
-                LocalVarsMut::Jit { frame_view: frame_view }
-            }
-        }
-    }
-
-    pub fn local_vars(&mut self) -> LocalVarsRef {
-        match self {
-            StackEntryMut::LegacyInterpreter { entry } => {
-                LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut() }
-            }
-            StackEntryMut::Jit { frame_view } => {
-                LocalVarsRef::Jit { frame_view: frame_view }
-            }
-        }
-    }
-
-    pub fn push(&mut self, j: JavaValue) {
-        match self {
-            StackEntryMut::LegacyInterpreter { entry, .. } => {
-                entry.push(j);
-            }
-            StackEntryMut::Jit { frame_view, .. } => {
-                todo!()
-            }
-        }
-    }
-
-    pub fn pop(&mut self) -> JavaValue {
-        match self {
-            StackEntryMut::LegacyInterpreter { entry, .. } => {
-                entry.pop()
-            }
-            StackEntryMut::Jit { frame_view, .. } => {
-                todo!()
-            }
-        }
-    }
-
-    pub fn operand_stack_mut(&mut self) -> OperandStackMut {
-        match self {
-            StackEntryMut::LegacyInterpreter { entry, .. } => {
-                OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
-            }
-            StackEntryMut::Jit { frame_view, .. } => {
-                OperandStackMut::Jit { frame_view }
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum StackEntryRef<'l> {
     LegacyInterpreter {
         entry: &'l StackEntry
     },
     Jit {
-        frame_view: FrameView
+        frame_view: FrameView,
     },
 }
 
@@ -349,62 +541,76 @@ impl StackEntryRef<'_> {
         }
     }
 
-    pub fn try_class_pointer(&self) -> Option<&Arc<RuntimeClass>> {
+    pub fn try_class_pointer(&self, jvm: &JVMState) -> Option<Arc<RuntimeClass>> {
         match self {
             StackEntryRef::LegacyInterpreter { entry, .. } => {
-                entry.try_class_pointer()
+                entry.try_class_pointer().cloned()
             }
             StackEntryRef::Jit { frame_view, .. } => {
-                todo!()
+                let method_id = frame_view.method_id()?;
+                let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                Some(rc)
             }
         }
     }
 
-    pub fn class_pointer(&self) -> &Arc<RuntimeClass> {
-        self.try_class_pointer().unwrap()
+    pub fn class_pointer(&self, jvm: &JVMState) -> Arc<RuntimeClass> {
+        self.try_class_pointer(jvm).unwrap()
     }
 
-    pub fn pc(&self) -> usize {
+    pub fn pc(&self) -> u16 {
         match self {
             StackEntryRef::LegacyInterpreter { entry, .. } => {
                 entry.pc()
             }
-            StackEntryRef::Jit { .. } => todo!()
+            StackEntryRef::Jit { frame_view, .. } => {
+                frame_view.pc()
+            }
         }
     }
 
-    pub fn pc_offset(&self) -> isize {
+    pub fn pc_offset(&self) -> i32 {
         match self {
             StackEntryRef::LegacyInterpreter { entry, .. } => { entry.pc_offset() }
-            StackEntryRef::Jit { .. } => todo!()
+            StackEntryRef::Jit { frame_view, .. } => {
+                frame_view.pc_offset()
+            }
         }
     }
 
-    pub fn method_i(&self) -> CPIndex {
+    pub fn method_i(&self, jvm: &JVMState) -> CPIndex {
         match self {
             StackEntryRef::LegacyInterpreter { entry, .. } => { entry.method_i() }
-            StackEntryRef::Jit { .. } => todo!()
+            StackEntryRef::Jit { frame_view, .. } => {
+                let method_id = frame_view.method_id().unwrap();
+                let (_, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                method_i
+            }
         }
     }
 
     pub fn operand_stack(&self) -> OperandStackRef {
         match self {
             StackEntryRef::LegacyInterpreter { .. } => todo!(),
-            StackEntryRef::Jit { .. } => todo!()
+            StackEntryRef::Jit { frame_view, .. } => {
+                OperandStackRef::Jit { frame_view }
+            }
         }
     }
 
     pub fn is_native(&self) -> bool {
         match self {
             StackEntryRef::LegacyInterpreter { entry, .. } => entry.is_native(),
-            StackEntryRef::Jit { .. } => todo!()
+            StackEntryRef::Jit { frame_view, .. } => {
+                frame_view.is_native()
+            }
         }
     }
 
     pub fn native_local_refs(&self) -> &mut Vec<BiMap<ByAddress<Arc<Object>>, jobject>> {
         match self {
-            StackEntryRef::LegacyInterpreter { entry, .. } => todo!(),
-            StackEntryRef::Jit { frame_view, .. } => todo!()
+            StackEntryRef::LegacyInterpreter { entry, .. } => todo!("{:?}", entry),
+            StackEntryRef::Jit { frame_view, .. } => todo!("{:?}", frame_view)
         }
     }
 
@@ -434,11 +640,11 @@ impl StackEntry {
     }
 
     pub fn new_java_frame(jvm: &JVMState, class_pointer: Arc<RuntimeClass>, method_i: u16, args: Vec<JavaValue>) -> Self {
-        let max_locals = class_pointer.view().method_view_i(method_i as usize).code_attribute().unwrap().max_locals;
+        let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
         let mut guard = jvm.method_table.write().unwrap();
-        let method_id = guard.get_method_id(class_pointer.clone(), method_i);
+        let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
         Self {
             loader,
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
@@ -504,25 +710,25 @@ impl StackEntry {
         &self.operand_stack
     }
 
-    pub fn pc_mut(&mut self) -> &mut usize {
+    pub fn pc_mut(&mut self) -> &mut u16 {
         &mut self.non_native_data.as_mut().unwrap().pc
     }
 
-    pub fn pc(&self) -> usize {
+    pub fn pc(&self) -> u16 {
         self.try_pc().unwrap()
     }
 
-    pub fn try_pc(&self) -> Option<usize> {
+    pub fn try_pc(&self) -> Option<u16> {
         self.non_native_data.as_ref().map(|x| x.pc)
     }
 
 
     //todo a lot of duplication here between mut and non-mut variants
-    pub fn pc_offset_mut(&mut self) -> &mut isize {
+    pub fn pc_offset_mut(&mut self) -> &mut i32 {
         &mut self.non_native_data.as_mut().unwrap().pc_offset
     }
 
-    pub fn pc_offset(&self) -> isize {
+    pub fn pc_offset(&self) -> i32 {
         self.non_native_data.as_ref().unwrap().pc_offset
     }
 
@@ -539,7 +745,7 @@ impl StackEntry {
             None => return true,
             Some(i) => i,
         };
-        self.class_pointer().view().method_view_i(method_i as usize).is_native()
+        self.class_pointer().view().method_view_i(method_i).is_native()
     }
 
     pub fn convert_to_native(&mut self) {

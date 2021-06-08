@@ -163,7 +163,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
                         }
                     }
                 };
-                let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i as u16);
+                let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i);
                 jvm.resolved_method_handles.write().unwrap().insert(ByAddress(member_name.clone().object()), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
@@ -234,7 +234,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
 fn throw_linkage_error(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into())?;
     push_new_object(jvm, int_state, &linkage_error);
-    let object = int_state.pop_current_operand_stack().unwrap_object();
+    let object = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     int_state.set_throw(object);
     return Err(WasException);
 }

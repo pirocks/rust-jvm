@@ -42,9 +42,9 @@ fn default_init_fields(
             let val = default_value(type_.clone());
 
             object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val, type_);
-            unsafe {
-                // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
-            }
+            // unsafe {
+            // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
+            // }
         }
     }
 }

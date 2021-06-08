@@ -28,7 +28,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         };
 
         let declaring_class_view = declaring_class.view();
-        let method_view = declaring_class_view.method_view_i(stack_entry.method_i() as usize);
+        let method_view = declaring_class_view.method_view_i(stack_entry.method_i());
         let file = match declaring_class_view.sourcefile_attr() {
             None => {
                 "unknown_source".to_string()
@@ -43,7 +43,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 //todo have a lookup function for this
                 let mut cur_line = -1;
                 for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
-                    if (*start_pc as usize) <= stack_entry.pc() {
+                    if (*start_pc) <= stack_entry.pc() {
                         cur_line = *line_number as jint;
                     }
                 }

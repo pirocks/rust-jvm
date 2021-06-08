@@ -2,6 +2,7 @@ use std::ptr::null_mut;
 
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{JNIEnv, jobject};
+use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::interpreter::WasException;
@@ -29,9 +30,9 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     create_string_on_stack(jvm, int_state, key);
-    let key = int_state.pop_current_operand_stack();
+    let key = int_state.pop_current_operand_stack(ClassName::object().into());
     create_string_on_stack(jvm, int_state, val);
-    let val = int_state.pop_current_operand_stack();
+    let val = int_state.pop_current_operand_stack(ClassName::object().into());
     let prop_obj = match from_object(p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -45,7 +46,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
     invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth);
-    int_state.pop_current_operand_stack();
+    int_state.pop_current_operand_stack(ClassName::object().into());
     Ok(p)
 }
 

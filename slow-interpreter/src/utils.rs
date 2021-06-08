@@ -25,11 +25,11 @@ use crate::java_values::{ExceptionReturn, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass>)> {
     lookup_method_parsed_impl(state, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(usize, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {

@@ -6,8 +6,13 @@ use num::Zero;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
+use classfile_view::vtype::VType;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
+use rust_jvm_common::classnames::ClassName;
+use verification::OperandStack;
+use verification::verifier::Frame;
 
 use crate::class_loading::check_resolved_class;
 use crate::class_objects::get_or_create_class_object;
@@ -43,8 +48,8 @@ pub struct WasException;
 
 pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
-    let method_i = interpreter_state.current_method_i();
-    let method = view.method_view_i(method_i as usize);
+    let method_i = interpreter_state.current_method_i(jvm);
+    let method = view.method_view_i(method_i);
     let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
     let meth_name = method.name();
@@ -54,31 +59,31 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     let current_depth = interpreter_state.call_stack_depth();
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
     let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
-    assert!(!*interpreter_state.function_return_mut());
+    assert!(!interpreter_state.function_return());
     let current_frame = interpreter_state.current_frame();
-    let class_pointer = current_frame.class_pointer();
+    let class_pointer = current_frame.class_pointer(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized);
 
 
-    while !*interpreter_state.function_return() && interpreter_state.throw().is_none() {
+    while !interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame(), &code);
-        *interpreter_state.current_pc_offset_mut() = instruction_size as isize;
+        interpreter_state.set_current_pc_offset(instruction_size as i32);
         breakpoint_check(jvm, interpreter_state, method_id);
         if let Ok(()) = safepoint_check(jvm, interpreter_state) {
-            run_single_instruction(jvm, interpreter_state, instruct);
+            run_single_instruction(jvm, interpreter_state, instruct, method_id);
         };
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();
             for excep_table in &code.exception_table {
                 let pc = interpreter_state.current_pc();
-                if excep_table.start_pc as usize <= pc && pc < (excep_table.end_pc as usize) {//todo exclusive
+                if excep_table.start_pc <= pc && pc < (excep_table.end_pc) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
                         interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                         interpreter_state.set_throw(None);
-                        *interpreter_state.current_pc_mut() = excep_table.handler_pc as usize;
+                        interpreter_state.set_current_pc(excep_table.handler_pc);
                         // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                         break;
                     } else {
@@ -90,7 +95,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
                             interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);
-                            *interpreter_state.current_pc_mut() = excep_table.handler_pc as usize;
+                            interpreter_state.set_current_pc(excep_table.handler_pc);
                             // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
                             break;
                         }
@@ -130,15 +135,17 @@ fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard)
     let offset = interpreter_state.current_pc_offset();
     let mut pc = interpreter_state.current_pc();
     if offset > 0 {
-        pc += offset as usize;
+        pc += offset as u16;
     } else {
-        pc -= (-offset) as usize;//todo perhaps i don't have to do this bs if I use u64 instead of usize
+        dbg!(pc);
+        dbg!(offset);
+        pc -= (-offset) as u16;
     }
-    *interpreter_state.current_pc_mut() = pc;
+    interpreter_state.set_current_pc(pc);
 }
 
 fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, methodid: MethodId) {
-    let pc = *interpreter_state.current_pc_mut() as isize;
+    let pc = interpreter_state.current_pc();
     let stop = match &jvm.jvmti_state {
         None => false,
         Some(jvmti) => {
@@ -156,10 +163,10 @@ fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
 }
 
 fn current_instruction(current_frame: StackEntryRef, code: &Code) -> (InstructionInfo, usize) {
-    let current = &code.code_raw[current_frame.pc()..];
+    let current = &code.code_raw[current_frame.pc() as usize..];
     let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
     let parsedq = parse_instruction(&mut context).expect("but this parsed the first time round");
-    (parsedq, context.offset - current_frame.pc())
+    (parsedq, (context.offset as i32 - current_frame.pc() as i32) as usize)
 }
 
 pub fn monitor_for_function(
@@ -177,7 +184,7 @@ pub fn monitor_for_function(
             ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()
         } else {
-            int_state.current_frame_mut().local_vars()[0].unwrap_normal_object().monitor.clone()
+            int_state.current_frame_mut().local_vars().get(0, PTypeView::object()).unwrap_normal_object().monitor.clone()
         };
         monitor.lock(jvm);
         monitor.into()
@@ -192,6 +199,7 @@ fn run_single_instruction(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     instruct: InstructionInfo,
+    method_id: MethodId,
 ) {
     unsafe {
         TIMES += 1;
@@ -218,7 +226,7 @@ fn run_single_instruction(
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),
         InstructionInfo::aconst_null => aconst_null(interpreter_state.current_frame_mut()),
-        InstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::aload_2 => aload(interpreter_state.current_frame_mut(), 2),
@@ -226,7 +234,7 @@ fn run_single_instruction(
         InstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
         InstructionInfo::areturn => areturn(jvm, interpreter_state),
         InstructionInfo::arraylength => arraylength(jvm, interpreter_state),
-        InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::astore_2 => astore(interpreter_state.current_frame_mut(), 2),
@@ -249,7 +257,7 @@ fn run_single_instruction(
         InstructionInfo::dconst_0 => dconst_0(interpreter_state.current_frame_mut()),
         InstructionInfo::dconst_1 => dconst_1(interpreter_state.current_frame_mut()),
         InstructionInfo::ddiv => ddiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::dload(i) => dload(interpreter_state.current_frame_mut(), i as usize),
+        InstructionInfo::dload(i) => dload(interpreter_state.current_frame_mut(), i as u16),
         InstructionInfo::dload_0 => dload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::dload_1 => dload(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::dload_2 => dload(interpreter_state.current_frame_mut(), 2),
@@ -258,18 +266,18 @@ fn run_single_instruction(
         InstructionInfo::dneg => dneg(interpreter_state.current_frame_mut()),
         InstructionInfo::drem => drem(interpreter_state.current_frame_mut()),
         InstructionInfo::dreturn => dreturn(jvm, interpreter_state),
-        InstructionInfo::dstore(i) => dstore(interpreter_state.current_frame_mut(), i as usize),
-        InstructionInfo::dstore_0 => dstore(interpreter_state.current_frame_mut(), 0 as usize),
-        InstructionInfo::dstore_1 => dstore(interpreter_state.current_frame_mut(), 1 as usize),
-        InstructionInfo::dstore_2 => dstore(interpreter_state.current_frame_mut(), 2 as usize),
-        InstructionInfo::dstore_3 => dstore(interpreter_state.current_frame_mut(), 3 as usize),
+        InstructionInfo::dstore(i) => dstore(interpreter_state.current_frame_mut(), i as u16),
+        InstructionInfo::dstore_0 => dstore(interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::dstore_1 => dstore(interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::dstore_2 => dstore(interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::dstore_3 => dstore(interpreter_state.current_frame_mut(), 3),
         InstructionInfo::dsub => dsub(interpreter_state.current_frame_mut()),
         InstructionInfo::dup => dup(interpreter_state.current_frame_mut()),
         InstructionInfo::dup_x1 => dup_x1(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup_x2 => dup_x2(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2 => dup2(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2_x1 => dup2_x1(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2_x2 => dup2_x2(interpreter_state.current_frame_mut()),
+        InstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
+        InstructionInfo::dup2 => dup2(jvm, method_id, interpreter_state.current_frame_mut()),
+        InstructionInfo::dup2_x1 => dup2_x1(jvm, method_id, interpreter_state.current_frame_mut()),
+        InstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::f2d => f2d(interpreter_state.current_frame_mut()),
         InstructionInfo::f2i => f2i(interpreter_state.current_frame_mut()),
         InstructionInfo::f2l => f2l(interpreter_state.current_frame_mut()),
@@ -282,7 +290,7 @@ fn run_single_instruction(
         InstructionInfo::fconst_1 => fconst_1(interpreter_state.current_frame_mut()),
         InstructionInfo::fconst_2 => fconst_2(interpreter_state.current_frame_mut()),
         InstructionInfo::fdiv => fdiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::fload(n) => fload(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::fload(n) => fload(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::fload_0 => fload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::fload_1 => fload(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::fload_2 => fload(interpreter_state.current_frame_mut(), 2),
@@ -291,7 +299,7 @@ fn run_single_instruction(
         InstructionInfo::fneg => fneg(interpreter_state.current_frame_mut()),
         InstructionInfo::frem => frem(interpreter_state.current_frame_mut()),
         InstructionInfo::freturn => freturn(jvm, interpreter_state),
-        InstructionInfo::fstore(i) => fstore(interpreter_state.current_frame_mut(), i as usize),
+        InstructionInfo::fstore(i) => fstore(interpreter_state.current_frame_mut(), i as u16),
         InstructionInfo::fstore_0 => fstore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::fstore_1 => fstore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::fstore_2 => fstore(interpreter_state.current_frame_mut(), 2),
@@ -337,11 +345,11 @@ fn run_single_instruction(
         InstructionInfo::ifnull(offset) => ifnull(interpreter_state.current_frame_mut(), offset),
         InstructionInfo::iinc(iinc) => {
             let mut current_frame = interpreter_state.current_frame_mut();
-            let val = current_frame.local_vars()[iinc.index as usize].unwrap_int();
+            let val = current_frame.local_vars().get(iinc.index, PTypeView::IntType).unwrap_int();
             let res = val + iinc.const_ as i32;
-            current_frame.local_vars_mut()[iinc.index as usize] = JavaValue::Int(res);
+            current_frame.local_vars_mut().set(iinc.index, JavaValue::Int(res));
         }
-        InstructionInfo::iload(n) => iload(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::iload(n) => iload(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::iload_0 => iload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::iload_1 => iload(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::iload_2 => iload(interpreter_state.current_frame_mut(), 2),
@@ -361,7 +369,7 @@ fn run_single_instruction(
         InstructionInfo::ireturn => ireturn(jvm, interpreter_state),
         InstructionInfo::ishl => ishl(interpreter_state.current_frame_mut()),
         InstructionInfo::ishr => ishr(interpreter_state.current_frame_mut()),
-        InstructionInfo::istore(n) => istore(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::istore(n) => istore(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::istore_0 => istore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::istore_1 => istore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::istore_2 => istore(interpreter_state.current_frame_mut(), 2),
@@ -383,9 +391,9 @@ fn run_single_instruction(
         InstructionInfo::lconst_1 => lconst(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::ldc(cp) => ldc_w(jvm, interpreter_state, cp as u16),
         InstructionInfo::ldc_w(cp) => ldc_w(jvm, interpreter_state, cp),
-        InstructionInfo::ldc2_w(cp) => ldc2_w(interpreter_state.current_frame_mut(), cp),
+        InstructionInfo::ldc2_w(cp) => ldc2_w(jvm, interpreter_state.current_frame_mut(), cp),
         InstructionInfo::ldiv => ldiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::lload(i) => lload(interpreter_state.current_frame_mut(), i as usize),
+        InstructionInfo::lload(i) => lload(interpreter_state.current_frame_mut(), i as u16),
         InstructionInfo::lload_0 => lload(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::lload_1 => lload(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::lload_2 => lload(interpreter_state.current_frame_mut(), 2),
@@ -398,7 +406,7 @@ fn run_single_instruction(
         InstructionInfo::lreturn => lreturn(jvm, interpreter_state),
         InstructionInfo::lshl => lshl(interpreter_state.current_frame_mut()),
         InstructionInfo::lshr => lshr(interpreter_state.current_frame_mut()),
-        InstructionInfo::lstore(n) => lstore(interpreter_state.current_frame_mut(), n as usize),
+        InstructionInfo::lstore(n) => lstore(interpreter_state.current_frame_mut(), n as u16),
         InstructionInfo::lstore_0 => lstore(interpreter_state.current_frame_mut(), 0),
         InstructionInfo::lstore_1 => lstore(interpreter_state.current_frame_mut(), 1),
         InstructionInfo::lstore_2 => lstore(interpreter_state.current_frame_mut(), 2),
@@ -407,20 +415,20 @@ fn run_single_instruction(
         InstructionInfo::lushr => lushr(interpreter_state.current_frame_mut()),
         InstructionInfo::lxor => lxor(interpreter_state.current_frame_mut()),
         InstructionInfo::monitorenter => {
-            interpreter_state.current_frame_mut().pop().unwrap_object_nonnull().monitor_lock(jvm);
+            interpreter_state.current_frame_mut().pop(PTypeView::object()).unwrap_object_nonnull().monitor_lock(jvm);
         }
         InstructionInfo::monitorexit => {
-            interpreter_state.current_frame_mut().pop().unwrap_object_nonnull().monitor_unlock(jvm);
+            interpreter_state.current_frame_mut().pop(PTypeView::object()).unwrap_object_nonnull().monitor_unlock(jvm);
         }
         InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, interpreter_state, cp),
-        InstructionInfo::new(cp) => new(jvm, interpreter_state, cp as usize),
+        InstructionInfo::new(cp) => new(jvm, interpreter_state, cp),
         InstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, a_type),
         InstructionInfo::nop => {}
         InstructionInfo::pop => pop(interpreter_state.current_frame_mut()),
-        InstructionInfo::pop2 => pop2(interpreter_state.current_frame_mut()),
+        InstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::putfield(cp) => putfield(jvm, interpreter_state, cp),
         InstructionInfo::putstatic(cp) => putstatic(jvm, interpreter_state, cp),
-        InstructionInfo::ret(local_var_index) => ret(interpreter_state.current_frame_mut(), local_var_index as usize),
+        InstructionInfo::ret(local_var_index) => ret(interpreter_state.current_frame_mut(), local_var_index as u16),
         InstructionInfo::return_ => return_(interpreter_state),
         InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
         InstructionInfo::sastore => sastore(jvm, interpreter_state),
@@ -433,18 +441,19 @@ fn run_single_instruction(
 }
 
 fn l2d(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop().unwrap_long();
+    let val = current_frame.pop(PTypeView::LongType).unwrap_long();
     current_frame.push(JavaValue::Double(val as f64))
 }
 
 fn jsr(interpreter_state: &mut InterpreterStateGuard, target: i32) {
-    let next_instruct = (interpreter_state.current_pc() as isize + interpreter_state.current_pc_offset()) as i64;
+    let next_instruct = (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
-    *interpreter_state.current_pc_offset_mut() = target as isize
+    interpreter_state.set_current_pc_offset(target);
 }
 
 fn f2l(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop().unwrap_float();
+    let val = current_frame.pop(PTypeView::FloatType
+    ).unwrap_float();
     let res = if val.is_infinite() {
         if val.is_sign_positive() {
             i64::MAX
@@ -459,63 +468,78 @@ fn f2l(mut current_frame: StackEntryMut) {
     current_frame.push(JavaValue::Long(res))
 }
 
-fn dup2_x2(mut current_frame: StackEntryMut) {
-    let value1 = current_frame.pop();
-    let value2 = current_frame.pop();
-    if value1.is_size_2() {
-        if value2.is_size_2() {
-            //form 4
-            current_frame.push(value1.clone());
-            current_frame.push(value2);
-            current_frame.push(value1);
-        } else {
-            //form 2
-            let value3 = current_frame.pop();
-            assert!(value3.is_size_1());
-            current_frame.push(value1.clone());
-            current_frame.push(value3);
-            current_frame.push(value2);
-            current_frame.push(value1);
+fn dup2_x2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMut) {
+    let current_pc = current_frame.to_ref().pc();
+    let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
+    let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
+    let value1_vtype = data[0].clone();
+    let value2_vtype = data[1].clone();
+    let value1 = current_frame.pop(PTypeView::LongType);
+    let value2 = current_frame.pop(PTypeView::LongType);
+    match value1_vtype {
+        VType::LongType | VType::DoubleType => {
+            match value2_vtype {
+                VType::LongType | VType::DoubleType => {
+                    //form 4
+                    current_frame.push(value1.clone());
+                    current_frame.push(value2);
+                    current_frame.push(value1);
+                }
+                _ => {
+                    //form 2
+                    let value3 = current_frame.pop(PTypeView::LongType);
+                    // assert!(value3.is_size_1());
+                    current_frame.push(value1.clone());
+                    current_frame.push(value3);
+                    current_frame.push(value2);
+                    current_frame.push(value1);
+                }
+            }
         }
-    } else {
-        assert!(value2.is_size_1());
-        let value3 = current_frame.pop();
-        if value3.is_size_2() {
-            //form 3
-            current_frame.push(value2.clone());
-            current_frame.push(value1.clone());
-            current_frame.push(value3);
-            current_frame.push(value2);
-            current_frame.push(value1);
-        } else {
-            //form 1
-            let value4 = current_frame.pop();
-            assert!(value4.is_size_1());
-            current_frame.push(value2.clone());
-            current_frame.push(value1.clone());
-            current_frame.push(value4);
-            current_frame.push(value3);
-            current_frame.push(value2);
-            current_frame.push(value1);
+        _ => {
+            // assert!(value2.is_size_1());
+            let value2_vtype = data[2].clone();
+            let value3 = current_frame.pop(PTypeView::LongType);
+            match value2_vtype {
+                VType::LongType | VType::DoubleType => {
+                    //form 3
+                    current_frame.push(value2.clone());
+                    current_frame.push(value1.clone());
+                    current_frame.push(value3);
+                    current_frame.push(value2);
+                    current_frame.push(value1);
+                }
+                _ => {
+                    //form 1
+                    let value4 = current_frame.pop(PTypeView::LongType);
+                    // assert!(value4.is_size_1());
+                    current_frame.push(value2.clone());
+                    current_frame.push(value1.clone());
+                    current_frame.push(value4);
+                    current_frame.push(value3);
+                    current_frame.push(value2);
+                    current_frame.push(value1);
+                }
+            }
         }
     }
 }
 
 fn frem(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop().unwrap_float();
-    let value1 = current_frame.pop().unwrap_float();
+    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_float();
+    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_float();
     let res = drem_impl(value2 as f64, value1 as f64) as f32;
     current_frame.push(JavaValue::Float(res));
 }
 
 fn fneg(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop().unwrap_float();
+    let val = current_frame.pop(PTypeView::FloatType).unwrap_float();
     current_frame.push(JavaValue::Float(-val))
 }
 
 fn drem(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop().unwrap_double();//divisor
-    let value1 = current_frame.pop().unwrap_double();
+    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_double();//divisor
+    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_double();
     let res = drem_impl(value2, value1);
     current_frame.push(JavaValue::Double(res))
 }
@@ -544,26 +568,26 @@ fn drem_impl(value2: f64, value1: f64) -> f64 {
 }
 
 fn dneg(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop().unwrap_double();
+    let val = current_frame.pop(PTypeView::DoubleType).unwrap_double();
     current_frame.push(JavaValue::Double(-val))
 }
 
 fn swap(mut current_frame: StackEntryMut) {
-    let first = current_frame.pop();
-    let second = current_frame.pop();
+    let first = current_frame.pop(PTypeView::LongType);
+    let second = current_frame.pop(PTypeView::LongType);
     current_frame.push(first);
     current_frame.push(second);
 }
 
-pub fn ret(mut current_frame: StackEntryMut, local_var_index: usize) {
-    let ret = current_frame.local_vars()[local_var_index].unwrap_long();
-    *current_frame.pc_mut() = ret as usize;
+pub fn ret(mut current_frame: StackEntryMut, local_var_index: u16) {
+    let ret = current_frame.local_vars().get(local_var_index, PTypeView::LongType).unwrap_long();
+    current_frame.set_pc(ret as u16);
     *current_frame.pc_offset_mut() = 0;
 }
 
 fn dcmpl(mut current_frame: StackEntryMut) {
-    let val2 = current_frame.pop().unwrap_double();
-    let val1 = current_frame.pop().unwrap_double();
+    let val2 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }
@@ -584,8 +608,8 @@ fn dcmp_common(mut current_frame: StackEntryMut, val2: f64, val1: f64) {
 }
 
 fn dcmpg(mut current_frame: StackEntryMut) {
-    let val2 = current_frame.pop().unwrap_double();
-    let val1 = current_frame.pop().unwrap_double();
+    let val2 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }
@@ -594,7 +618,7 @@ fn dcmpg(mut current_frame: StackEntryMut) {
 
 fn athrow(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
     let exception_obj = {
-        let value = interpreter_state.pop_current_operand_stack();
+        let value = interpreter_state.pop_current_operand_stack(ClassName::throwable().into());
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     };

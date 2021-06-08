@@ -2,6 +2,7 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
+use rust_jvm_common::classnames::ClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::push_new_object;
@@ -29,11 +30,11 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let classview = &class.view();
-    let method = &classview.method_view_i(method_i as usize);
+    let method = &classview.method_view_i(method_i);
     let _name = method.name();
     let parsed = method.desc();
     push_new_object(jvm, int_state, &class);
-    let obj = int_state.pop_current_operand_stack();
+    let obj = int_state.pop_current_operand_stack(ClassName::object().into());
     int_state.push_current_operand_stack(obj.clone());
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
@@ -42,7 +43,7 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
         jvm,
         int_state,
         &parsed,
-        method_i as usize,
+        method_i,
         class.clone(),
     ) {
         return null_mut()

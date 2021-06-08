@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
+use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
@@ -8,7 +9,7 @@ use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use classfile_view::vtype::VType;
-use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, StackframeMemoryLayout};
+use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout, StackframeMemoryLayout};
 use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
 use verification::OperandStack;
@@ -82,7 +83,7 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn current_class_view(&self, jvm: &JVMState) -> Arc<dyn ClassView> {
-        self.current_frame().try_class_pointer().unwrap().view()
+        self.current_frame().try_class_pointer(jvm).unwrap().view()
     }
 
 
@@ -115,8 +116,8 @@ impl<'l> InterpreterStateGuard<'l> {
         self.current_frame_mut().push(jval)
     }
 
-    pub fn pop_current_operand_stack(&mut self) -> JavaValue {
-        self.current_frame_mut().operand_stack_mut().pop().unwrap()
+    pub fn pop_current_operand_stack(&mut self, expected_type: PTypeView) -> JavaValue {
+        self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
     }
 
     pub fn previous_frame_mut(&mut self) -> StackEntryMut {
@@ -168,13 +169,28 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
 
-    pub fn function_return_mut(&mut self) -> &mut bool {
+    pub fn function_return(&mut self) -> bool {
         let int_state = self.int_state.as_mut().unwrap();
         match int_state.deref_mut() {
             InterpreterState::LegacyInterpreter { function_return, .. } => {
-                function_return
+                *function_return
             }
-            InterpreterState::Jit { call_stack, .. } => todo!()
+            InterpreterState::Jit { call_stack, .. } => {
+                unsafe { call_stack.saved_registers().status_register.as_mut() }.unwrap().function_return
+            }
+        }
+    }
+
+
+    pub fn set_function_return(&mut self, to: bool) {
+        let int_state = self.int_state.as_mut().unwrap();
+        match int_state.deref_mut() {
+            InterpreterState::LegacyInterpreter { function_return, .. } => {
+                *function_return = to;
+            }
+            InterpreterState::Jit { call_stack, .. } => {
+                unsafe { call_stack.saved_registers().status_register.as_mut().unwrap().function_return = to; }
+            }
         }
     }
 
@@ -202,17 +218,8 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn function_return(&self) -> &bool {
-        let int_state = self.int_state.as_ref().unwrap().deref();
-        match int_state {
-            InterpreterState::LegacyInterpreter { function_return, .. } => {
-                function_return
-            }
-            InterpreterState::Jit { call_stack, .. } => todo!()
-        }
-    }
-
     pub fn push_frame(&mut self, frame: StackEntry, jvm: &JVMState) -> FramePushGuard {
+        self.debug_print_stack_trace();
         let int_state = self.int_state.as_mut().unwrap().deref_mut();
         match int_state {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
@@ -231,33 +238,45 @@ impl<'l> InterpreterStateGuard<'l> {
                     if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
                         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
                         let class_view = class_pointer.view();
-                        dbg!(class_view.name());
-                        let method_view = class_view.method_view_i(method_id);
-                        dbg!(method_view.name());
+                        let method_view = class_view.method_view_i(method_i);
                         let code = method_view.code_attribute().unwrap();
                         let frame_vtype = &jvm.function_frame_type_data.read().unwrap()[&(method_i as usize)];
                         let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
+                        dbg!(method_id);
+                        assert!(operand_stack.is_empty());//todo setup operand stack
+                        dbg!(pc_offset);
                         unsafe {
                             call_stack.push_frame(&memory_layout, FrameInfo::JavaFrame {
                                 method_id,
+                                num_locals: code.max_locals,
                                 loader,
+                                java_pc: pc,
+                                pc_offset,
+                                operand_stack_depth: operand_stack.len() as u16,
                             });
                         }
+                        for (i, local_var) in local_vars.into_iter().enumerate() {
+                            self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
+                        }
+                        jvm.stack_frame_layouts.write().unwrap().insert(method_id, memory_layout);
                     } else {
                         panic!()
                     }
                 } else if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
-                    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+                    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
+                    let class_view = class_pointer.view();
+                    let method_view = class_view.method_view_i(method_i);
                     unsafe {
-                        call_stack.push_frame(todo!(), FrameInfo::Native {
+                        call_stack.push_frame(&NativeStackframeMemoryLayout {}, FrameInfo::Native {
                             method_id,
                             loader,
+                            operand_stack_depth: 0,
                             native_local_refs,
                         })
                     }
                 } else {
                     unsafe {
-                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader })
+                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0 })
                     }
                 }
             }
@@ -266,31 +285,32 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn pop_frame(&mut self, jvm: &JVMState, mut frame_push_guard: FramePushGuard, was_exception: bool) {
-        frame_push_guard.correctly_exited = true;
+        frame_push_guard._correctly_exited = true;
         let depth = match self.int_state.as_mut().unwrap().deref_mut() {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 call_stack.len()
             }
-            InterpreterState::Jit { call_stack, .. } => {
-                todo!()
+            InterpreterState::Jit { call_stack, .. } => unsafe {
+                call_stack.call_stack_depth()
             }
         };
+        let empty_hashset: HashSet<usize> = HashSet::new();
         if match self.int_state.as_mut().unwrap().deref_mut() {
             InterpreterState::LegacyInterpreter { should_frame_pop_notify, .. } => should_frame_pop_notify,
-            InterpreterState::Jit { .. } => todo!()
+            InterpreterState::Jit { .. } => &empty_hashset//todo fix this at later date
         }.contains(&depth) {
             let stack_entry_ref = self.current_frame();
-            let runtime_class = stack_entry_ref.class_pointer();
-            let method_i = self.current_method_i();
+            let runtime_class = stack_entry_ref.class_pointer(jvm);
+            let method_i = self.current_method_i(jvm);
             let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
             jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
         }
         match self.int_state.as_mut().unwrap().deref_mut() {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                call_stack.pop()
+                call_stack.pop();
             }
             InterpreterState::Jit { call_stack, .. } => {
-                todo!()
+                unsafe { call_stack.pop_frame(); }
             }
         };
         assert!(self.thread.is_alive());
@@ -299,30 +319,30 @@ impl<'l> InterpreterStateGuard<'l> {
     pub fn call_stack_depth(&self) -> usize {
         match self.int_state.as_ref().unwrap().deref() {
             InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),
-            InterpreterState::Jit { .. } => { todo!() }
+            InterpreterState::Jit { call_stack, .. } => {
+                unsafe { call_stack.call_stack_depth() }
+            }
         }
     }
 
-    pub fn current_pc_mut(&mut self) -> &mut usize {
-        todo!()
-        // self.current_frame_mut().pc_mut()
+    pub fn set_current_pc(&mut self, new_pc: u16) {
+        self.current_frame_mut().set_pc(new_pc);
     }
 
-    pub fn current_pc(&self) -> usize {
+    pub fn current_pc(&self) -> u16 {
         self.current_frame().pc()
     }
 
-    pub fn current_pc_offset_mut(&mut self) -> &mut isize {
-        todo!()
-        // self.current_frame_mut().pc_offset_mut()
+    pub fn set_current_pc_offset(&mut self, new_offset: i32) {
+        self.current_frame_mut().set_pc_offset(new_offset)
     }
 
-    pub fn current_pc_offset(&self) -> isize {
+    pub fn current_pc_offset(&self) -> i32 {
         self.current_frame().pc_offset()
     }
 
-    pub fn current_method_i(&self) -> CPIndex {
-        self.current_frame().method_i()
+    pub fn current_method_i(&self, jvm: &JVMState) -> CPIndex {
+        self.current_frame().method_i(jvm)
     }
 
     pub fn debug_print_stack_trace(&self) {
@@ -330,12 +350,12 @@ impl<'l> InterpreterStateGuard<'l> {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 call_stack.iter().enumerate().rev()
             }
-            InterpreterState::Jit { .. } => todo!()
+            InterpreterState::Jit { .. } => {}
         } {
             if stack_entry.try_method_i().is_some() /*&& stack_entry.method_i() > 0*/ {
                 let type_ = stack_entry.class_pointer().view().type_();
                 let view = stack_entry.class_pointer().view();
-                let method_view = view.method_view_i(stack_entry.method_i() as usize);
+                let method_view = view.method_view_i(stack_entry.method_i());
                 let meth_name = method_view.name();
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_view.desc_str(), i)
@@ -437,117 +457,117 @@ impl<'l> InterpreterStateGuard<'l> {
     // }
 }
 
-fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
-    match type_ {
-        VType::DoubleType => {
-            jv.unwrap_double();
-            true
-        }
-        VType::FloatType => {
-            jv.unwrap_float();
-            true
-        }
-        VType::IntType => {
-            jv.unwrap_int();
-            true
-        }
-        VType::LongType => {
-            jv.unwrap_long();
-            true
-        }
-        VType::Class(ClassWithLoader { class_name, .. }) => {
-            match jv.unwrap_object() {
-                None => true,
-                Some(obj) => {
-                    true//todo need more granular
-                    // obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
-                }
-            }
-        }
-        VType::ArrayReferenceType(array_ref) => {
-            if jv.unwrap_object().is_none() {
-                return true;
-            }
-            let elem_type = jv.unwrap_array().elem_type.clone();
-            match &elem_type {
-                PTypeView::ByteType => array_ref == &PTypeView::ByteType,
-                PTypeView::CharType => array_ref == &PTypeView::CharType,
-                PTypeView::DoubleType => todo!(),
-                PTypeView::FloatType => todo!(),
-                PTypeView::IntType => array_ref == &PTypeView::IntType,
-                PTypeView::LongType => array_ref == &PTypeView::LongType,
-                PTypeView::Ref(ref_) => {
-                    match ref_ {
-                        ReferenceTypeView::Class(class_) => {
-                            true//todo need more granular.
-                            // &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
-                        }
-                        ReferenceTypeView::Array(array_) => {
-                            true//todo need more granular
-                        }
-                    }
-                }
-                PTypeView::ShortType => todo!(),
-                PTypeView::BooleanType => array_ref == &PTypeView::BooleanType,
-                PTypeView::VoidType => todo!(),
-                PTypeView::TopType => todo!(),
-                PTypeView::NullType => todo!(),
-                PTypeView::Uninitialized(_) => todo!(),
-                PTypeView::UninitializedThis => todo!(),
-                PTypeView::UninitializedThisOrClass(_) => todo!()
-            }
-        }
-        VType::VoidType => todo!(),
-        VType::TopType => {
-            match jv {
-                JavaValue::Top => true,
-                _ => true
-            }
-        }
-        VType::NullType => {
-            jv.unwrap_object();
-            true
-        }
-        VType::Uninitialized(_) => {
-            jv.unwrap_object_nonnull();
-            true
-        }
-        VType::UninitializedThis => {
-            jv.unwrap_object_nonnull();
-            true
-        }
-        VType::UninitializedThisOrClass(_) => {
-            jv.unwrap_object_nonnull();
-            true
-        }
-        VType::TwoWord => todo!(),
-        VType::OneWord => todo!(),
-        VType::Reference => todo!(),
-        VType::UninitializedEmpty => todo!(),
-    }
-}
-
-fn remove_tops(stack_map: &OperandStack) -> OperandStack {
-    //todo this is jank, should be idiomatic way to do this
-    let mut expecting_top = false;
-
-    let mut data = stack_map.data.iter().rev().flat_map(|cur| {
-        if expecting_top {
-            assert_eq!(cur, &VType::TopType);
-            expecting_top = false;
-            return None;
-        }
-        if &VType::LongType == cur || &VType::DoubleType == cur {
-            expecting_top = true;
-        }
-        Some(cur.clone())
-    }).collect::<VecDeque<_>>();
-    data = data.into_iter().rev().collect();
-    assert!(!expecting_top);
-    OperandStack {
-        data
-    }
-}
+// fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
+//     match type_ {
+//         VType::DoubleType => {
+//             jv.unwrap_double();
+//             true
+//         }
+//         VType::FloatType => {
+//             jv.unwrap_float();
+//             true
+//         }
+//         VType::IntType => {
+//             jv.unwrap_int();
+//             true
+//         }
+//         VType::LongType => {
+//             jv.unwrap_long();
+//             true
+//         }
+//         VType::Class(ClassWithLoader { class_name, .. }) => {
+//             match jv.unwrap_object() {
+//                 None => true,
+//                 Some(obj) => {
+//                     true//todo need more granular
+//                     // obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
+//                 }
+//             }
+//         }
+//         VType::ArrayReferenceType(array_ref) => {
+//             if jv.unwrap_object().is_none() {
+//                 return true;
+//             }
+//             let elem_type = jv.unwrap_array().elem_type.clone();
+//             match &elem_type {
+//                 PTypeView::ByteType => array_ref == &PTypeView::ByteType,
+//                 PTypeView::CharType => array_ref == &PTypeView::CharType,
+//                 PTypeView::DoubleType => todo!(),
+//                 PTypeView::FloatType => todo!(),
+//                 PTypeView::IntType => array_ref == &PTypeView::IntType,
+//                 PTypeView::LongType => array_ref == &PTypeView::LongType,
+//                 PTypeView::Ref(ref_) => {
+//                     match ref_ {
+//                         ReferenceTypeView::Class(class_) => {
+//                             true//todo need more granular.
+//                             // &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
+//                         }
+//                         ReferenceTypeView::Array(array_) => {
+//                             true//todo need more granular
+//                         }
+//                     }
+//                 }
+//                 PTypeView::ShortType => todo!(),
+//                 PTypeView::BooleanType => array_ref == &PTypeView::BooleanType,
+//                 PTypeView::VoidType => todo!(),
+//                 PTypeView::TopType => todo!(),
+//                 PTypeView::NullType => todo!(),
+//                 PTypeView::Uninitialized(_) => todo!(),
+//                 PTypeView::UninitializedThis => todo!(),
+//                 PTypeView::UninitializedThisOrClass(_) => todo!()
+//             }
+//         }
+//         VType::VoidType => todo!(),
+//         VType::TopType => {
+//             match jv {
+//                 JavaValue::Top => true,
+//                 _ => true
+//             }
+//         }
+//         VType::NullType => {
+//             jv.unwrap_object();
+//             true
+//         }
+//         VType::Uninitialized(_) => {
+//             jv.unwrap_object_nonnull();
+//             true
+//         }
+//         VType::UninitializedThis => {
+//             jv.unwrap_object_nonnull();
+//             true
+//         }
+//         VType::UninitializedThisOrClass(_) => {
+//             jv.unwrap_object_nonnull();
+//             true
+//         }
+//         VType::TwoWord => todo!(),
+//         VType::OneWord => todo!(),
+//         VType::Reference => todo!(),
+//         VType::UninitializedEmpty => todo!(),
+//     }
+// }
+//
+// fn remove_tops(stack_map: &OperandStack) -> OperandStack {
+//     //todo this is jank, should be idiomatic way to do this
+//     let mut expecting_top = false;
+//
+//     let mut data = stack_map.data.iter().rev().flat_map(|cur| {
+//         if expecting_top {
+//             assert_eq!(cur, &VType::TopType);
+//             expecting_top = false;
+//             return None;
+//         }
+//         if &VType::LongType == cur || &VType::DoubleType == cur {
+//             expecting_top = true;
+//         }
+//         Some(cur.clone())
+//     }).collect::<VecDeque<_>>();
+//     data = data.into_iter().rev().collect();
+//     assert!(!expecting_top);
+//     OperandStack {
+//         data
+//     }
+// }
 
 
 pub enum AddFrameNotifyError {
@@ -558,18 +578,18 @@ pub enum AddFrameNotifyError {
 
 #[must_use = "Must handle frame push guard. "]
 pub struct FramePushGuard {
-    correctly_exited: bool,
+    _correctly_exited: bool,
 }
 
 impl Default for FramePushGuard {
     fn default() -> Self {
-        FramePushGuard { correctly_exited: false }
+        FramePushGuard { _correctly_exited: false }
     }
 }
 
 impl Drop for FramePushGuard {
     fn drop(&mut self) {
-        // assert!(self.correctly_exited)
+        // assert!(self._correctly_exited)
     }
 }
 

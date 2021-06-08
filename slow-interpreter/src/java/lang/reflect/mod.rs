@@ -156,7 +156,7 @@ pub mod method {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack().cast_class().unwrap()
+                int_state.pop_current_operand_stack(ClassName::class().into()).cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
@@ -197,7 +197,7 @@ pub mod method {
         ) -> Result<Method, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
             push_new_object(jvm, int_state, &method_class);
-            let method_object = int_state.pop_current_operand_stack();
+            let method_object = int_state.pop_current_operand_stack(ClassName::object().into());
             let full_args = vec![method_object.clone(),
                                  clazz.java_value(),
                                  name.java_value(),
@@ -276,7 +276,7 @@ pub mod constructor {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack().cast_class().unwrap()
+                int_state.pop_current_operand_stack(ClassName::class().into()).cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
@@ -301,7 +301,7 @@ pub mod constructor {
         ) -> Result<Constructor, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into())?;
             push_new_object(jvm, int_state, &constructor_class);
-            let constructor_object = int_state.pop_current_operand_stack();
+            let constructor_object = int_state.pop_current_operand_stack(ClassName::constructor().into());
 
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
@@ -372,7 +372,7 @@ pub mod field {
         ) -> Result<Self, WasException> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into())?;
             push_new_object(jvm, int_state, &field_classfile);
-            let field_object = int_state.pop_current_operand_stack();
+            let field_object = int_state.pop_current_operand_stack(ClassName::field().into());
 
 
             let modifiers = JavaValue::Int(modifiers);
@@ -436,7 +436,7 @@ pub mod constant_pool {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JClass) -> Result<ConstantPool, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into())?;
             push_new_object(jvm, int_state, &constant_pool_classfile);
-            let constant_pool_object = int_state.pop_current_operand_stack();
+            let constant_pool_object = int_state.pop_current_operand_stack(ClassName::object().into());
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(class);
             Ok(res)

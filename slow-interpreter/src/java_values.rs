@@ -690,7 +690,6 @@ impl NormalObject {
 
 
     pub fn get_var(&self, class_pointer: Arc<RuntimeClass>, name: impl Into<String>, expected_type: PTypeView) -> JavaValue {
-        static mut OUTPUT: bool = false;
         let name = name.into();
         // if !self.type_check(class_pointer.clone()) {
         //     dbg!(name);

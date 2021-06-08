@@ -37,7 +37,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     if int_state.throw().is_some() {
         return null_mut();
     }
-    let res = int_state.pop_current_operand_stack().unwrap_object();
+    let res = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     new_local_ref_public(res, int_state)
 }
 

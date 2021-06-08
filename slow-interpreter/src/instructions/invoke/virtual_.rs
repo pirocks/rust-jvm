@@ -5,6 +5,7 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
@@ -81,9 +82,8 @@ fn invoke_virtual_method_i_impl(
             Ok(()) => {
                 assert!(!interpreter_state.throw().is_some());
                 interpreter_state.pop_frame(jvm, frame_for_function, false);
-                let function_return = interpreter_state.function_return_mut();
-                if *function_return {
-                    *function_return = false;
+                if interpreter_state.function_return() {
+                    interpreter_state.set_function_return(false);
                     return Ok(());
                 }
                 panic!()
@@ -117,10 +117,10 @@ pub fn call_vmentry(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
-        let res_method = class_view.method_view_i(method_i as usize);
+        let res_method = class_view.method_view_i(method_i);
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str())?;
         assert!(interpreter_state.throw().is_none());
-        let res = interpreter_state.pop_current_operand_stack();
+        let res = interpreter_state.pop_current_operand_stack(ClassName::object().into());
         Ok(res)
     } else {
         unimplemented!()
@@ -134,8 +134,8 @@ pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descri
         args.push(JavaValue::Top);
     }
     let mut i = 1;
-    for _ in &expected_descriptor.parameter_types {
-        let value = current_frame.pop();
+    for ptype in &expected_descriptor.parameter_types {
+        let value = current_frame.pop(PTypeView::from_ptype(ptype));
         // dbg!(ptype);
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
@@ -152,7 +152,7 @@ pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descri
     if !expected_descriptor.parameter_types.is_empty() {
         args[1..i].reverse();
     }
-    args[0] = current_frame.pop();
+    args[0] = current_frame.pop(ClassName::object().into());
 }
 
 
@@ -176,15 +176,15 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         let operand_stack = &current_frame.operand_stack();
         // int_state.print_stack_trace();
         // dbg!(&operand_stack);
-        &operand_stack[operand_stack.len() - md.parameter_types.len() - 1].clone()
+        &operand_stack[operand_stack.len() as usize - md.parameter_types.len() - 1].clone()
     };
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
             int_state.debug_print_stack_trace();
-            let method_i = int_state.current_frame().method_i();
-            let class_view = int_state.current_frame().class_pointer().view();
-            let method_view = class_view.method_view_i(method_i as usize);
+            let method_i = int_state.current_frame().method_i(jvm);
+            let class_view = int_state.current_frame().class_pointer(jvm).view();
+            let method_view = class_view.method_view_i(method_i);
             // dbg!(&method_view.code_attribute().unwrap().code);
             // dbg!(&int_state.current_frame().operand_stack_types());
             // dbg!(&int_state.current_frame().local_vars_types());
@@ -222,7 +222,7 @@ pub fn virtual_method_lookup(
     method_name: &str,
     md: &MethodDescriptor,
     c: Arc<RuntimeClass>,
-) -> Result<(Arc<RuntimeClass>, usize), WasException> {
+) -> Result<(Arc<RuntimeClass>, u16), WasException> {
     let all_methods = get_all_methods(state, int_state, c.clone(), false)?;
     let (final_target_class, new_i) = all_methods.iter().find(|(c, i)| {
         let final_target_class_view = c.view();

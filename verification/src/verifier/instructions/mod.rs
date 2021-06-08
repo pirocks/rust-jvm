@@ -94,7 +94,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
     }
 }
 
-fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSafetyError> {
+fn offset_stack_frame(env: &Environment, offset: u16) -> Result<Frame, TypeSafetyError> {
     match env.merged_code.unwrap().iter().find(|x| {
         match x {
             Instruction(_) => false,
@@ -117,16 +117,16 @@ fn offset_stack_frame(env: &Environment, offset: usize) -> Result<Frame, TypeSaf
     }
 }
 
-fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: usize) -> Result<(), TypeSafetyError> {
+fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: u16) -> Result<(), TypeSafetyError> {
     let frame = offset_stack_frame(env, target)?;
     frame_is_assignable(&env.vf, stack_frame, &frame)?;
     Result::Ok(())
 }
 
-fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+fn instruction_satisfies_handlers(env: &Environment, offset: u16, exception_stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let handlers = &env.handlers;
     let applicable_handler = handlers.iter().filter(|h| {
-        is_applicable_handler(offset as usize, h)
+        is_applicable_handler(offset, h)
     });
     let res: Result<Vec<_>, _> = applicable_handler.map(|h| {
         instruction_satisfies_handler(env, exception_stack_frame, h)
@@ -135,7 +135,7 @@ fn instruction_satisfies_handlers(env: &Environment, offset: usize, exception_st
     Result::Ok(())
 }
 
-fn is_applicable_handler(offset: usize, handler: &Handler) -> bool {
+fn is_applicable_handler(offset: u16, handler: &Handler) -> bool {
     offset >= handler.start && offset < handler.end
 }
 
@@ -161,8 +161,8 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     }
 }
 
-pub fn nth0(index: usize, locals: &[VType]) -> Result<VType, TypeSafetyError> {
-    match locals.get(index) {
+pub fn nth0(index: u16, locals: &[VType]) -> Result<VType, TypeSafetyError> {
+    match locals.get(index as usize) {
         None => Err(unknown_error_verifying!()),
         Some(res) => Ok(res.clone()),
     }
@@ -178,7 +178,7 @@ pub fn handlers_are_legal(env: &Environment) -> Result<(), TypeSafetyError> {
     Result::Ok(())
 }
 
-pub fn start_is_member_of(start: usize, merged_instructs: &[MergedCodeInstruction]) -> bool {
+pub fn start_is_member_of(start: u16, merged_instructs: &[MergedCodeInstruction]) -> bool {
     merged_instructs.iter().any(|m| match m {
         Instruction(i) => { i.offset == start }
         StackMap(s) => { s.offset == start }
@@ -206,7 +206,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
 }
 
 
-pub fn instructions_include_end(instructs: &[MergedCodeInstruction], end: usize) -> bool {
+pub fn instructions_include_end(instructs: &[MergedCodeInstruction], end: u16) -> bool {
     instructs.iter().any(|x: &MergedCodeInstruction| {
         match x {
             MergedCodeInstruction::Instruction(i) => {
@@ -571,7 +571,7 @@ pub fn instruction_is_type_safe_iadd(env: &Environment, stack_frame: Frame) -> R
     type_transition(env, stack_frame, vec![VType::IntType, VType::IntType], VType::IntType)
 }
 
-pub fn instruction_is_type_safe_iinc(index: usize, _env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_iinc(index: u16, _env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let should_be_int = nth0(index, locals)?;
     match should_be_int {

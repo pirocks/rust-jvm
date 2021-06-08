@@ -18,7 +18,7 @@ pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
     let class_view = class.view();
-    let mv = class_view.method_view_i(method_i as usize);
+    let mv = class_view.method_view_i(method_i);
     let name = mv.name();
     let desc_str = mv.desc_str();
     if !generic_ptr.is_null() {
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn get_arguments_size(
     let method_id = from_jmethod_id(method);
     let (rc, i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
     let rc_view = rc.view();
-    let mv = rc_view.method_view_i(i as usize);
+    let mv = rc_view.method_view_i(i);
     size_ptr.write(mv.num_args() as i32);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn get_method_modifiers(
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodModifiers");
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-    let modifiers = class.view().method_view_i(method_i as usize).access_flags();
+    let modifiers = class.view().method_view_i(method_i).access_flags();
     modifiers_ptr.write(modifiers as jint);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    match class.view().method_view_i(method_i as usize).code_attribute() {
+    match class.view().method_view_i(method_i).code_attribute() {
         None => {
             start_location_ptr.write(-1);
             end_location_ptr.write(-1);
@@ -171,7 +171,7 @@ pub unsafe extern "C" fn is_method_native(
     let method_id = from_jmethod_id(method);//todo find a way to get rid of these transmutes
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let rc_view = rc.view();
-    let mv = rc_view.method_view_i(method_i as usize);
+    let mv = rc_view.method_view_i(method_i);
     null_check!(is_native_ptr);
     is_native_ptr.write(mv.is_native() as jboolean);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -187,7 +187,7 @@ pub unsafe extern "C" fn is_method_synthetic(
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsMethodSynthetic");
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo handle error
-    let synthetic = class.view().method_view_i(method_i as usize).is_synthetic();
+    let synthetic = class.view().method_view_i(method_i).is_synthetic();
     is_synthetic_ptr.write(synthetic as u8);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

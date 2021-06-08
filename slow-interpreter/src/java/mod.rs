@@ -19,19 +19,19 @@ macro_rules! as_object_or_java_value {
              &"toString".to_string(),
              &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::string()))}
              )?;
-            Ok(int_state.current_frame_mut().pop().cast_string())
+            Ok(int_state.current_frame_mut().pop(rust_jvm_common::classnames::ClassName::string().into()).cast_string())
         }
 
         pub fn get_class<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard) -> Result<crate::java::lang::class::JClass,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))})?;
-            Ok(int_state.current_frame_mut().pop().cast_class().expect("object can never not have a class"))
+            Ok(int_state.current_frame_mut().pop(rust_jvm_common::classnames::ClassName::class().into()).cast_class().expect("object can never not have a class"))
         }
 
         pub fn hash_code<'l>(&self, state: &crate::jvm_state::JVMState, int_state: &'l mut crate::InterpreterStateGuard<'l>) -> Result<i32,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::IntType})?;
-            Ok(int_state.current_frame_mut().pop().unwrap_int())
+            Ok(int_state.current_frame_mut().pop(classfile_view::view::ptype_view::PTypeView::IntType).unwrap_int())
         }
     };
 }

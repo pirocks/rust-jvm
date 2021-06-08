@@ -11,11 +11,11 @@ use crate::utils::throw_npe;
 
 pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(cp, &*view);
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*view);
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
-    let field_value = stack.pop().unwrap();
+    let field_value = stack.pop(PTypeView::from_ptype(&field_descriptor.field_type)).unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
@@ -25,8 +25,8 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let stack = &mut entry_mut.operand_stack_mut();
-    let val = stack.pop().unwrap();
-    let object_ref = stack.pop().unwrap();
+    let val = stack.pop(PTypeView::from_ptype(&field_type)).unwrap();
+    let object_ref = stack.pop(PTypeView::object()).unwrap();
     match object_ref {
         JavaValue::Object(o) => {
             {
@@ -88,10 +88,10 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
 
 pub fn get_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
     let current_frame = int_state.current_frame();
-    let view = current_frame.class_pointer().view();
+    let view = current_frame.class_pointer(jvm).view();
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
-    let object_ref = int_state.current_frame_mut().pop();
+    let object_ref = int_state.current_frame_mut().pop(PTypeView::object());
     match object_ref {
         JavaValue::Object(o) => {
             let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name, PTypeView::from_ptype(&field_type));

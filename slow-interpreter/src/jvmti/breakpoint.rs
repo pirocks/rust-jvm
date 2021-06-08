@@ -13,10 +13,10 @@ pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, l
     let mut breakpoint_guard = jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap();
     match breakpoint_guard.get_mut(&method_id) {
         None => {
-            breakpoint_guard.insert(method_id, HashSet::from_iter(vec![location as isize].iter().cloned()));
+            breakpoint_guard.insert(method_id, HashSet::from_iter(vec![location as u16].iter().cloned()));
         }
         Some(breakpoints) => {
-            breakpoints.insert(location as isize);//todo should I cast here?
+            breakpoints.insert(location as u16);//todo should I cast here?
         }
     }
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -27,6 +27,6 @@ pub unsafe extern "C" fn clear_breakpoint(env: *mut jvmtiEnv, method: jmethodID,
     let jvm = get_state(env);
     let tracig_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "ClearBreakpoint");
     let method_id = from_jmethod_id(method);
-    jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap().get_mut(&method_id).unwrap().remove(&(location as isize));
+    jvm.jvmti_state.as_ref().unwrap().break_points.write().unwrap().get_mut(&method_id).unwrap().remove(&(location as u16));
     jvm.tracing.trace_jdwp_function_exit(tracig_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

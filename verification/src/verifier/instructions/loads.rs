@@ -22,7 +22,7 @@ pub fn instruction_is_type_safe_aaload(env: &Environment, stack_frame: Frame) ->
     standard_exception_frame(locals, flags, next_frame)
 }
 
-fn load_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Frame) -> Result<Frame, TypeSafetyError> {
+fn load_is_type_safe(env: &Environment, index: u16, type_: &VType, frame: Frame) -> Result<Frame, TypeSafetyError> {
     let locals = &frame.locals;
     let actual_type = nth0(index, locals)?;
     let next_frame = valid_type_transition(env, vec![], &actual_type, frame)?;
@@ -30,7 +30,7 @@ fn load_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Fram
     Result::Ok(next_frame)
 }
 
-pub fn instruction_is_type_safe_lload(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lload(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::LongType, stack_frame)?;
@@ -38,7 +38,7 @@ pub fn instruction_is_type_safe_lload(index: usize, env: &Environment, stack_fra
 }
 
 
-pub fn instruction_is_type_safe_aload(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_aload(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::Reference, stack_frame)?;
@@ -60,7 +60,7 @@ pub fn instruction_is_type_safe_daload(env: &Environment, stack_frame: Frame) ->
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::DoubleType)
 }
 
-pub fn instruction_is_type_safe_dload(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dload(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::DoubleType, stack_frame)?;
@@ -72,7 +72,7 @@ pub fn instruction_is_type_safe_faload(env: &Environment, stack_frame: Frame) ->
     type_transition(env, stack_frame, vec![VType::IntType, array_type], VType::FloatType)
 }
 
-pub fn instruction_is_type_safe_fload(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_fload(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::FloatType, stack_frame)?;
@@ -84,7 +84,7 @@ pub fn instruction_is_type_safe_iaload(env: &Environment, stack_frame: Frame) ->
 }
 
 
-pub fn instruction_is_type_safe_iload(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_iload(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = load_is_type_safe(env, index, &VType::IntType, stack_frame)?;

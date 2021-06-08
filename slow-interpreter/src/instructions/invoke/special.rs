@@ -14,7 +14,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
 pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame().class_pointer().view());
+    let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame().class_pointer(jvm).view());
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = match check_initing_or_inited_class(
         jvm,
@@ -32,7 +32,7 @@ pub fn invoke_special_impl(
     jvm: &JVMState,
     interpreter_state: &mut InterpreterStateGuard,
     parsed_descriptor: &MethodDescriptor,
-    target_m_i: usize,
+    target_m_i: u16,
     final_target_class: Arc<RuntimeClass>,
 ) -> Result<(), WasException> {
     let final_target_view = final_target_class.view();
@@ -59,9 +59,8 @@ pub fn invoke_special_impl(
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);
-                let function_return = interpreter_state.function_return_mut();
-                if *function_return {
-                    *function_return = false;
+                if interpreter_state.function_return() {
+                    interpreter_state.set_function_return(false);
                 }
                 Ok(())
             }

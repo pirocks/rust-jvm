@@ -433,7 +433,7 @@ unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     push_new_object(jvm, int_state, &from_jclass(clazz).as_runtime_class(jvm));
-    to_object(int_state.pop_current_operand_stack().unwrap_object())
+    to_object(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object())
 }
 
 ///ToReflectedMethod
@@ -459,7 +459,7 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
         None => return null_mut(),
     };
     let runtime_class_view = runtime_class.view();
-    let method_view = runtime_class_view.method_view_i(index as usize);
+    let method_view = runtime_class_view.method_view_i(index);
     let method_obj = match Method::method_object_from_method_view(jvm, int_state, &method_view) {
         Ok(method_obj) => method_obj,
         Err(_) => todo!()
@@ -603,7 +603,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
-    let parent_runtime_class = int_state.pop_current_operand_stack();
+    let parent_runtime_class = int_state.pop_current_operand_stack(ClassName::object().into());
 
     let field_name = f.field_name();
 

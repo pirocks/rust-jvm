@@ -3,6 +3,7 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
+use rust_jvm_common::classnames::ClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
@@ -273,14 +274,14 @@ unsafe fn call_non_virtual(env: *mut JNIEnv, obj: jobject, _clazz: jclass, metho
     let (rc, i, method_desc) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => todo!(),
         Some((rc, i)) => {
-            (rc.clone(), i, rc.clone().view().method_view_i(i as usize).desc())
+            (rc.clone(), i, rc.clone().view().method_view_i(i).desc())
         }
     };
     int_state.push_current_operand_stack(JavaValue::Object(from_object(obj)));
     push_params_onto_frame(&mut vararg_provider, int_state, &method_desc);
-    invoke_special_impl(jvm, int_state, &method_desc, i as usize, rc)?;
+    invoke_special_impl(jvm, int_state, &method_desc, i, rc)?;
     if !is_void {
-        int_state.pop_current_operand_stack();
+        int_state.pop_current_operand_stack(ClassName::object().into());
     }
     Ok(JavaValue::Top)
 }

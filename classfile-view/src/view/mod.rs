@@ -53,7 +53,7 @@ pub trait ClassView: HasAccessFlags {
     fn type_(&self) -> PTypeView;
     fn super_name(&self) -> Option<ClassName>;
     fn methods(&self) -> MethodIterator;
-    fn method_view_i(&self, i: usize) -> MethodView;
+    fn method_view_i(&self, i: u16) -> MethodView;
     fn num_methods(&self) -> usize;
     fn constant_pool_size(&self) -> usize;
     fn constant_pool_view(&self, i: usize) -> ConstantInfoView;
@@ -113,7 +113,7 @@ impl ClassView for ClassBackedView {
     fn methods(&self) -> MethodIterator {
         MethodIterator::ClassBacked { class_view: self, i: 0 }
     }
-    fn method_view_i(&self, i: usize) -> MethodView {
+    fn method_view_i(&self, i: u16) -> MethodView {
         MethodView { class_view: self, method_i: i }
     }
     fn num_methods(&self) -> usize {
@@ -210,7 +210,7 @@ type MethodName = String;
 
 #[derive(Debug)]
 pub struct MethodIndex {
-    index: HashMap<MethodName, HashMap<MethodDescriptor, usize>>,
+    index: HashMap<MethodName, HashMap<MethodDescriptor, u16>>,
 }
 
 impl MethodIndex {
@@ -324,7 +324,7 @@ impl ClassView for PrimitiveView {
         MethodIterator::Empty {}
     }
 
-    fn method_view_i(&self, _i: usize) -> MethodView {
+    fn method_view_i(&self, _i: u16) -> MethodView {
         panic!()
     }
 
@@ -419,7 +419,7 @@ impl ClassView for ArrayView {
         MethodIterator::Empty {}
     }
 
-    fn method_view_i(&self, _i: usize) -> MethodView {
+    fn method_view_i(&self, _i: u16) -> MethodView {
         panic!()
     }
 

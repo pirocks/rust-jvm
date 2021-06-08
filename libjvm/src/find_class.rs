@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = ClassName::Str(name_str);
 
-    let loader_obj = int_state.previous_frame().local_vars()[0].cast_class_loader();
+    let loader_obj = int_state.previous_frame().local_vars().get(0, PTypeView::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {

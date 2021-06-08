@@ -1,3 +1,6 @@
+use classfile_view::view::ptype_view::PTypeView;
+use jvmti_jni_bindings::P_tmpdir;
+
 use crate::java_values::JavaValue;
 use crate::stack_entry::StackEntryMut;
 
@@ -6,8 +9,8 @@ use crate::stack_entry::StackEntryMut;
 
 
 pub fn fcmpl(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop().unwrap_float();
-    let value1 = current_frame.pop().unwrap_float();
+    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_float();
+    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_float();
     if value1.is_nan() || value2.is_nan() {
         current_frame.push(JavaValue::Int(-1));
         return;
@@ -16,8 +19,8 @@ pub fn fcmpl(mut current_frame: StackEntryMut) {
 }
 
 pub fn fcmpg(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop().unwrap_float();
-    let value1 = current_frame.pop().unwrap_float();
+    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_float();
+    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_float();
     if value1.is_nan() || value2.is_nan() {
         current_frame.push(JavaValue::Int(1));
         return;

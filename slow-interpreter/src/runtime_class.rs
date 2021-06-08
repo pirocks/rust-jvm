@@ -232,14 +232,17 @@ pub fn initialize_class(
     }
 
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
+    let class_view = runtime_class.view();
+    let method_view = class_view.method_view_i(clinit.method_i());
+    dbg!(method_view.name());
+    dbg!(class_view.name());
     //todo these java frames may have to be converted to native?
     let new_function_frame = interpreter_state.push_frame(new_stack, jvm);
     match run_function(jvm, interpreter_state) {
         Ok(()) => {
             interpreter_state.pop_frame(jvm, new_function_frame, true);
-            let function_return = interpreter_state.function_return_mut();
-            if *function_return {
-                *function_return = false;
+            if interpreter_state.function_return() {
+                interpreter_state.set_function_return(false);
                 return Ok(runtime_class);
             }
             panic!()

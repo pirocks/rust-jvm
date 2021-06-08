@@ -259,7 +259,7 @@ unsafe extern "C" fn get_max_locals(env: *mut jvmtiEnv, method: jmethodID, max_p
         None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
         Some(method_id) => method_id
     };
-    let max_locals = match runtime_class.view().method_view_i(index as usize).code_attribute() {
+    let max_locals = match runtime_class.view().method_view_i(index).code_attribute() {
         None => return jvmtiError_JVMTI_ERROR_NATIVE_METHOD,
         Some(res) => res
     }.max_locals;

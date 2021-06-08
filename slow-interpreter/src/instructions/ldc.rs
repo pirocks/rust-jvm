@@ -46,7 +46,7 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
     push_new_object(jvm, interpreter_state, &string_class);
-    let string_object = interpreter_state.pop_current_operand_stack();
+    let string_object = interpreter_state.pop_current_operand_stack(ClassName::string().into());
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
@@ -69,16 +69,15 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     if interpreter_state.throw().is_some() {
         unimplemented!()
     }
-    let function_return = interpreter_state.function_return_mut();
-    if *function_return {
-        *function_return = false;
+    if interpreter_state.function_return() {
+        interpreter_state.set_function_return(false);
     }
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
     Ok(())
 }
 
-pub fn ldc2_w(mut current_frame: StackEntryMut, cp: u16) {
-    let view = current_frame.class_pointer().view();
+pub fn ldc2_w(jvm: &JVMState, mut current_frame: StackEntryMut, cp: u16) {
+    let view = current_frame.class_pointer(jvm).view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::Long(l) => {
@@ -131,7 +130,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state:
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            let string_value = int_state.pop_current_operand_stack();
+            let string_value = int_state.pop_current_operand_stack(ClassName::string().into());
             intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
         }
         _ => panic!()

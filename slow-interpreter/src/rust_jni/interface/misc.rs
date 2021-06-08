@@ -40,7 +40,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_)) {
         return null_mut();
     };
-    let obj = int_state.pop_current_operand_stack().unwrap_object();
+    let obj = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     new_local_ref_public(obj, int_state)
 }
 
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
         return null_mut();
     };
-    new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object(), int_state)
 }
 
 
@@ -188,21 +188,21 @@ fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading, method: &
 }
 
 
-pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass>, usize)>, WasException> {
+pub fn get_all_methods(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass>, u16)>, WasException> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, usize)>, include_interface: bool) -> Result<(), WasException> {
-    class.view().methods().enumerate().for_each(|(i, _)| {
-        res.push((class.clone(), i));
+fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, res: &mut Vec<(Arc<RuntimeClass>, u16)>, include_interface: bool) -> Result<(), WasException> {
+    class.view().methods().for_each(|m| {
+        res.push((class.clone(), m.method_i()));
     });
     match class.view().super_name() {
         None => {
             let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into())?;
-            object.view().methods().enumerate().for_each(|(i, _)| {
-                res.push((object.clone(), i));
+            object.view().methods().for_each(|m| {
+                res.push((object.clone(), m.method_i()));
             });
         }
         Some(super_name) => {
@@ -215,8 +215,8 @@ fn get_all_methods_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
         let interfaces = view.interfaces();
         for interface in interfaces {
             let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
-            interface.view().methods().enumerate().for_each(|(i, _)| {
-                res.push((interface.clone(), i));
+            interface.view().methods().for_each(|m| {
+                res.push((interface.clone(), m.method_i()));
             });
         }
     }

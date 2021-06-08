@@ -80,7 +80,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
     }
 
-    new_local_ref_public(int_state.pop_current_operand_stack().unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -132,7 +132,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         Some(signature) => signature
     });
     push_new_object(jvm, int_state, &clazz);
-    let obj = int_state.pop_current_operand_stack();
+    let obj = int_state.pop_current_operand_stack(ClassName::object().into());
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
     // dbg!(&full_args);

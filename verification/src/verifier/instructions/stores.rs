@@ -15,7 +15,7 @@ use crate::verifier::instructions::special::nth1_operand_stack_is;
 use crate::verifier::TypeSafetyError;
 use crate::VerifierContext;
 
-fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Frame) -> Result<Frame, TypeSafetyError> {
+fn store_is_type_safe(env: &Environment, index: u16, type_: &VType, frame: Frame) -> Result<Frame, TypeSafetyError> {
     let mut next_stack = frame.stack_map.clone();
     let actual_type = pop_matching_type(&env.vf, &mut next_stack, &type_)?;
     let new_locals = modify_local_variable(&env.vf, index, actual_type, &frame.locals)?;
@@ -26,7 +26,8 @@ fn store_is_type_safe(env: &Environment, index: usize, type_: &VType, frame: Fra
     })
 }
 
-pub fn modify_local_variable(vf: &VerifierContext, index: usize, type_: VType, locals: &[VType]) -> Result<Vec<VType>, TypeSafetyError> {
+pub fn modify_local_variable(vf: &VerifierContext, index: u16, type_: VType, locals: &[VType]) -> Result<Vec<VType>, TypeSafetyError> {
+    let index = index as usize;
     let mut locals_copy = locals.to_vec();
     if size_of(vf, &locals[index]) == 1 {
         locals_copy[index] = type_;
@@ -52,7 +53,7 @@ pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: Frame) -
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_astore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_astore(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::Reference, stack_frame)?;
@@ -95,7 +96,7 @@ pub fn instruction_is_type_safe_dastore(env: &Environment, stack_frame: Frame) -
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_dstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_dstore(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::DoubleType, stack_frame)?;
@@ -110,7 +111,7 @@ pub fn instruction_is_type_safe_fastore(env: &Environment, stack_frame: Frame) -
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_fstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_fstore(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::FloatType, stack_frame)?;
@@ -125,7 +126,7 @@ pub fn instruction_is_type_safe_iastore(env: &Environment, stack_frame: Frame) -
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_istore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_istore(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::IntType, stack_frame)?;
@@ -141,7 +142,7 @@ pub fn instruction_is_type_safe_lastore(env: &Environment, stack_frame: Frame) -
 }
 
 
-pub fn instruction_is_type_safe_lstore(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lstore(index: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = store_is_type_safe(env, index, &VType::LongType, stack_frame)?;

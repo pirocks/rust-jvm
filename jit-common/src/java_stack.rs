@@ -11,8 +11,22 @@ use rust_jvm_common::classfile::InstructionInfo::new;
 
 use crate::SavedRegisters;
 
+#[derive(Copy, Clone)]
+#[repr(C, packed)]
 pub struct JavaStatus {
-    pub throw: jobject,
+    throw: jobject,
+    pub function_return: bool,
+    java_pc: isize
+}
+
+impl Default for JavaStatus {
+    fn default() -> Self {
+        Self {
+            throw: null_mut(),
+            function_return: false,
+            java_pc: 0
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -62,7 +76,6 @@ impl JavaStack {
     pub fn frame_pointer(&self) -> *mut c_void {
         self.saved_registers().frame_pointer
     }
-
     pub fn stack_pointer(&self) -> *mut c_void {
         self.saved_registers().stack_pointer
     }
@@ -83,23 +96,51 @@ impl JavaStack {
         self.saved_registers.write().unwrap().as_mut().unwrap().stack_pointer = sp;
     }
 
+    pub fn set_frame_pointer(&self, fp: *mut c_void) {
+        self.saved_registers.write().unwrap().as_mut().unwrap().frame_pointer = fp;
+    }
+
     pub unsafe fn push_frame(&self, layout: &dyn StackframeMemoryLayout, frame_info: FrameInfo) {
         let prev_rbp = self.frame_pointer();
         let prev_sp = self.stack_pointer();
         let new_rbp = prev_sp;
         let new_sp = new_rbp.offset(layout.full_frame_size() as isize);
         self.set_stack_pointer(new_sp);
+        self.set_frame_pointer(new_rbp);
         let new_header = (new_rbp as *mut FrameHeader).as_mut().unwrap();
         new_header.magic_part_1 = MAGIC_1_EXPECTED;
         new_header.magic_part_2 = MAGIC_2_EXPECTED;
-        new_header.frame_info_ptr = Box::into_raw(box frame_info);//TODO DEAL WITH THIS LEAK in frame pop
+        new_header.frame_info_ptr = Box::into_raw(box frame_info);//leak dealt with in frame pop
         new_header.debug_ptr = null_mut();
         new_header.prev_rip = transmute(0xDEADDEADDEADDEADusize);
         new_header.prev_rpb = prev_rbp;
     }
 
+    pub unsafe fn pop_frame(&self) {
+        let current_header = self.current_frame_ptr() as *const FrameHeader;
+        let current_frame_info = (*current_header).frame_info_ptr;
+        drop(Box::from_raw(current_frame_info));
+        let new_rbp = (*current_header).prev_rpb;
+        let new_sp = self.current_frame_ptr();
+        self.set_frame_pointer(new_rbp);
+        self.set_stack_pointer(new_sp);
+    }
+
     pub fn throw(&self) -> jobject {
         unsafe { self.saved_registers.read().unwrap().unwrap().status_register.as_ref() }.unwrap().throw
+    }
+
+    pub unsafe fn call_stack_depth(&self) -> usize {
+        let mut frame_header = self.frame_pointer() as *const FrameHeader;
+        let mut depth = 0;
+        loop {
+            if (*frame_header).prev_rpb == self.top {
+                return depth;
+            } else {
+                frame_header = (*frame_header).prev_rpb as *const FrameHeader;
+                depth += 1;
+            }
+        }
     }
 }
 

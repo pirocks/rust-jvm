@@ -64,13 +64,13 @@ impl TracingSettings {
     }
 
     pub fn trace_function_enter<'l>(&self, classname: &'l PTypeView, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
-        unsafe {
-            // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
+        // unsafe {
+        // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
             //     && !meth_name.contains("hashCode")
             //     && !meth_name.contains("equals"){
             //     println!("{:indent$}start:{:?} {} {}","", classname, meth_name, method_desc,indent = current_depth);
-            // }
-        }
+        // }
+        // }
         //IN BEG.<INIT>, second iterator
         //
         // if *self.trace_function_start.read().unwrap() {
@@ -151,7 +151,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, res: JavaValue) {
+    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue) {
         // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
         //     && !guard.meth_name.contains("hashCode")
         //     && !guard.meth_name.contains("equals"){

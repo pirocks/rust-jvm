@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -125,22 +126,22 @@ pub mod dynamic {
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
-        let call_site = int_state.pop_current_operand_stack().cast_call_site();
+        let call_site = int_state.pop_current_operand_stack(ClassName::object().into()).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
         let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
-            (0, vec![])
+            (0u16, vec![])
         } else {
             let method_type = target.type__();
             let args = method_type.get_ptypes_as_types(jvm);
             let form: LambdaForm = target.get_form();
             let member_name: MemberName = form.get_vmentry();
             let static_: bool = member_name.is_static(jvm, int_state)?;
-            (args.len() + if static_ { 0 } else { 1 }, args)
+            (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
         }; //todo also sketch
         let operand_stack_len = int_state.current_frame().operand_stack().len();
-        int_state.current_frame_mut().operand_stack_mut().insert(operand_stack_len - num_args, target.java_value());
+        int_state.current_frame_mut().operand_stack_mut().insert((operand_stack_len - num_args) as usize, target.java_value());
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
@@ -148,7 +149,7 @@ pub mod dynamic {
 
         assert!(int_state.throw().is_none());
 
-        let res = int_state.pop_current_operand_stack();
+        let res = int_state.pop_current_operand_stack(ClassName::object().into());
         int_state.push_current_operand_stack(res);
         Ok(())
     }
@@ -188,7 +189,7 @@ pub mod dynamic {
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
-                            let not_sure_if_correct_at_all = int_state.current_frame().class_pointer().ptypeview();
+                            let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).ptypeview();
                             let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                         }
@@ -206,7 +207,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
             ReferenceTypeView::Class(c) => c,
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
-                let temp = match int_state.pop_current_operand_stack().unwrap_object() {
+                let temp = match int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object() {
                     Some(x) => x,
                     None => {
                         throw_npe_res(jvm, int_state)?;
@@ -244,6 +245,6 @@ pub fn find_target_method(
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
     target_class: Arc<RuntimeClass>,
-) -> (usize, Arc<RuntimeClass>) {
+) -> (u16, Arc<RuntimeClass>) {
     lookup_method_parsed(state, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

@@ -47,7 +47,7 @@ pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_
 }
 
 
-pub fn instruction_is_type_safe_tableswitch(targets: Vec<usize>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_tableswitch(targets: Vec<u16>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let branch_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
@@ -126,7 +126,7 @@ pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack
 
 pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_classfile = get_class(&env.vf, &env.method.class);
-    if method_classfile.method_view_i(env.method.method_index).name().deref() == "<init>" {
+    if method_classfile.method_view_i(env.method.method_index as u16).name().deref() == "<init>" {
         if let Ok(res) = instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
             return Result::Ok(res)
         };
@@ -146,7 +146,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     }
     //todo is this equivalent to isInit
     let method_classfile = get_class(&env.vf, &env.method.class);
-    if method_classfile.method_view_i(env.method.method_index).name().deref() != "<init>" {
+    if method_classfile.method_view_i(env.method.method_index as u16).name().deref() != "<init>" {
         return Result::Err(unknown_error_verifying!());
     }
     let locals = stack_frame.locals.clone();
@@ -232,7 +232,7 @@ fn class_dimension(env: &Environment, v: &VType) -> usize {
     }
 }
 
-pub fn instruction_is_type_safe_new(cp: usize, offset: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_new(cp: usize, offset: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
@@ -287,7 +287,7 @@ fn sorted(nums: &[i32]) -> bool {
 }
 //}
 
-pub fn instruction_is_type_safe_lookupswitch(targets: Vec<usize>, keys: Vec<i32>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lookupswitch(targets: Vec<u16>, keys: Vec<i32>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if !sorted(&keys) {
         return Result::Err(unknown_error_verifying!());
     }

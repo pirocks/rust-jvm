@@ -143,7 +143,7 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 
 pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &method.class);
-    let method_view = method_class.method_view_i(method.method_index as usize);
+    let method_view = method_class.method_view_i(method.method_index as u16);
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())
@@ -158,9 +158,9 @@ pub struct ParsedCodeAttribute {
 
 pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
     code.exception_table.iter().map(|f| Handler {
-        start: f.start_pc as usize,
-        end: f.end_pc as usize,
-        target: f.handler_pc as usize,
+        start: f.start_pc as u16,
+        end: f.end_pc as u16,
+        target: f.handler_pc as u16,
         class_name: if f.catch_type == 0 { None } else {
             let classfile = get_class(vf, class);
             let catch_type_name = match &classfile.constant_pool_view(f.catch_type as usize) {
@@ -176,7 +176,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 
 pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &class);
-    let method_info = &method_class.method_view_i(method.method_index);
+    let method_info = &method_class.method_view_i(method.method_index as u16);
     let debug = vf.debug;
     if method_info.name() != "equals" {
         vf.debug = false;
@@ -207,9 +207,9 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
 
 #[derive(Debug)]
 pub struct Handler {
-    pub start: usize,
-    pub end: usize,
-    pub target: usize,
+    pub start: u16,
+    pub end: u16,
+    pub target: u16,
     pub class_name: Option<ClassName>,
 }
 
@@ -291,7 +291,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> Result<(Frame, VType), TypeSafetyError> {
     let classfile = get_class(vf, class);
-    let method_view = &classfile.method_view_i(method.method_index as usize);
+    let method_view = &classfile.method_view_i(method.method_index as u16);
     let initial_parsed_descriptor = method_view.desc();
     let parsed_descriptor = MethodDescriptor {
         parameter_types: initial_parsed_descriptor.parameter_types.clone(),
@@ -363,7 +363,7 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<Option<VType>, TypeSafetyError> {
     let method_class = get_class(vf, &method.class);
-    let method_view = method_class.method_view_i(method.method_index);
+    let method_view = method_class.method_view_i(method.method_index as u16);
     if method_view.is_static() {
         let method_name = method_view.name();
         if method_name.as_str() != "<init>" {
@@ -378,7 +378,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
     let classfile = get_class(vf, &method.class);
-    let method_name_ = classfile.method_view_i(method.method_index).name();
+    let method_name_ = classfile.method_view_i(method.method_index as u16).name();
     let method_name = method_name_.deref();
     if method_name == "<init>" {
         if class.class_name == ClassName::object() {

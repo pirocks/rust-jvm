@@ -2,6 +2,7 @@ use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
@@ -25,7 +26,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     let int_state = get_interpreter_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of unwrap
     let classview = class.view().clone();
-    let method = &classview.method_view_i(method_i as usize);
+    let method = &classview.method_view_i(method_i);
     if method.is_static() {
         unimplemented!()
     }
@@ -39,7 +40,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack().into()
+        int_state.pop_current_operand_stack(ClassName::object().into()).into()
     })
 }
 
@@ -49,16 +50,16 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
     let classfile = &class.view();
-    let method = &classfile.method_view_i(method_i as usize);
+    let method = &classfile.method_view_i(method_i);
     let method_descriptor_str = method.desc_str();
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
     push_params_onto_frame(&mut l, int_state, &parsed);
-    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method)?;
+    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method)?;
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack().into()
+        int_state.pop_current_operand_stack(ClassName::object().into()).into()
     })
 }
 

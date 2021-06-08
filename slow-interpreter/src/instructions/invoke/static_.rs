@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_array_type};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -48,7 +49,7 @@ pub fn invoke_static_impl(
     interpreter_state: &mut InterpreterStateGuard,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass>,
-    target_method_i: usize,
+    target_method_i: u16,
     target_method: &MethodView,
 ) -> Result<(), WasException> {
     let mut args = vec![];
@@ -61,9 +62,9 @@ pub fn invoke_static_impl(
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack();
             // dbg!(interpreter_state.current_frame().operand_stack_types());
-            let member_name = op_stack[op_stack.len() - 1].cast_member_name();
+            let member_name = op_stack[op_stack.len() as usize - 1].cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
-            interpreter_state.pop_current_operand_stack();
+            interpreter_state.pop_current_operand_stack(ClassName::object().into());//todo am I sure this is an object
             let res = call_vmentry(jvm, interpreter_state, member_name)?;
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
@@ -79,8 +80,8 @@ pub fn invoke_static_impl(
             args.push(JavaValue::Top);
         }
         let mut i = 0;
-        for _ in 0..expected_descriptor.parameter_types.len() {
-            let popped = current_frame.pop();
+        for ptype in &expected_descriptor.parameter_types {
+            let popped = current_frame.pop(PTypeView::from_ptype(&ptype));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
                 _ => {}
@@ -94,9 +95,8 @@ pub fn invoke_static_impl(
         match run_function(jvm, interpreter_state) {
             Ok(_) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);
-                let function_return = interpreter_state.function_return_mut();
-                if *function_return {
-                    *function_return = false;
+                if interpreter_state.function_return() {
+                    interpreter_state.set_function_return(false);
                     return Ok(());
                 }
                 panic!()

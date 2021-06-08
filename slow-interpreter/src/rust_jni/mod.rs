@@ -91,7 +91,12 @@ pub fn call_impl(
         vec![Arg::new(&env)]
     } else {
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
-        let res = vec![Arg::new(&env), unsafe { to_native(int_state.pop_current_operand_stack(), &PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()) }];
+        let class_constant = unsafe {
+            let class_popped_jv = int_state.pop_current_operand_stack(ClassName::object().into());
+            dbg!(&class_popped_jv);
+            to_native(class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
+        };
+        let res = vec![Arg::new(&env), class_constant];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>

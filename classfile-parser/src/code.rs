@@ -100,7 +100,7 @@ fn read_wide(c: &mut CodeParserContext) -> Result<Wide, ClassfileParsingError> {
 
 
 pub struct CodeParserContext<'l> {
-    pub offset: usize,
+    pub offset: u16,
     pub iter: Iter<'l, u8>,
 }
 

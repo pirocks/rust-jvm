@@ -70,7 +70,7 @@ unsafe fn get_method_view<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, meth
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(cb).as_runtime_class(jvm);
     let view = rc.view();
-    let method_view = view.method_view_i(method_index as usize);
+    let method_view = view.method_view_i(method_index as u16);
     and_then(&method_view)
 }
 
@@ -239,7 +239,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
     if index >= view.num_methods() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
-    u8::from(view.method_view_i(index as usize).name() == "<init>")
+    u8::from(view.method_view_i(index as u16).name() == "<init>")
 }
 
 #[no_mangle]

@@ -20,7 +20,7 @@ use crate::utils::throw_npe;
 
 pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
     let mut current_frame = int_state.current_frame_mut();
-    let array_o = match current_frame.pop().unwrap_object() {
+    let array_o = match current_frame.pop(PTypeView::object()).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -32,7 +32,7 @@ pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 
 
 pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let possibly_null = int_state.current_frame_mut().pop().unwrap_object();
+    let possibly_null = int_state.current_frame_mut().pop(PTypeView::object()).unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
         return;
@@ -45,7 +45,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
     };
     match object.deref() {
         Object(o) => {
-            let view = &int_state.current_frame().class_pointer().view();
+            let view = &int_state.current_frame().class_pointer(jvm).view();
             let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
             let instanceof_class = match check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()) {
                 Ok(x) => x,
@@ -65,7 +65,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
             }
         }
         Array(a) => {
-            let current_frame_class = &int_state.current_frame().class_pointer().view();
+            let current_frame_class = &int_state.current_frame().class_pointer(jvm).view();
             let instance_of_class = current_frame_class
                 .constant_pool_view(cp as usize)
                 .unwrap_class().class_ref_type();
@@ -106,7 +106,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
 
 
 pub fn invoke_instanceof(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let possibly_null = int_state.pop_current_operand_stack().unwrap_object();
+    let possibly_null = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let view = &int_state.current_class_view(jvm);
         let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
@@ -209,43 +209,43 @@ pub fn inherits_from(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inhe
 pub fn wide(mut current_frame: StackEntryMut, w: Wide) {
     match w {
         Wide::Iload(WideIload { index }) => {
-            iload(current_frame, index as usize)
+            iload(current_frame, index)
         }
         Wide::Fload(WideFload { index }) => {
-            fload(current_frame, index as usize)
+            fload(current_frame, index)
         }
         Wide::Aload(WideAload { index }) => {
-            aload(current_frame, index as usize)
+            aload(current_frame, index)
         }
         Wide::Lload(WideLload { index }) => {
-            lload(current_frame, index as usize)
+            lload(current_frame, index)
         }
         Wide::Dload(WideDload { index }) => {
-            dload(current_frame, index as usize)
+            dload(current_frame, index)
         }
         Wide::Istore(WideIstore { index }) => {
-            istore(current_frame, index as usize)
+            istore(current_frame, index)
         }
         Wide::Fstore(WideFstore { index }) => {
-            fstore(current_frame, index as usize)
+            fstore(current_frame, index)
         }
         Wide::Astore(WideAstore { index }) => {
-            astore(current_frame, index as usize)
+            astore(current_frame, index)
         }
         Wide::Lstore(WideLstore { index }) => {
-            lstore(current_frame, index as usize)
+            lstore(current_frame, index)
         }
         Wide::Ret(WideRet { index }) => {
-            ret(current_frame, index as usize)
+            ret(current_frame, index)
         }
         Wide::Dstore(WideDstore { index }) => {
-            dstore(current_frame, index as usize)
+            dstore(current_frame, index)
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars()[index as usize].unwrap_int();
+            let mut val = current_frame.local_vars().get(index, PTypeView::IntType).unwrap_int();
             val += const_ as i32;
-            current_frame.local_vars_mut()[index as usize] = JavaValue::Int(val);
+            current_frame.local_vars_mut().set(index, JavaValue::Int(val));
         }
     }
 }

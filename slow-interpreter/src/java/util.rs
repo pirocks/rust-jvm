@@ -29,7 +29,7 @@ pub mod properties {
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
             run_static_or_virtual(jvm, int_state, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;
-            int_state.pop_current_operand_stack();
+            int_state.pop_current_operand_stack(ClassName::object().into());
             Ok(())
         }
     }

@@ -1,6 +1,7 @@
 pub mod reflection {
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::classnames::ClassName;
 
@@ -28,7 +29,7 @@ pub mod reflection {
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value());//I hope these are in the right order, but it shouldn't matter
             run_static_or_virtual(jvm, int_state, &reflection, "isSameClassPackage".to_string(), "(Ljava/lang/Class;Ljava/lang/Class;)Z".to_string())?;
-            Ok(int_state.pop_current_operand_stack().unwrap_boolean())
+            Ok(int_state.pop_current_operand_stack(PTypeView::BooleanType).unwrap_boolean())
         }
 
         as_object_or_java_value!();

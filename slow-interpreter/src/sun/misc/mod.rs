@@ -33,7 +33,7 @@ pub mod unsafe_ {
             int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             run_static_or_virtual(jvm, int_state, &rc, "objectFieldOffset".to_string(), desc_str.to_string())?;
-            Ok(int_state.pop_current_operand_stack())
+            Ok(int_state.pop_current_operand_stack(ClassName::object().into()))
         }
 
         as_object_or_java_value!();
@@ -67,14 +67,14 @@ pub mod launcher {
         pub fn get_launcher(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Launcher, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into())?;
             run_static_or_virtual(jvm, int_state, &launcher, "getLauncher".to_string(), "()Lsun/misc/Launcher;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_launcher())
+            Ok(int_state.pop_current_operand_stack(ClassName::object().into()).cast_launcher())
         }
 
         pub fn get_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<ClassLoader, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into())?;
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &launcher, "getClassLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_class_loader())
+            Ok(int_state.pop_current_operand_stack(ClassName::classloader().into()).cast_class_loader())
         }
 
         as_object_or_java_value!();
@@ -106,7 +106,7 @@ pub mod launcher {
             pub fn get_ext_class_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<ExtClassLoader, WasException> {
                 let ext_class_loader = check_initing_or_inited_class(jvm, int_state, ClassName::new("sun/misc/Launcher$ExtClassLoader").into())?;
                 run_static_or_virtual(jvm, int_state, &ext_class_loader, "getExtClassLoader".to_string(), "()Lsun/misc/Launcher;".to_string())?;
-                Ok(int_state.pop_current_operand_stack().cast_ext_class_launcher())
+                Ok(int_state.pop_current_operand_stack(ClassName::classloader().into()).cast_ext_class_launcher())
             }
 
             as_object_or_java_value!();

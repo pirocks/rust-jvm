@@ -214,7 +214,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
             return None;
         }
         if let Some(name) = view.name().try_unwrap_name() {
-            if name == ClassName::method() && view.method_view_i(entry.method_i() as usize).name() == "invoke" {
+            if name == ClassName::method() && view.method_view_i(entry.method_i()).name() == "invoke" {
                 return None;
             }
         }
@@ -226,7 +226,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     load_class_constant_by_type(jvm, int_state, type_);
-    let jclass = int_state.pop_current_operand_stack().unwrap_object();
+    let jclass = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
 

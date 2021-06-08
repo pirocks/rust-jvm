@@ -26,7 +26,7 @@ pub mod heap_byte_buffer {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/nio/HeapByteBuffer".to_string()).into());
             push_new_object(jvm, int_state, &heap_byte_buffer_class);
-            let object = int_state.pop_current_operand_stack();
+            let object = int_state.pop_current_operand_stack(ClassName::object().into());
 
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();
             let array_object = ArrayObject::new_array(jvm, int_state, elems, PTypeView::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;

@@ -4,7 +4,9 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
+use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -23,7 +25,7 @@ pub fn run_native_method(
     jvm: &JVMState,
     int_state: &mut InterpreterStateGuard,
     class: Arc<RuntimeClass>,
-    method_i: usize) -> Result<(), WasException> {
+    method_i: u16) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -36,16 +38,18 @@ pub fn run_native_method(
     let parsed = method.desc();
     let mut args = vec![];
     if method.is_static() {
-        for _ in &parsed.parameter_types {
-            args.push(int_state.pop_current_operand_stack());
+        for parameter_type in &parsed.parameter_types {
+            let p_type_view = PTypeView::from_ptype(&parameter_type);
+            args.push(int_state.pop_current_operand_stack(p_type_view));
         }
         args.reverse();
     } else if method.is_native() {
-        for _ in &parsed.parameter_types {
-            args.push(int_state.pop_current_operand_stack());
+        for parameter_type in &parsed.parameter_types {
+            let p_type_view = PTypeView::from_ptype(&parameter_type);
+            args.push(int_state.pop_current_operand_stack(p_type_view));
         }
         args.reverse();
-        args.insert(0, int_state.pop_current_operand_stack());
+        args.insert(0, int_state.pop_current_operand_stack(ClassName::object().into()));
     } else {
         panic!();
     }

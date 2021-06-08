@@ -125,9 +125,8 @@ impl ThreadState {
             Ok(_) => {}
             Err(_) => todo!()
         }
-        let function_return = int_state.function_return_mut();
-        if *function_return {
-            *function_return = false;
+        if int_state.function_return() {
+            int_state.set_function_return(false);
         }
         if int_state.throw().is_some() {
             unimplemented!()
@@ -159,7 +158,7 @@ impl ThreadState {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
-            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus { throw: null_mut() }) as *mut JavaStatus)),
+            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus::default()) as *mut JavaStatus)),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
@@ -192,7 +191,7 @@ impl ThreadState {
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::thread().into()).expect("couldn't load thread class");
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);
-        let thread_object = new_int_state.pop_current_operand_stack().cast_thread();
+        let thread_object = new_int_state.pop_current_operand_stack(ClassName::thread().into()).cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into()).expect("couldn't load thread group class");
@@ -287,7 +286,7 @@ impl ThreadState {
     }
 
     pub fn get_all_alive_threads(&self) -> Vec<Arc<JavaThread>> {
-        self.all_java_threads.read().unwrap().values().filter(|thread| {
+        self.all_java_threads.read().unwrap().values().filter(|_thread| {
             //don't use is_alive for this
             // todo!()
             true
@@ -329,7 +328,7 @@ impl JavaThread {
             java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
-            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus { throw: null_mut() }) as *mut JavaStatus)),
+            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus::default()) as *mut JavaStatus)),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),

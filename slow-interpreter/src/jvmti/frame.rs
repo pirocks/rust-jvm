@@ -228,7 +228,7 @@ pub unsafe extern "C" fn get_local_variable_table(
         Some(pair) => pair
     };
     let class_view = class.view();
-    let method_view = class_view.method_view_i(method_i as usize);
+    let method_view = class_view.method_view_i(method_i);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     if method_view.is_native() {
         return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NATIVE_METHOD);
@@ -339,7 +339,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
         Some(method) => method,
     };//todo
     let class_view = class.view();
-    let method_view = class_view.method_view_i(method_i as usize);
+    let method_view = class_view.method_view_i(method_i);
     if method_view.is_native() {
         return jvmtiError_JVMTI_ERROR_NATIVE_METHOD;
     }

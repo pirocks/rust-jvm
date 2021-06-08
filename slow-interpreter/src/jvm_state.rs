@@ -18,6 +18,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ClassBackedView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
@@ -67,6 +68,7 @@ pub struct JVMState {
     pub thread_state: ThreadState,
     pub tracing: TracingSettings,
     pub method_table: RwLock<MethodTable>,
+    pub stack_frame_layouts: RwLock<HashMap<MethodId, FrameBackedStackframeMemoryLayout>>,
     pub field_table: RwLock<FieldTable>,
     pub native_interface_allocations: NativeAllocator,
     pub(crate) live: AtomicBool,
@@ -82,7 +84,7 @@ pub struct JVMState {
 
     pub monitors2: RwLock<Vec<Monitor2>>,
 
-    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<usize, Frame>>>,
+    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<u16, Frame>>>,
 }
 
 pub struct Classes {
@@ -170,6 +172,7 @@ impl JVMState {
             thread_state,
             tracing,
             method_table: RwLock::new(MethodTable::new()),
+            stack_frame_layouts: RwLock::new(HashMap::new()),
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
@@ -187,7 +190,7 @@ impl JVMState {
         (args, jvm)
     }
 
-    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<usize, Frame>>, rc: Arc<RuntimeClass>) {
+    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<CodeIndex, Frame>>, rc: Arc<RuntimeClass>) {
         let mut method_table = self.method_table.write().unwrap();
         for (method_i, verification_types) in verification_types {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
@@ -202,7 +205,7 @@ impl JVMState {
                 jvm: self
             }) as Arc<dyn ClassFileGetter>,
             current_loader: LoaderName::BootstrapLoader,
-            verification_types: Default::default(),
+            verification_types: HashMap::new(),
             debug: false,
         };
         let lookup = self.classpath.lookup(&ClassName::object()).expect("Can not find Object class");
@@ -294,7 +297,7 @@ impl JVMState {
 }
 
 
-type CodeIndex = isize;
+type CodeIndex = u16;
 
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,

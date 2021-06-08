@@ -7,7 +7,7 @@ use crate::view::ptype_view::PTypeView;
 
 pub struct MethodView<'cl> {
     pub(crate) class_view: &'cl ClassBackedView,
-    pub(crate) method_i: usize,
+    pub(crate) method_i: u16,
 }
 
 impl Clone for MethodView<'_> {
@@ -21,12 +21,12 @@ impl Clone for MethodView<'_> {
 
 impl HasAccessFlags for MethodView<'_> {
     fn access_flags(&self) -> u16 {
-        self.class_view.backing_class.methods[self.method_i].access_flags
+        self.class_view.backing_class.methods[self.method_i as usize].access_flags
     }
 }
 
 impl MethodView<'_> {
-    fn from(c: &ClassBackedView, i: usize) -> MethodView {
+    fn from(c: &ClassBackedView, i: u16) -> MethodView {
         MethodView { class_view: c, method_i: i }
     }
 
@@ -35,7 +35,7 @@ impl MethodView<'_> {
     }
 
     fn method_info(&self) -> &MethodInfo {
-        &self.class_view.backing_class.methods[self.method_i]
+        &self.class_view.backing_class.methods[self.method_i as usize]
     }
 
     pub fn name(&self) -> String {
@@ -48,11 +48,11 @@ impl MethodView<'_> {
 
     pub fn desc(&self) -> MethodDescriptor {
         let guard = self.class_view.descriptor_index.read().unwrap();
-        match &guard[self.method_i] {
+        match &guard[self.method_i as usize] {
             None => {
                 let parsed = parse_method_descriptor(self.desc_str().as_str()).unwrap();
                 std::mem::drop(guard);
-                self.class_view.descriptor_index.write().unwrap()[self.method_i] = Some(parsed.clone());
+                self.class_view.descriptor_index.write().unwrap()[self.method_i as usize] = Some(parsed.clone());
                 parsed
             }
             Some(res) => res.clone(),
@@ -94,7 +94,7 @@ impl MethodView<'_> {
     }
 
     //todo this shouldn't be public but needs to be atm.
-    pub fn method_i(&self) -> usize {
+    pub fn method_i(&self) -> u16 {
         self.method_i
     }
 
@@ -130,7 +130,7 @@ impl<'cl> Iterator for MethodIterator<'cl> {
                 if *i >= class_view.num_methods() {
                     return None;
                 }
-                let res = MethodView::from(class_view, *i);
+                let res = MethodView::from(class_view, *i as u16);
                 *i += 1;
                 Some(res)
             }

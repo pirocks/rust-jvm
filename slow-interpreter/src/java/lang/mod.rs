@@ -39,8 +39,10 @@ pub mod throwable {
 pub mod stack_trace_element {
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::ptype::ReferenceType;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -65,7 +67,7 @@ pub mod stack_trace_element {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, declaring_class: JString, method_name: JString, file_name: JString, line_number: jint) -> Result<StackTraceElement, WasException> {
             let class_ = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/StackTraceElement").into())?;
             push_new_object(jvm, int_state, &class_);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::object().into());
             let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(
                 line_number
             )];
@@ -80,6 +82,7 @@ pub mod stack_trace_element {
 pub mod member_name {
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
     use type_safe_proc_macro_utils::getter_gen;
@@ -117,14 +120,14 @@ pub mod member_name {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_string())
+            Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string())
         }
 
         pub fn is_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<bool, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string())?;
-            Ok(int_state.pop_current_operand_stack().unwrap_boolean() != 0)
+            Ok(int_state.pop_current_operand_stack(PTypeView::BooleanType).unwrap_boolean() != 0)
         }
 
         pub fn get_name_or_null(&self) -> Option<JString> {
@@ -194,20 +197,20 @@ pub mod member_name {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_method_type())
+            Ok(int_state.pop_current_operand_stack(ClassName::method_type().into()).cast_method_type())
         }
 
         pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JClass>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string())?;
-            Ok(int_state.pop_current_operand_stack().cast_class())
+            Ok(int_state.pop_current_operand_stack(ClassName::class().into()).cast_class())
         }
 
         pub fn new_from_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, member_class, vec![res.clone(), field.java_value()], "(Ljava/lang/reflect/Field;)V".to_string())?;
             Ok(res.cast_member_name())
         }
@@ -215,7 +218,7 @@ pub mod member_name {
         pub fn new_from_method(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method: Method) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, member_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
             Ok(res.cast_member_name())
         }
@@ -224,7 +227,7 @@ pub mod member_name {
         pub fn new_from_constructor(jvm: &JVMState, int_state: &mut InterpreterStateGuard, constructor: Constructor) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, member_class, vec![res.clone(), constructor.java_value()], "(Ljava/lang/reflect/Constructor;)V".to_string())?;
             Ok(res.cast_member_name())
         }
@@ -282,7 +285,7 @@ pub mod class {
                 "getClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack()
+            Ok(int_state.pop_current_operand_stack(ClassName::object().into())
                 .unwrap_object()
                 .map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))
         }
@@ -290,7 +293,7 @@ pub mod class {
         pub fn new_bootstrap_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Self, WasException> {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::class().into());
             run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string())?;
             Ok(res.cast_class().unwrap())
         }
@@ -299,7 +302,7 @@ pub mod class {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader: ClassLoader) -> Result<Self, WasException> {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::class().into());
             run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "(Ljava/lang/ClassLoader;)V".to_string())?;
             Ok(res.cast_class().unwrap())
         }
@@ -311,7 +314,7 @@ pub mod class {
 
         pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<JClass, WasException> {
             load_class_constant_by_type(jvm, int_state, ptype)?;
-            let res = int_state.pop_current_operand_stack().unwrap_object();
+            let res = int_state.pop_current_operand_stack(ClassName::class().into()).unwrap_object();
             Ok(JavaValue::Object(res).cast_class().unwrap())
         }
 
@@ -325,7 +328,7 @@ pub mod class {
                 "getName".to_string(),
                 "()Ljava/lang/String;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack().cast_string().expect("classes are known to have non-null names"))
+            Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string().expect("classes are known to have non-null names"))
         }
 
         pub fn set_name_(&self, name: JString) {
@@ -393,7 +396,7 @@ pub mod class_loader {
                 "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
             )?;
             assert!(int_state.throw().is_none());
-            Ok(int_state.pop_current_operand_stack().cast_class().unwrap())
+            Ok(int_state.pop_current_operand_stack(ClassName::class().into()).cast_class().unwrap())
         }
 
         as_object_or_java_value!();
@@ -436,7 +439,7 @@ pub mod string {
         pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> Result<JString, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();//todo replace these unwraps
             push_new_object(jvm, int_state, &string_class);
-            let string_object = int_state.pop_current_operand_stack();
+            let string_object = int_state.pop_current_operand_stack(ClassName::string().into());
 
             let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
             let array_object = ArrayObject {
@@ -461,7 +464,7 @@ pub mod string {
                 "intern".to_string(),
                 "()Ljava/lang/String;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack().cast_string().expect("error interning strinng"))
+            Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string().expect("error interning strinng"))
         }
 
         pub fn value(&self) -> Vec<jchar> {
@@ -482,7 +485,7 @@ pub mod string {
                 "length".to_string(),
                 "()I".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack().unwrap_int())
+            Ok(int_state.pop_current_operand_stack(ClassName::string().into()).unwrap_int())
         }
 
         as_object_or_java_value!();
@@ -643,7 +646,7 @@ pub mod thread {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> Result<JThread, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             push_new_object(jvm, int_state, &thread_class);
-            let thread_object = int_state.pop_current_operand_stack();
+            let thread_object = int_state.pop_current_operand_stack(ClassName::thread().into());
             let thread_name = JString::from_rust(jvm, int_state, thread_name)?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()],
                             "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V".to_string())?;
@@ -669,7 +672,7 @@ pub mod thread {
                 "isAlive".to_string(),
                 "()Z".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack()
+            Ok(int_state.pop_current_operand_stack(PTypeView::BooleanType)
                 .unwrap_boolean())
         }
 
@@ -684,7 +687,7 @@ pub mod thread {
                 "getContextClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             )?;
-            let res = int_state.pop_current_operand_stack();
+            let res = int_state.pop_current_operand_stack(ClassName::classloader().into());
             if res.unwrap_object().is_none() {
                 return Ok(None);
             }
@@ -740,7 +743,7 @@ pub mod thread_group {
         pub fn init(jvm: &JVMState,
                     int_state: &mut InterpreterStateGuard, thread_group_class: Arc<RuntimeClass>) -> Result<JThreadGroup, WasException> {
             push_new_object(jvm, int_state, &thread_group_class);
-            let thread_group_object = int_state.pop_current_operand_stack();
+            let thread_group_object = int_state.pop_current_operand_stack(ClassName::thread().into());
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],
                             "()V".to_string())?;
             Ok(thread_group_object.cast_thread_group())
@@ -814,7 +817,7 @@ pub mod class_not_found_exception {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JString) -> Result<ClassNotFoundException, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), class.java_value()],
                             "(Ljava/lang/String;)V".to_string())?;
             Ok(this.cast_class_not_found_exception())
@@ -851,7 +854,7 @@ pub mod null_pointer_exception {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<NullPointerException, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/NullPointerException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::object().into());
             let message = JString::from_rust(jvm, int_state, "This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string())?;
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), message.java_value()],
                             "(Ljava/lang/String;)V".to_string())?;
@@ -890,7 +893,7 @@ pub mod array_out_of_bounds_exception {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<ArrayOutOfBoundsException, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ArrayOutOfBoundsException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(index)],
                             "(I)V".to_string())?;
             Ok(this.cast_array_out_of_bounds_exception())
@@ -927,7 +930,7 @@ pub mod illegal_argument_exception {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<IllegalArgumentException, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/IllegalArgumentException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::object().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone()],
                             "()V".to_string())?;
             Ok(this.cast_illegal_argument_exception())
@@ -964,7 +967,7 @@ pub mod long {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jlong) -> Result<Long, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Long".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::long().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Long(param)],
                             "(J)V".to_string())?;
             Ok(this.cast_long())
@@ -1001,7 +1004,7 @@ pub mod int {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jint) -> Result<Int, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Int".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::int().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(param)],
                             "(I)V".to_string())?;
             Ok(this.cast_int())
@@ -1038,7 +1041,7 @@ pub mod short {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jshort) -> Result<Short, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Short".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::short().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Short(param)],
                             "(S)V".to_string())?;
             Ok(this.cast_short())
@@ -1075,7 +1078,7 @@ pub mod byte {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jbyte) -> Result<Byte, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Byte".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::byte().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Byte(param)],
                             "(B)V".to_string())?;
             Ok(this.cast_byte())
@@ -1112,7 +1115,7 @@ pub mod boolean {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jboolean) -> Result<Boolean, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Boolean".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::boolean().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Boolean(param)],
                             "(Z)V".to_string())?;
             Ok(this.cast_boolean())
@@ -1149,7 +1152,7 @@ pub mod char {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jchar) -> Result<Char, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Char".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::character().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Char(param)],
                             "(C)V".to_string())?;
             Ok(this.cast_char())
@@ -1186,7 +1189,7 @@ pub mod float {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jfloat) -> Result<Float, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Float".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::float().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Float(param)],
                             "(F)V".to_string())?;
             Ok(this.cast_float())
@@ -1223,7 +1226,7 @@ pub mod double {
         pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jdouble) -> Result<Double, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Double".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
-            let this = int_state.pop_current_operand_stack();
+            let this = int_state.pop_current_operand_stack(ClassName::double().into());
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Double(param)],
                             "(D)V".to_string())?;
             Ok(this.cast_double())

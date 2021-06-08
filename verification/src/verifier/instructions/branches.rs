@@ -33,22 +33,22 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
     }))
 }
 
-pub fn type_safe_if_cmp(target: usize, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn type_safe_if_cmp(target: u16, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, comparison_types)?;
-    target_is_type_safe(env, &next_frame, target as usize)?;
+    target_is_type_safe(env, &next_frame, target)?;
     standard_exception_frame(locals, flag, next_frame)
 }
 
 
-pub fn instruction_is_type_safe_if_acmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_acmpeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference, VType::Reference])
 }
 
 
-pub fn instruction_is_type_safe_goto(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    target_is_type_safe(env, &stack_frame, target as usize)?;
+pub fn instruction_is_type_safe_goto(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    target_is_type_safe(env, &stack_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
@@ -78,15 +78,15 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -
 }
 
 
-pub fn instruction_is_type_safe_if_icmpeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_icmpeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::IntType, VType::IntType])
 }
 
-pub fn instruction_is_type_safe_ifeq(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::IntType])
 }
 
-pub fn instruction_is_type_safe_ifnonnull(target: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifnonnull(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference])
 }
 
@@ -236,7 +236,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                     let found_new = code.iter().find(|x| {
                         match x {
                             MergedCodeInstruction::Instruction(i) => {
-                                i.offset == address.offset as usize && match i.instruction {
+                                i.offset == address.offset as u16 && match i.instruction {
                                     InstructionInfo::new(_this) => true,
                                     _ => { unimplemented!() }
                                 }

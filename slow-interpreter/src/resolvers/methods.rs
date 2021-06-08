@@ -10,15 +10,15 @@ use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 
-pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, usize, Arc<RuntimeClass>), ResolutionError>, WasException> {
+pub fn resolve_invoke_virtual<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, u16, Arc<RuntimeClass>), ResolutionError>, WasException> {
 	resolve_virtual_impl(jvm, int_state, member_name, false)
 }
 
-pub fn resolve_invoke_interface<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, usize, Arc<RuntimeClass>), ResolutionError>, WasException> {
+pub fn resolve_invoke_interface<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, u16, Arc<RuntimeClass>), ResolutionError>, WasException> {
 	resolve_virtual_impl(jvm, int_state, member_name, true)
 }
 
-fn resolve_virtual_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, include_interfaces: bool) -> Result<Result<(Method, usize, Arc<RuntimeClass>), ResolutionError>, WasException> {
+fn resolve_virtual_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, include_interfaces: bool) -> Result<Result<(Method, u16, Arc<RuntimeClass>), ResolutionError>, WasException> {
 	let method_type = member_name.get_type().cast_method_type();
 	let return_type = method_type.get_rtype_as_type(jvm);
 	let parameter_types = method_type.get_ptypes_as_types(jvm);
@@ -44,7 +44,7 @@ fn resolve_virtual_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, m
 }
 
 
-pub fn resolve_invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, usize, Arc<RuntimeClass>), ResolutionError>, WasException> {
+pub fn resolve_invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<Result<(Method, u16, Arc<RuntimeClass>), ResolutionError>, WasException> {
 	let method_type = member_name.get_type().cast_method_type();
 	let return_type = method_type.get_rtype_as_type(jvm);
 	let parameter_types = method_type.get_ptypes_as_types(jvm);
@@ -69,7 +69,7 @@ pub fn resolve_invoke_special<'l>(jvm: &JVMState, int_state: &mut InterpreterSta
 }
 
 
-pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, synthetic: &mut bool) -> Result<Result<(Method, usize, Arc<RuntimeClass>), ResolutionError>, WasException> {
+pub fn resolve_invoke_static<'l>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName, synthetic: &mut bool) -> Result<Result<(Method, u16, Arc<RuntimeClass>), ResolutionError>, WasException> {
 	let method_type = member_name.get_type().cast_method_type();
 	let return_type = method_type.get_rtype_as_type(jvm);
 	let parameter_types = method_type.get_ptypes_as_types(jvm);

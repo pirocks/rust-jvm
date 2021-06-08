@@ -52,7 +52,7 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
             frame.current_offset += 1;
         }
         res.push(StackMap {
-            offset: frame.current_offset as usize,
+            offset: frame.current_offset as u16,
             map_frame: Frame {
                 locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()

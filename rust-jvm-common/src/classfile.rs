@@ -863,7 +863,7 @@ pub struct WideRet {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Instruction {
-    pub offset: usize,
+    pub offset: u16,
     pub instruction: InstructionInfo,
 }
 
