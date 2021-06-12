@@ -194,9 +194,6 @@ impl JVMState {
         let mut method_table = self.method_table.write().unwrap();
         for (method_i, verification_types) in verification_types {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
-            dbg!(method_id);
-            dbg!(method_i);
-            dbg!(rc.view().name());
             self.function_frame_type_data.write().unwrap().insert(method_id, verification_types.clone());
         }
     }

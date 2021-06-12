@@ -97,7 +97,7 @@ unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currCla
 unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    for stack_entry in int_state.cloned_stack_snapshot() {
+    for stack_entry in int_state.cloned_stack_snapshot(jvm) {
         if !stack_entry.privileged_frame() {
             return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
         }

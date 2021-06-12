@@ -50,7 +50,11 @@ pub fn dup2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMu
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
-    let value1_vtype = data[0].clone();
+    let value1_vtype = if matches!(data[0].clone(),VType::TopType) {
+        data[1].clone()
+    } else {
+        data[0].clone()
+    };
     let value1 = current_frame.pop(PTypeView::LongType);//in principle type doesn't matter todo pass it anyway
     match value1_vtype {
         VType::LongType | VType::DoubleType => {
@@ -59,10 +63,10 @@ pub fn dup2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMu
         }
         _ => {
             let value2 = current_frame.pop(PTypeView::LongType);
-            match value2 {
-                JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-                _ => {}
-            };
+            // match value2 {
+            //     JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
+            //     _ => {}
+            // };
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
             current_frame.push(value2);

@@ -25,7 +25,7 @@ use crate::rust_jni::native_util::{from_object, to_object};
 pub struct RuntimeClassClassId(usize);
 
 #[derive(Debug, Clone, Copy)]
-pub struct FrameView(*mut c_void);
+pub struct FrameView(*mut c_void);//todo maybe add phantom data to this
 
 impl FrameView {
     pub fn new(ptr: *mut c_void) -> Self {
@@ -96,7 +96,7 @@ impl FrameView {
     pub fn operand_stack_length(&self) -> u16 {
         match self.get_frame_info() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::Native { operand_stack_depth, .. } => *operand_stack_depth,
             FrameInfo::JavaFrame { operand_stack_depth, .. } => *operand_stack_depth
         }
     }
@@ -128,27 +128,34 @@ impl FrameView {
     }
 
     fn write_target(target: *mut c_void, j: JavaValue) {
+        // dbg!("write",target,&j);
         unsafe {
             match j {
                 JavaValue::Long(val) => {
                     (target as *mut jlong).write(val)
                 }
                 JavaValue::Int(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jint).write(val)
                 }
                 JavaValue::Short(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jshort).write(val)
                 }
                 JavaValue::Byte(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jbyte).write(val)
                 }
                 JavaValue::Boolean(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jboolean).write(val)
                 }
                 JavaValue::Char(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jchar).write(val)
                 }
                 JavaValue::Float(val) => {
+                    (target as *mut u64).write(0);
                     (target as *mut jfloat).write(val)
                 }
                 JavaValue::Double(val) => {
@@ -158,27 +165,34 @@ impl FrameView {
                     let to_write = to_object(val);
                     (target as *mut jobject).write(to_write)
                 }
-                JavaValue::Top => panic!()
+                JavaValue::Top => {
+                    (target as *mut u64).write(0xBEAFCAFEBEAFCAFE)
+                }
             }
         }
     }
 
     fn read_target(target: *const c_void, expected_type: PTypeView) -> JavaValue {
+        // dbg!("read",target,&expected_type);
         unsafe {
             match expected_type {
                 PTypeView::ByteType => {
-                    JavaValue::Byte((target as *const jbyte).read())
+                    assert_eq!((target as *const u64).read() >> 32, 0);
+                    JavaValue::Byte((target as *const jbyte).read())//todo dpn't think this conversion is correct in many cases
                 }
                 PTypeView::CharType => {
+                    assert_eq!((target as *const u64).read() >> 21, 0);
                     JavaValue::Char((target as *const jchar).read())
                 }
                 PTypeView::DoubleType => {
                     JavaValue::Double((target as *const jdouble).read())
                 }
                 PTypeView::FloatType => {
+                    assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Float((target as *const jfloat).read())
                 }
                 PTypeView::IntType => {
+                    assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Int((target as *const jint).read())
                 }
                 PTypeView::LongType => {
@@ -188,9 +202,11 @@ impl FrameView {
                     JavaValue::Object(from_object((target as *const jobject).read()))
                 }
                 PTypeView::ShortType => {
+                    assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Short((target as *const jshort).read())
                 }
                 PTypeView::BooleanType => {
+                    assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Boolean((target as *const jboolean).read())
                 }
                 PTypeView::VoidType |
@@ -235,6 +251,15 @@ impl FrameView {
         Self::read_target(target, expected_type)
     }
 
+    pub fn get_operand_stack(&self, from_start: u16, expected_type: PTypeView) -> JavaValue {
+        let target = unsafe { self.get_operand_stack_base().offset((from_start as isize) * size_of::<jlong>() as isize) };
+        Self::read_target(target, expected_type)
+    }
+
+    pub fn set_operand_stack(&mut self, from_start: u16, to_set: JavaValue) {
+        let target = unsafe { self.get_operand_stack_base().offset((from_start as isize) * size_of::<jlong>() as isize) };
+        Self::write_target(target, to_set)
+    }
 
     pub fn as_stack_entry_partially_correct(&self, jvm: &JVMState) -> StackEntry {
         match self.get_frame_info() {
@@ -263,6 +288,61 @@ impl FrameView {
                     native_local_refs: Default::default(),
                 }
             }
+        }
+    }
+
+    pub fn get_local_refs(&self) -> Vec<HashSet<jobject>> {
+        match self.get_frame_info() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.clone(),
+            FrameInfo::JavaFrame { .. } => panic!()
+        }
+    }
+
+    pub fn set_local_refs_top_frame(&mut self, new: HashSet<jobject>) {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => {
+                *native_local_refs.last_mut().unwrap() = new;
+            },
+            FrameInfo::JavaFrame { .. } => panic!()
+        }
+    }
+
+
+    pub fn pop_local_refs(&mut self) -> HashSet<jobject> {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => {
+                native_local_refs.pop().unwrap()
+            },
+            FrameInfo::JavaFrame { .. } => panic!()
+        }
+    }
+
+    pub fn push_local_refs(&mut self, to_push: HashSet<jobject>) {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => {
+                native_local_refs.push(to_push)
+            },
+            FrameInfo::JavaFrame { .. } => panic!()
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<HashSet<jobject>> {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.pop(),
+            FrameInfo::JavaFrame { .. } => panic!()
+        }
+    }
+
+    pub fn push(&mut self, jobjects: HashSet<jobject>) {
+        match self.get_frame_info_mut() {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.push(jobjects),
+            FrameInfo::JavaFrame { .. } => panic!()
         }
     }
 }
@@ -354,7 +434,9 @@ impl StackEntryMut<'_> {
             StackEntryMut::LegacyInterpreter { entry, .. } => {
                 entry.pc_offset_mut()
             }
-            StackEntryMut::Jit { .. } => todo!()
+            StackEntryMut::Jit { frame_view, .. } => {
+                frame_view.pc_offset_mut()
+            }
         }
     }
 
@@ -420,6 +502,17 @@ impl StackEntryMut<'_> {
             }
             StackEntryMut::Jit { frame_view, .. } => {
                 OperandStackMut::Jit { frame_view }
+            }
+        }
+    }
+
+    pub fn operand_stack_ref(&mut self) -> OperandStackRef {
+        match self {
+            StackEntryMut::LegacyInterpreter { entry, .. } => {
+                OperandStackRef::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
+            }
+            StackEntryMut::Jit { frame_view, .. } => {
+                OperandStackRef::Jit { frame_view }
             }
         }
     }
@@ -508,30 +601,16 @@ impl OperandStackRef<'_> {
     pub fn last(&self) -> Option<&JavaValue> {
         todo!()
     }
-}
 
-impl Index<usize> for OperandStackRef<'_> {
-    type Output = JavaValue;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        todo!()
+    pub fn get(&self, from_start: u16, expected_type: PTypeView) -> JavaValue {
+        match self {
+            OperandStackRef::LegacyInterpreter { .. } => todo!(),
+            OperandStackRef::Jit { frame_view, .. } => {
+                frame_view.get_operand_stack(from_start, expected_type)
+            }
+        }
     }
 }
-
-impl Index<usize> for OperandStackMut<'_> {
-    type Output = JavaValue;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        todo!()
-    }
-}
-
-impl IndexMut<usize> for OperandStackMut<'_> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        todo!()
-    }
-}
-
 
 pub enum OperandStackMut<'l> {
     LegacyInterpreter {

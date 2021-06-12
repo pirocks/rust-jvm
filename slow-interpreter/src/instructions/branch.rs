@@ -141,8 +141,8 @@ pub fn if_icmpeq(mut current_frame: StackEntryMut, offset: i16) {
 
 
 pub fn if_acmpne(mut current_frame: StackEntryMut, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType);
-    let value1 = current_frame.pop(PTypeView::IntType);
+    let value2 = current_frame.pop(PTypeView::object());
+    let value1 = current_frame.pop(PTypeView::object());
     let succeeds = !equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -151,8 +151,8 @@ pub fn if_acmpne(mut current_frame: StackEntryMut, offset: i16) {
 
 
 pub fn if_acmpeq(mut current_frame: StackEntryMut, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType);
-    let value1 = current_frame.pop(PTypeView::IntType);
+    let value2 = current_frame.pop(PTypeView::object());
+    let value1 = current_frame.pop(PTypeView::object());
     let succeeds = equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;

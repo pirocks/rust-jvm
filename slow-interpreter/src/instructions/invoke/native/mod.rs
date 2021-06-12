@@ -38,13 +38,13 @@ pub fn run_native_method(
     let parsed = method.desc();
     let mut args = vec![];
     if method.is_static() {
-        for parameter_type in &parsed.parameter_types {
+        for parameter_type in parsed.parameter_types.iter().rev() {
             let p_type_view = PTypeView::from_ptype(&parameter_type);
             args.push(int_state.pop_current_operand_stack(p_type_view));
         }
         args.reverse();
     } else if method.is_native() {
-        for parameter_type in &parsed.parameter_types {
+        for parameter_type in parsed.parameter_types.iter().rev() {
             let p_type_view = PTypeView::from_ptype(&parameter_type);
             args.push(int_state.pop_current_operand_stack(p_type_view));
         }

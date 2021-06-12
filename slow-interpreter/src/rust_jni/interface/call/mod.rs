@@ -1,11 +1,13 @@
 use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
+use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -49,6 +51,7 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
+    check_initing_or_inited_class(jvm, int_state, class.ptypeview())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let method_descriptor_str = method.desc_str();
@@ -59,7 +62,7 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(ClassName::object().into()).into()
+        int_state.pop_current_operand_stack(PTypeView::from_ptype(&method.desc().return_type)).into()
     })
 }
 

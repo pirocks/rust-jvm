@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
@@ -62,7 +62,7 @@ pub fn invoke_static_impl(
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack();
             // dbg!(interpreter_state.current_frame().operand_stack_types());
-            let member_name = op_stack[op_stack.len() as usize - 1].cast_member_name();
+            let member_name = op_stack.get((op_stack.len() - 1) as u16, ClassName::member_name().into()).cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
             interpreter_state.pop_current_operand_stack(ClassName::object().into());//todo am I sure this is an object
             let res = call_vmentry(jvm, interpreter_state, member_name)?;
@@ -80,7 +80,7 @@ pub fn invoke_static_impl(
             args.push(JavaValue::Top);
         }
         let mut i = 0;
-        for ptype in &expected_descriptor.parameter_types {
+        for ptype in expected_descriptor.parameter_types.iter().rev() {
             let popped = current_frame.pop(PTypeView::from_ptype(&ptype));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }

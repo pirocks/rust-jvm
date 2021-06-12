@@ -107,7 +107,9 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 *elem = JavaValue::Short((carray as *const jshort).offset(i as isize).read());
             },
             PTypeView::BooleanType => {
-                *elem = JavaValue::Boolean((carray as *const jboolean).offset(i as isize).read());
+                let boolean = (carray as *const jboolean).offset(i as isize).read();
+                assert!(boolean == 1 || boolean == 0);
+                *elem = JavaValue::Boolean(boolean);
             },
             _ => panic!()
         }

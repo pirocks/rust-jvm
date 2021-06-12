@@ -93,7 +93,6 @@ pub fn call_impl(
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let class_constant = unsafe {
             let class_popped_jv = int_state.pop_current_operand_stack(ClassName::object().into());
-            dbg!(&class_popped_jv);
             to_native(class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
         };
         let res = vec![Arg::new(&env), class_constant];

@@ -169,7 +169,7 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jclasses = match int_state.cloned_stack_snapshot().into_iter().rev().flat_map(|entry| {
+    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| {
         Some(entry.try_class_pointer()?.ptypeview())
     }).map(|ptype| {
         get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))
@@ -204,7 +204,7 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut stack = int_state.cloned_stack_snapshot().into_iter().rev();
+    let mut stack = int_state.cloned_stack_snapshot(jvm).into_iter().rev();
     stack.next();
     stack.next();
     let possibly_class_pointer = stack.find_map(|entry| {

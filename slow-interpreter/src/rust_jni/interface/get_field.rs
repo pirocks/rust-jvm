@@ -156,7 +156,7 @@ pub unsafe extern "C" fn get_static_method_id(
     let res = Box::into_raw(box jvm.method_table
         .write()
         .unwrap()
-        .register_with_table(runtime_class.clone(), method.method_i() as u16));
+        .get_method_id(runtime_class.clone(), method.method_i() as u16));
     res as jmethodID
 }
 

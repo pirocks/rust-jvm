@@ -53,10 +53,10 @@ fn invoke_virtual_method_i_impl(
 ) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
-        let mut current_frame = interpreter_state.current_frame_mut();
+        let current_frame = interpreter_state.current_frame();
 
-        let op_stack = current_frame.operand_stack_mut();
-        let method_handle = op_stack[op_stack.len() - (expected_descriptor.parameter_types.len() + 1)].cast_method_handle();
+        let op_stack = current_frame.operand_stack();
+        let method_handle = op_stack.get((op_stack.len() - (expected_descriptor.parameter_types.len() as u16 + 1)) as u16, ClassName::method_handle().into()).cast_method_handle();
         let form: LambdaForm = method_handle.get_form();
         let vmentry: MemberName = form.get_vmentry();
         if target_method.name() == "invoke" || target_method.name() == "invokeBasic" || target_method.name() == "invokeExact" {
@@ -134,7 +134,7 @@ pub fn setup_virtual_args(int_state: &mut InterpreterStateGuard, expected_descri
         args.push(JavaValue::Top);
     }
     let mut i = 1;
-    for ptype in &expected_descriptor.parameter_types {
+    for ptype in expected_descriptor.parameter_types.iter().rev() {
         let value = current_frame.pop(PTypeView::from_ptype(ptype));
         // dbg!(ptype);
         match value.clone() {
@@ -176,12 +176,11 @@ pub fn invoke_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, met
         let operand_stack = &current_frame.operand_stack();
         // int_state.print_stack_trace();
         // dbg!(&operand_stack);
-        &operand_stack[operand_stack.len() as usize - md.parameter_types.len() - 1].clone()
+        &operand_stack.get((operand_stack.len() as usize - md.parameter_types.len() - 1) as u16, PTypeView::object())
     };
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
-            int_state.debug_print_stack_trace(jvm);
             let method_i = int_state.current_frame().method_i(jvm);
             let class_view = int_state.current_frame().class_pointer(jvm).view();
             let method_view = class_view.method_view_i(method_i);

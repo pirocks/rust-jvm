@@ -7,7 +7,6 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jvmti_jni_bindings::jobject;
-use rust_jvm_common::classfile::InstructionInfo::new;
 
 use crate::SavedRegisters;
 
@@ -89,6 +88,17 @@ impl JavaStack {
         assert_eq!({ header.magic_part_1 }, MAGIC_1_EXPECTED);
         assert_eq!({ header.magic_part_2 }, MAGIC_2_EXPECTED);
         self.frame_pointer()
+    }
+
+    pub fn previous_frame_ptr(&self) -> *mut c_void {
+        if self.frame_pointer() == self.top {
+            return null_mut()//don't want to assert in this case
+        }
+        let header = self.frame_pointer() as *const FrameHeader;
+        let header = unsafe { header.as_ref() }.unwrap();
+        assert_eq!({ header.magic_part_1 }, MAGIC_1_EXPECTED);
+        assert_eq!({ header.magic_part_2 }, MAGIC_2_EXPECTED);
+        header.prev_rpb
     }
 
     pub fn saved_registers(&self) -> SavedRegisters {

@@ -79,6 +79,9 @@ pub fn newarray(jvm: &JVMState, int_state: &mut InterpreterStateGuard, a_type: A
             PTypeView::FloatType
         }
     };
+    if count < 0 {
+        todo!("check array length");
+    }
     let new_array = match JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_) {
         Ok(arr) => arr,
         Err(WasException {}) => return

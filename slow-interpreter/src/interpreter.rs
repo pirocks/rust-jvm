@@ -137,8 +137,6 @@ fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard)
     if offset > 0 {
         pc += offset as u16;
     } else {
-        dbg!(pc);
-        dbg!(offset);
         pc -= (-offset) as u16;
     }
     interpreter_state.set_current_pc(pc);
@@ -203,7 +201,7 @@ fn run_single_instruction(
 ) {
     unsafe {
         TIMES += 1;
-        if TIMES % 10000000 == 0 {
+        if TIMES % 100000 == 0 {
             interpreter_state.debug_print_stack_trace(jvm);
         }
     };
@@ -222,6 +220,8 @@ fn run_single_instruction(
     //         }
     //     }
     // }
+    // dbg!(&instruct);
+    // dbg!(interpreter_state.current_pc());
     match instruct {
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),

@@ -19,7 +19,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
     //todo handle opaque frames properly
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let stacktrace = int_state.cloned_stack_snapshot();
+    let stacktrace = int_state.cloned_stack_snapshot(jvm);
 
     let stack_entry_objs = stacktrace.iter().map(|stack_entry| {
         let declaring_class = match stack_entry.try_class_pointer() {

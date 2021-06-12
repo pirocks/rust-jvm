@@ -5,7 +5,7 @@ use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
 
-use itertools::Either;
+use itertools::{Either, Itertools};
 
 use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -129,7 +129,7 @@ impl<'l> InterpreterStateGuard<'l> {
                 StackEntryMut::LegacyInterpreter { entry: &mut call_stack[len - 2] }
             }
             InterpreterState::Jit { call_stack } => {
-                StackEntryMut::Jit { frame_view: todo!() }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr()) }
             }
         }
     }
@@ -141,7 +141,7 @@ impl<'l> InterpreterStateGuard<'l> {
                 StackEntryRef::LegacyInterpreter { entry: &call_stack[len - 2] }
             }
             InterpreterState::Jit { call_stack } => {
-                StackEntryRef::Jit { frame_view: todo!() }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr()) }
             }
         }
     }
@@ -221,7 +221,6 @@ impl<'l> InterpreterStateGuard<'l> {
     }
 
     pub fn push_frame(&mut self, frame: StackEntry, jvm: &JVMState) -> FramePushGuard {
-        self.debug_print_stack_trace(jvm);
         let int_state = self.int_state.as_mut().unwrap().deref_mut();
         match int_state {
             InterpreterState::LegacyInterpreter { call_stack, .. } => {
@@ -255,6 +254,9 @@ impl<'l> InterpreterStateGuard<'l> {
                                 operand_stack_depth: operand_stack.len() as u16,
                             });
                         }
+                        // dbg!(&local_vars);
+                        // dbg!(method_view.name());
+                        // dbg!(class_view.name());
                         for (i, local_var) in local_vars.into_iter().enumerate() {
                             self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
                         }
@@ -373,10 +375,12 @@ impl<'l> InterpreterStateGuard<'l> {
         }
     }
 
-    pub fn cloned_stack_snapshot(&self) -> Vec<StackEntry> {
+    pub fn cloned_stack_snapshot(&self, jvm: &JVMState) -> Vec<StackEntry> {
         match self.int_state.as_ref().unwrap().deref() {
             InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.to_vec(),
-            InterpreterState::Jit { .. } => todo!()
+            InterpreterState::Jit { call_stack, .. } => {
+                StackIter::new(jvm, call_stack).collect_vec().into_iter().rev().collect_vec()
+            }
         }
     }
 
