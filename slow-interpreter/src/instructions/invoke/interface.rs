@@ -10,7 +10,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
 
-pub fn invoke_interface(jvm: &JVMState, int_state: &mut InterpreterStateGuard, invoke_interface: InvokeInterface) {
+pub fn invoke_interface<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
     let view = &int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &**view);

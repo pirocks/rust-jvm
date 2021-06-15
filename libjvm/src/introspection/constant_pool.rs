@@ -103,7 +103,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
     }
 }
 
-fn get_class_from_type_maybe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView, load_class: bool) -> Result<Option<Arc<RuntimeClass>>, WasException> {
+fn get_class_from_type_maybe(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'l, 'gc_life>, ptype: PTypeView, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if load_class {
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {

@@ -22,7 +22,7 @@ pub fn dup_x1(mut current_frame: StackEntryMut) {
     current_frame.push(value1);
 }
 
-pub fn dup_x2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMut) {
+pub fn dup_x2<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -46,7 +46,7 @@ pub fn dup_x2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntry
 }
 
 
-pub fn dup2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMut) {
+pub fn dup2<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -76,7 +76,7 @@ pub fn dup2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMu
 }
 
 
-pub fn dup2_x1(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMut) {
+pub fn dup2_x1<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];

@@ -12,7 +12,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass>, Arc<Object>, String), WasException> {
+unsafe fn get_obj_and_name(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass<'gc_life>>, Arc<Object<'gc_life>>, String), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
@@ -112,7 +112,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
 }
 
 
-pub fn do_swap(curval: &mut JavaValue, old: Option<Arc<Object>>, new: JavaValue) -> jboolean {
+pub fn do_swap(curval: &mut JavaValue<'gc_life>, old: Option<Arc<Object<'gc_life>>>, new: JavaValue<'gc_life>) -> jboolean {
     let should_replace = match curval.unwrap_object() {
         None => {
             match old {

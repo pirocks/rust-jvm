@@ -13,13 +13,9 @@ impl<T> AddOnlyStaticVec<T> {
     pub fn push(&'static mut self, elem: T) {
         self.inner.push(Box::pin(elem));
     }
-}
 
-impl<T> std::ops::Index<usize> for AddOnlyStaticVec<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.inner[index].deref()
+    pub fn get(&'static self, i: usize) -> &T {
+        self.inner.as_slice()[i].deref()
     }
 }
 
@@ -28,8 +24,8 @@ pub struct Elem {}
 
 #[test]
 pub fn test() {
-    let add_only: &'static mut AddOnlyStaticVec<Elem> = Box::leak(box AddOnlyStaticVec { inner: vec![] });
-    add_only.push(Elem {});
-    let val_ref: &'static Elem = &add_only[0];
-    dbg!(val_ref);
+    // let add_only: &'static mut AddOnlyStaticVec<Elem> = Box::leak(box AddOnlyStaticVec { inner: vec![] });
+    // add_only.push(Elem {});
+    // let val_ref: &'static Elem = add_only.get(0);
+    // add_only.push(Elem{})
 }

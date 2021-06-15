@@ -49,7 +49,7 @@ pub fn fstore(mut current_frame: StackEntryMut, n: u16) {
     current_frame.local_vars_mut().set(n, jv);
 }
 
-pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn castore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::CharType).unwrap_int();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -57,14 +57,14 @@ pub fn castore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let char_ = val as u16;
     array_ref[index as usize] = JavaValue::Char(char_);
 }
 
-pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn bastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::ByteType).unwrap_int() as jbyte;// int value is truncated
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -72,7 +72,7 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
@@ -80,7 +80,7 @@ pub fn bastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn sastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::ShortType).unwrap_short();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -88,7 +88,7 @@ pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     assert_eq!(array_ref_o.unwrap_array().elem_type, PTypeView::ShortType);
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
@@ -96,7 +96,7 @@ pub fn sastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn fastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::FloatType).unwrap_float();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -104,14 +104,14 @@ pub fn fastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array_ref = &mut array_ref_o.unwrap_array().mut_array();
     array_ref[index as usize] = JavaValue::Float(val);
 }
 
 
-pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn dastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::DoubleType).unwrap_double();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -126,7 +126,7 @@ pub fn dastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn iastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::IntType).unwrap_int();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -134,7 +134,7 @@ pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let int_ = val;
@@ -142,7 +142,7 @@ pub fn iastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn aastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::object());
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -150,7 +150,7 @@ pub fn aastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array_ref = arrary_ref_o.unwrap_array().mut_array();
     match val {
@@ -167,7 +167,7 @@ pub fn istore(mut current_frame: StackEntryMut, n: u16) {
 }
 
 
-pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn lastore<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(PTypeView::LongType).unwrap_long();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
@@ -175,7 +175,7 @@ pub fn lastore(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let long = val;

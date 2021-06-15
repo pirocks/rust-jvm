@@ -138,7 +138,7 @@ pub fn ishr(mut current_frame: StackEntryMut) {
     current_frame.push(JavaValue::Int(value1 >> (value2 & 63)));
 }
 
-pub fn iushr(int_state: &mut InterpreterStateGuard) {
+pub fn iushr<'l, 'k : 'l, 'gc_life>(int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let value2 = current_frame.pop(PTypeView::IntType).unwrap_int() as u32;
     let value1 = current_frame.pop(PTypeView::IntType).unwrap_int() as u32;
@@ -147,7 +147,7 @@ pub fn iushr(int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn isub(mut current_frame: StackEntryMut) {
+pub fn isub(mut current_frame: StackEntryMut<'l, 'gc_life>) {
     let value2 = Wrapping(current_frame.pop(PTypeView::IntType).unwrap_int());
     let value1 = Wrapping(current_frame.pop(PTypeView::IntType).unwrap_int());
     current_frame.push(JavaValue::Int((value1 - value2).0));

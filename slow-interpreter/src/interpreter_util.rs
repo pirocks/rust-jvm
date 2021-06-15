@@ -11,22 +11,22 @@ use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    runtime_class: &Arc<RuntimeClass>
+pub fn push_new_object<'l, 'k : 'l, 'gc_life>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
+    runtime_class: &Arc<RuntimeClass<'gc_life>>,
 ) {
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
-    let new_obj = JavaValue::Object(object_pointer.clone());
+    let new_obj = JavaValue::Object(todo!()/*object_pointer.clone()*/);
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
     int_state.current_frame_mut().push(new_obj);
 }
 
 fn default_init_fields(
-    jvm: &JVMState,
-    current_class_pointer: &Arc<RuntimeClass>,
-    object_pointer: &Arc<Object>) {
+    jvm: &'gc_life JVMState<'gc_life>,
+    current_class_pointer: &Arc<RuntimeClass<'gc_life>>,
+    object_pointer: &Arc<Object<'gc_life>>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
         default_init_fields(jvm, super_, object_pointer);
     }
@@ -49,11 +49,11 @@ fn default_init_fields(
     }
 }
 
-pub fn run_constructor(
-    state: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    target_classfile: Arc<RuntimeClass>,
-    full_args: Vec<JavaValue>,
+pub fn run_constructor<'l, 'k : 'l, 'gc_life>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
+    target_classfile: Arc<RuntimeClass<'gc_life>>,
+    full_args: Vec<JavaValue<'gc_life>>,
     descriptor: String,
 ) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
@@ -65,5 +65,5 @@ pub fn run_constructor(
     for arg in actual_args {
         int_state.push_current_operand_stack(arg.clone());
     }
-    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone())
+    invoke_special_impl(jvm, int_state, &md, method_view.method_i(), target_classfile.clone())
 }

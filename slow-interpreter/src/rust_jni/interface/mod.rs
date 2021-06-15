@@ -60,7 +60,7 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(state: &JVMState, int_state: &mut InterpreterStateGuard) -> *mut *const JNINativeInterface_ {
+pub fn get_interface(state: &JVMState, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         let new = get_interface_impl(state, int_state);
@@ -71,7 +71,7 @@ pub fn get_interface(state: &JVMState, int_state: &mut InterpreterStateGuard) ->
     })
 }
 
-fn get_interface_impl(state: &JVMState, int_state: &mut InterpreterStateGuard) -> JNINativeInterface_ {
+fn get_interface_impl(state: &JVMState, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: unsafe { transmute(int_state) },
@@ -395,7 +395,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
-    let string: JString = match JavaValue::Object(from_object(str)).cast_string() {
+    let string: JString = match JavaValue::Object(todo!()/*from_object(str)*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(string) => string
     };
@@ -495,7 +495,7 @@ unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
     let int_state = get_interpreter_state(env);
     if let Some(throwing) = int_state.throw() {
         int_state.set_throw(None);
-        match JavaValue::Object(throwing.into()).cast_throwable().print_stack_trace(jvm, int_state) {
+        match JavaValue::Object(todo!()/*throwing.into()*/).cast_throwable().print_stack_trace(jvm, int_state) {
             Ok(_) => {}
             Err(WasException {}) => {}
         };
@@ -600,7 +600,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 }
 
 //shouldn't take class as arg and should be an impl method on Field
-pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class_obj: Arc<RuntimeClass>, f: FieldView) -> Result<JavaValue, WasException> {
+pub fn field_object_from_view<'gc_life, 'l, 'k: 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
     let parent_runtime_class = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -634,7 +634,7 @@ pub fn field_object_from_view(jvm: &JVMState, int_state: &mut InterpreterStateGu
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
-    let method_obj = JavaValue::Object(from_object(method)).cast_method();
+    let method_obj = JavaValue::Object(todo!()/*from_object(method)*/).cast_method();
     let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
     let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
     let name = method_obj.get_name().to_rust_string();
@@ -646,7 +646,7 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
 
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
     let jvm = get_state(env);
-    let field_obj = JavaValue::Object(from_object(method)).cast_field();
+    let field_obj = JavaValue::Object(todo!()/*from_object(method)*/).cast_field();
     let runtime_class = field_obj.clazz().as_runtime_class(jvm);
     let field_name = field_obj.name().to_rust_string();
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
@@ -660,7 +660,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue, WasException> {
+pub fn define_class_safe<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
@@ -683,14 +683,14 @@ pub fn define_class_safe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
+    Ok(JavaValue::Object(todo!()/*get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into())*/))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap();//todo unused?
-    let loader_name = JavaValue::Object(from_object(loader)).cast_class_loader().to_jvm_loader(jvm);
+    let loader_name = JavaValue::Object(todo!()/*from_object(loader)*/).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
@@ -702,7 +702,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
 }
 
 
-pub(crate) unsafe fn push_type_to_operand_stack(int_state: &mut InterpreterStateGuard, type_: &PType, l: &mut VarargProvider) {
+pub(crate) unsafe fn push_type_to_operand_stack<'l, 'k : 'l, 'gc_life>(int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, type_: &PType, l: &mut VarargProvider) {
     match PTypeView::from_ptype(type_) {
         PTypeView::ByteType => {
             let byte_ = l.arg_byte();
@@ -731,7 +731,7 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &mut InterpreterState
         PTypeView::Ref(_) => {
             let native_object: jobject = l.arg_ptr();
             let o = from_object(native_object);
-            int_state.push_current_operand_stack(JavaValue::Object(o));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*o*/));
         }
         PTypeView::ShortType => {
             let short = l.arg_short();

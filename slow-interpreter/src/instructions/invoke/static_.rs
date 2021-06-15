@@ -17,7 +17,7 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn run_invoke_static<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     let view = int_state.current_class_view(jvm);
@@ -44,11 +44,11 @@ pub fn run_invoke_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     );
 }
 
-pub fn invoke_static_impl(
-    jvm: &JVMState,
-    interpreter_state: &mut InterpreterStateGuard,
+pub fn invoke_static_impl<'gc_life, 'l, 'k: 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    interpreter_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
     expected_descriptor: MethodDescriptor,
-    target_class: Arc<RuntimeClass>,
+    target_class: Arc<RuntimeClass<'gc_life>>,
     target_method_i: u16,
     target_method: &MethodView,
 ) -> Result<(), WasException> {

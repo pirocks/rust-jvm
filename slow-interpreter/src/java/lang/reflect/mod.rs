@@ -1,9 +1,12 @@
+use std::iter::Map;
+use std::slice::Iter;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::classfile::ExceptionTableElem;
 use rust_jvm_common::classnames::ClassName;
 
 use crate::interpreter::WasException;
@@ -66,13 +69,13 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 }
 
 
-fn get_signature(state: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JString, WasException> {
-    Ok(JString::from_rust(state, int_state, method_view.desc_str())?.intern(state, int_state)?)
+fn get_signature<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
+    Ok(JString::from_rust(jvm, int_state, method_view.desc_str())?.intern(jvm, int_state)?)
 }
 
-fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JavaValue, WasException> {
-    let class_type = ClassName::class().into();
-    let exception_table: Vec<JavaValue> = method_view.code_attribute()
+fn exception_types_table<'gc_life, 'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
+    let class_type: PTypeView = ClassName::class().into();
+    let iter = method_view.code_attribute()
         .map(|x| &x.exception_table)
         .unwrap_or(&vec![])
         .iter()
@@ -84,35 +87,35 @@ fn exception_types_table(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
         })
         .map(|x| {
             PTypeView::Ref(x)
-        })
-        .map(|x| {
-            Ok(JClass::from_type(jvm, int_state, x)?.java_value())
-        })
-        .collect::<Result<Vec<_>, WasException>>()?;
-    Ok(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        });
+    let mut exception_table: Vec<JavaValue<'gc_life>> = vec![];
+    for x in iter {
+        exception_table.push(JClass::from_type(jvm, int_state, x)?.java_value())
+    }
+    Ok(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         exception_table,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )?)))))
+    )?)))*/))
 }
 
-fn parameters_type_objects(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<JavaValue, WasException> {
-    let class_type = ClassName::class().into();
+fn parameters_type_objects<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
+    let class_type: PTypeView = ClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.parameter_types {
         res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type))?.java_value());
     }
 
-    Ok(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+    Ok(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         res,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )?)))))
+    )?)))*/))
 }
 
 
@@ -140,18 +143,18 @@ pub mod method {
 
     const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
-    pub struct Method {
-        normal_object: Arc<Object>
+    pub struct Method<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
+    impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_method(&self) -> Method {
             Method { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Method {
-        pub fn method_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Method, WasException> {
+    impl<'gc_life> Method<'gc_life> {
+        pub fn method_object_from_method_view<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, method_view: &MethodView) -> Result<Method<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -181,20 +184,20 @@ pub mod method {
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
-        pub fn new_method(jvm: &JVMState,
-                          int_state: &mut InterpreterStateGuard,
-                          clazz: JClass,
-                          name: JString,
-                          parameter_types: JavaValue,
-                          return_type: JClass,
-                          exception_types: JavaValue,
-                          modifiers: jint,
-                          slot: jint,
-                          signature: JString,
-                          annotations: JavaValue,
-                          parameter_annotations: JavaValue,
-                          annotation_default: JavaValue,
-        ) -> Result<Method, WasException> {
+        pub fn new_method<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>,
+                                       int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
+                                       clazz: JClass<'gc_life>,
+                                       name: JString<'gc_life>,
+                                       parameter_types: JavaValue<'gc_life>,
+                                       return_type: JClass<'gc_life>,
+                                       exception_types: JavaValue<'gc_life>,
+                                       modifiers: jint,
+                                       slot: jint,
+                                       signature: JString<'gc_life>,
+                                       annotations: JavaValue<'gc_life>,
+                                       parameter_annotations: JavaValue<'gc_life>,
+                                       annotation_default: JavaValue<'gc_life>,
+        ) -> Result<Method<'gc_life>, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
             push_new_object(jvm, int_state, &method_class);
             let method_object = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -215,7 +218,7 @@ pub mod method {
             Ok(method_object.cast_method())
         }
 
-        pub fn get_clazz(&self) -> JClass {
+        pub fn get_clazz(&self) -> JClass<'gc_life> {
             self.normal_object.lookup_field("clazz").cast_class().unwrap()//todo this unwrap
         }
 
@@ -223,11 +226,11 @@ pub mod method {
             self.normal_object.lookup_field("modifiers").unwrap_int()
         }
 
-        pub fn get_name(&self) -> JString {
+        pub fn get_name(&self) -> JString<'gc_life> {
             self.normal_object.lookup_field("name").cast_string().expect("methods must have names")
         }
 
-        pub fn parameter_types(&self) -> Vec<JClass> {
+        pub fn parameter_types(&self) -> Vec<JClass<'gc_life>> {
             self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
@@ -260,18 +263,18 @@ pub mod constructor {
 
     const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
 
-    pub struct Constructor {
-        normal_object: Arc<Object>
+    pub struct Constructor<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
+    impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_constructor(&self) -> Constructor {
             Constructor { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Constructor {
-        pub fn constructor_object_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView) -> Result<Constructor, WasException> {
+    impl<'gc_life> Constructor<'gc_life> {
+        pub fn constructor_object_from_method_view<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, method_view: &MethodView) -> Result<Constructor<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -289,16 +292,16 @@ pub mod constructor {
         }
 
 
-        pub fn new_constructor(
-            jvm: &JVMState,
-            int_state: &mut InterpreterStateGuard,
-            clazz: JClass,
-            parameter_types: JavaValue,
-            exception_types: JavaValue,
+        pub fn new_constructor<'l, 'k : 'l>(
+            jvm: &'gc_life JVMState<'gc_life>,
+            int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
+            clazz: JClass<'gc_life>,
+            parameter_types: JavaValue<'gc_life>,
+            exception_types: JavaValue<'gc_life>,
             modifiers: jint,
             slot: jint,
-            signature: JString,
-        ) -> Result<Constructor, WasException> {
+            signature: JString<'gc_life>,
+        ) -> Result<Constructor<'gc_life>, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into())?;
             push_new_object(jvm, int_state, &constructor_class);
             let constructor_object = int_state.pop_current_operand_stack(ClassName::constructor().into());
@@ -310,7 +313,7 @@ pub mod constructor {
             Ok(constructor_object.cast_constructor())
         }
 
-        pub fn get_clazz(&self) -> JClass {
+        pub fn get_clazz(&self) -> JClass<'gc_life> {
             self.normal_object.lookup_field("clazz").cast_class().unwrap()//todo this unwrap
         }
 
@@ -318,11 +321,11 @@ pub mod constructor {
             self.normal_object.lookup_field("modifiers").unwrap_int()
         }
 
-        pub fn get_name(&self) -> JString {
+        pub fn get_name(&self) -> JString<'gc_life> {
             self.normal_object.lookup_field("name").cast_string().expect("methods must have names")
         }
 
-        pub fn parameter_types(&self) -> Vec<JClass> {
+        pub fn parameter_types(&self) -> Vec<JClass<'gc_life>> {
             self.normal_object.lookup_field("parameterTypes").unwrap_array().mut_array().iter().map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
@@ -348,27 +351,27 @@ pub mod field {
     use crate::java::lang::string::JString;
     use crate::java_values::{ArrayObject, JavaValue, Object};
 
-    pub struct Field {
-        normal_object: Arc<Object>
+    pub struct Field<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
+    impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_field(&self) -> Field {
             Field { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Field {
-        pub fn init(
-            jvm: &JVMState,
-            int_state: &mut InterpreterStateGuard,
-            clazz: JClass,
-            name: JString,
-            type_: JClass,
+    impl<'gc_life> Field<'gc_life> {
+        pub fn init<'l, 'k : 'l>(
+            jvm: &'gc_life JVMState<'gc_life>,
+            int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
+            clazz: JClass<'gc_life>,
+            name: JString<'gc_life>,
+            type_: JClass<'gc_life>,
             modifiers: jint,
             slot: jint,
-            signature: JString,
-            annotations: Vec<JavaValue>,
+            signature: JString<'gc_life>,
+            annotations: Vec<JavaValue<'gc_life>>,
         ) -> Result<Self, WasException> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into())?;
             push_new_object(jvm, int_state, &field_classfile);
@@ -379,13 +382,13 @@ pub mod field {
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+            let annotations = JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
                 jvm,
                 int_state,
                 annotations,
                 PTypeView::ByteType,
                 jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
-            )?))));
+            )?)))*/);
 
             run_constructor(
                 jvm,
@@ -397,11 +400,11 @@ pub mod field {
             Ok(field_object.cast_field())
         }
 
-        pub fn name(&self) -> JString {
+        pub fn name(&self) -> JString<'gc_life> {
             self.normal_object.lookup_field("name").cast_string().expect("fields must have names")
         }
 
-        pub fn clazz(&self) -> JClass {
+        pub fn clazz(&self) -> JClass<'gc_life> {
             self.normal_object.lookup_field("clazz").cast_class().expect("todo")
         }
 
@@ -422,18 +425,18 @@ pub mod constant_pool {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct ConstantPool {
-        normal_object: Arc<Object>
+    pub struct ConstantPool<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_constant_pool(&self) -> ConstantPool {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_constant_pool(&self) -> ConstantPool<'gc_life> {
             ConstantPool { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl ConstantPool {
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JClass) -> Result<ConstantPool, WasException> {
+    impl<'gc_life> ConstantPool<'gc_life> {
+        pub fn new<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into())?;
             push_new_object(jvm, int_state, &constant_pool_classfile);
             let constant_pool_object = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -442,12 +445,12 @@ pub mod constant_pool {
             Ok(res)
         }
 
-        pub fn get_constant_pool_oop(&self) -> JClass {
+        pub fn get_constant_pool_oop(&self) -> JClass<'gc_life> {
             self.normal_object.lookup_field("constantPoolOop").cast_class().unwrap()
         }
 
 
-        pub fn set_constant_pool_oop(&self, jclass: JClass) {
+        pub fn set_constant_pool_oop(&self, jclass: JClass<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("constantPoolOop".to_string(), jclass.java_value());
         }
 

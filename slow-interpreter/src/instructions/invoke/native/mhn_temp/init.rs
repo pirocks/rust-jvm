@@ -15,7 +15,7 @@ use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
 
-pub fn MHN_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<(), WasException> {
+pub fn MHN_init<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
     //two params, is a static function.
     let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
@@ -43,7 +43,7 @@ pub enum InitAssertionCase {
 }
 
 
-pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, target: JavaValue, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
+pub fn init<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, mname: MemberName<'gc_life>, target: JavaValue<'gc_life>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
     if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::method().into() {
         let target = target.cast_method();
         method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
@@ -104,7 +104,7 @@ pub fn init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: Member
 */
 
 /// the method view param here and elsewhere is only passed when resolving
-fn method_init(jvm: &JVMState, int_state: &mut InterpreterStateGuard, mname: MemberName, method: Method, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn method_init<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, mname: MemberName<'gc_life>, method: Method<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let flags = method.get_modifiers();
     let clazz = method.get_clazz();
     mname.set_clazz(clazz.clone());
@@ -158,7 +158,7 @@ fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, metho
 }
 
 
-fn constructor_init(mname: MemberName, constructor: Constructor, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn constructor_init(mname: MemberName<'gc_life>, constructor: Constructor<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let clazz = constructor.get_clazz();
     mname.set_clazz(clazz.clone());
     //static v. invoke_virtual v. interface

@@ -27,15 +27,14 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
 }
 
 
-pub unsafe fn get_state(env: *mut JNIEnv) -> &'static JVMState {
+pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_life> {
     &(*((**env).reserved0 as *const JVMState))
 }
 
-pub unsafe fn get_interpreter_state<'l>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l> {
+pub unsafe fn get_interpreter_state<'l, 'gc_life>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l, 'gc_life> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
-
 
 
 pub unsafe fn to_object(obj: Option<Arc<Object>>) -> jobject {
@@ -45,20 +44,20 @@ pub unsafe fn to_object(obj: Option<Arc<Object>>) -> jobject {
     }
 }
 
-pub unsafe fn from_object(obj: jobject) -> Option<Arc<Object>> {
+pub unsafe fn from_object<'gc_life>(obj: jobject) -> Option<Arc<Object<'gc_life>>> {
     if obj.is_null() {
         None
     } else {
-        (obj as *mut Arc<Object>).as_ref().unwrap().clone().into()
+        (obj as *mut Arc<Object<'gc_life>>).as_ref().unwrap().clone().into()
     }
 }
 
-pub unsafe fn from_jclass(obj: jclass) -> JClass {
+pub unsafe fn from_jclass<'gc_life>(obj: jclass) -> JClass<'gc_life> {
     try_from_jclass(obj).unwrap()//todo handle npe
 }
 
-pub unsafe fn try_from_jclass(obj: jclass) -> Option<JClass> {
+pub unsafe fn try_from_jclass<'gc_life>(obj: jclass) -> Option<JClass<'gc_life>> {
     let possibly_null = from_object(obj);
     possibly_null.as_ref()?;
-    JavaValue::Object(possibly_null).cast_class().into()
+    JavaValue::Object(todo!()/*possibly_null*/).cast_class().into()
 }

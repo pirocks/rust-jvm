@@ -15,14 +15,14 @@ pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
 }
 
 
-pub struct MethodTable {
-    table: Vec<(Arc<RuntimeClass>, u16)>,
+pub struct MethodTable<'gc_life> {
+    table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
     //at a later date will contain compiled code etc.
-    index: HashMap<ByAddress<Arc<RuntimeClass>>, HashMap<u16, MethodTableIndex>>,
+    index: HashMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, HashMap<u16, MethodTableIndex>>,
 }
 
-impl MethodTable {
-    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass>, index: u16) -> MethodTableIndex {
+impl<'gc_life> MethodTable<'gc_life> {
+    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass<'gc_life>>, index: u16) -> MethodTableIndex {
         assert_ne!(index, u16::max_value());
         match match self.index.get(&ByAddress(rc.clone())) {
             Some(x) => x,
@@ -35,7 +35,7 @@ impl MethodTable {
         }
     }
 
-    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass>, method_index: u16) -> MethodTableIndex {
+    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, method_index: u16) -> MethodTableIndex {
         assert_ne!(method_index, u16::max_value());
         let res = self.table.len();
         self.table.push((rc.clone(), method_index));
@@ -53,7 +53,7 @@ impl MethodTable {
         res
     }
 
-    pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass>, u16)> {
+    pub fn try_lookup(&'gc_life self, id: MethodId) -> Option<(Arc<RuntimeClass<'gc_life>>, u16)> {
         // dbg!(id);
         // dbg!(self.table.len());
         if id < self.table.len() {

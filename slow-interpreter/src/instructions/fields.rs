@@ -9,7 +9,7 @@ use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::utils::throw_npe;
 
-pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn putstatic<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, cp: u16) {
     let view = int_state.current_class_view(jvm);
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*view);
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
@@ -19,7 +19,7 @@ pub fn putstatic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16)
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
-pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn putfield<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, cp: u16) {
     let view = int_state.current_class_view(jvm);
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
@@ -30,12 +30,12 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
     match object_ref {
         JavaValue::Object(o) => {
             {
-                match o {
-                    Some(x) => x,
-                    None => {
-                        return throw_npe(jvm, int_state);
-                    }
-                }.unwrap_normal_object().set_var(target_class, field_name, val, PTypeView::from_ptype(&field_type));
+                /* match o {
+                     Some(x) => todo!()/*x*/,
+                     None => {
+                         return throw_npe(jvm, int_state);
+                     }
+                 }.unwrap_normal_object().set_var(target_class, field_name, val, PTypeView::from_ptype(&field_type));*/todo!()
             }
         }
         _ => {
@@ -45,7 +45,7 @@ pub fn putfield(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) 
     }
 }
 
-pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn get_static<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, cp: u16) {
     //todo make sure class pointer is updated correctly
 
     let view = int_state.current_class_view(jvm);
@@ -60,7 +60,7 @@ pub fn get_static(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     int_state.push_current_operand_stack(field_value);
 }
 
-fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_class_name: &ClassName, field_name: &str) -> Result<Option<JavaValue>, WasException> {
+fn get_static_impl<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, field_class_name: &ClassName, field_name: &str) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
@@ -86,7 +86,7 @@ fn get_static_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field_
     Ok(field_value)
 }
 
-pub fn get_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16, _debug: bool) {
+pub fn get_field<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, cp: u16, _debug: bool) {
     let current_frame = int_state.current_frame();
     let view = current_frame.class_pointer(jvm).view();
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
@@ -94,8 +94,9 @@ pub fn get_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16,
     let object_ref = int_state.current_frame_mut().pop(PTypeView::object());
     match object_ref {
         JavaValue::Object(o) => {
-            let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));
-            int_state.current_frame_mut().push(res);
+            todo!()
+            /*let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));
+            int_state.current_frame_mut().push(res);*/
         }
         _ => panic!(),
     }

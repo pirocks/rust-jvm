@@ -78,7 +78,7 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn get_local_primitive_type<T>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut T, unwrap_function: fn(JavaValue) -> Option<T>) -> jvmtiError {
+unsafe fn get_local_primitive_type<'gc_life, T>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut T, unwrap_function: fn(JavaValue<'gc_life>) -> Option<T>) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
@@ -103,7 +103,7 @@ pub(crate) unsafe fn set_local(env: *mut jvmtiEnv, thread: jthread, depth: jint,
     assert!(jvm.vm_live());
     null_check!(thread);
     if let Err(err) = set_local_t(jvm, thread, depth, slot, value) {
-        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
+        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err);
     };
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
@@ -166,9 +166,9 @@ pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, dep
 }
 
 
-unsafe fn get_thread_from_obj_or_current(jvm: &JVMState, thread: jthread) -> Result<Arc<JavaThread>, jvmtiError> {
+unsafe fn get_thread_from_obj_or_current<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread) -> Result<Arc<JavaThread<'gc_life>>, jvmtiError> {
     Ok(if !thread.is_null() {
-        match JavaValue::Object(from_object(thread)).try_cast_thread() {
+        match JavaValue::Object(todo!()/*from_object(thread)*/).try_cast_thread() {
             None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
             Some(jt) => jt,
         }.get_java_thread(jvm)
@@ -177,7 +177,7 @@ unsafe fn get_thread_from_obj_or_current(jvm: &JVMState, thread: jthread) -> Res
     })
 }
 
-unsafe fn get_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue, jvmtiError> {
+unsafe fn get_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc_life>, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
@@ -196,7 +196,7 @@ unsafe fn get_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint) 
 }
 
 
-unsafe fn set_local_t(jvm: &JVMState, thread: jthread, depth: jint, slot: jint, to_set: JavaValue) -> Result<(), jvmtiError> {
+unsafe fn set_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint, to_set: JavaValue<'gc_life>) -> Result<(), jvmtiError> {
     if depth < 0 {
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }

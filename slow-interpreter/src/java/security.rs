@@ -3,17 +3,17 @@ pub mod protection_domain {
 
     use crate::java_values::{JavaValue, Object};
 
-    pub struct ProtectionDomain {
-        normal_object: Arc<Object>
+    pub struct ProtectionDomain<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
+    impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_protection_domain(&self) -> ProtectionDomain {
             ProtectionDomain { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl ProtectionDomain {
+    impl<'gc_life> ProtectionDomain<'gc_life> {
         as_object_or_java_value!();
     }
 }
@@ -31,18 +31,18 @@ pub mod access_control_context {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct AccessControlContext {
-        normal_object: Arc<Object>
+    pub struct AccessControlContext<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_access_control_context(&self) -> AccessControlContext {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_access_control_context(&self) -> AccessControlContext<'gc_life> {
             AccessControlContext { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl AccessControlContext {
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, protection_domains: Vec<ProtectionDomain>) -> Result<Self, WasException> {
+    impl<'gc_life> AccessControlContext<'gc_life> {
+        pub fn new<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, protection_domains: Vec<ProtectionDomain<'gc_life>>) -> Result<Self, WasException> {
             let access_control_context_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/security/AccessControlContext".to_string()).into());
             push_new_object(jvm, int_state, &access_control_context_class);
             let access_control_object = int_state.pop_current_operand_stack(ClassName::object().into());

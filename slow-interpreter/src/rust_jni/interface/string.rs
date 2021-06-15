@@ -70,7 +70,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub unsafe fn intern_impl_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object(str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -78,11 +78,11 @@ pub unsafe fn intern_impl_unsafe(jvm: &JVMState, int_state: &mut InterpreterStat
     Ok(to_object(intern_safe(jvm, str_obj).object().into()))
 }
 
-pub fn intern_safe(jvm: &JVMState, str_obj: Arc<Object>) -> JString {
+pub fn intern_safe(jvm: &'gc_life JVMState<'gc_life>, str_obj: Arc<Object<'gc_life>>) -> JString<'gc_life> {
     let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
-            return JavaValue::Object(str_obj.into()).cast_string().unwrap();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
+            return JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr
     };
@@ -95,10 +95,10 @@ pub fn intern_safe(jvm: &JVMState, str_obj: Arc<Object>) -> JString {
     match guard.strings.get(&native_string_bytes) {
         None => {
             guard.strings.insert(native_string_bytes, str_obj.clone());
-            JavaValue::Object(str_obj.into()).cast_string().unwrap()
+            JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap()
         }
         Some(res) => {
-            JavaValue::Object(res.clone().into()).cast_string().unwrap()
+            JavaValue::Object(todo!()/*res.clone().into()*/).cast_string().unwrap()
         }
     }
 }
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
             return throw_npe(jvm, int_state);
         }
     };
-    let jstring = JavaValue::Object(str_obj.into()).cast_string().unwrap();
+    let jstring = JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap();
     let rust_str = jstring.to_rust_string();
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
@@ -143,7 +143,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
             return throw_npe(jvm, int_state);
         }
     };
-    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string();
+    let rust_str = JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap().to_rust_string();
     and_then(rust_str)
 }
 

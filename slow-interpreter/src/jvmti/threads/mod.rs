@@ -10,7 +10,7 @@ use crate::rust_jni::native_util::from_object;
 #[macro_export]
 macro_rules! get_thread_or_error {
     ($raw_thread: expr) => {
-    match crate::JavaValue::Object(from_object($raw_thread)).try_cast_thread() {
+    match crate::JavaValue::Object(todo!()/*from_object($raw_thread)*/).try_cast_thread() {
         None => return jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_INVALID_THREAD,
         Some(jt) => jt
     }
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     null_check!(info_ptr);
     assert!(jvm.vm_live());
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
-    let thread_object = match JavaValue::Object(from_object(thread)).try_cast_thread() {
+    let thread_object = match JavaValue::Object(todo!()/*from_object(thread)*/).try_cast_thread() {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
         Some(thread) => thread,
     };
@@ -376,7 +376,7 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     null_check!(thread_state_ptr);
     assert!(jvm.vm_live());
-    let jthread = match JavaValue::Object(from_object(thread)).try_cast_thread() {
+    let jthread = match JavaValue::Object(todo!()/*from_object(thread)*/).try_cast_thread() {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
         Some(thread) => thread,
     };

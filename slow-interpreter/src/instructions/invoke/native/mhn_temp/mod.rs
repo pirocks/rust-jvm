@@ -26,7 +26,7 @@ use crate::utils::{throw_illegal_arg_res, unwrap_or_npe};
 
 pub mod resolve;
 
-pub fn MHN_getConstant() -> Result<JavaValue, WasException> {
+pub fn MHN_getConstant<'gc_life>() -> Result<JavaValue<'gc_life>, WasException> {
     //so I have no idea what this is for, but openjdk does approx this so it should be fine.
     Ok(JavaValue::Int(0))
 }
@@ -57,7 +57,8 @@ pub mod init;
 /// so this is completely undocumented
 /// supported match flags IS_METHOD | IS_CONSTRUCTOR |  IS_FIELD | SEARCH_SUPERCLASSES | SEARCH_INTERFACES
 ///
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
@@ -130,8 +131,8 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &JVMState, int_
     Ok(JavaValue::Int(len as i32))
 }
 
-fn get_matching_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, match_name: &Option<String>, rc: Arc<RuntimeClass>, view: Arc<dyn ClassView>, search_super: bool, search_interface: bool, fd: Option<FieldDescriptor>) -> Result<Vec<MemberName>, WasException> {
-    get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+fn get_matching_fields<'gc_life, 'l, 'k: 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, match_name: &Option<String>, rc: Arc<RuntimeClass<'gc_life>>, view: Arc<dyn ClassView>, search_super: bool, search_interface: bool, fd: Option<FieldDescriptor>) -> Result<Vec<MemberName<'gc_life>>, WasException> {
+    let filtered = get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
         let current_view = current_rc.view();
         if !search_super {
             if current_view.name() != view.name() {
@@ -146,26 +147,30 @@ fn get_matching_fields(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ma
             None => true,
             Some(FieldDescriptor { field_type }) => field_type == &field.field_type().to_ptype()
         })
-    }).map(|(field_class, i)| {
+    });
+    let mut res = vec![];
+    for (field_class, i) in filtered {
         let view = field_class.view();
         let field_view = view.field(i);
+        let int_state: &mut InterpreterStateGuard<'l, 'gc_life> = int_state;
         let field_obj = field_object_from_view(jvm, int_state, field_class, field_view)?;
-        MemberName::new_from_field(jvm, int_state, field_obj.cast_field())
-    }).collect::<Result<Vec<_>, WasException>>()
+        res.push(MemberName::new_from_field(jvm, int_state, field_obj.cast_field())?)
+    }
+    Ok(res)
 }
 
-fn get_matching_methods(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
+fn get_matching_methods<'l, 'k : 'l, 'gc_life>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
     match_name: &Option<String>,
-    rc: &Arc<RuntimeClass>,
+    rc: &Arc<RuntimeClass<'gc_life>>,
     view: &Arc<dyn ClassView>,
     search_super: bool,
     search_interface: bool,
     is_constructor: bool,
     md: Option<MethodDescriptor>,
-) -> Result<Vec<MemberName>, WasException> {
-    get_all_methods(jvm, int_state, rc.clone(), search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+) -> Result<Vec<MemberName<'gc_life>>, WasException> {
+    let filtered = get_all_methods(jvm, int_state, rc.clone(), search_interface)?.into_iter().filter(|(current_rc, method_i)| {
         let current_view = current_rc.view();
         if !search_super {
             if current_view.name() != view.name() {
@@ -184,20 +189,23 @@ fn get_matching_methods(
         } else {
             true
         }
-    }).map(|(method_class, i)| {
+    });
+    let mut res = vec![];
+    for (method_class, i) in filtered {
         let view = method_class.view();
         let method_view = view.method_view_i(i);
         if method_view.name().as_str() == "<init>" {
             let constructor_obj = Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
-            MemberName::new_from_constructor(jvm, int_state, constructor_obj)
+            res.push(MemberName::new_from_constructor(jvm, int_state, constructor_obj)?)
         } else {
             let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
-            MemberName::new_from_method(jvm, int_state, method_obj)
+            res.push(MemberName::new_from_method(jvm, int_state, method_obj)?)
         }
-    }).collect::<Result<Vec<_>, WasException>>()
+    }
+    Ok(res)
 }
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     let member_name = args[0].cast_member_name();
     let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz())?;

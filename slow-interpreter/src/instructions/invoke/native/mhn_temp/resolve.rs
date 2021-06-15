@@ -17,7 +17,7 @@ use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resol
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: &mut Vec<JavaValue>) -> Result<JavaValue, WasException> {
+pub fn MHN_resolve<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
 //so as far as I can find this is undocumented.
 //so as far as I can figure out we have a method name and a class
 //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -81,8 +81,7 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_name: MemberName) -> Result<JavaValue, WasException> {
-
+fn resolve_impl<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
     let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
         member_name.get_clazz().as_type(jvm).unwrap_class_type() == ClassName::class() &&
         member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
@@ -231,7 +230,7 @@ fn resolve_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, member_na
     Ok(member_name.java_value())
 }
 
-fn throw_linkage_error(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+fn throw_linkage_error<'l, 'k : 'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into())?;
     push_new_object(jvm, int_state, &linkage_error);
     let object = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();

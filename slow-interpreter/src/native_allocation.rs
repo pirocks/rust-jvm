@@ -19,7 +19,7 @@ pub enum AllocationType {
 }
 
 pub struct NativeAllocator {
-    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>//todo impl default or something
+    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>,//todo impl default or something
 }
 
 unsafe impl Send for NativeAllocator {}
@@ -48,7 +48,7 @@ impl NativeAllocator {
     pub fn allocate_box<'life, ElemType>(&self, vec: ElemType) -> &'life mut ElemType {
         let res = Box::leak(box vec);
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(res as *mut ElemType as *mut c_void as usize , AllocationType::BoxLeak);
+        guard.insert(res as *mut ElemType as *mut c_void as usize, AllocationType::BoxLeak);
         res
     }
 

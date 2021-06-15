@@ -334,8 +334,8 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
     let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => {
-            return jvmtiError_JVMTI_ERROR_INVALID_METHODID
-        },
+            return jvmtiError_JVMTI_ERROR_INVALID_METHODID;
+        }
         Some(method) => method,
     };//todo
     let class_view = class.view();

@@ -22,7 +22,7 @@ pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
 
-unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
+unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -33,7 +33,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
         unimplemented!()
     }
     let parsed = method.desc();
-    int_state.push_current_operand_stack(JavaValue::Object(from_object(obj)));
+    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_object(obj)*/));
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
     }
@@ -46,7 +46,7 @@ unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobje
     })
 }
 
-pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
+pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
@@ -66,9 +66,9 @@ pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmet
     })
 }
 
-unsafe fn push_params_onto_frame(
+unsafe fn push_params_onto_frame<'l, 'k : 'l, 'gc_life>(
     l: &mut VarargProvider,
-    int_state: &mut InterpreterStateGuard,
+    int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>,
     parsed: &MethodDescriptor,
 ) {
     for type_ in &parsed.parameter_types {

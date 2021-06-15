@@ -13,18 +13,18 @@ pub mod reflection {
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
-    pub struct Reflection {
-        normal_object: Arc<Object>
+    pub struct Reflection<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
+    impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_reflection(&self) -> Reflection {
             Reflection { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Reflection {
-        pub fn is_same_class_package(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class1: JClass, class2: JClass) -> Result<jboolean, WasException> {
+    impl<'gc_life> Reflection<'gc_life> {
+        pub fn is_same_class_package<'l, 'k : 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'k mut InterpreterStateGuard<'l, 'gc_life>, class1: JClass<'gc_life>, class2: JClass<'gc_life>) -> Result<jboolean, WasException> {
             let reflection = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/reflect/Reflection".to_string()).into())?;
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value());//I hope these are in the right order, but it shouldn't matter

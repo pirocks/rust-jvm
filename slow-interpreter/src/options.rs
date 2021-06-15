@@ -20,7 +20,7 @@ pub struct JVMOptions {
     pub(crate) unittest_mode: bool,
     pub(crate) store_generated_classes: bool,
     pub(crate) debug_print_exceptions: bool,
-    pub(crate) assertions_enabled: bool
+    pub(crate) assertions_enabled: bool,
 }
 
 impl JVMOptions {

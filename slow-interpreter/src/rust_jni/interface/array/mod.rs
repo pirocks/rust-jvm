@@ -16,7 +16,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let non_null_array: &Object = temp.deref();
     let len = match non_null_array {
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array = notnull.unwrap_array();
     let borrow_mut = array.mut_array();
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array = not_null.unwrap_array();
     let array_type = &array.elem_type;
@@ -87,13 +87,13 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
             }
             PTypeView::CharType => {
                 *elem = JavaValue::Char((carray as *const jchar).offset(i as isize).read());
-            },
+            }
             PTypeView::DoubleType => {
                 *elem = JavaValue::Double((carray as *const jdouble).offset(i as isize).read());
-            },
+            }
             PTypeView::FloatType => {
                 *elem = JavaValue::Float((carray as *const jfloat).offset(i as isize).read());
-            },
+            }
             PTypeView::IntType => {
                 *elem = JavaValue::Int((carray as *const jint).offset(i as isize).read());
             }
@@ -101,16 +101,16 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 *elem = JavaValue::Long((carray as *const jlong).offset(i as isize).read());
             }
             PTypeView::Ref(_) => {
-                *elem = JavaValue::Object(from_object((carray as *const jobject).offset(i as isize).read()));
-            },
+                *elem = JavaValue::Object(todo!()/*from_object((carray as *const jobject).offset(i as isize).read())*/);
+            }
             PTypeView::ShortType => {
                 *elem = JavaValue::Short((carray as *const jshort).offset(i as isize).read());
-            },
+            }
             PTypeView::BooleanType => {
                 let boolean = (carray as *const jboolean).offset(i as isize).read();
                 assert!(boolean == 1 || boolean == 0);
                 *elem = JavaValue::Boolean(boolean);
-            },
+            }
             _ => panic!()
         }
     }
@@ -123,7 +123,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let array = not_null.unwrap_array();
     if !is_copy.is_null() {
