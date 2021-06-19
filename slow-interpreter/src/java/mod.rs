@@ -3,7 +3,7 @@ macro_rules! as_object_or_java_value {
         // use crate::java_values::{Object, JavaValue, NormalObject};
         // use std::sync::Arc;
         //
-        pub fn object(self) -> std::sync::Arc<crate::java_values::Object<'gc_life>>{
+        pub fn object(self) -> GcManagedObject<'gc_life>{
             self.normal_object
         }
 

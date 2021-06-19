@@ -1,10 +1,10 @@
 pub mod protection_domain {
     use std::sync::Arc;
 
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
 
     pub struct ProtectionDomain<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -28,11 +28,11 @@ pub mod access_control_context {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::security::protection_domain::ProtectionDomain;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct AccessControlContext<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

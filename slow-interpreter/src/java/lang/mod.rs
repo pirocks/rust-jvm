@@ -9,13 +9,13 @@ pub mod throwable {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct Throwable<'gc_life> {
-        pub(crate) normal_object: Arc<Object<'gc_life>>,
+        pub(crate) normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -47,12 +47,12 @@ pub mod stack_trace_element {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct StackTraceElement<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -95,12 +95,12 @@ pub mod member_name {
     use crate::java::lang::reflect::field::Field;
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct MemberName<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -249,13 +249,13 @@ pub mod class {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Debug, Clone)]
     pub struct JClass<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -351,13 +351,13 @@ pub mod class_loader {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct ClassLoader<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -403,7 +403,6 @@ pub mod class_loader {
 
 pub mod string {
     use std::cell::UnsafeCell;
-    use std::sync::Arc;
 
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jchar, jint};
@@ -413,14 +412,13 @@ pub mod string {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{ArrayObject, JavaValue};
-    use crate::java_values::Object;
+    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
 
     #[derive(Clone)]
     pub struct JString<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -496,10 +494,10 @@ pub mod integer {
     use jvmti_jni_bindings::jint;
 
     use crate::{JVMState, StackEntry};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
 
     pub struct Integer<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -524,11 +522,11 @@ pub mod integer {
 pub mod object {
     use std::sync::Arc;
 
-    use crate::java_values::JavaValue;
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::java_values::Object;
 
     pub struct JObject<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -556,15 +554,15 @@ pub mod thread {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
-    use crate::java_values::{NormalObject, Object, ObjectFieldsAndClass};
+    use crate::java_values::{GcManagedObject, NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
     use crate::threading::{JavaThread, JavaThreadId};
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct JThread<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -711,12 +709,12 @@ pub mod thread_group {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
 
     #[derive(Debug, Clone)]
     pub struct JThreadGroup<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -795,12 +793,12 @@ pub mod class_not_found_exception {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::JavaValue;
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::java_values::Object;
     use crate::jvm_state::JVMState;
 
     pub struct ClassNotFoundException<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -833,11 +831,11 @@ pub mod null_pointer_exception {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct NullPointerException<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -872,11 +870,11 @@ pub mod array_out_of_bounds_exception {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct ArrayOutOfBoundsException<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -909,11 +907,11 @@ pub mod illegal_argument_exception {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct IllegalArgumentException<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -946,11 +944,11 @@ pub mod long {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Long<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -983,11 +981,11 @@ pub mod int {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Int<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1020,11 +1018,11 @@ pub mod short {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Short<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1057,11 +1055,11 @@ pub mod byte {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Byte<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1094,11 +1092,11 @@ pub mod boolean {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Boolean<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1131,11 +1129,11 @@ pub mod char {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Char<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1168,11 +1166,11 @@ pub mod float {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Float<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -1205,11 +1203,11 @@ pub mod double {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct Double<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

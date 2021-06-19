@@ -9,11 +9,11 @@ pub mod heap_byte_buffer {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{ArrayObject, JavaValue, Object};
+    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct HeapByteBuffer<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

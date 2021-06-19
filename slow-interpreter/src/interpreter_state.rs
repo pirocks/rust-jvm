@@ -17,7 +17,7 @@ use rust_jvm_common::classfile::CPIndex;
 use verification::OperandStack;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
@@ -196,7 +196,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
     }
 
 
-    pub fn throw(&self) -> Option<Arc<Object<'gc_life>>> {
+    pub fn throw(&self) -> Option<GcManagedObject<'gc_life>> {
         match self.int_state.as_ref() {
             None => {
                 match self.thread.interpreter_state.read().unwrap().deref() {

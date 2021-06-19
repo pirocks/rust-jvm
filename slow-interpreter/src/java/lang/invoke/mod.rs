@@ -13,13 +13,13 @@ pub mod method_type {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct MethodType<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -157,12 +157,12 @@ pub mod method_type_form {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::invoke::method_type::MethodType;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     #[derive(Clone)]
     pub struct MethodTypeForm<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -248,12 +248,12 @@ pub mod method_handle {
     use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
     pub struct MethodHandle<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -327,13 +327,13 @@ pub mod method_handles {
         use crate::java::lang::invoke::method_handle::MethodHandle;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::string::JString;
-        use crate::java_values::{JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue, Object};
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
         #[derive(Clone)]
         pub struct Lookup<'gc_life> {
-            normal_object: Arc<Object<'gc_life>>,
+            normal_object: GcManagedObject<'gc_life>,
         }
 
         impl<'gc_life> JavaValue<'gc_life> {
@@ -391,7 +391,7 @@ pub mod lambda_form {
 
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
 
     pub mod named_function {
         use std::sync::Arc;
@@ -403,13 +403,13 @@ pub mod lambda_form {
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::member_name::MemberName;
-        use crate::java_values::{JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue, Object};
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
         #[derive(Clone, Debug)]
         pub struct NamedFunction<'gc_life> {
-            normal_object: Arc<Object<'gc_life>>,
+            normal_object: GcManagedObject<'gc_life>,
         }
 
         impl<'gc_life> JavaValue<'gc_life> {
@@ -453,11 +453,11 @@ pub mod lambda_form {
 
         use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
         use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
-        use crate::java_values::{JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue, Object};
 
         #[derive(Clone, Debug)]
         pub struct Name<'gc_life> {
-            normal_object: Arc<Object<'gc_life>>,
+            normal_object: GcManagedObject<'gc_life>,
         }
 
         impl<'gc_life> JavaValue<'gc_life> {
@@ -529,12 +529,12 @@ pub mod lambda_form {
         use jvmti_jni_bindings::jint;
 
         use crate::java::lang::class::JClass;
-        use crate::java_values::{JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue, Object};
         use crate::JString;
 
         #[derive(Clone, Debug)]
         pub struct BasicType<'gc_life> {
-            normal_object: Arc<Object<'gc_life>>,
+            normal_object: GcManagedObject<'gc_life>,
         }
 
         impl<'gc_life> JavaValue<'gc_life> {
@@ -612,7 +612,7 @@ pub mod lambda_form {
 
     #[derive(Clone, Debug)]
     pub struct LambdaForm<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -661,12 +661,12 @@ pub mod call_site {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::invoke::method_handle::MethodHandle;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     #[derive(Clone, Debug)]
     pub struct CallSite<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

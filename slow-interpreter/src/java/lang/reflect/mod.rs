@@ -135,13 +135,13 @@ pub mod method {
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::reflect::constructor::Constructor;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
 
     pub struct Method<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -282,13 +282,13 @@ pub mod constructor {
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
 
     pub struct Constructor<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -400,10 +400,10 @@ pub mod field {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
 
     pub struct Field<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
@@ -473,11 +473,11 @@ pub mod constant_pool {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::class::JClass;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub struct ConstantPool<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

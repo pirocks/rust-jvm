@@ -9,12 +9,12 @@ pub mod reflection {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
-    use crate::java_values::{JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc_life> {
-        normal_object: Arc<Object<'gc_life>>,
+        normal_object: GcManagedObject<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {

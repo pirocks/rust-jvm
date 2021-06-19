@@ -252,11 +252,11 @@ impl<'gc_life> JavaValue<'gc_life> {
     }
 
 
-    pub fn unwrap_object(&self) -> Option<Arc<Object<'gc_life>>> {
+    pub fn unwrap_object(&self) -> Option<GcManagedObject<'gc_life>> {
         self.try_unwrap_object().unwrap()
     }
 
-    pub fn unwrap_object_nonnull(&self) -> Arc<Object<'gc_life>> {
+    pub fn unwrap_object_nonnull(&self) -> GcManagedObject<'gc_life> {
         match match self.try_unwrap_object() {
             Some(x) => x,
             None => unimplemented!(),
@@ -276,7 +276,7 @@ impl<'gc_life> JavaValue<'gc_life> {
     }
 
 
-    pub fn try_unwrap_object(&self) -> Option<Option<Arc<Object<'gc_life>>>> {
+    pub fn try_unwrap_object(&self) -> Option<Option<GcManagedObject<'gc_life>>> {
         match self {
             JavaValue::Object(o) => {
                 Some(/*o.clone()*/todo!())
@@ -820,14 +820,14 @@ pub fn default_value<'gc_life>(type_: PTypeView) -> JavaValue<'gc_life> {
 }
 
 impl<'gc_life> ArrayObject<'gc_life> {
-    pub fn unwrap_object_array(&self) -> Vec<Option<Arc<Object<'gc_life>>>> {
+    pub fn unwrap_object_array(&self) -> Vec<Option<GcManagedObject<'gc_life>>> {
         unsafe { self.elems.get().as_ref() }.unwrap().iter().map(|x| { x.unwrap_object() }).collect()
     }
 
     pub fn unwrap_mut(&self) -> &mut Vec<JavaValue<'gc_life>> {
         unsafe { self.elems.get().as_mut() }.unwrap()
     }
-    pub fn unwrap_object_array_nonnull(&self) -> Vec<Arc<Object<'gc_life>>> {
+    pub fn unwrap_object_array_nonnull(&self) -> Vec<GcManagedObject<'gc_life>> {
         self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }
     pub fn unwrap_byte_array(&self) -> Vec<jbyte> {
