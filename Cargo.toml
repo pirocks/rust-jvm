@@ -38,5 +38,4 @@ members = ["rust-jvm-common",
     "jit",
     "jit-common",
     "add-only-static-vec",
-    "small-example"
 ]
