@@ -12,7 +12,7 @@ use crate::java_values::{default_value, JavaValue};
 use crate::jvm_state::ClassStatus;
 
 #[derive(Debug)]
-pub enum RuntimeClass {
+pub enum RuntimeClass<'gc_life> {
     Byte,
     Boolean,
     Short,
@@ -22,12 +22,12 @@ pub enum RuntimeClass {
     Float,
     Double,
     Void,
-    Array(RuntimeClassArray),
-    Object(RuntimeClassClass),
+    Array(RuntimeClassArray<'gc_life>),
+    Object(RuntimeClassClass<'gc_life>),
     Top,
 }
 
-impl RuntimeClass {
+impl<'gc_life> RuntimeClass<'gc_life> {
     pub fn ptypeview(&self) -> PTypeView {
         match self {
             RuntimeClass::Byte => PTypeView::ByteType,
@@ -69,7 +69,7 @@ impl RuntimeClass {
         }
     }
 
-    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue>> {
+    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue<'gc_life>>> {
         match self {
             RuntimeClass::Byte => panic!(),
             RuntimeClass::Boolean => panic!(),
@@ -112,7 +112,7 @@ impl RuntimeClass {
         }
     }
 
-    pub fn unwrap_class_class(&self) -> &RuntimeClassClass {
+    pub fn unwrap_class_class(&self) -> &RuntimeClassClass<'gc_life> {
         match self {
             RuntimeClass::Object(classclass) => classclass,
             _ => panic!()
@@ -122,28 +122,28 @@ impl RuntimeClass {
 
 
 #[derive(Debug)]
-pub struct RuntimeClassArray {
-    pub sub_class: Arc<RuntimeClass>,
+pub struct RuntimeClassArray<'gc_life> {
+    pub sub_class: Arc<RuntimeClass<'gc_life>>,
 }
 
-pub struct RuntimeClassClass {
+pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
     pub field_numbers: HashMap<String, usize>,
-    pub static_vars: RwLock<HashMap<String, JavaValue>>,
-    pub parent: Option<Arc<RuntimeClass>>,
-    pub interfaces: Vec<Arc<RuntimeClass>>,
+    pub static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
+    pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
+    pub interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
 }
 
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static 
 
-impl RuntimeClassClass {
+impl<'gc_life> RuntimeClassClass<'gc_life> {
     pub fn new(class_view: Arc<dyn ClassView>,
                field_numbers: HashMap<String, usize>,
-               static_vars: RwLock<HashMap<String, JavaValue>>,
-               parent: Option<Arc<RuntimeClass>>,
-               interfaces: Vec<Arc<RuntimeClass>>,
+               static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
+               parent: Option<Arc<RuntimeClass<'gc_life>>>,
+               interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
                status: RwLock<ClassStatus>) -> Self {
         Self {
             class_view,
@@ -160,13 +160,13 @@ impl RuntimeClassClass {
     }
 }
 
-impl Debug for RuntimeClassClass {
+impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}:{:?}", self.class_view.name(), self.static_vars)
     }
 }
 
-pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, classfile: Arc<dyn ClassView>, res: &mut HashMap<String, JavaValue>) {
+pub fn prepare_class<'vm_life>(jvm: &'_ JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<String, JavaValue<'vm_life>>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
         if let PTypeView::Ref(ref_) = classfile.type_() {
             if let ReferenceTypeView::Class(cn) = ref_ {
@@ -184,17 +184,17 @@ pub fn prepare_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, clas
 }
 
 
-impl std::convert::From<RuntimeClassClass> for RuntimeClass {
+impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<'gc_life> {
     fn from(rcc: RuntimeClassClass) -> Self {
-        Self::Object(rcc)
+        todo!()/*Self::Object(rcc)*/
     }
 }
 
-pub fn initialize_class(
-    runtime_class: Arc<RuntimeClass>,
-    jvm: &JVMState,
-    interpreter_state: &mut InterpreterStateGuard,
-) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn initialize_class<'gc_life>(
+    runtime_class: Arc<RuntimeClass<'gc_life>>,
+    jvm: &'_ JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     assert!(interpreter_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -247,7 +247,7 @@ pub fn initialize_class(
         }
         Err(WasException {}) => {
             interpreter_state.pop_frame(jvm, new_function_frame, false);
-            dbg!(JavaValue::Object(interpreter_state.throw().clone()).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string());
+            // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string());
             interpreter_state.debug_print_stack_trace(jvm);
             return Err(WasException);
         }

@@ -13,7 +13,7 @@ use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_special(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame().class_pointer(jvm).view());
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = match check_initing_or_inited_class(
@@ -28,12 +28,12 @@ pub fn invoke_special(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp:
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
 }
 
-pub fn invoke_special_impl(
-    jvm: &JVMState,
-    interpreter_state: &mut InterpreterStateGuard,
+pub fn invoke_special_impl<'gc_life>(
+    jvm: &'_ JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: u16,
-    final_target_class: Arc<RuntimeClass>,
+    final_target_class: Arc<RuntimeClass<'gc_life>>,
 ) -> Result<(), WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);

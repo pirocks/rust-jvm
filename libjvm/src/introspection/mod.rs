@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let int_state = get_interpreter_state(env);
     let interface_vec = match from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
         let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
-        Ok(JavaValue::Object(Some(class_obj)))
+        Ok(JavaValue::Object(todo!()/*Some(class_obj)*/))
     }).collect::<Result<Vec<_>, WasException>>() {
         Ok(interface_vec) => interface_vec,
         Err(WasException {}) => {
@@ -88,7 +88,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let object = from_object(cls);
-    let temp = JavaValue::Object(object).cast_class().unwrap().as_type(jvm);
+    let temp = JavaValue::Object(todo!()/*object*/).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public(match JClass::from_type(jvm, int_state, object_class.unwrap_array()) {
         Ok(jclass) => jclass,
@@ -114,7 +114,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         Some(inner_classes) => {
             inner_classes.classes().flat_map(|inner_class| Some(PTypeView::Ref(inner_class.inner_name()?))).collect::<Vec<_>>()
         }
-    }.into_iter().map(|ptype| Ok(JavaValue::Object(get_or_create_class_object(jvm, ptype, int_state)?.into()))).collect::<Result<Vec<_>, _>>();
+    }.into_iter().map(|ptype| Ok(JavaValue::Object(todo!()/*get_or_create_class_object(jvm, ptype, int_state)?.into()*/))).collect::<Result<Vec<_>, _>>();
     let res_jv = JavaValue::new_vec_from_vec(jvm, match res_array {
         Ok(obj_array) => obj_array,
         Err(WasException {}) => return null_mut(),
@@ -172,7 +172,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
     let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| {
         Some(entry.try_class_pointer()?.ptypeview())
     }).map(|ptype| {
-        get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))
+        get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(todo!()/*elem.into()*/))
     }).collect::<Result<Vec<_>, WasException>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut()
@@ -184,7 +184,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jstring = match JavaValue::Object(from_object(JVM_GetClassName(env, cb))).cast_string() {
+    let jstring = match JavaValue::Object(todo!()/*from_object(JVM_GetClassName(env, cb))*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(jstring) => jstring
     };
@@ -256,7 +256,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let p_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone())));
 
     let loader_name = from_object(loader)
-        .map(|loader_obj| JavaValue::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+        .map(|loader_obj| JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
 
     let class_lookup_result = get_or_create_class_object_force_loader(
         jvm,

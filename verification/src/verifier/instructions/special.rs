@@ -128,7 +128,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_f
     let method_classfile = get_class(&env.vf, &env.method.class);
     if method_classfile.method_view_i(env.method.method_index as u16).name().deref() == "<init>" {
         if let Ok(res) = instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
-            return Result::Ok(res)
+            return Result::Ok(res);
         };
     }
     match instruction_is_type_safe_putfield_first_case(cp, env, &stack_frame) {

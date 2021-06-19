@@ -81,7 +81,7 @@ pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &SameFrameEx
     frame.stack.clear();
 }
 
-pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame)  {
+pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &ChopFrame) {
     frame.current_offset += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {

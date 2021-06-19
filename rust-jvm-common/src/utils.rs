@@ -122,7 +122,7 @@ impl Classfile {
 
     pub fn lookup_method_name_owned(self, self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
         let mut res = vec![];
-        for (i,m) in self.methods.into_iter().enumerate() {
+        for (i, m) in self.methods.into_iter().enumerate() {
             if m.method_name(self_ref) == name {
                 res.push((i, m));
             }

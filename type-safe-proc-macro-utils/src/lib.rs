@@ -24,5 +24,5 @@ pub fn getter_gen(item: TokenStream) -> TokenStream {
     pub fn get_{name}(&self) -> {type_} {{
         self.get_{name}_or_null().unwrap()
     }}
-    ",name = name, type_ = type_, cast_fun = cast_fun).parse().unwrap()
+    ", name = name, type_ = type_, cast_fun = cast_fun).parse().unwrap()
 }

@@ -33,6 +33,8 @@ num = "0.2.1"
 by_address = "1.0.4"
 bimap = "0.5.2"
 itertools = "0.10.0"
+closure = "0.3.0"
+crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 
 [build-dependencies]
 bindgen = "0.53.2"

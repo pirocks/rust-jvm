@@ -46,23 +46,23 @@ macro_rules! null_check {
 }
 
 
-pub unsafe fn get_state(env: *mut jvmtiEnv) -> &'static JVMState {
+pub unsafe fn get_state<'gc_life, 'l>(env: *mut jvmtiEnv) -> &'l JVMState<'gc_life> {
     &*((**env).reserved1 as *const JVMState)
 }
 
 
-pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
+pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l, 'l> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
 
 
-pub fn get_jvmti_interface(jvm: &JVMState, _int_state: &mut InterpreterStateGuard) -> *mut jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &'_ JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
     Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv
 }
 
-fn get_jvmti_interface_impl(jvm: &JVMState) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl(jvm: &'_ JVMState<'gc_life>) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),
@@ -311,7 +311,7 @@ unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclas
         Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL
     }.into(), int_state);
     declaring_class_ptr.write(res_object);
-    return jvmtiError_JVMTI_ERROR_NONE
+    return jvmtiError_JVMTI_ERROR_NONE;
 }
 
 
@@ -359,7 +359,7 @@ unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, modi
 
 
 unsafe extern "C" fn set_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jobject) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Object(from_object(value)))
+    set_local(env, thread, depth, slot, JavaValue::Object(todo!()/*from_object(value)*/))
 }
 
 unsafe extern "C" fn set_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jint) -> jvmtiError {
@@ -438,7 +438,7 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
         //todo check thread suspended
         let mut int_state_not_ref = InterpreterStateGuard {
             int_state: Some(java_thread.interpreter_state.write().unwrap()),
-            thread: &java_thread,
+            thread: java_thread,
             registered: false,
         };
         action(&mut int_state_not_ref)
@@ -476,7 +476,8 @@ unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jth
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     null_check!(thread_ptr);
-    thread_ptr.write(new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().into(), int_state));
+    let current_thread = jvm.thread_state.get_current_thread();
+    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().into(), int_state));
     jvmtiError_JVMTI_ERROR_NONE
 }
 

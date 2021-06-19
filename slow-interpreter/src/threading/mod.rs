@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::mem::transmute;
 use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
@@ -9,6 +10,7 @@ use std::sync::mpsc::{channel, Sender};
 use std::thread::LocalKey;
 use std::time::Duration;
 
+use crossbeam::thread::Scope;
 use libloading::Symbol;
 use num::Integer;
 
@@ -34,26 +36,26 @@ use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
 use crate::threading::safepoints::SafePoint;
 
-pub struct ThreadState {
-    pub(crate) threads: Threads,
-    main_thread: RwLock<Option<Arc<JavaThread>>>,
-    pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread>>>,
-    current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread>>>>,
-    pub system_thread_group: RwLock<Option<JThreadGroup>>,
+pub struct ThreadState<'gc_life> {
+    pub threads: Threads<'gc_life>,
+    main_thread: RwLock<Option<Arc<JavaThread<'gc_life>>>>,
+    pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread<'gc_life>>>>,
+    current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
+    pub system_thread_group: RwLock<Option<JThreadGroup<'gc_life>>>,
     monitors: RwLock<Vec<Arc<Monitor>>>,
-    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,
+    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static>>>>,
     pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
 }
 
 
 pub struct MainThreadStartInfo {
-    pub args: Vec<String>
+    pub args: Vec<String>,
 }
 
-impl ThreadState {
-    pub fn new() -> Self {
+impl<'gc_life> ThreadState<'gc_life> {
+    pub fn new(scope: Scope<'gc_life>) -> Self {
         Self {
-            threads: Threads::new(),
+            threads: Threads::new(scope),
             main_thread: RwLock::new(None),
             all_java_threads: RwLock::new(HashMap::new()),
             current_java_thread: &CURRENT_JAVA_THREAD,
@@ -64,8 +66,7 @@ impl ThreadState {
         }
     }
 
-    pub fn setup_main_thread(&'static self, jvm: &'static JVMState) -> (Arc<JavaThread>, Sender<MainThreadStartInfo>) {
-        let main_thread = ThreadState::bootstrap_main_thread(jvm, &jvm.thread_state.threads);
+    pub fn setup_main_thread(&self, jvm: &'gc_life JVMState<'gc_life>, main_thread: &'gc_life Arc<JavaThread<'gc_life>>) -> Sender<MainThreadStartInfo> {
         *self.main_thread.write().unwrap() = main_thread.clone().into();
         let (main_send, main_recv) = channel();
         let main_thread_clone = main_thread.clone();
@@ -76,7 +77,7 @@ impl ThreadState {
             //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
             //     InterpreterState::Jit { .. } => {}//todo!()
             // });
-            let mut int_state = InterpreterStateGuard::new(jvm, &main_thread);
+            let mut int_state = InterpreterStateGuard::new(jvm, main_thread.clone(), main_thread.interpreter_state.write().unwrap().into());
             main_thread.notify_alive(jvm);//is this too early?
             int_state.register_interpreter_state_guard(jvm);
             jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
@@ -102,10 +103,10 @@ impl ThreadState {
             int_state.pop_frame(jvm, main_frame_guard, false);
             main_thread.notify_terminated(jvm)
         }, box ());
-        (main_thread_clone, main_send)
+        main_send
     }
 
-    fn jvm_init_from_main_thread(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+    fn jvm_init_from_main_thread(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, ClassName::system().into());
@@ -141,18 +142,18 @@ impl ThreadState {
         int_state.pop_frame(jvm, init_frame_guard, false);
     }
 
-    pub fn get_main_thread(&self) -> Arc<JavaThread> {
+    pub fn get_main_thread(&self) -> Arc<JavaThread<'gc_life>> {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    pub(crate) fn set_current_thread(&'static self, thread: Arc<JavaThread>) {
+    pub(crate) fn set_current_thread(&'_ self, thread: Arc<JavaThread<'gc_life>>) {
         self.current_java_thread.with(|refcell| {
             assert!(refcell.borrow().is_none());
-            *refcell.borrow_mut() = thread.into();
+            unsafe { *refcell.borrow_mut() = transmute(Some(thread)); }
         })
     }
 
-    fn bootstrap_main_thread(jvm: &'static JVMState, threads: &Threads) -> Arc<JavaThread> {
+    pub fn bootstrap_main_thread(jvm: &'vm_life JVMState<'vm_life>, threads: &'vm_life Threads<'vm_life>) -> Arc<JavaThread<'vm_life>> {
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -171,7 +172,7 @@ impl ThreadState {
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive(jvm);
-        let mut new_int_state = InterpreterStateGuard::new(jvm, &bootstrap_thread);
+        let mut new_int_state = InterpreterStateGuard::new(jvm, bootstrap_thread.clone(), bootstrap_thread.interpreter_state.write().unwrap().into());
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.libjava.load(jvm, &mut new_int_state, &jvm.libjava_path, "java".to_string());
@@ -200,19 +201,19 @@ impl ThreadState {
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
         new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
         bootstrap_thread.notify_terminated(jvm);
-        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
+        JavaThread::new(jvm, main_jthread, todo!()/*threads.create_thread("Main Java Thread".to_string().into())*/, false)
     }
 
-    pub fn get_current_thread_name(&self, jvm: &JVMState) -> String {
+    pub fn get_current_thread_name(&self, jvm: &'_ JVMState<'gc_life>) -> String {
         let current_thread = self.get_current_thread();
         let thread_object = current_thread.thread_object.read().unwrap();
         thread_object.as_ref().map(|jthread| jthread.name(jvm).to_rust_string())
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
-    pub fn try_get_current_thread(&self) -> Option<Arc<JavaThread>> {
+    pub fn try_get_current_thread(&self) -> Option<Arc<JavaThread<'gc_life>>> {
         self.current_java_thread.with(|thread_refcell| {
-            thread_refcell.borrow().clone()
+            unsafe { transmute(thread_refcell.borrow().clone()) }
         })
     }
 
@@ -224,7 +225,7 @@ impl ThreadState {
         res
     }
 
-    pub fn get_current_thread(&self) -> Arc<JavaThread> {
+    pub fn get_current_thread(&self) -> Arc<JavaThread<'gc_life>> {
         self.try_get_current_thread().unwrap()
     }
 
@@ -239,53 +240,60 @@ impl ThreadState {
         monitor
     }
 
-    pub fn get_thread_by_tid(&self, tid: JavaThreadId) -> Arc<JavaThread> {
+    pub fn get_thread_by_tid(&self, tid: JavaThreadId) -> Arc<JavaThread<'gc_life>> {
         self.try_get_thread_by_tid(tid).unwrap()
     }
 
-    pub fn try_get_thread_by_tid(&self, tid: JavaThreadId) -> Option<Arc<JavaThread>> {
+    pub fn try_get_thread_by_tid(&self, tid: JavaThreadId) -> Option<Arc<JavaThread<'gc_life>>> {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj(&self, jvm: &'static JVMState, int_state: &mut InterpreterStateGuard, obj: JThread, invisible_to_java: bool) -> Arc<JavaThread> {
-        let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string().into());
+    pub fn start_thread_from_obj(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
+        let underlying = todo!()/*self.threads.create_thread(obj.name(jvm).to_rust_string().into())*/;
 
         let (send, recv) = channel();
-        let java_thread = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
+        let java_thread: Arc<JavaThread<'gc_life>> = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
         let loader_name = obj.get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(box move |_data| {
             send.send(java_thread.clone()).unwrap();
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive(jvm);
-            let mut interpreter_state_guard = InterpreterStateGuard::new(jvm, &java_thread);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
-            interpreter_state_guard.register_interpreter_state_guard(jvm);
-
-            if let Some(jvmti) = jvm.jvmti_state.as_ref() {
-                jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
-            }
-
-            let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name), jvm);
-            if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
-                JavaValue::Object(interpreter_state_guard.throw()).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
-                interpreter_state_guard.set_throw(None);
-            };
-            if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, &mut interpreter_state_guard) {
-                eprintln!("Exception occured exiting thread, something is pretty messed up");
-                panic!()
-            }
-
-            interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
-            java_thread.notify_terminated(jvm);
+            Self::foo(jvm, java_thread, loader_name)
         }, box ());//todo is this Data really needed since we have a closure
         recv.recv().unwrap()
     }
 
+    fn foo(jvm: &'gc_life JVMState<'gc_life>, java_thread: Arc<JavaThread<'gc_life>>, loader_name: LoaderName) {
+        let java_thread_clone: Arc<JavaThread<'gc_life>> = java_thread.clone();
+        let java_thread_clone_borrow: &'_ Arc<JavaThread<'gc_life>> = &java_thread_clone;
+        let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
+        let mut interpreter_state_guard: InterpreterStateGuard<'gc_life, '_> = InterpreterStateGuard::new(jvm, java_thread_clone, option);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
+        interpreter_state_guard.register_interpreter_state_guard(jvm);
 
-    pub fn get_all_threads(&self) -> RwLockReadGuard<HashMap<JavaThreadId, Arc<JavaThread>>> {
+        if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+            jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
+        }
+
+        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name), jvm);
+        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
+            JavaValue::Object(todo!()/*interpreter_state_guard.throw()*/).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
+            interpreter_state_guard.set_throw(None);
+        };
+        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, &mut interpreter_state_guard) {
+            eprintln!("Exception occured exiting thread, something is pretty messed up");
+            panic!()
+        }
+
+        interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
+        java_thread.notify_terminated(jvm);
+    }
+
+
+    pub fn get_all_threads(&self) -> RwLockReadGuard<HashMap<JavaThreadId, Arc<JavaThread<'gc_life>>>> {
         self.all_java_threads.read().unwrap()
     }
 
-    pub fn get_all_alive_threads(&self) -> Vec<Arc<JavaThread>> {
+    pub fn get_all_alive_threads(&self) -> Vec<Arc<JavaThread<'gc_life>>> {
         self.all_java_threads.read().unwrap().values().filter(|_thread| {
             //don't use is_alive for this
             // todo!()
@@ -294,36 +302,36 @@ impl ThreadState {
         }).cloned().collect::<Vec<_>>()
     }
 
-    pub fn get_system_thread_group(&self) -> JThreadGroup {
+    pub fn get_system_thread_group(&self) -> JThreadGroup<'gc_life> {
         self.system_thread_group.read().unwrap().as_ref().unwrap().clone()
     }
 }
 
 thread_local! {
-    static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread>>> = RefCell::new(None);
+    static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread<'static>>>> = RefCell::new(None);
 }
 
 pub type JavaThreadId = i64;
 
 #[derive(Debug)]
-pub struct JavaThread {
+pub struct JavaThread<'vm_life> {
     pub java_tid: JavaThreadId,
-    underlying_thread: Thread,
-    thread_object: RwLock<Option<JThread>>,
+    underlying_thread: Thread<'vm_life>,
+    thread_object: RwLock<Option<JThread<'vm_life>>>,
     pub interpreter_state: RwLock<InterpreterState>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
-    pub safepoint_state: SafePoint,
+    pub safepoint_state: SafePoint<'vm_life>,
     pub thread_status: RwLock<ThreadStatus>,
 }
 
-impl JavaThread {
+impl<'gc_life> JavaThread<'gc_life> {
     pub fn is_alive(&self) -> bool {
         self.thread_status.read().unwrap().alive
     }
 
-    pub fn new(jvm: &JVMState, thread_obj: JThread, underlying: Thread, invisible_to_java: bool) -> Arc<JavaThread> {
+    pub fn new(jvm: &'_ JVMState<'gc_life>, thread_obj: JThread<'gc_life>, underlying: Thread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
@@ -351,25 +359,25 @@ impl JavaThread {
         self.jvmti_events_enabled.write().unwrap()
     }
 
-    pub fn get_underlying(&self) -> &Thread {
+    pub fn get_underlying(&self) -> &Thread<'gc_life> {
         &self.underlying_thread
     }
 
-    pub fn thread_object(&self) -> JThread {
+    pub fn thread_object(&self) -> JThread<'gc_life> {
         self.try_thread_object().unwrap()
     }
 
-    pub fn try_thread_object(&self) -> Option<JThread> {
+    pub fn try_thread_object(&self) -> Option<JThread<'gc_life>> {
         self.thread_object.read().unwrap().clone()
     }
 
-    pub fn notify_alive(&self, jvm: &JVMState) {
+    pub fn notify_alive(&self, jvm: &'_ JVMState<'gc_life>) {
         let mut status = self.thread_status.write().unwrap();
         status.alive = true;
         self.update_thread_object(jvm, status)
     }
 
-    fn update_thread_object(&self, jvm: &JVMState, status: RwLockWriteGuard<ThreadStatus>) {
+    fn update_thread_object(&self, jvm: &'_ JVMState<'gc_life>, status: RwLockWriteGuard<ThreadStatus>) {
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
             obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()))
@@ -377,7 +385,7 @@ impl JavaThread {
     }
 
 
-    pub fn notify_terminated(&self, jvm: &JVMState) {
+    pub fn notify_terminated(&self, jvm: &'_ JVMState<'gc_life>) {
         let mut status = self.thread_status.write().unwrap();
 
         status.terminated = true;
@@ -390,7 +398,7 @@ impl JavaThread {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -400,12 +408,12 @@ impl JavaThread {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    pub fn unpark(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub unsafe fn suspend_thread(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }

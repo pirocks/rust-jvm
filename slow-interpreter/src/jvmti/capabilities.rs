@@ -168,7 +168,7 @@ pub unsafe extern "C" fn get_capabilities(env: *mut jvmtiEnv, capabilities_ptr: 
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetCapabilities");
     libc::memset(capabilities_ptr as *mut c_void, 0, size_of::<jvmtiCapabilities>());
-    let mut_borrow: &mut jvmtiCapabilities = &mut*capabilities_ptr;
+    let mut_borrow: &mut jvmtiCapabilities = &mut *capabilities_ptr;
     mut_borrow.set_can_access_local_variables(1);
     mut_borrow.set_can_generate_single_step_events(1);
     mut_borrow.set_can_generate_exception_events(1);

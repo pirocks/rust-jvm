@@ -26,7 +26,7 @@ use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn check_initing_or_inited_class(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
@@ -94,19 +94,19 @@ pub fn check_initing_or_inited_class(jvm: &JVMState, int_state: &mut Interpreter
     }
 }
 
-pub fn assert_loaded_class(jvm: &JVMState, ptype: PTypeView) -> Arc<RuntimeClass> {
+pub fn assert_loaded_class(jvm: &'_ JVMState<'gc_life>, ptype: PTypeView) -> Arc<RuntimeClass<'gc_life>> {
     match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
         None => panic!(),
         Some((_, res)) => res.clone()
     }
 }
 
-pub fn check_loaded_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn check_loaded_class(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let loader = int_state.current_loader();
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass>, WasException> {
+pub(crate) fn check_loaded_class_force_loader(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: &PTypeView, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
 // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     match guard.initiating_loaders.get(&ptype) {
@@ -114,7 +114,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
-                    let class_loader: ClassLoader = JavaValue::Object(loader_obj.into()).cast_class_loader();
+                    let class_loader: ClassLoader = JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader();
                     match ptype.clone() {
                         PTypeView::ByteType => Arc::new(RuntimeClass::Byte),
                         PTypeView::CharType => Arc::new(RuntimeClass::Char),
@@ -159,11 +159,11 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &JVMState, int_state: &mut In
     }
 }
 
-pub struct DefaultClassfileGetter<'l> {
-    pub(crate) jvm: &'l JVMState,
+pub struct DefaultClassfileGetter<'l, 'k> {
+    pub(crate) jvm: &'k JVMState<'l>,
 }
 
-impl ClassFileGetter for DefaultClassfileGetter<'_> {
+impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
     fn get_classfile(&self, _loader: LoaderName, class: ClassName) -> Arc<Classfile> {
         //todo verification needs to be better hooked in
         match self.jvm.classpath.lookup(&class) {
@@ -172,7 +172,7 @@ impl ClassFileGetter for DefaultClassfileGetter<'_> {
                 dbg!(err);
                 dbg!(class);
                 panic!()
-            },
+            }
         }
     }
 }
@@ -187,7 +187,7 @@ impl LivePoolGetter for DefaultLivePoolGetter {
 
 static mut BOOTSRAP_LOAD_COUNT: usize = 0;
 
-pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn bootstrap_load(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     unsafe {
         BOOTSRAP_LOAD_COUNT += 1;
         if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
@@ -265,13 +265,13 @@ pub fn bootstrap_load(jvm: &JVMState, int_state: &mut InterpreterStateGuard, pty
     Ok(runtime_class)
 }
 
-pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: Option<ClassName>, loader: LoaderName) -> Result<Arc<Object>, WasException> {
+pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: Option<ClassName>, loader: LoaderName) -> Result<Arc<Object<'gc_life>>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
-            JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
+            JavaValue::Object(todo!()/*jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into()*/)
         }
         LoaderName::BootstrapLoader => {
-            JavaValue::Object(None)
+            JavaValue::null()
         }
     };
     if name == ClassName::new("java/lang/Object").into() {
@@ -303,12 +303,12 @@ pub fn create_class_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard
 }
 
 
-pub fn check_resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<Arc<RuntimeClass>, WasException> {
+pub fn check_resolved_class(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     check_loaded_class(jvm, int_state, ptype)
 }
 
-pub fn assert_inited_or_initing_class(jvm: &JVMState, ptype: PTypeView) -> Arc<RuntimeClass> {
-    let class: Arc<RuntimeClass> = assert_loaded_class(jvm, ptype.clone());
+pub fn assert_inited_or_initing_class(jvm: &'_ JVMState<'gc_life>, ptype: PTypeView) -> Arc<RuntimeClass<'gc_life>> {
+    let class: Arc<RuntimeClass<'gc_life>> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
         ClassStatus::UNPREPARED => panic!(),
         ClassStatus::PREPARED => panic!(),

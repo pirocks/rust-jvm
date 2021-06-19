@@ -40,11 +40,11 @@ pub mod dynamic {
     use crate::java::lang::string::JString;
     use crate::java_values::JavaValue;
 
-    pub fn invoke_dynamic(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+    pub fn invoke_dynamic(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
         let _ = invoke_dynamic_impl(jvm, int_state, cp);
     }
 
-    fn invoke_dynamic_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Result<(), WasException> {
+    fn invoke_dynamic_impl(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) -> Result<(), WasException> {
         let method_handle_class = check_initing_or_inited_class(
             jvm,
             int_state,
@@ -135,8 +135,8 @@ pub mod dynamic {
         } else {
             let method_type = target.type__();
             let args = method_type.get_ptypes_as_types(jvm);
-            let form: LambdaForm = target.get_form();
-            let member_name: MemberName = form.get_vmentry();
+            let form: LambdaForm<'gc_life> = target.get_form();
+            let member_name: MemberName<'gc_life> = form.get_vmentry();
             let static_: bool = member_name.is_static(jvm, int_state)?;
             (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
         }; //todo also sketch
@@ -155,13 +155,13 @@ pub mod dynamic {
     }
 
     //todo this should go in MethodType or something.
-    fn desc_from_rust_str(jvm: &JVMState, int_state: &mut InterpreterStateGuard, desc_str: String) -> Result<JavaValue, WasException> {
+    fn desc_from_rust_str<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, desc_str: String) -> Result<JavaValue<'gc_life>, WasException> {
         let desc_str = JString::from_rust(jvm, int_state, desc_str)?;
         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
         Ok(method_type.java_value())
     }
 
-    fn method_handle_from_method_view(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_ref: &MethodHandleView) -> Result<MethodHandle, WasException> {
+    fn method_handle_from_method_view<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc_life>, WasException> {
         let methodref_view = method_ref.clone();
         Ok(match methodref_view.get_reference_data() {
             ReferenceInvokeKind::InvokeStatic(is) => {
@@ -199,7 +199,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) -> Result<Option<(Arc<RuntimeClass>, String, MethodDescriptor)>, WasException> {
+fn resolved_class<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, String, MethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name_ = match class_name_type {
@@ -212,7 +212,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     None => {
                         throw_npe_res(jvm, int_state)?;
                         unreachable!()
-                    },
+                    }
                 };
                 let ArrayObject { elems: _, elem_type, monitor: _monitor } = temp.unwrap_array();
                 let array_object = ArrayObject::new_array(
@@ -222,7 +222,7 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 )?;
-                int_state.push_current_operand_stack(JavaValue::Object(Some(Arc::new(Object::Array(array_object)))));
+                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(array_object)))*/));
                 return Ok(None);
             } else {
                 unimplemented!();
@@ -239,12 +239,12 @@ fn resolved_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 
-pub fn find_target_method(
-    state: &JVMState,
-    int_state: &mut InterpreterStateGuard,
+pub fn find_target_method<'gc_life>(
+    jvm: &'_ JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     expected_method_name: String,
     parsed_descriptor: &MethodDescriptor,
-    target_class: Arc<RuntimeClass>,
-) -> (u16, Arc<RuntimeClass>) {
-    lookup_method_parsed(state, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()
+    target_class: Arc<RuntimeClass<'gc_life>>,
+) -> (u16, Arc<RuntimeClass<'gc_life>>) {
+    lookup_method_parsed(jvm, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

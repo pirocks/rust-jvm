@@ -8,17 +8,19 @@ extern crate slow_interpreter;
 extern crate verification;
 
 use std::ffi::OsString;
+use std::mem::transmute;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
+use crossbeam::thread::Scope;
 
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
-use slow_interpreter::threading::MainThreadStartInfo;
+use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
 
 fn main() {
     let mut verbose = false;
@@ -67,15 +69,19 @@ fn main() {
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
 
-    let (args, jvm) = JVMState::new(jvm_options);
-    let jvm_ref: &'static JVMState = Box::leak(box jvm);
-    unsafe { JVM = Some(jvm_ref) }
+    crossbeam::scope(|scope| {
+        within_thread_scope(scope, jvm_options);
+    }).expect("idk why this would happen")
+}
+
+fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions) {
+    let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope);
+    let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
+    unsafe { JVM = Some(transmute(jvm_ref)) }
     let thread_state = &jvm_ref.thread_state;
-    let (main_thread, main_send) = thread_state.setup_main_thread(jvm_ref);
+    let main_thread: Arc<JavaThread> = ThreadState::bootstrap_main_thread(jvm_ref, &jvm_ref.thread_state.threads);
+    let main_send = thread_state.setup_main_thread(jvm_ref, Box::leak(box main_thread.clone()));//todo fix this leak
     assert!(Arc::ptr_eq(&main_thread, &thread_state.get_main_thread()));
-
-
     main_send.send(MainThreadStartInfo { args }).unwrap();
     main_thread.get_underlying().join();
 }
-

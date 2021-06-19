@@ -10,27 +10,27 @@ use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Debug)]
 pub struct Utf8View {
-    pub str: String
+    pub str: String,
 }
 
 #[derive(Debug)]
 pub struct IntegerView {
-    pub int: i32
+    pub int: i32,
 }
 
 #[derive(Debug)]
 pub struct FloatView {
-    pub float: f32
+    pub float: f32,
 }
 
 #[derive(Debug)]
 pub struct LongView {
-    pub long: i64
+    pub long: i64,
 }
 
 #[derive(Debug)]
 pub struct DoubleView {
-    pub double: f64
+    pub double: f64,
 }
 
 #[derive(Debug)]

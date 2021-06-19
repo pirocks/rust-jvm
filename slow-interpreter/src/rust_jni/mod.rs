@@ -33,8 +33,8 @@ use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 pub mod value_conversion;
 pub mod mangling;
 
-impl LibJavaLoading {
-    pub fn new() -> LibJavaLoading {
+impl<'gc_life> LibJavaLoading<'gc_life> {
+    pub fn new() -> LibJavaLoading<'gc_life> {
         LibJavaLoading {
             native_libs: Default::default(),
             registered_natives: RwLock::new(HashMap::new()),
@@ -43,14 +43,14 @@ impl LibJavaLoading {
 }
 
 
-pub fn call(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    classfile: Arc<RuntimeClass>,
+pub fn call<'gc_life>(
+    jvm: &'_ JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+    classfile: Arc<RuntimeClass<'gc_life>>,
     method_view: MethodView,
-    args: Vec<JavaValue>,
+    args: Vec<JavaValue<'gc_life>>,
     md: MethodDescriptor,
-) -> Result<Option<Option<JavaValue>>, WasException> {
+) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&method_view);
     let raw: unsafe extern fn() = unsafe {
         let libraries_guard = jvm.libjava.native_libs.read().unwrap();
@@ -73,14 +73,14 @@ pub fn call(
     })
 }
 
-pub fn call_impl(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    classfile: Arc<RuntimeClass>,
-    args: Vec<JavaValue>,
+pub fn call_impl<'gc_life>(
+    jvm: &'_ JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+    classfile: Arc<RuntimeClass<'gc_life>>,
+    args: Vec<JavaValue<'gc_life>>,
     md: MethodDescriptor,
     raw: &unsafe extern "C" fn(),
-    suppress_runtime_class: bool) -> Result<Option<JavaValue>, WasException> {
+    suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mut args_type = if suppress_runtime_class {
         vec![Type::pointer()]
     } else {
@@ -149,7 +149,7 @@ pub fn call_impl(
         }
         PTypeView::Ref(_) => {
             unsafe {
-                Some(JavaValue::Object(from_object(cif_res as jobject)))
+                Some(JavaValue::Object(todo!()/*from_object(cif_res as jobject)*/))
             }
         }
         _ => {

@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = match JavaValue::Object(from_object(name)).cast_string() {
+    let name_str = match JavaValue::Object(todo!()/*from_object(name)*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(name_str) => name_str
     }.to_rust_string();

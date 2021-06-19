@@ -21,10 +21,10 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    class: Arc<RuntimeClass>,
+pub fn run_native_method<'gc_life>(
+    jvm: &'_ JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+    class: Arc<RuntimeClass<'gc_life>>,
     method_i: u16) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack().len();
@@ -87,7 +87,7 @@ pub fn run_native_method(
         } {
             Some(r) => r,
             None => {
-                match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), &mut args) {
+                match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
                     Err(_) => None
                 }
@@ -107,7 +107,7 @@ pub fn run_native_method(
     }
 }
 
-fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method_view: &MethodView, mut args: &mut Vec<JavaValue>) -> Result<Option<JavaValue>, WasException> {
+fn special_call_overrides<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mangled = mangling::mangle(method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
@@ -116,13 +116,13 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
         MHN_getConstant()?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-        MHN_resolve(jvm, int_state, &mut args)?.into()
+        MHN_resolve(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
-        MHN_init(jvm, int_state, &mut args)?;
+        MHN_init(jvm, int_state, args)?;
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, int_state, &mut args)?.into()
+        shouldBeInitialized(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
@@ -135,9 +135,9 @@ fn special_call_overrides(jvm: &JVMState, int_state: &mut InterpreterStateGuard,
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, &mut args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, &mut args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {

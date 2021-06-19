@@ -9,5 +9,5 @@ edition = "2018"
 [lib]
 
 [dependencies]
-rust-jvm-common = {path = "../rust-jvm-common"}
-classfile-parser = {path = "../classfile-parser"}
+rust-jvm-common = { path = "../rust-jvm-common" }
+classfile-parser = { path = "../classfile-parser" }

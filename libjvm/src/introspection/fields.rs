@@ -40,7 +40,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
         let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
             Ok(field_object) => field_object,
             Err(WasException {}) => {
-                return null_mut()
+                return null_mut();
             }
         };
 

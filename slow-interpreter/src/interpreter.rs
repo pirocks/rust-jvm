@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::ops::Rem;
 use std::sync::Arc;
 
@@ -46,7 +47,7 @@ use crate::threading::monitors::Monitor;
 #[derive(Debug)]
 pub struct WasException;
 
-pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+pub fn run_function(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
     let method = view.method_view_i(method_i);
@@ -81,7 +82,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                 if excep_table.start_pc <= pc && pc < (excep_table.end_pc) {//todo exclusive
                     if excep_table.catch_type == 0 {
                         //todo dup
-                        interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
+                        interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
                         interpreter_state.set_throw(None);
                         interpreter_state.set_current_pc(excep_table.handler_pc);
                         // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
@@ -93,7 +94,7 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
                         let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
                         interpreter_state.set_throw(saved_throw);
                         if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
-                            interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
+                            interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
                             interpreter_state.set_throw(None);
                             interpreter_state.set_current_pc(excep_table.handler_pc);
                             // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
@@ -127,11 +128,13 @@ pub fn run_function(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuar
     Ok(())
 }
 
-pub fn safepoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
-    interpreter_state.thread.safepoint_state.check(jvm, interpreter_state)
+pub fn safepoint_check(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
+    let thread = interpreter_state.thread.clone();
+    let safe_point = thread.safepoint_state.borrow();
+    safe_point.check(jvm, interpreter_state)
 }
 
-fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard) {
+fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let offset = interpreter_state.current_pc_offset();
     let mut pc = interpreter_state.current_pc();
     if offset > 0 {
@@ -142,7 +145,7 @@ fn update_pc_for_next_instruction(interpreter_state: &mut InterpreterStateGuard)
     interpreter_state.set_current_pc(pc);
 }
 
-fn breakpoint_check(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, methodid: MethodId) {
+fn breakpoint_check(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
     let stop = match &jvm.jvmti_state {
         None => false,
@@ -168,8 +171,8 @@ fn current_instruction(current_frame: StackEntryRef, code: &Code) -> (Instructio
 }
 
 pub fn monitor_for_function(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
+    jvm: &'_ JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     method: &MethodView,
     synchronized: bool,
 ) -> Option<Arc<Monitor>> {
@@ -194,8 +197,8 @@ pub fn monitor_for_function(
 pub static mut TIMES: usize = 0;
 
 fn run_single_instruction(
-    jvm: &JVMState,
-    interpreter_state: &mut InterpreterStateGuard,
+    jvm: &'_ JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     instruct: InstructionInfo,
     method_id: MethodId,
 ) {
@@ -445,7 +448,7 @@ fn l2d(mut current_frame: StackEntryMut) {
     current_frame.push(JavaValue::Double(val as f64))
 }
 
-fn jsr(interpreter_state: &mut InterpreterStateGuard, target: i32) {
+fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target: i32) {
     let next_instruct = (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
     interpreter_state.set_current_pc_offset(target);
@@ -468,7 +471,7 @@ fn f2l(mut current_frame: StackEntryMut) {
     current_frame.push(JavaValue::Long(res))
 }
 
-fn dup2_x2(jvm: &JVMState, method_id: MethodId, mut current_frame: StackEntryMut) {
+fn dup2_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -616,7 +619,7 @@ fn dcmpg(mut current_frame: StackEntryMut) {
     dcmp_common(current_frame, val2, val1)
 }
 
-fn athrow(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard) {
+fn athrow(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack(ClassName::throwable().into());
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();

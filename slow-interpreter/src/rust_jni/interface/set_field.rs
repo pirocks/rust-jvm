@@ -4,7 +4,7 @@ use crate::java_values::JavaValue;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
-unsafe fn set_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue) {
+unsafe fn set_field<'gc_life>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue<'gc_life>) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn set_double_field(env: *mut JNIEnv, obj: jobject, field_
 }
 
 pub unsafe extern "C" fn set_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jobject) {
-    set_field(env, obj, field_id_raw, JavaValue::Object(from_object(val)));
+    set_field(env, obj, field_id_raw, JavaValue::Object(todo!()/*from_object(val)*/));
 }
 
 
@@ -88,10 +88,10 @@ pub unsafe extern "C" fn set_static_double_field(env: *mut JNIEnv, clazz: jclass
 
 pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
     let value = from_object(value);
-    set_static_field(env, clazz, field_id_raw, JavaValue::Object(value));
+    set_static_field(env, clazz, field_id_raw, JavaValue::Object(todo!()/*value*/));
 }
 
-unsafe fn set_static_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue) {
+unsafe fn set_static_field<'gc_life>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue<'gc_life>) {
     let jvm = get_state(env);
     //todo create a field conversion function.
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);

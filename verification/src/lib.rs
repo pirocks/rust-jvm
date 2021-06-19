@@ -30,7 +30,7 @@ pub struct StackMap {
 }
 
 pub struct VerifierContext<'l> {
-    pub live_pool_getter: Arc<dyn LivePoolGetter>,
+    pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
@@ -45,7 +45,7 @@ pub trait ClassFileGetter {
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {
-    pub data: VecDeque<VType>
+    pub data: VecDeque<VType>,
 }
 
 impl Clone for OperandStack {

@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
 unsafe fn InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let props = JavaValue::Object(from_object(agent_props)).cast_properties();
+    let props = JavaValue::Object(todo!()/*from_object(agent_props)*/).cast_properties();
 
     let sun_java_command = JString::from_rust(jvm, int_state, "sun.java.command".to_string())?;
     let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string())?;

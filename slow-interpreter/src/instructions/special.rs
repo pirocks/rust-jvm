@@ -18,7 +18,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
-pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn arraylength(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let mut current_frame = int_state.current_frame_mut();
     let array_o = match current_frame.pop(PTypeView::object()).unwrap_object() {
         Some(x) => x,
@@ -31,10 +31,10 @@ pub fn arraylength(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
 }
 
 
-pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_checkcast(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
     let possibly_null = int_state.current_frame_mut().pop(PTypeView::object()).unwrap_object();
     if possibly_null.is_none() {
-        int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
+        int_state.current_frame_mut().push(JavaValue::Object(todo!()/*possibly_null*/));
         return;
     }
     let object = match possibly_null {
@@ -56,7 +56,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
                 Ok(x) => x,
                 Err(WasException {}) => return
             } {
-                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
+                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*object.clone().into()*/));
             } else {
                 int_state.debug_print_stack_trace(jvm);
                 dbg!(object_class.view().name());
@@ -93,7 +93,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
                 }
             };
             if cast_succeeds {
-                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
+                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*object.clone().into()*/));
             } else {
                 dbg!(&a.elem_type);
                 dbg!(expected_type);
@@ -105,7 +105,7 @@ pub fn invoke_checkcast(jvm: &JVMState, int_state: &mut InterpreterStateGuard, c
 }
 
 
-pub fn invoke_instanceof(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn invoke_instanceof(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
     let possibly_null = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let view = &int_state.current_class_view(jvm);
@@ -119,7 +119,7 @@ pub fn invoke_instanceof(jvm: &JVMState, int_state: &mut InterpreterStateGuard, 
     }
 }
 
-pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, unwrapped: Arc<java_values::Object>, instance_of_class_type: ReferenceTypeView) -> Result<(), WasException> {
+pub fn instance_of_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, unwrapped: Arc<java_values::Object<'gc_life>>, instance_of_class_type: ReferenceTypeView) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -156,7 +156,7 @@ pub fn instance_of_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, u
     Ok(())
 }
 
-fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>) -> Result<Option<Arc<RuntimeClass>>, WasException> {
+fn runtime_super_class<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, inherits: &Arc<RuntimeClass<'gc_life>>) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if inherits.view().super_name().is_some() {
         Some(check_initing_or_inited_class(jvm, int_state, inherits.view().super_name().unwrap().into())?)
     } else {
@@ -164,26 +164,26 @@ fn runtime_super_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, in
     })
 }
 
-fn runtime_interface_class(jvm: &JVMState, int_state: &mut InterpreterStateGuard, i: InterfaceView) -> Result<Arc<RuntimeClass>, WasException> {
+fn runtime_interface_class<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, i: InterfaceView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let intf_name = i.interface_name();
     check_initing_or_inited_class(jvm, int_state, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(jvm: &JVMState, int_state: &mut InterpreterStateGuard, inherits: &Arc<RuntimeClass>, parent: &Arc<RuntimeClass>) -> Result<bool, WasException> {
+pub fn inherits_from<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> Result<bool, WasException> {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
         if parent.ptypeview() == ClassName::object().into() ||
             parent.ptypeview() == ClassName::cloneable().into() ||
             parent.ptypeview() == ClassName::serializable().into() {
-            return Ok(true)
+            return Ok(true);
         }
         if let RuntimeClass::Array(parent_arr) = parent.deref() {
-            return inherits_from(jvm, int_state, &arr.sub_class.clone(), &parent_arr.sub_class.clone())
+            return inherits_from(jvm, int_state, &arr.sub_class.clone(), &parent_arr.sub_class.clone());
         }
     }
     if inherits.ptypeview().is_primitive() {
-        return Ok(false)
+        return Ok(false);
     }
 
     if inherits.view().name() == parent.view().name() {

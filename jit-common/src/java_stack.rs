@@ -15,7 +15,7 @@ use crate::SavedRegisters;
 pub struct JavaStatus {
     throw: jobject,
     pub function_return: bool,
-    java_pc: isize
+    java_pc: isize,
 }
 
 impl Default for JavaStatus {
@@ -23,7 +23,7 @@ impl Default for JavaStatus {
         Self {
             throw: null_mut(),
             function_return: false,
-            java_pc: 0
+            java_pc: 0,
         }
     }
 }
@@ -51,7 +51,7 @@ impl JavaStack {
                 stack_pointer: unsafe { raw.offset(initial_frame_size as isize) },
                 frame_pointer: raw,
                 instruction_pointer: null_mut(),
-                status_register: thread_status_register
+                status_register: thread_status_register,
             })),
         }
     }
@@ -92,7 +92,7 @@ impl JavaStack {
 
     pub fn previous_frame_ptr(&self) -> *mut c_void {
         if self.frame_pointer() == self.top {
-            return null_mut()//don't want to assert in this case
+            return null_mut();//don't want to assert in this case
         }
         let header = self.frame_pointer() as *const FrameHeader;
         let header = unsafe { header.as_ref() }.unwrap();

@@ -17,18 +17,18 @@ use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodParameters(env: *mut JNIEnv, method: jobject) -> jobjectArray {
+unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let method = JavaValue::Object(Some(match from_object(method) {
+    let method = JavaValue::Object(todo!()/*Some(match from_object(method) {
         None => {
             return throw_npe(jvm, int_state);
         }
         Some(method_obj) => method_obj
-    })).cast_method();
+    })*/).cast_method();
     let clazz = method.get_clazz().as_runtime_class(jvm);
     let name = method.get_name().to_rust_string();
-    let return_type_jclass: JClass = method.get_returnType();
+    let return_type_jclass: JClass<'gc_life> = method.get_return_type();
     let return_type = return_type_jclass.as_type(jvm).to_ptype();
     let parameter_types = method.parameter_types().into_iter().map(|jclass_| jclass_.as_type(jvm).to_ptype()).collect::<Vec<_>>();
     let view = clazz.view();

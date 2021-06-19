@@ -36,13 +36,13 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let args_not_null = match from_object(args0) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let args_refcell = args_not_null.unwrap_array().mut_array();
     let args = args_refcell.deref();
@@ -94,21 +94,21 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             Some(x) => x,
             None => {
                 return throw_npe(jvm, int_state);
-            },
+            }
         };
         let array_temp = temp_1.unwrap_array().borrow();
         let elems_refcell = array_temp.mut_array();
         elems_refcell.clone().iter().map(|jv| match jv {
             JavaValue::Object(o) => {
-                if let Some(o) = o {
+                todo!()/*if let Some(o) = o {
                     if let Object::Object(obj) = o.deref() {
                         //todo handle others
                         if obj.objinfo.class_pointer.view().name() == ClassName::Str("java/lang/Integer".to_string()).into() {
                             return obj.get_var_top_level("value").clone();
                         }
                     }
-                }
-                jv.clone()
+                }*/
+                // jv.clone()
             }
             _ => jv.clone()
         }).collect::<Vec<_>>()
@@ -117,7 +117,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let signature_str_obj = constructor_obj.lookup_field("signature");
     let temp_4 = constructor_obj.lookup_field("clazz");
@@ -125,7 +125,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
-        },
+        }
     };
     let mut signature = string_obj_to_string(match signature_str_obj.unwrap_object() {
         None => return throw_npe(jvm, int_state),

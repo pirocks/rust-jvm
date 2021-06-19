@@ -38,7 +38,7 @@ unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> 
     }
 }
 
-unsafe fn get_array(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue, WasException> {
+unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue<'gc_life>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match from_object(arr) {
@@ -49,7 +49,7 @@ unsafe fn get_array(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue, WasExce
         Some(possibly_arr) => {
             match possibly_arr.deref() {
                 Object::Array(_) => {
-                    Ok(JavaValue::Object(from_object(arr)))
+                    Ok(JavaValue::Object(todo!()/*from_object(arr)*/))
                 }
                 Object::Object(obj) => {
                     return throw_illegal_arg_res(jvm, int_state);
@@ -122,8 +122,8 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let dest = match dest_o.as_ref() {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state)
-        },
+            return throw_npe(jvm, int_state);
+        }
     }.unwrap_array();
     if src_pos < 0
         || dst_pos < 0

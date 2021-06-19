@@ -3,7 +3,7 @@ use std::string::FromUtf8Error;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JVMString {
-    pub buf: Vec<u8>
+    pub buf: Vec<u8>,
 }
 
 impl JVMString {
@@ -48,7 +48,7 @@ impl JVMString {
 }
 
 pub struct PossiblyJVMString {
-    buf: Vec<u8>
+    buf: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -151,9 +151,9 @@ impl PossiblyJVMString {
                     dbg!(codepoint);
                     res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
                     if x.is_none() {
-                        break
+                        break;
                     } else {
-                        continue
+                        continue;
                     }
                 }
                 buf_iter.next().unwrap();

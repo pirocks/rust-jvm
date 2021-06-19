@@ -10,26 +10,26 @@ pub mod unsafe_ {
     use crate::java_values::{JavaValue, Object};
     use crate::utils::run_static_or_virtual;
 
-    pub struct Unsafe {
-        normal_object: Arc<Object>
+    pub struct Unsafe<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_unsafe(&self) -> Unsafe {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_unsafe(&self) -> Unsafe<'gc_life> {
             Unsafe { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Unsafe {
-        pub fn the_unsafe(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Unsafe {
+    impl<'gc_life> Unsafe<'gc_life> {
+        pub fn the_unsafe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Unsafe<'gc_life> {
             let unsafe_class = assert_inited_or_initing_class(jvm, ClassName::unsafe_().into());
             let static_vars = unsafe_class.static_vars();
             static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
         }
 
-        pub fn object_field_offset(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> Result<JavaValue, WasException> {
+        pub fn object_field_offset(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, field: Field<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
             let desc_str = "(Ljava/lang/reflect/Field;)J";
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             run_static_or_virtual(jvm, int_state, &rc, "objectFieldOffset".to_string(), desc_str.to_string())?;
@@ -53,26 +53,26 @@ pub mod launcher {
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
-    pub struct Launcher {
-        normal_object: Arc<Object>
+    pub struct Launcher<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_launcher(&self) -> Launcher {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_launcher(&self) -> Launcher<'gc_life> {
             Launcher { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Launcher {
-        pub fn get_launcher(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Launcher, WasException> {
+    impl<'gc_life> Launcher<'gc_life> {
+        pub fn get_launcher(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Launcher<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into())?;
             run_static_or_virtual(jvm, int_state, &launcher, "getLauncher".to_string(), "()Lsun/misc/Launcher;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::object().into()).cast_launcher())
         }
 
-        pub fn get_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<ClassLoader, WasException> {
+        pub fn get_loader(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<ClassLoader<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into())?;
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &launcher, "getClassLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::classloader().into()).cast_class_loader())
         }
@@ -92,18 +92,18 @@ pub mod launcher {
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
-        pub struct ExtClassLoader {
-            normal_object: Arc<Object>
+        pub struct ExtClassLoader<'gc_life> {
+            normal_object: Arc<Object<'gc_life>>,
         }
 
-        impl JavaValue {
-            pub fn cast_ext_class_launcher(&self) -> ExtClassLoader {
+        impl<'gc_life> JavaValue<'gc_life> {
+            pub fn cast_ext_class_launcher(&self) -> ExtClassLoader<'gc_life> {
                 ExtClassLoader { normal_object: self.unwrap_object_nonnull() }
             }
         }
 
-        impl ExtClassLoader {
-            pub fn get_ext_class_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<ExtClassLoader, WasException> {
+        impl<'gc_life> ExtClassLoader<'gc_life> {
+            pub fn get_ext_class_loader(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<ExtClassLoader<'gc_life>, WasException> {
                 let ext_class_loader = check_initing_or_inited_class(jvm, int_state, ClassName::new("sun/misc/Launcher$ExtClassLoader").into())?;
                 run_static_or_virtual(jvm, int_state, &ext_class_loader, "getExtClassLoader".to_string(), "()Lsun/misc/Launcher;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(ClassName::classloader().into()).cast_ext_class_launcher())

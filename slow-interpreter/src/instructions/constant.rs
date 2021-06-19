@@ -26,7 +26,7 @@ pub fn sipush(mut current_frame: StackEntryMut, val: u16) {
 
 
 pub fn aconst_null(mut current_frame: StackEntryMut) {
-    current_frame.push(JavaValue::Object(None))
+    current_frame.push(JavaValue::null())
 }
 
 

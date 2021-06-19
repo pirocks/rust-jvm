@@ -65,7 +65,7 @@ pub fn dload(mut current_frame: StackEntryMut, n: u16) {
 }
 
 
-pub fn aaload(int_state: &mut InterpreterStateGuard) {
+pub fn aaload(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let mut current_frame = int_state.current_frame_mut();
     let index = current_frame.pop(PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(ClassName::object().into());
@@ -78,7 +78,7 @@ pub fn aaload(int_state: &mut InterpreterStateGuard) {
     current_frame.push(array_refcell[index as usize].clone())
 }
 
-pub fn caload(jvm: &JVMState, int_state: &mut InterpreterStateGuard) {
+pub fn caload(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let index = int_state.pop_current_operand_stack(PTypeView::IntType).unwrap_int();
     let temp = int_state.pop_current_operand_stack(ClassName::object().into());
     let unborrowed = temp.unwrap_array();

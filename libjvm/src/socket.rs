@@ -56,7 +56,7 @@ unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std:
                 }
             }
         } else {
-            return err
+            return err;
         }
     }
 }

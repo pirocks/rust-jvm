@@ -335,7 +335,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: 
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     if class.class_name == ClassName::object() {
-        return Ok(())
+        return Ok(());
         // if is_bootstrap_loader(&class.loader) {
         //     Result::Ok(())
         // } else {

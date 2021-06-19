@@ -14,20 +14,20 @@ pub mod throwable {
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
-    pub struct Throwable {
-        pub(crate) normal_object: Arc<Object>
+    pub struct Throwable<'gc_life> {
+        pub(crate) normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_throwable(&self) -> Throwable {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_throwable(&self) -> Throwable<'gc_life> {
             Throwable { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Throwable {
-        pub fn print_stack_trace(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+    impl<'gc_life> Throwable<'gc_life> {
+        pub fn print_stack_trace(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, ClassName::throwable().into()).expect("Throwable isn't inited?");
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &throwable_class, "printStackTrace".to_string(), "()V".to_string())?;
             Ok(())
         }
@@ -39,10 +39,8 @@ pub mod throwable {
 pub mod stack_trace_element {
     use std::sync::Arc;
 
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
-    use rust_jvm_common::ptype::ReferenceType;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -53,21 +51,21 @@ pub mod stack_trace_element {
     use crate::jvm_state::JVMState;
 
     #[derive(Clone, Debug)]
-    pub struct StackTraceElement {
-        normal_object: Arc<Object>
+    pub struct StackTraceElement<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_stack_trace_element(&self) -> StackTraceElement {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_stack_trace_element(&self) -> StackTraceElement<'gc_life> {
             StackTraceElement { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl StackTraceElement {
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, declaring_class: JString, method_name: JString, file_name: JString, line_number: jint) -> Result<StackTraceElement, WasException> {
+    impl<'gc_life> StackTraceElement<'gc_life> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, declaring_class: JString<'gc_life>, method_name: JString<'gc_life>, file_name: JString<'gc_life>, line_number: jint) -> Result<StackTraceElement<'gc_life>, WasException> {
             let class_ = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/StackTraceElement").into())?;
             push_new_object(jvm, int_state, &class_);
-            let res = int_state.pop_current_operand_stack(ClassName::object().into());
+            let res: JavaValue<'gc_life> = int_state.pop_current_operand_stack(ClassName::object().into());
             let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(
                 line_number
             )];
@@ -101,36 +99,36 @@ pub mod member_name {
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone, Debug)]
-    pub struct MemberName {
-        normal_object: Arc<Object>
+    pub struct MemberName<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_member_name(&self) -> MemberName {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_member_name(&self) -> MemberName<'gc_life> {
             MemberName { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl MemberName {
+    impl<'gc_life> MemberName<'gc_life> {
         // private Class<?> clazz;
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name_func(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JString>, WasException> {
+        pub fn get_name_func(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Option<JString<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string())
         }
 
-        pub fn is_static(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<bool, WasException> {
+        pub fn is_static(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<bool, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string())?;
             Ok(int_state.pop_current_operand_stack(PTypeView::BooleanType).unwrap_boolean() != 0)
         }
 
-        pub fn get_name_or_null(&self) -> Option<JString> {
+        pub fn get_name_or_null(&self) -> Option<JString<'gc_life>> {
             let str_jvalue = self.normal_object.lookup_field("name");
             if str_jvalue.unwrap_object().is_none() {
                 None
@@ -139,16 +137,16 @@ pub mod member_name {
             }
         }
 
-        pub fn get_name(&self) -> JString {
+        pub fn get_name(&self) -> JString<'gc_life> {
             self.get_name_or_null().unwrap()
         }
 
 
-        pub fn set_name(&self, new_val: JString) {
+        pub fn set_name(&self, new_val: JString<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("name", new_val.java_value());
         }
 
-        pub fn get_clazz_or_null(&self) -> Option<JClass> {
+        pub fn get_clazz_or_null(&self) -> Option<JClass<'gc_life>> {
             let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level("clazz").clone();
             if possibly_null.unwrap_object().is_none() {
                 None
@@ -157,20 +155,20 @@ pub mod member_name {
             }
         }
 
-        pub fn get_clazz(&self) -> JClass {
+        pub fn get_clazz(&self) -> JClass<'gc_life> {
             self.get_clazz_or_null().unwrap()
         }
 
-        pub fn set_clazz(&self, new_val: JClass) {
+        pub fn set_clazz(&self, new_val: JClass<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("clazz".to_string(), new_val.java_value());
         }
 
-        pub fn set_type(&self, new_val: MethodType) {
+        pub fn set_type(&self, new_val: MethodType<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("type".to_string(), new_val.java_value());
         }
 
 
-        pub fn get_type(&self) -> JavaValue {
+        pub fn get_type(&self) -> JavaValue<'gc_life> {
             self.normal_object.unwrap_normal_object().get_var_top_level("type").clone()
         }
 
@@ -181,33 +179,33 @@ pub mod member_name {
 
         getter_gen!(flags,jint,unwrap_int);
 
-        pub fn set_resolution(&self, new_val: JavaValue) {
+        pub fn set_resolution(&self, new_val: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("resolution".to_string(), new_val);
         }
 
-        pub fn get_resolution(&self) -> JavaValue {
+        pub fn get_resolution(&self) -> JavaValue<'gc_life> {
             self.normal_object.unwrap_normal_object().get_var_top_level(&"resolution".to_string()).clone()
         }
 
-        pub fn clazz(&self) -> Option<JClass> {
+        pub fn clazz(&self) -> Option<JClass<'gc_life>> {
             self.normal_object.unwrap_normal_object().get_var_top_level("clazz").cast_class()
         }
 
-        pub fn get_method_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<MethodType, WasException> {
+        pub fn get_method_type(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<MethodType<'gc_life>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::method_type().into()).cast_method_type())
         }
 
-        pub fn get_field_type(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<JClass>, WasException> {
+        pub fn get_field_type(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Option<JClass<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::class().into()).cast_class())
         }
 
-        pub fn new_from_field(jvm: &JVMState, int_state: &mut InterpreterStateGuard, field: Field) -> Result<Self, WasException> {
+        pub fn new_from_field(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, field: Field<'gc_life>) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -215,7 +213,7 @@ pub mod member_name {
             Ok(res.cast_member_name())
         }
 
-        pub fn new_from_method(jvm: &JVMState, int_state: &mut InterpreterStateGuard, method: Method) -> Result<Self, WasException> {
+        pub fn new_from_method(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method: Method<'gc_life>) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -224,7 +222,7 @@ pub mod member_name {
         }
 
 
-        pub fn new_from_constructor(jvm: &JVMState, int_state: &mut InterpreterStateGuard, constructor: Constructor) -> Result<Self, WasException> {
+        pub fn new_from_constructor(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, constructor: Constructor<'gc_life>) -> Result<Self, WasException> {
             let member_class = check_initing_or_inited_class(jvm, int_state, ClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -246,7 +244,6 @@ pub mod class {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::class_objects::get_or_create_class_object;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
@@ -257,29 +254,29 @@ pub mod class {
     use crate::utils::run_static_or_virtual;
 
     #[derive(Debug, Clone)]
-    pub struct JClass {
-        normal_object: Arc<Object>
+    pub struct JClass<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_class(&self) -> Option<JClass> {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_class(&self) -> Option<JClass<'gc_life>> {
             Some(JClass { normal_object: self.unwrap_object()? })
         }
     }
 
-    impl JClass {
-        pub fn as_type(&self, jvm: &JVMState) -> PTypeView {
+    impl<'gc_life> JClass<'gc_life> {
+        pub fn as_type(&self, jvm: &'_ JVMState<'gc_life>) -> PTypeView {
             self.as_runtime_class(jvm).ptypeview()
         }
 
-        pub fn as_runtime_class(&self, jvm: &JVMState) -> Arc<RuntimeClass> {
+        pub fn as_runtime_class(&self, jvm: &'_ JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
             jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddress(self.normal_object.clone())).unwrap().clone().0
         }
 
-        pub fn get_class_loader(&self, state: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<ClassLoader>, WasException> {
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+        pub fn get_class_loader(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(
-                state,
+                jvm,
                 int_state,
                 &self.normal_object.unwrap_normal_object().objinfo.class_pointer,
                 "getClassLoader".to_string(),
@@ -287,19 +284,19 @@ pub mod class {
             )?;
             Ok(int_state.pop_current_operand_stack(ClassName::object().into())
                 .unwrap_object()
-                .map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))
+                .map(|cl| JavaValue::Object(todo!()/*cl.into()*/).cast_class_loader()))
         }
 
-        pub fn new_bootstrap_loader(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Self, WasException> {
+        pub fn new_bootstrap_loader(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Self, WasException> {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(ClassName::class().into());
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(None)], "(Ljava/lang/ClassLoader;)V".to_string())?;
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(todo!()/*None*/)], "(Ljava/lang/ClassLoader;)V".to_string())?;
             Ok(res.cast_class().unwrap())
         }
 
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader: ClassLoader) -> Result<Self, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, loader: ClassLoader<'gc_life>) -> Result<Self, WasException> {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(ClassName::class().into());
@@ -307,18 +304,18 @@ pub mod class {
             Ok(res.cast_class().unwrap())
         }
 
-        pub fn from_name(jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: ClassName) -> JClass {
+        pub fn from_name(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: ClassName) -> JClass<'gc_life> {
             let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
-            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class().unwrap()
+            JavaValue::Object(todo!()/*get_or_create_class_object(jvm, type_, int_state).unwrap().into()*/).cast_class().unwrap()
         }
 
-        pub fn from_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, ptype: PTypeView) -> Result<JClass, WasException> {
+        pub fn from_type(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<JClass<'gc_life>, WasException> {
             load_class_constant_by_type(jvm, int_state, ptype)?;
             let res = int_state.pop_current_operand_stack(ClassName::class().into()).unwrap_object();
-            Ok(JavaValue::Object(res).cast_class().unwrap())
+            Ok(JavaValue::Object(todo!()/*res*/).cast_class().unwrap())
         }
 
-        pub fn get_name(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
+        pub fn get_name(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<JString<'gc_life>, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into()).unwrap();
             run_static_or_virtual(
@@ -328,10 +325,11 @@ pub mod class {
                 "getName".to_string(),
                 "()Ljava/lang/String;".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string().expect("classes are known to have non-null names"))
+            let result_popped_from_operand_stack: JavaValue<'gc_life> = int_state.pop_current_operand_stack(ClassName::string().into());
+            Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))
         }
 
-        pub fn set_name_(&self, name: JString) {
+        pub fn set_name_(&self, name: JString<'gc_life>) {
             let normal_object = self.normal_object.unwrap_normal_object();
             normal_object.set_var_top_level("name".to_string(), name.java_value());
         }
@@ -358,18 +356,18 @@ pub mod class_loader {
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
-    pub struct ClassLoader {
-        normal_object: Arc<Object>
+    pub struct ClassLoader<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_class_loader(&self) -> ClassLoader {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_class_loader(&self) -> ClassLoader<'gc_life> {
             ClassLoader { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl ClassLoader {
-        pub fn to_jvm_loader(&self, jvm: &JVMState) -> LoaderName {
+    impl<'gc_life> ClassLoader<'gc_life> {
+        pub fn to_jvm_loader(&self, jvm: &'_ JVMState<'gc_life>) -> LoaderName {
             let mut loaders_guard = jvm.class_loaders.write().unwrap();
             let loader_index_lookup = loaders_guard.get_by_right(&ByAddress(self.normal_object.clone()));
             LoaderName::UserDefinedLoader(match loader_index_lookup {
@@ -384,7 +382,7 @@ pub mod class_loader {
             })
         }
 
-        pub fn load_class(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard, name: JString) -> Result<JClass, WasException> {
+        pub fn load_class(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: JString<'gc_life>) -> Result<JClass<'gc_life>, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(name.java_value());
             let class_loader = assert_inited_or_initing_class(jvm, ClassName::classloader().into());
@@ -421,40 +419,40 @@ pub mod string {
     use crate::utils::string_obj_to_string;
 
     #[derive(Clone)]
-    pub struct JString {
-        normal_object: Arc<Object>
+    pub struct JString<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_string(&self) -> Option<JString> {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_string(&self) -> Option<JString<'gc_life>> {
             Some(JString { normal_object: self.unwrap_object()? })
         }
     }
 
-    impl JString {
+    impl<'gc_life> JString<'gc_life> {
         pub fn to_rust_string(&self) -> String {
             string_obj_to_string(self.normal_object.clone().into())
         }
 
-        pub fn from_rust(jvm: &JVMState, int_state: &mut InterpreterStateGuard, rust_str: String) -> Result<JString, WasException> {
+        pub fn from_rust(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, rust_str: String) -> Result<JString<'gc_life>, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into()).unwrap();//todo replace these unwraps
             push_new_object(jvm, int_state, &string_class);
             let string_object = int_state.pop_current_operand_stack(ClassName::string().into());
 
-            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue>>();
+            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue<'gc_life>>>();
             let array_object = ArrayObject {
                 elems: UnsafeCell::new(vec1),
                 elem_type: PTypeView::CharType,
                 monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
-            let array = JavaValue::Object(Some(Arc::new(Object::Array(array_object))));
+            let array = JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(array_object)))*/);
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
                             "([C)V".to_string())?;
             Ok(string_object.cast_string().expect("error creating string"))
         }
 
-        pub fn intern(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<JString, WasException> {
+        pub fn intern(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<JString<'gc_life>, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into())?;
             run_static_or_virtual(
@@ -475,7 +473,7 @@ pub mod string {
             res
         }
 
-        pub fn length(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<jint, WasException> {
+        pub fn length(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<jint, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             let string_class = check_initing_or_inited_class(jvm, int_state, ClassName::string().into())?;
             run_static_or_virtual(
@@ -500,18 +498,18 @@ pub mod integer {
     use crate::{JVMState, StackEntry};
     use crate::java_values::{JavaValue, Object};
 
-    pub struct Integer {
-        normal_object: Arc<Object>
+    pub struct Integer<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_integer(&self) -> Integer {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_integer(&self) -> Integer<'gc_life> {
             Integer { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Integer {
-        pub fn from(_state: &JVMState, _current_frame: &StackEntry, _i: jint) -> Integer {
+    impl<'gc_life> Integer<'gc_life> {
+        pub fn from(_state: &JVMState, _current_frame: &StackEntry, _i: jint) -> Integer<'gc_life> {
             unimplemented!()
         }
 
@@ -529,17 +527,17 @@ pub mod object {
     use crate::java_values::JavaValue;
     use crate::java_values::Object;
 
-    pub struct JObject {
-        normal_object: Arc<Object>
+    pub struct JObject<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_object(&self) -> JObject {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_object(&self) -> JObject<'gc_life> {
             JObject { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl JObject {
+    impl<'gc_life> JObject<'gc_life> {
         as_object_or_java_value!();
     }
 }
@@ -565,16 +563,16 @@ pub mod thread {
     use crate::utils::run_static_or_virtual;
 
     #[derive(Debug, Clone)]
-    pub struct JThread {
-        normal_object: Arc<Object>
+    pub struct JThread<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_thread(&self) -> JThread {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_thread(&self) -> JThread<'gc_life> {
             JThread { normal_object: self.unwrap_object_nonnull() }
         }
 
-        pub fn try_cast_thread(&self) -> Option<JThread> {
+        pub fn try_cast_thread(&self) -> Option<JThread<'gc_life>> {
             match self.try_unwrap_normal_object() {
                 Some(_normal_object) => {
                     // if normal_object.class_pointer.view().name() == ClassName::thread() { //todo add this kind of check back at some point
@@ -587,8 +585,8 @@ pub mod thread {
         }
     }
 
-    impl JThread {
-        pub fn invalid_thread(jvm: &JVMState) -> JThread {
+    impl<'gc_life> JThread<'gc_life> {
+        pub fn invalid_thread(jvm: &'_ JVMState<'gc_life>) -> JThread<'gc_life> {
             JThread {
                 normal_object: Arc::new(Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
@@ -601,29 +599,29 @@ pub mod thread {
             }
         }
 
-        pub fn tid(&self, jvm: &JVMState) -> JavaThreadId {
+        pub fn tid(&self, jvm: &'_ JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             self.normal_object.unwrap_normal_object().get_var(thread_class, "tid", PTypeView::LongType).unwrap_long()
         }
 
-        pub fn run(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+        pub fn run(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string())
         }
 
-        pub fn exit(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+        pub fn exit(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &thread_class, "exit".to_string(), "()V".to_string())
         }
 
-        pub fn name(&self, jvm: &JVMState) -> JString {
+        pub fn name(&self, jvm: &'_ JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             self.normal_object.unwrap_normal_object().get_var(thread_class, "name", ClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
         }
 
-        pub fn priority(&self, jvm: &JVMState) -> i32 {
+        pub fn priority(&self, jvm: &'_ JVMState<'gc_life>) -> i32 {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             self.normal_object.unwrap_normal_object().get_var(thread_class, "priority", PTypeView::IntType).unwrap_int()
         }
@@ -632,18 +630,18 @@ pub mod thread {
             self.normal_object.unwrap_normal_object().set_var_top_level("priority".to_string(), JavaValue::Int(priority));
         }
 
-        pub fn daemon(&self, jvm: &JVMState) -> bool {
+        pub fn daemon(&self, jvm: &'_ JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             self.normal_object.unwrap_normal_object().get_var(thread_class, "daemon", PTypeView::BooleanType).unwrap_int() != 0
         }
 
-        pub fn set_thread_status(&self, jvm: &JVMState, thread_status: jint) {
+        pub fn set_thread_status(&self, jvm: &'_ JVMState<'gc_life>, thread_status: jint) {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             self.normal_object.unwrap_normal_object().set_var(thread_class, "threadStatus".to_string(), JavaValue::Int(thread_status), PTypeView::IntType);
         }
 
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, thread_group: JThreadGroup, thread_name: String) -> Result<JThread, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, thread_group: JThreadGroup<'gc_life>, thread_name: String) -> Result<JThread<'gc_life>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             push_new_object(jvm, int_state, &thread_class);
             let thread_object = int_state.pop_current_operand_stack(ClassName::thread().into());
@@ -653,16 +651,16 @@ pub mod thread {
             Ok(thread_object.cast_thread())
         }
 
-        pub fn get_java_thread(&self, jvm: &JVMState) -> Arc<JavaThread> {
+        pub fn get_java_thread(&self, jvm: &'_ JVMState<'gc_life>) -> Arc<JavaThread<'gc_life>> {
             self.try_get_java_thread(jvm).unwrap()
         }
 
-        pub fn try_get_java_thread(&self, jvm: &JVMState) -> Option<Arc<JavaThread>> {
+        pub fn try_get_java_thread(&self, jvm: &'_ JVMState<'gc_life>) -> Option<Arc<JavaThread<'gc_life>>> {
             let tid = self.tid(jvm);
             jvm.thread_state.try_get_thread_by_tid(tid)
         }
 
-        pub fn is_alive(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<jboolean, WasException> {
+        pub fn is_alive(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<jboolean, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
@@ -677,7 +675,7 @@ pub mod thread {
         }
 
 
-        pub fn get_context_class_loader(&self, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<Option<ClassLoader>, WasException> {
+        pub fn get_context_class_loader(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
@@ -694,7 +692,7 @@ pub mod thread {
             Ok(res.cast_class_loader().into())
         }
 
-        pub fn get_inherited_access_control_context(&self) -> JThread {
+        pub fn get_inherited_access_control_context(&self) -> JThread<'gc_life> {
             self.normal_object.lookup_field("inheritedAccessControlContext").cast_thread()
         }
 
@@ -717,16 +715,16 @@ pub mod thread_group {
     use crate::runtime_class::RuntimeClass;
 
     #[derive(Debug, Clone)]
-    pub struct JThreadGroup {
-        normal_object: Arc<Object>
+    pub struct JThreadGroup<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_thread_group(&self) -> JThreadGroup {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_thread_group(&self) -> JThreadGroup<'gc_life> {
             JThreadGroup { normal_object: self.unwrap_object_nonnull() }
         }
 
-        pub fn try_cast_thread_group(&self) -> Option<JThreadGroup> {
+        pub fn try_cast_thread_group(&self) -> Option<JThreadGroup<'gc_life>> {
             match self.try_unwrap_normal_object() {
                 Some(normal_object) => {
                     if normal_object.objinfo.class_pointer.view().name() == ClassName::thread_group().into() {
@@ -739,9 +737,9 @@ pub mod thread_group {
         }
     }
 
-    impl JThreadGroup {
-        pub fn init(jvm: &JVMState,
-                    int_state: &mut InterpreterStateGuard, thread_group_class: Arc<RuntimeClass>) -> Result<JThreadGroup, WasException> {
+    impl<'gc_life> JThreadGroup<'gc_life> {
+        pub fn init(jvm: &'_ JVMState<'gc_life>,
+                    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, thread_group_class: Arc<RuntimeClass<'gc_life>>) -> Result<JThreadGroup<'gc_life>, WasException> {
             push_new_object(jvm, int_state, &thread_group_class);
             let thread_group_object = int_state.pop_current_operand_stack(ClassName::thread().into());
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],
@@ -755,7 +753,7 @@ pub mod thread_group {
                     {
                         match thread.unwrap_object() {
                             None => None,
-                            Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
+                            Some(t) => JavaValue::Object(todo!()/*t.into()*/).cast_thread().into(),
                         }
                     }
                 ).collect()
@@ -766,7 +764,7 @@ pub mod thread_group {
             self.threads().into_iter().flatten().collect()
         }
 
-        pub fn name(&self) -> JString {
+        pub fn name(&self) -> JString<'gc_life> {
             self.normal_object.lookup_field("name").cast_string().expect("thread group null name")
         }
 
@@ -778,7 +776,7 @@ pub mod thread_group {
             self.normal_object.lookup_field("maxPriority").unwrap_int()
         }
 
-        pub fn parent(&self) -> Option<JThreadGroup> {
+        pub fn parent(&self) -> Option<JThreadGroup<'gc_life>> {
             self.normal_object.lookup_field("parent").try_cast_thread_group()
         }
 
@@ -801,20 +799,20 @@ pub mod class_not_found_exception {
     use crate::java_values::Object;
     use crate::jvm_state::JVMState;
 
-    pub struct ClassNotFoundException {
-        normal_object: Arc<Object>
+    pub struct ClassNotFoundException<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_class_not_found_exception(&self) -> ClassNotFoundException {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_class_not_found_exception(&self) -> ClassNotFoundException<'gc_life> {
             ClassNotFoundException { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl ClassNotFoundException {
+    impl<'gc_life> ClassNotFoundException<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: JString) -> Result<ClassNotFoundException, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: JString<'gc_life>) -> Result<ClassNotFoundException<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ClassNotFoundException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -838,20 +836,20 @@ pub mod null_pointer_exception {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct NullPointerException {
-        normal_object: Arc<Object>
+    pub struct NullPointerException<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_null_pointer_exception(&self) -> NullPointerException {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_null_pointer_exception(&self) -> NullPointerException<'gc_life> {
             NullPointerException { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl NullPointerException {
+    impl<'gc_life> NullPointerException<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<NullPointerException, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<NullPointerException<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/NullPointerException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -877,20 +875,20 @@ pub mod array_out_of_bounds_exception {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct ArrayOutOfBoundsException {
-        normal_object: Arc<Object>
+    pub struct ArrayOutOfBoundsException<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_array_out_of_bounds_exception(&self) -> ArrayOutOfBoundsException {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_array_out_of_bounds_exception(&self) -> ArrayOutOfBoundsException<'gc_life> {
             ArrayOutOfBoundsException { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl ArrayOutOfBoundsException {
+    impl<'gc_life> ArrayOutOfBoundsException<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<ArrayOutOfBoundsException, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, index: jint) -> Result<ArrayOutOfBoundsException<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/ArrayOutOfBoundsException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -914,20 +912,20 @@ pub mod illegal_argument_exception {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct IllegalArgumentException {
-        normal_object: Arc<Object>
+    pub struct IllegalArgumentException<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_illegal_argument_exception(&self) -> IllegalArgumentException {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_illegal_argument_exception(&self) -> IllegalArgumentException<'gc_life> {
             IllegalArgumentException { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl IllegalArgumentException {
+    impl<'gc_life> IllegalArgumentException<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<IllegalArgumentException, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<IllegalArgumentException<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/IllegalArgumentException".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -951,20 +949,20 @@ pub mod long {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Long {
-        normal_object: Arc<Object>
+    pub struct Long<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_long(&self) -> Long {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_long(&self) -> Long<'gc_life> {
             Long { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Long {
+    impl<'gc_life> Long<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jlong) -> Result<Long, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jlong) -> Result<Long<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Long".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::long().into());
@@ -988,20 +986,20 @@ pub mod int {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Int {
-        normal_object: Arc<Object>
+    pub struct Int<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_int(&self) -> Int {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_int(&self) -> Int<'gc_life> {
             Int { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Int {
+    impl<'gc_life> Int<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jint) -> Result<Int, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jint) -> Result<Int<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Int".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::int().into());
@@ -1025,20 +1023,20 @@ pub mod short {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Short {
-        normal_object: Arc<Object>
+    pub struct Short<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_short(&self) -> Short {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_short(&self) -> Short<'gc_life> {
             Short { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Short {
+    impl<'gc_life> Short<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jshort) -> Result<Short, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jshort) -> Result<Short<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Short".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::short().into());
@@ -1062,20 +1060,20 @@ pub mod byte {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Byte {
-        normal_object: Arc<Object>
+    pub struct Byte<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_byte(&self) -> Byte {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_byte(&self) -> Byte<'gc_life> {
             Byte { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Byte {
+    impl<'gc_life> Byte<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jbyte) -> Result<Byte, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jbyte) -> Result<Byte<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Byte".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::byte().into());
@@ -1099,20 +1097,20 @@ pub mod boolean {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Boolean {
-        normal_object: Arc<Object>
+    pub struct Boolean<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_boolean(&self) -> Boolean {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_boolean(&self) -> Boolean<'gc_life> {
             Boolean { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Boolean {
+    impl<'gc_life> Boolean<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jboolean) -> Result<Boolean, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jboolean) -> Result<Boolean<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Boolean".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::boolean().into());
@@ -1136,20 +1134,20 @@ pub mod char {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Char {
-        normal_object: Arc<Object>
+    pub struct Char<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_char(&self) -> Char {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_char(&self) -> Char<'gc_life> {
             Char { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Char {
+    impl<'gc_life> Char<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jchar) -> Result<Char, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jchar) -> Result<Char<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Char".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::character().into());
@@ -1173,20 +1171,20 @@ pub mod float {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Float {
-        normal_object: Arc<Object>
+    pub struct Float<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_float(&self) -> Float {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_float(&self) -> Float<'gc_life> {
             Float { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Float {
+    impl<'gc_life> Float<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jfloat) -> Result<Float, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jfloat) -> Result<Float<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Float".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::float().into());
@@ -1210,20 +1208,20 @@ pub mod double {
     use crate::java_values::{JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    pub struct Double {
-        normal_object: Arc<Object>
+    pub struct Double<'gc_life> {
+        normal_object: Arc<Object<'gc_life>>,
     }
 
-    impl JavaValue {
-        pub fn cast_double(&self) -> Double {
+    impl<'gc_life> JavaValue<'gc_life> {
+        pub fn cast_double(&self) -> Double<'gc_life> {
             Double { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl Double {
+    impl<'gc_life> Double<'gc_life> {
         as_object_or_java_value!();
 
-        pub fn new(jvm: &JVMState, int_state: &mut InterpreterStateGuard, param: jdouble) -> Result<Double, WasException> {
+        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, param: jdouble) -> Result<Double<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/Double".to_string()).into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(ClassName::double().into());

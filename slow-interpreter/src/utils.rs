@@ -25,11 +25,11 @@ use crate::java_values::{ExceptionReturn, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(state: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass>)> {
-    lookup_method_parsed_impl(state, int_state, class, name, descriptor)
+pub fn lookup_method_parsed<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+    lookup_method_parsed_impl(jvm, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: Arc<RuntimeClass>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass>)> {
+pub fn lookup_method_parsed_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {
@@ -54,19 +54,19 @@ pub fn lookup_method_parsed_impl(jvm: &JVMState, int_state: &mut InterpreterStat
 }
 
 
-pub fn string_obj_to_string(str_obj: Arc<Object>) -> String {
+pub fn string_obj_to_string<'gc_life>(str_obj: Arc<Object<'gc_life>>) -> String {
     let temp = str_obj.lookup_field("value");
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
     char::decode_utf16(borrowed_elems.iter().map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
-pub fn throw_npe_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {
+pub fn throw_npe_res<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<T, WasException> {
     let _ = throw_npe::<T>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_npe<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> T {
+pub fn throw_npe<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> T {
     let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
@@ -79,12 +79,12 @@ pub fn throw_npe<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut Interpreter
 }
 
 
-pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> Result<T, WasException> {
+pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, index: jint) -> Result<T, WasException> {
     let _ = throw_array_out_of_bounds::<T>(jvm, int_state, index);
     Err(WasException)
 }
 
-pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, index: jint) -> T {
+pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, index: jint) -> T {
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
@@ -96,12 +96,12 @@ pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &JVMState, int_state: 
     T::invalid_default()
 }
 
-pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<T, WasException> {
+pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<T, WasException> {
     let _ = throw_illegal_arg::<T>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> T {
+pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> T {
     let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
@@ -113,7 +113,7 @@ pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &JVMState, int_state: &mut Int
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterStateGuard, java_value: JavaValue) -> Result<Option<Arc<Object>>, WasException> {
+pub fn java_value_to_boxed_object<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, java_value: JavaValue<'gc_life>) -> Result<Option<Arc<Object<'gc_life>>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
@@ -124,13 +124,13 @@ pub fn java_value_to_boxed_object(jvm: &JVMState, int_state: &mut InterpreterSta
         JavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
         JavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
         JavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Object(obj) => obj,
+        JavaValue::Object(obj) => todo!()/*obj*/,
         JavaValue::Top => panic!()
     })
 }
 
 
-pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGuard, class: &Arc<RuntimeClass>, method_name: String, desc_str: String) -> Result<(), WasException> {
+pub fn run_static_or_virtual<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: &Arc<RuntimeClass<'gc_life>>, method_name: String, desc_str: String) -> Result<(), WasException> {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
     let view = class.view();
     let res_fun = view.lookup_method(&method_name, &parsed_desc);
@@ -147,7 +147,7 @@ pub fn run_static_or_virtual(jvm: &JVMState, int_state: &mut InterpreterStateGua
 }
 
 
-pub fn unwrap_or_npe<T>(jvm: &JVMState, int_state: &mut InterpreterStateGuard, to_unwrap: Option<T>) -> Result<T, WasException> {
+pub fn unwrap_or_npe<T>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, to_unwrap: Option<T>) -> Result<T, WasException> {
     match to_unwrap {
         None => {
             throw_npe_res(jvm, int_state)?;

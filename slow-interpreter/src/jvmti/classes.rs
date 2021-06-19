@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::mem::{size_of, transmute};
+use std::sync::RwLockReadGuard;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
@@ -7,7 +8,9 @@ use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_AR
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::WasException;
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
+use crate::jvm_state::{Classes, JVMState};
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
@@ -66,7 +69,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(transmute(klass)).unwrap();//todo handle null
     let res = {
-        let type_ = &JavaValue::Object(class.into()).cast_class().unwrap().as_type(jvm);
+        let type_ = &JavaValue::Object(todo!()/*class.into()*/).cast_class().unwrap().as_type(jvm);
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
@@ -132,17 +135,18 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 /// Error 	Description
 /// JVMTI_ERROR_NULL_POINTER	class_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	classes_ptr is NULL.
-pub unsafe extern "C" fn get_loaded_classes(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
+pub unsafe extern "C" fn get_loaded_classes<'gc_life>(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
+    let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
+    let int_state: &'gc_life mut InterpreterStateGuard<'gc_life, '_> = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 
-    let collected = jvm.classes.read().unwrap().get_loaded_classes().collect::<Vec<_>>();
-    collected.iter().for_each(|(_loader, ptype)| {
+    let classes: RwLockReadGuard<'_, Classes<'gc_life>> = jvm.classes.read().unwrap();
+    let collected = classes.get_loaded_classes();
+    for (_loader, ptype) in collected {
         let class_object = get_or_create_class_object(jvm, ptype.clone(), int_state);
         res_vec.push(new_local_ref_public(class_object.unwrap().into(), int_state))
-    });
+    }
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -153,7 +157,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(transmute(klass)).unwrap();//todo handle npe
-    let class_object_ptype = JavaValue::Object(notnull_class.into()).cast_class().unwrap().as_type(jvm);
+    let class_object_ptype = JavaValue::Object(todo!()/*notnull_class.into()*/).cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(type_.jvm_representation()).unwrap();

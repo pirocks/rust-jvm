@@ -1,18 +1,22 @@
 # The beginnings of a JVM implementation in Rust
 
-The title says it all pretty much. 
+The title says it all pretty much.
 
 ## How do I run it?
 
-This VM depends on `libjava.so` and `libnio.so`, as well as libraries depended on by those shared libraries(except for `libjvm.so`, which is provided by the libjvm crate).
-These libraries provide native implementations of standard library methods, since if you want to interact with the outside world in java you eventually need to use native code. 
+This VM depends on `libjava.so` and `libnio.so`, as well as libraries depended on by those shared libraries(except
+for `libjvm.so`, which is provided by the libjvm crate). These libraries provide native implementations of standard
+library methods, since if you want to interact with the outside world in java you eventually need to use native code.
 You can find the aforementioned shared libraries in pretty much any jdk8 distribution.
 
-This project uses rust nightly and as of now (`c46b8d437bf152782ea17a9fdb575dc7177006eb`) compiles with `rustc 1.45.0-nightly (a74d1862d 2020-05-14)`. 
-To compile you will also need external header files specifically, `jni.h`, `jvmti.h`, and `jvm.h`. These can also be found in a JDK8 distribution near you, except `jvm.h` which needs to be obtained from the OpenJDK source. 
+This project uses rust nightly and as of now (`c46b8d437bf152782ea17a9fdb575dc7177006eb`) compiles
+with `rustc 1.45.0-nightly (a74d1862d 2020-05-14)`. To compile you will also need external header files
+specifically, `jni.h`, `jvmti.h`, and `jvm.h`. These can also be found in a JDK8 distribution near you, except `jvm.h`
+which needs to be obtained from the OpenJDK source.
 
-To run useful programs a copy of `rt.jar` is required. This jar contains essential class definitions such as the definition of `java.lang.Object`, and similar classes.
-If you want to run something which depends on `SecureRandom` you will need additional jar files typically located in `jre/lib/ext` of a JDK8 distribution.
+To run useful programs a copy of `rt.jar` is required. This jar contains essential class definitions such as the
+definition of `java.lang.Object`, and similar classes. If you want to run something which depends on `SecureRandom` you
+will need additional jar files typically located in `jre/lib/ext` of a JDK8 distribution.
 
 Putting it all together:
 
@@ -41,33 +45,34 @@ docker run rust_jvm_test --main SecureRandomDemo --libjava /jdk8u252-b09/jre/lib
 
 See resources/test for more Demo classes. You only need to change "--main SecureRandomDemo" to run them.
 
+### What can it do?
 
-### What can it do? 
- - Initialize a VM(with properties and the `System.in`/`System.out` streams correctly initialized)
- - Hello World
- - Verify Bytecode
- - Basic IO as well as some NIO
- - Some reflection and introspection
- - Basic Class Loading
- - Float/Double Arithmetic
- - JVMTI/JNI/Class Loading tracing
- - Load classes from JARs
- - Monitor operations
- - Configure JVM properties
- - String Internment
- - Secure Random
- - Pass arguments to the Java program in question
- 
+- Initialize a VM(with properties and the `System.in`/`System.out` streams correctly initialized)
+- Hello World
+- Verify Bytecode
+- Basic IO as well as some NIO
+- Some reflection and introspection
+- Basic Class Loading
+- Float/Double Arithmetic
+- JVMTI/JNI/Class Loading tracing
+- Load classes from JARs
+- Monitor operations
+- Configure JVM properties
+- String Internment
+- Secure Random
+- Pass arguments to the Java program in question
 
 ### What can it partially do?
- - JNI Interface
- - JVMTI Interface
- - sun.misc.Unsafe implementation 
- - Access Control with `AccessController.doPrivileged`
- - Threads
 
-### What can't it do (yet)? 
-- JIT 
+- JNI Interface
+- JVMTI Interface
+- sun.misc.Unsafe implementation
+- Access Control with `AccessController.doPrivileged`
+- Threads
+
+### What can't it do (yet)?
+
+- JIT
 - Garbage Collection with finalizers
 - Network/Sockets and similar complex IO
 - Execute `invokedynamic` instructions

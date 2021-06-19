@@ -5,7 +5,10 @@ use crate::classnames::ClassName;
 use crate::ptype::{PType, ReferenceType};
 
 #[derive(Debug, Eq, Clone)]
-pub struct MethodDescriptor { pub parameter_types: Vec<PType>, pub return_type: PType }
+pub struct MethodDescriptor {
+    pub parameter_types: Vec<PType>,
+    pub return_type: PType,
+}
 
 impl MethodDescriptor {
     pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
@@ -30,7 +33,9 @@ impl Hash for MethodDescriptor {
 }
 
 #[derive(Debug)]
-pub struct FieldDescriptor { pub field_type: PType }
+pub struct FieldDescriptor {
+    pub field_type: PType,
+}
 
 
 #[derive(Debug)]

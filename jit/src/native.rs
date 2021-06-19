@@ -140,7 +140,7 @@ impl JITedCode {
             VMExitType::MultiNewArray => todo!(),
             VMExitType::ArrayOutOfBounds => todo!(),
             VMExitType::DebugTestExit => {
-                return//we are in test and expected this
+                return;//we are in test and expected this
             }
             VMExitType::ExitDueToCompletion => todo!()
         }

@@ -16,20 +16,20 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryMut;
 
-fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) -> Result<(), WasException> {
+fn load_class_constant(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, c: &ClassPoolElemView) -> Result<(), WasException> {
     let res_class_name = c.class_ref_type();
     let type_ = PTypeView::Ref(res_class_name);
-    load_class_constant_by_type(state, int_state, type_)?;
+    load_class_constant_by_type(jvm, int_state, type_)?;
     Ok(())
 }
 
-pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) -> Result<(), WasException> {
+pub fn load_class_constant_by_type(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, res_class_type: PTypeView) -> Result<(), WasException> {
     let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
-    int_state.current_frame_mut().push(JavaValue::Object(object.into()));
+    int_state.current_frame_mut().push(JavaValue::Object(todo!()/*object.into()*/));
     Ok(())
 }
 
-fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
+fn load_string_constant(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, s: &StringView) {
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
@@ -37,24 +37,24 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
     int_state.push_current_operand_stack(string.java_value());
 }
 
-pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) -> Result<(), WasException> {
+pub fn create_string_on_stack<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, res_string: String) -> Result<(), WasException> {
     let java_lang_string = ClassName::string();
     let string_class = assert_inited_or_initing_class(
         jvm,
         java_lang_string.into(),
     );
     let str_as_vec = res_string.chars();
-    let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
+    let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
     push_new_object(jvm, interpreter_state, &string_class);
     let string_object = interpreter_state.pop_current_operand_stack(ClassName::string().into());
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
+    args.push(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
         jvm,
         interpreter_state,
         chars,
         PTypeView::CharType,
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
-    )?)))));
+    )?)))*/));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
@@ -72,11 +72,11 @@ pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut Interprete
     if interpreter_state.function_return() {
         interpreter_state.set_function_return(false);
     }
-    interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
+    interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*string_object.unwrap_object()*/));
     Ok(())
 }
 
-pub fn ldc2_w(jvm: &JVMState, mut current_frame: StackEntryMut, cp: u16) {
+pub fn ldc2_w(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, cp: u16) {
     let view = current_frame.class_pointer(jvm).view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -91,7 +91,7 @@ pub fn ldc2_w(jvm: &JVMState, mut current_frame: StackEntryMut, cp: u16) {
 }
 
 
-pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
+pub fn ldc_w(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
     let view = int_state.current_class_view(jvm).clone();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
@@ -122,7 +122,7 @@ pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
     }
 }
 
-pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
+pub fn from_constant_pool_entry<'gc_life>(c: &ConstantInfoView, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> JavaValue<'gc_life> {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),

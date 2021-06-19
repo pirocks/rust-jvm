@@ -9,8 +9,10 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
-use std::thread::{Builder, LocalKey};
+use std::thread::LocalKey;
 
+use crossbeam::thread::Scope;
+use crossbeam::thread::ScopedJoinHandle;
 use nix::sys::signal::{SigAction, sigaction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
 
@@ -19,25 +21,26 @@ use crate::signal::{pthread_self, pthread_t, SI_QUEUE, siginfo_t};
 
 // type TID = usize;
 
-pub struct Threads {
-    this_thread: &'static LocalKey<RefCell<Option<Arc<Thread>>>>,
+pub struct Threads<'vm_life> {
+    this_thread: &'static LocalKey<RefCell<Option<Arc<Thread<'static>>>>>,
+    scope: Scope<'vm_life>,
 }
 
 static mut THERE_CAN_ONLY_BE_ONE_THREADS: bool = false;
 
 thread_local! {
-        static THIS_THREAD: RefCell<Option<Arc<Thread>>> = RefCell::new(None);
+        static THIS_THREAD: RefCell<Option<Arc<Thread<'static>>>> = RefCell::new(None);
     }
 
 
-impl Threads {
+impl<'vm_life> Threads<'vm_life> {
     pub fn this_thread(&self) -> Arc<Thread> {
         self.this_thread.with(|thread| {
-            thread.borrow().as_ref().unwrap().clone()
+            unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) }
         })
     }
 
-    pub fn new() -> Threads {
+    pub fn new(scope: Scope<'vm_life>) -> Threads<'vm_life> {
         unsafe {
             if THERE_CAN_ONLY_BE_ONE_THREADS {
                 panic!()
@@ -46,6 +49,7 @@ impl Threads {
         }
         let res = Threads {
             this_thread: &THIS_THREAD,
+            scope,
         };
 
 
@@ -53,7 +57,7 @@ impl Threads {
         res
     }
 
-    pub fn create_thread(&self, name: Option<String>) -> Thread {
+    pub fn create_thread(&'vm_life self, name: Option<String>) -> Thread<'vm_life> {
         let join_status = Arc::new(RwLock::new(JoinStatus {
             finished_mutex: Mutex::new(()),
             alive: AtomicBool::new(false),
@@ -73,14 +77,14 @@ impl Threads {
         };
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
-        let mut builder = Builder::new();
+        let mut builder = self.scope.builder();
         builder = match name {
             None => builder,
             Some(name) => builder.name(name),
         };
         let join_handle = builder
             .stack_size(1024 * 1024 * 256)// verifier makes heavy use of recursion.
-            .spawn(move || unsafe {
+            .spawn(move |_| unsafe {
                 join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
                 thread_info_channel_send.send(pthread_self()).unwrap();
                 let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
@@ -89,28 +93,28 @@ impl Threads {
             }).unwrap();
         res.thread_start_channel_send = Mutex::new(thread_start_channel_send).into();
         res.pthread_id = thread_info_channel_recv.recv().unwrap().into();
-        res.rust_join_handle = join_handle.into();
+        res.rust_join_handle = Some(join_handle);
         res
     }
 }
 
-pub struct ThreadStartInfo {
-    func: Box<dyn FnOnce(Box<dyn Any>) -> ()>,
+pub struct ThreadStartInfo<'vm_life> {
+    func: Box<dyn FnOnce(Box<dyn Any>) -> () + 'vm_life>,
     data: Box<dyn Any>,
 }
 
-unsafe impl Send for ThreadStartInfo {}
+unsafe impl Send for ThreadStartInfo<'_> {}
 
-unsafe impl Sync for ThreadStartInfo {}
+unsafe impl Sync for ThreadStartInfo<'_> {}
 
 #[derive(Debug)]
-pub struct Thread {
+pub struct Thread<'vm_life> {
     started: AtomicBool,
     join_status: Arc<RwLock<JoinStatus>>,
     pause: PauseStatus,
     pthread_id: Option<pthread_t>,
-    rust_join_handle: Option<std::thread::JoinHandle<()>>,
-    thread_start_channel_send: Option<Mutex<Sender<ThreadStartInfo>>>,
+    rust_join_handle: Option<ScopedJoinHandle<'vm_life, ()>>,
+    thread_start_channel_send: Option<Mutex<Sender<ThreadStartInfo<'vm_life>>>>,
 }
 
 #[derive(Debug)]
@@ -128,8 +132,8 @@ pub struct JoinStatus {
 }
 
 
-impl Thread {
-    pub fn start_thread<T: 'static>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) {
+impl<'vm_life> Thread<'vm_life> {
+    pub fn start_thread<T: 'vm_life>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) {
         self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
         self.started.store(true, Ordering::SeqCst);
     }
@@ -163,8 +167,8 @@ impl Thread {
     }
 }
 
-pub enum SignalReason {
-    Pause(*const Threads),
+pub enum SignalReason<'vm_life> {
+    Pause(*const Threads<'vm_life>),
     Event(AnEvent),
 }
 
@@ -173,15 +177,14 @@ pub struct AnEvent {
     pub data: *mut c_void,
 }
 
-impl Threads {
+impl<'vm_life> Threads<'vm_life> {
     fn init_signal_handler(&self) {
         unsafe {
             #[allow(clippy::transmuting_null)]
-            let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
+                let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
             sigaction(Signal::SIGUSR1, &sa).unwrap();
         };
     }
-
 }
 
 extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {

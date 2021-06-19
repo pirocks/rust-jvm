@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
     assert!(jvm.vm_live());
-    let thread_group = match JavaValue::Object(from_object(group)).try_cast_thread_group() {
+    let thread_group = match JavaValue::Object(todo!()/*from_object(group)*/).try_cast_thread_group() {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP),
         Some(thread_group) => thread_group,
     };

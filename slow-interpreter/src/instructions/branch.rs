@@ -13,7 +13,7 @@ pub fn goto_(mut current_frame: StackEntryMut, target: i32) {
 pub fn ifnull(mut current_frame: StackEntryMut, offset: i16) {
     let val = current_frame.pop(ClassName::object().into());
     let succeeds = match val {
-        JavaValue::Object(o) => o.is_none(),
+        JavaValue::Object(o) => todo!()/*o.is_none()*/,
         _ => panic!()
     };
     if succeeds {
@@ -24,7 +24,7 @@ pub fn ifnull(mut current_frame: StackEntryMut, offset: i16) {
 pub fn ifnonnull(mut current_frame: StackEntryMut, offset: i16) {
     let val = current_frame.pop(ClassName::object().into());
     let succeeds = match val {
-        JavaValue::Object(o) => o.is_some(),
+        JavaValue::Object(o) => todo!()/*o.is_some()*/,
         _ => panic!()
     };
     if succeeds {
@@ -159,10 +159,10 @@ pub fn if_acmpeq(mut current_frame: StackEntryMut, offset: i16) {
     }
 }
 
-fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
+fn equal_ref<'gc_life>(value2: JavaValue<'gc_life>, value1: JavaValue<'gc_life>) -> bool {
     match value1 {
         JavaValue::Object(o1) => match value2 {
-            JavaValue::Object(o2) => match o1 {
+            JavaValue::Object(o2) => todo!()/*match o1 {
                 None => o2.is_none(),
                 Some(o1_arc) => match o2 {
                     None => false,
@@ -170,7 +170,7 @@ fn equal_ref(value2: JavaValue, value1: JavaValue) -> bool {
                         Arc::ptr_eq(&o1_arc, &o2_arc)
                     }
                 },
-            },
+            }*/,
             _ => panic!()
         },
         _ => panic!()

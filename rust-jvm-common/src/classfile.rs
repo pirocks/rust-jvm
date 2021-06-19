@@ -8,13 +8,13 @@ use crate::ptype::PType;
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SourceFile {
-    pub sourcefile_index: CPIndex
+    pub sourcefile_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct InnerClasses {
-    pub classes: Vec<InnerClass>
+    pub classes: Vec<InnerClass>,
 }
 
 #[derive(Debug)]
@@ -27,25 +27,25 @@ pub struct EnclosingMethod {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SourceDebugExtension {
-    pub debug_extension: Vec<u8>
+    pub debug_extension: Vec<u8>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct BootstrapMethods {
-    pub bootstrap_methods: Vec<BootstrapMethod>
+    pub bootstrap_methods: Vec<BootstrapMethod>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct NestHost {
-    pub host_class_index: u16
+    pub host_class_index: u16,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ConstantValue {
-    pub constant_value_index: u16
+    pub constant_value_index: u16,
 }
 
 #[derive(Debug)]
@@ -78,25 +78,25 @@ pub struct LineNumberTableEntry {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Exceptions {
-    pub exception_index_table: Vec<u16>
+    pub exception_index_table: Vec<u16>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleParameterAnnotations {
-    pub parameter_annotations: Vec<Vec<Annotation>>
+    pub parameter_annotations: Vec<Vec<Annotation>>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleParameterAnnotations {
-    pub parameter_annotations: Vec<Vec<Annotation>>
+    pub parameter_annotations: Vec<Vec<Annotation>>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct AnnotationDefault {
-    pub default_value: ElementValue
+    pub default_value: ElementValue,
 }
 
 
@@ -111,7 +111,7 @@ pub struct MethodParameter {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodParameters {
-    pub parameters: Vec<MethodParameter>
+    pub parameters: Vec<MethodParameter>,
 }
 
 #[derive(Debug)]
@@ -125,31 +125,31 @@ pub struct Deprecated {}
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Signature {
-    pub signature_index: u16
+    pub signature_index: u16,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleAnnotations {
-    pub annotations: Vec<Annotation>
+    pub annotations: Vec<Annotation>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleAnnotations {
-    pub annotations: Vec<Annotation>
+    pub annotations: Vec<Annotation>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LineNumberTable {
-    pub line_number_table: Vec<LineNumberTableEntry>
+    pub line_number_table: Vec<LineNumberTableEntry>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LocalVariableTable {
-    pub local_variable_table: Vec<LocalVariableTableEntry>
+    pub local_variable_table: Vec<LocalVariableTableEntry>,
 }
 
 #[derive(Debug)]
@@ -175,7 +175,7 @@ pub struct LocalVariableTypeTableEntry {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct LocalVariableTypeTable {
-    pub type_table: Vec<LocalVariableTypeTableEntry>
+    pub type_table: Vec<LocalVariableTypeTableEntry>,
 }
 
 #[derive(Debug)]
@@ -188,14 +188,14 @@ pub struct ObjectVariableInfo {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayVariableInfo {
-    pub array_type: PType
+    pub array_type: PType,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 #[derive(Hash)]
 pub struct UninitializedVariableInfo {
-    pub offset: u16
+    pub offset: u16,
 }
 
 impl Clone for UninitializedVariableInfo {
@@ -224,7 +224,7 @@ pub enum VerificationTypeInfo {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameFrame {
-    pub offset_delta: u16
+    pub offset_delta: u16,
 }
 
 #[derive(Debug)]
@@ -251,7 +251,7 @@ pub struct ChopFrame {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct SameFrameExtended {
-    pub offset_delta: u16
+    pub offset_delta: u16,
 }
 
 #[derive(Debug)]
@@ -286,7 +286,7 @@ pub enum StackMapFrame {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct StackMapTable {
-    pub entries: Vec<StackMapFrame>
+    pub entries: Vec<StackMapFrame>,
 }
 
 #[derive(Debug)]
@@ -342,7 +342,7 @@ pub struct TypePathEntry {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct TypePath {
-    pub path: Vec<TypePathEntry>
+    pub path: Vec<TypePathEntry>,
 }
 
 #[derive(Debug)]
@@ -358,19 +358,19 @@ pub struct TypeAnnotation {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeVisibleTypeAnnotations {
-    pub annotations: Vec<TypeAnnotation>
+    pub annotations: Vec<TypeAnnotation>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct RuntimeInvisibleTypeAnnotations {
-    pub annotations: Vec<TypeAnnotation>
+    pub annotations: Vec<TypeAnnotation>,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct NestMembers {
-    pub classes: Vec<u16>
+    pub classes: Vec<u16>,
 }
 
 #[derive(Debug)]
@@ -437,19 +437,19 @@ pub struct EnumConstValue {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ClassInfoIndex {
-    pub class_info_index: CPIndex
+    pub class_info_index: CPIndex,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct AnnotationValue {
-    pub annotation: Annotation
+    pub annotation: Annotation,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct ArrayValue {
-    pub values: Vec<ElementValue>
+    pub values: Vec<ElementValue>,
 }
 
 #[derive(Debug)]
@@ -514,13 +514,13 @@ impl PartialEq for Utf8 {
 #[derive(Eq, PartialEq)]
 pub struct Integer {
     //unimplemented!()
-    pub bytes: u32
+    pub bytes: u32,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct Float {
-    pub bytes: u32
+    pub bytes: u32,
     //unimplemented!()
 }
 
@@ -542,14 +542,14 @@ pub struct Double {
 #[derive(Eq, PartialEq)]
 pub struct Class {
     //unimplemented!()
-    pub name_index: u16
+    pub name_index: u16,
 }
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct String_ {
     //unimplemented!()
-    pub string_index: u16
+    pub string_index: u16,
 }
 
 #[derive(Debug)]
@@ -619,7 +619,7 @@ pub struct MethodHandle {
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
 pub struct MethodType {
-    pub descriptor_index: CPIndex
+    pub descriptor_index: CPIndex,
 }
 
 #[derive(Debug)]

@@ -4,6 +4,7 @@
 #![feature(vec_into_raw_parts)]
 #![feature(core_intrinsics)]
 #![feature(entry_insert)]
+#![feature(in_band_lifetimes)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
@@ -30,8 +31,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
-use crate::java_values::{ArrayObject, JavaValue};
-use crate::java_values::Object::Array;
+use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntry;
 use crate::sun::misc::launcher::Launcher;
@@ -67,7 +67,7 @@ pub mod threading;
 mod resolvers;
 pub mod class_loading;
 
-pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), Box<dyn Error>> {
+pub fn run_main(args: Vec<String>, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -98,25 +98,25 @@ pub fn run_main(args: Vec<String>, jvm: &JVMState, int_state: &mut InterpreterSt
 }
 
 
-fn setup_program_args(jvm: &JVMState, int_state: &mut InterpreterStateGuard, args: Vec<String>) {
-    let mut arg_strings: Vec<JavaValue> = vec![];
+fn setup_program_args<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) {
+    let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).expect("todo").java_value());
     }
-    let arg_array = JavaValue::Object(Some(Arc::new(Array(ArrayObject::new_array(
+    let arg_array = JavaValue::Object(/*Some(Arc::new(Array(ArrayObject::new_array(
         jvm,
         int_state,
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
-    ).expect("todo")))));
+    ).expect("todo"))))*/todo!());
     let mut current_frame_mut = int_state.current_frame_mut();
     let mut local_vars = current_frame_mut.local_vars_mut();
     local_vars.set(0, arg_array);
 }
 
 
-fn set_properties(jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> Result<(), WasException> {
+fn set_properties(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
     let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()), jvm);
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);

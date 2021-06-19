@@ -224,7 +224,7 @@ pub fn handler_exception_class(_vf: &VerifierContext, handler: &Handler, loader:
 }
 
 pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
-    return Result::Ok(())
+    return Result::Ok(());
     // if not_init_handler(&_env.vf, _env, _handler) {
     //     todo!()
     // } else {

@@ -115,7 +115,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
                 REF_NEW_INVOKE_SPECIAL => NewInvokeSpecial,
                 REF_INVOKE_INTERFACE => InvokeInterface,
                 _ => {
-                    return Err(ClassfileParsingError::WrongTag)
+                    return Err(ClassfileParsingError::WrongTag);
                 }
             };
             let reference_index = p.read16()?;
@@ -139,7 +139,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, C
             })
         }
         _ => {
-            return Err(ClassfileParsingError::WrongTag)
+            return Err(ClassfileParsingError::WrongTag);
         }
     };
     Ok(ConstantInfo { kind: result_kind })
