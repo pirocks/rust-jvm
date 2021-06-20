@@ -312,7 +312,7 @@ pub mod class {
         pub fn from_type(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView) -> Result<JClass<'gc_life>, WasException> {
             load_class_constant_by_type(jvm, int_state, ptype)?;
             let res = int_state.pop_current_operand_stack(ClassName::class().into()).unwrap_object();
-            Ok(JavaValue::Object(todo!()/*res*/).cast_class().unwrap())
+            Ok(JavaValue::Object(res).cast_class().unwrap())
         }
 
         pub fn get_name(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<JString<'gc_life>, WasException> {
@@ -604,13 +604,13 @@ pub mod thread {
 
         pub fn run(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string())
         }
 
         pub fn exit(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &thread_class, "exit".to_string(), "()V".to_string())
         }
 

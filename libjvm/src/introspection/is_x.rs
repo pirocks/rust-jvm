@@ -22,8 +22,8 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 #[no_mangle]
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    let obj = from_jclass(jvm, cls);
-    let runtime_class = JavaValue::Object(todo!()/*obj*/).cast_class().expect("todo").as_runtime_class(jvm);
+    let obj = from_object(jvm, cls);
+    let runtime_class = JavaValue::Object(obj).cast_class().expect("todo").as_runtime_class(jvm);
     (match runtime_class.deref() {
         RuntimeClass::Byte => false,
         RuntimeClass::Boolean => false,

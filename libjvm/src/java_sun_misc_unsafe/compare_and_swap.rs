@@ -89,7 +89,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
         }
         Some(notnull) => notnull
     };
-    let new = JavaValue::Object(todo!()/*from_jclass(jvm,new)*/);
+    let new = JavaValue::Object(from_object(jvm, new));
     match notnull.deref() {
         Object::Array(arr) => {
             let mut ref_mut = arr.unwrap_mut();

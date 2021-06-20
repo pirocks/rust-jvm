@@ -112,7 +112,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
                                                                  field_obj: jobject,
 ) -> jlong {
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
+    let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
     let name = jfield.name().to_rust_string();
     let clazz = jfield.clazz().as_runtime_class(jvm);
     let class_view = clazz.view();

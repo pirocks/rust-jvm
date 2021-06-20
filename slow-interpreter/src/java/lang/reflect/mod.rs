@@ -8,7 +8,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
-use crate::java_values::JavaValue;
+use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 
 /*
@@ -107,13 +107,13 @@ fn parameters_type_objects<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_
         res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type))?.java_value());
     }
 
-    Ok(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
+    Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         res,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )?)))*/))
+    )?)))))
 }
 
 
@@ -391,6 +391,7 @@ pub mod constructor {
 pub mod field {
     use std::sync::Arc;
 
+    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
@@ -400,7 +401,7 @@ pub mod field {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
 
     pub struct Field<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -433,13 +434,13 @@ pub mod field {
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
+            let annotations = JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
                 jvm,
                 int_state,
                 annotations,
                 PTypeView::ByteType,
                 jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
-            )?)))*/);
+            )?))));
 
             run_constructor(
                 jvm,

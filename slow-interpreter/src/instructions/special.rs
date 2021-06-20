@@ -34,7 +34,7 @@ pub fn arraylength(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
 pub fn invoke_checkcast(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
     let possibly_null = int_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object();
     if possibly_null.is_none() {
-        int_state.current_frame_mut().push(jvm, JavaValue::Object(todo!()/*possibly_null*/));
+        int_state.current_frame_mut().push(jvm, JavaValue::Object(possibly_null));
         return;
     }
     let object = match possibly_null {
