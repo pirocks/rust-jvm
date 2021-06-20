@@ -333,7 +333,7 @@ impl<'gc_life> JavaValue<'gc_life> {
     pub fn unwrap_array(&self) -> &ArrayObject<'gc_life> {
         match self {
             JavaValue::Object(o) => {
-                /*o.as_ref().unwrap().unwrap_array()*/todo!()
+                o.as_ref().unwrap().unwrap_array()
             }
             _ => panic!()
         }
@@ -431,13 +431,13 @@ impl<'gc_life> JavaValue<'gc_life> {
     pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject<'gc_life>> {
         //todo these are longer than ideal
         match self {
-            JavaValue::Object(ref_) => todo!()/*match match ref_.as_ref() {
+            JavaValue::Object(ref_) => match match ref_.as_ref() {
                 None => return None,
                 Some(obj) => obj.deref(),
             } {
                 Object::Array(_) => None,
                 Object::Object(o) => o.into(),
-            }*/,
+            },
             _ => None
         }
     }
@@ -610,7 +610,7 @@ impl<'gc_life> Object<'gc_life> {
     pub fn lookup_field(&self, s: &str) -> JavaValue<'gc_life> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
         let field_number = class_pointer.unwrap_class_class().field_numbers[s];
-        todo!()/*unsafe { self.unwrap_normal_object().objinfo.fields[field_number].get().as_ref() }.unwrap().clone()*/
+        unsafe { self.unwrap_normal_object().objinfo.fields[field_number].get().as_ref() }.unwrap().clone()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {

@@ -56,7 +56,7 @@ pub fn invoke_checkcast(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpre
                 Ok(x) => x,
                 Err(WasException {}) => return
             } {
-                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*object.clone().into()*/));
+                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
                 int_state.debug_print_stack_trace(jvm);
                 dbg!(object_class.view().name());

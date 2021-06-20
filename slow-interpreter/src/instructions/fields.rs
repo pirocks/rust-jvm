@@ -94,9 +94,8 @@ pub fn get_field(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     let object_ref = int_state.current_frame_mut().pop(jvm, PTypeView::object());
     match object_ref {
         JavaValue::Object(o) => {
-            /*let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));
-            int_state.current_frame_mut().push(res);*/
-            todo!()
+            let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));
+            int_state.current_frame_mut().push(jvm, res);
         }
         _ => panic!(),
     }

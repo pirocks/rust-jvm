@@ -149,7 +149,7 @@ pub fn call_impl<'gc_life>(
         }
         PTypeView::Ref(_) => {
             unsafe {
-                Some(JavaValue::Object(todo!()/*from_jclass(jvm,cif_res as jobject)*/))
+                Some(JavaValue::Object(from_object(jvm, cif_res as jobject)))
             }
         }
         _ => {

@@ -33,7 +33,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
         unimplemented!()
     }
     let parsed = method.desc();
-    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_jclass(jvm,obj)*/));
+    int_state.push_current_operand_stack(JavaValue::Object(from_object(jvm, obj)));
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(int_state, type_, &mut l)
     }

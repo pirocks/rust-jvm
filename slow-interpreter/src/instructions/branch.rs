@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
 
-use crate::java_values::JavaValue;
+use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 
@@ -14,7 +14,7 @@ pub fn goto_(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_l
 pub fn ifnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, offset: i16) {
     let val = current_frame.pop(jvm, ClassName::object().into());
     let succeeds = match val {
-        JavaValue::Object(o) => todo!()/*o.is_none()*/,
+        JavaValue::Object(o) => o.is_none(),
         _ => panic!()
     };
     if succeeds {
@@ -25,7 +25,7 @@ pub fn ifnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 pub fn ifnonnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, offset: i16) {
     let val = current_frame.pop(jvm, ClassName::object().into());
     let succeeds = match val {
-        JavaValue::Object(o) => todo!()/*o.is_some()*/,
+        JavaValue::Object(o) => o.is_some(),
         _ => panic!()
     };
     if succeeds {
@@ -163,15 +163,15 @@ pub fn if_acmpeq(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 fn equal_ref<'gc_life>(value2: JavaValue<'gc_life>, value1: JavaValue<'gc_life>) -> bool {
     match value1 {
         JavaValue::Object(o1) => match value2 {
-            JavaValue::Object(o2) => todo!()/*match o1 {
+            JavaValue::Object(o2) => match o1 {
                 None => o2.is_none(),
                 Some(o1_arc) => match o2 {
                     None => false,
                     Some(o2_arc) => {
-                        Arc::ptr_eq(&o1_arc, &o2_arc)
+                        GcManagedObject::ptr_eq(&o1_arc, &o2_arc)
                     }
                 },
-            }*/,
+            },
             _ => panic!()
         },
         _ => panic!()

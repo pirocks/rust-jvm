@@ -730,8 +730,8 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &'_ mut InterpreterSt
         }
         PTypeView::Ref(_) => {
             let native_object: jobject = l.arg_ptr();
-            let o = from_jclass(int_state.jvm, native_object);
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*o*/));
+            let o = from_object(int_state.jvm, native_object);
+            int_state.push_current_operand_stack(JavaValue::Object(o));
         }
         PTypeView::ShortType => {
             let short = l.arg_short();

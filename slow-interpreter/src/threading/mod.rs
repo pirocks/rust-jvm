@@ -201,7 +201,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
         new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
         bootstrap_thread.notify_terminated(jvm);
-        JavaThread::new(jvm, main_jthread, todo!()/*threads.create_thread("Main Java Thread".to_string().into())*/, false)
+        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
     pub fn get_current_thread_name(&self, jvm: &'_ JVMState<'gc_life>) -> String {

@@ -95,7 +95,7 @@ pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: GcManagedObje
     match guard.strings.get(&native_string_bytes) {
         None => {
             guard.strings.insert(native_string_bytes, str_obj.clone());
-            JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap()
+            JavaValue::Object(str_obj.into()).cast_string().unwrap()
         }
         Some(res) => {
             JavaValue::Object(todo!()/*res.clone().into()*/).cast_string().unwrap()
@@ -143,7 +143,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
             return throw_npe(jvm, int_state);
         }
     };
-    let rust_str = JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap().to_rust_string();
+    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string();
     and_then(rust_str)
 }
 

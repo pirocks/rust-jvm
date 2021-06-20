@@ -86,7 +86,7 @@ pub fn newarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterState
         Ok(arr) => arr,
         Err(WasException {}) => return
     };
-    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*new_array*/));
+    int_state.push_current_operand_stack(JavaValue::Object(new_array));
 }
 
 
