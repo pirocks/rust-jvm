@@ -93,7 +93,7 @@ pub fn invoke_checkcast(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpre
                 }
             };
             if cast_succeeds {
-                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*object.clone().into()*/));
+                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
                 dbg!(&a.elem_type);
                 dbg!(expected_type);

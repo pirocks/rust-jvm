@@ -98,7 +98,7 @@ pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: GcManagedObje
             JavaValue::Object(str_obj.into()).cast_string().unwrap()
         }
         Some(res) => {
-            JavaValue::Object(todo!()/*res.clone().into()*/).cast_string().unwrap()
+            JavaValue::Object(res.clone().into()).cast_string().unwrap()
         }
     }
 }
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
             return throw_npe(jvm, int_state);
         }
     };
-    let jstring = JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap();
+    let jstring = JavaValue::Object(str_obj.into()).cast_string().unwrap();
     let rust_str = jstring.to_rust_string();
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }

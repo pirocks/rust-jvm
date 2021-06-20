@@ -32,7 +32,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
         parameter_types: vec![],
         return_type: PType::Ref(ReferenceType::Class(ClassName::object())),
     };
-    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*action*/));
+    int_state.push_current_operand_stack(JavaValue::Object(action));
     invoke_virtual(jvm, int_state, "run", &expected_descriptor);
     if int_state.throw().is_some() {
         return null_mut();

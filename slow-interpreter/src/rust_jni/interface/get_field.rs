@@ -146,7 +146,7 @@ pub unsafe extern "C" fn get_static_method_id(
         None => return throw_npe(jvm, int_state),
         Some(class_obj_o) => Some(class_obj_o)
     };
-    let runtime_class = match class_object_to_runtime_class(&JavaValue::Object(todo!()/*class_obj_o*/).cast_class().unwrap(), jvm, int_state) {
+    let runtime_class = match class_object_to_runtime_class(&JavaValue::Object(class_obj_o).cast_class().unwrap(), jvm, int_state) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };

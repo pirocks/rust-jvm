@@ -34,7 +34,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     //todo need to assert not on main thread
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let thread_object = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread();
+    let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
     jvm.thread_state.start_thread_from_obj(jvm, int_state, thread_object, false);
 }
 
@@ -43,7 +43,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
     //todo do not print ThreadDeath on reaching top of thread
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let target_thread = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread().get_java_thread(jvm);
+    let target_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
     if let Err(_err) = target_thread.suspend_thread(jvm, int_state) {
         // it appears we should ignore any errors here.
         //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
@@ -58,7 +58,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
 
     let int_state = get_interpreter_state(env);
-    let java_thread = match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread().try_get_java_thread(jvm) {
+    let java_thread = match JavaValue::Object(from_object(jvm, thread)).cast_thread().try_get_java_thread(jvm) {
         None => return 0 as jboolean,
         Some(jt) => jt,
     };
@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
 unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let java_thread = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread().get_java_thread(jvm);
+    let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
     let _ = java_thread.suspend_thread(jvm, int_state);
     //javadoc doesn't say anything about error handling so we just don't anything
 }
@@ -79,7 +79,7 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
 unsafe extern "system" fn JVM_ResumeThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let java_thread = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread().get_java_thread(jvm);
+    let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
     let _ = java_thread.resume_thread();
     //javadoc doesn't say anything about error handling so we just don't anything
 }

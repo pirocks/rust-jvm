@@ -48,13 +48,13 @@ pub fn create_string_on_stack<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter
     push_new_object(jvm, interpreter_state, &string_class);
     let string_object = interpreter_state.pop_current_operand_stack(ClassName::string().into());
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
+    args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,
         interpreter_state,
         chars,
         PTypeView::CharType,
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
-    )?)))*/));
+    )?)))));
     let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
     let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
@@ -72,7 +72,7 @@ pub fn create_string_on_stack<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter
     if interpreter_state.function_return() {
         interpreter_state.set_function_return(false);
     }
-    interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*string_object.unwrap_object()*/));
+    interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
     Ok(())
 }
 
