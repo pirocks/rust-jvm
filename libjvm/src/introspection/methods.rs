@@ -20,7 +20,7 @@ use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, thro
 unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let method = JavaValue::Object(todo!()/*Some(match from_object(method) {
+    let method = JavaValue::Object(todo!()/*Some(match from_jclass(jvm,method) {
         None => {
             return throw_npe(jvm, int_state);
         }
@@ -45,10 +45,10 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, me
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
-    if from_jclass(ofClass).as_type(jvm).is_primitive() {
+    if from_jclass(jvm, ofClass).as_type(jvm).is_primitive() {
         return std::ptr::null_mut();
     }
-    let em = from_jclass(ofClass).as_runtime_class(jvm).view().enclosing_method_view();
+    let em = from_jclass(jvm, ofClass).as_runtime_class(jvm).view().enclosing_method_view();
     match em {
         None => std::ptr::null_mut(),
         Some(_) => unimplemented!(),
@@ -60,7 +60,7 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
 unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     view.num_methods() as jint
 }
@@ -68,7 +68,7 @@ unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass)
 unsafe fn get_method_view<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&MethodView) -> Result<T, WasException>) -> Result<T, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     let method_view = view.method_view_i(method_index as u16);
     and_then(&method_view)
@@ -234,7 +234,7 @@ unsafe extern "system" fn JVM_GetMethodTypeAnnotations(env: *mut JNIEnv, method:
 unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(cb).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.num_methods() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);

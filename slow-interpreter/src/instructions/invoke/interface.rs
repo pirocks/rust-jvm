@@ -21,7 +21,7 @@ pub fn invoke_interface(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpre
     let desc_len = expected_descriptor.parameter_types.len();
     assert_eq!(desc_len + 1, invoke_interface.count as usize);
     let current_frame: StackEntryRef<'gc_life> = int_state.current_frame();
-    let operand_stack_ref: OperandStackRef<'gc_life, '_> = current_frame.operand_stack();
+    let operand_stack_ref: OperandStackRef<'gc_life, '_> = current_frame.operand_stack(jvm);
     let operand_stack_len = operand_stack_ref.len();
     let this_pointer_jv: JavaValue<'gc_life> = operand_stack_ref.get(operand_stack_len - invoke_interface.count as u16, PTypeView::object());
     let this_pointer_o = this_pointer_jv.unwrap_object().unwrap();//todo handle npe

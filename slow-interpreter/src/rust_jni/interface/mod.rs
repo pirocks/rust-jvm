@@ -333,7 +333,7 @@ fn get_interface_impl(state: &JVMState, int_state: &'_ mut InterpreterStateGuard
 // Returns “0” on success; returns a negative value on failure.
 pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
     let jvm = get_state(env);
-    match from_object(obj) {
+    match from_object(jvm, obj) {
         Some(x) => x,
         None => return JNI_ERR,
     }.monitor_lock(jvm);
@@ -363,7 +363,7 @@ pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
 // IllegalMonitorStateException: if the current thread does not own the monitor.
 pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
     let jvm = get_state(env);
-    match from_object(obj) {
+    match from_object(jvm, obj) {
         Some(x) => x,
         None => return JNI_ERR,
     }.monitor_unlock(jvm);
@@ -395,7 +395,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
-    let string: JString = match JavaValue::Object(todo!()/*from_object(str)*/).cast_string() {
+    let string: JString = match JavaValue::Object(todo!()/*from_jclass(jvm,str)*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(string) => string
     };
@@ -432,7 +432,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
 unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    push_new_object(jvm, int_state, &from_jclass(clazz).as_runtime_class(jvm));
+    push_new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm));
     to_object(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object())
 }
 
@@ -555,10 +555,10 @@ unsafe extern "C" fn fatal_error(_env: *mut JNIEnv, msg: *const ::std::os::raw::
 //
 // the newly constructed java.lang.Throwable object.
 unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::std::os::raw::c_char) -> jint {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let (constructor_method_id, java_string_object) = {
-        let jvm = get_state(env);
-        let int_state = get_interpreter_state(env);
-        let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
+        let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_view = runtime_class.view();
         let desc = MethodDescriptor { parameter_types: vec![PType::Ref(ReferenceType::Class(ClassName::string()))], return_type: PType::VoidType };
         let constructor_method_id = match class_view.lookup_method("<init>", &desc) {
@@ -579,7 +579,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
     let jvalue_ = jvalue { l: java_string_object };
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
-    int_state.set_throw(match from_object(obj) {
+    int_state.set_throw(match from_object(jvm, obj) {
         None => return -3,
         Some(res) => res
     }.into());
@@ -634,7 +634,7 @@ pub fn field_object_from_view<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: 
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
-    let method_obj = JavaValue::Object(todo!()/*from_object(method)*/).cast_method();
+    let method_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_method();
     let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
     let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
     let name = method_obj.get_name().to_rust_string();
@@ -646,7 +646,7 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
 
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
     let jvm = get_state(env);
-    let field_obj = JavaValue::Object(todo!()/*from_object(method)*/).cast_field();
+    let field_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_field();
     let runtime_class = field_obj.clazz().as_runtime_class(jvm);
     let field_name = field_obj.name().to_rust_string();
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
@@ -690,7 +690,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap();//todo unused?
-    let loader_name = JavaValue::Object(todo!()/*from_object(loader)*/).cast_class_loader().to_jvm_loader(jvm);
+    let loader_name = JavaValue::Object(todo!()/*from_jclass(jvm,loader)*/).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
@@ -730,7 +730,7 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &'_ mut InterpreterSt
         }
         PTypeView::Ref(_) => {
             let native_object: jobject = l.arg_ptr();
-            let o = from_object(native_object);
+            let o = from_jclass(int_state.jvm, native_object);
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*o*/));
         }
         PTypeView::ShortType => {

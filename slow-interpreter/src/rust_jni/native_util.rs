@@ -13,7 +13,7 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let unwrapped = from_object(obj).unwrap();//todo handle npe
+    let unwrapped = from_object(jvm, obj).unwrap();//todo handle npe
     let class_object = match unwrapped.deref() {
         Object::Array(a) => {
             get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), int_state)
@@ -44,20 +44,20 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     }
 }
 
-pub unsafe fn from_object<'gc_life>(obj: jobject) -> Option<GcManagedObject<'gc_life>> {
+pub unsafe fn from_object<'gc_life>(jvm: &JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
     if obj.is_null() {
         None
     } else {
-        (obj as *mut Arc<Object<'gc_life>>).as_ref().unwrap().clone().into()
+        (obj as *mut GcManagedObject<'gc_life>).as_ref().unwrap().clone().into()
     }
 }
 
-pub unsafe fn from_jclass<'gc_life>(obj: jclass) -> JClass<'gc_life> {
-    try_from_jclass(obj).unwrap()//todo handle npe
+pub unsafe fn from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
+    try_from_jclass(jvm, obj).unwrap()//todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(obj: jclass) -> Option<JClass<'gc_life>> {
-    let possibly_null = from_object(obj);
+pub unsafe fn try_from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> {
+    let possibly_null = from_object(jvm, obj);
     possibly_null.as_ref()?;
-    JavaValue::Object(todo!()/*possibly_null*/).cast_class().into()
+    JavaValue::Object(possibly_null).cast_class().into()
 }

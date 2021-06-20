@@ -25,14 +25,14 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     let jvm = get_state(env);
-    from_jclass(cb).as_runtime_class(jvm).view().num_fields() as i32
+    from_jclass(jvm, cb).as_runtime_class(jvm).view().num_fields() as i32
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
-    let class_obj = from_jclass(ofClass).as_runtime_class(jvm);
+    let class_obj = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
@@ -46,7 +46,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let res = Some(Arc::new(
+    let res = Some(jvm.allocate_object(
         Object::Array(match ArrayObject::new_array(
             jvm,
             int_state,

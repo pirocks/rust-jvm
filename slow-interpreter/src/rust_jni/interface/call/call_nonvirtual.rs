@@ -277,7 +277,7 @@ unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jcl
             (rc.clone(), i, rc.clone().view().method_view_i(i).desc())
         }
     };
-    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_object(obj)*/));
+    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_jclass(jvm,obj)*/));
     push_params_onto_frame(&mut vararg_provider, int_state, &method_desc);
     invoke_special_impl(jvm, int_state, &method_desc, i, rc)?;
     if !is_void {

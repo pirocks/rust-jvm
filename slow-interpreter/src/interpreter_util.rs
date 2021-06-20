@@ -6,7 +6,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, JavaValue, Object};
+use crate::java_values::{default_value, GcManagedObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
@@ -17,16 +17,16 @@ pub fn push_new_object<'gc_life>(
     runtime_class: &'_ Arc<RuntimeClass<'gc_life>>,
 ) {
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
-    let new_obj = JavaValue::Object(todo!()/*object_pointer.clone()*/);
+    let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
-    int_state.current_frame_mut().push(new_obj);
+    int_state.current_frame_mut().push(jvm, new_obj);
 }
 
 fn default_init_fields<'gc_life>(
     jvm: &'_ JVMState<'gc_life>,
-    current_class_pointer: &'gc_life Arc<RuntimeClass<'gc_life>>,
-    object_pointer: &Arc<Object<'gc_life>>) {
+    current_class_pointer: &Arc<RuntimeClass<'gc_life>>,
+    object_pointer: &GcManagedObject<'gc_life>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
         default_init_fields(jvm, super_, object_pointer);
     }

@@ -22,7 +22,7 @@ use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::{ClassStatus, JVMState};
 use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use slow_interpreter::rust_jni::interface::define_class_safe;
@@ -37,10 +37,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut args = vec![];
-    args.push(JavaValue::Object(todo!()/*from_object(the_unsafe)*/));
-    args.push(JavaValue::Object(todo!()/*from_object(parent_class)*/));
-    args.push(JavaValue::Object(todo!()/*from_object(byte_array)*/));
-    args.push(JavaValue::Object(todo!()/*from_object(patches)*/));
+    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,the_unsafe)*/));
+    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,parent_class)*/));
+    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,byte_array)*/));
+    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,patches)*/));
 
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())//todo local ref
 }
@@ -89,7 +89,7 @@ fn patch_all(jvm: &'_ JVMState<'gc_life>, frame: StackEntryRef, args: &mut Vec<J
 }
 
 fn patch_single(
-    patch: &Arc<Object<'gc_life>>,
+    patch: &GcManagedObject<'gc_life>,
     state: &JVMState<'gc_life>,
     _frame: &StackEntryRef,
     unpatched: &mut Classfile,

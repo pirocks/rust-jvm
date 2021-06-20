@@ -43,7 +43,7 @@ pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_ar
 }
 
 pub unsafe fn is_array_impl(jvm: &'_ JVMState<'gc_life>, cls: jclass) -> Result<u8, jvmtiError> {
-    let jclass = match try_from_jclass(cls) {
+    let jclass = match try_from_jclass(jvm, cls) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
     };
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_inte
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
     null_check!(is_interface_ptr);
-    let is_interface = match try_from_jclass(klass) {
+    let is_interface = match try_from_jclass(jvm, klass) {
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
     }.as_runtime_class(jvm).view().is_interface();

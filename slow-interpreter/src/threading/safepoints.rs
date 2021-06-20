@@ -6,7 +6,7 @@ use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOC
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::Object;
+use crate::java_values::{GcManagedObject, Object};
 use crate::jvm_state::JVMState;
 use crate::threading::{JavaThreadId, ResumeError, SuspendError, ThreadStatus};
 
@@ -19,14 +19,13 @@ pub struct MonitorWait {
     prev_count: usize,
 }
 
-#[derive(Debug)]
 struct SafePointStopReasonState<'gc_life> {
     waiting_monitor_lock: Option<MonitorID>,
     waiting_monitor_notify: Option<MonitorWait>,
     suspended: bool,
     parks: isize,
     park_until: Option<Instant>,
-    throw_exception: Option<Arc<Object<'gc_life>>>,
+    throw_exception: Option<GcManagedObject<'gc_life>>,
     sleep_until: Option<Instant>,
 }
 
@@ -44,7 +43,6 @@ impl<'gc_life> Default for SafePointStopReasonState<'gc_life> {
     }
 }
 
-#[derive(Debug)]
 pub struct SafePoint<'gc_life> {
     state: Mutex<SafePointStopReasonState<'gc_life>>,
     waiton: Condvar,

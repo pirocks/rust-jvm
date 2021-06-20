@@ -48,6 +48,7 @@ impl InterpreterState {
 pub struct InterpreterStateGuard<'vm_life: 'l, 'l> {
     pub(crate) int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
     pub(crate) thread: Arc<JavaThread<'vm_life>>,
+    pub(crate) jvm: &'l JVMState<'vm_life>,
     pub(crate) registered: bool,
 }
 
@@ -76,6 +77,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
         Self {
             int_state: option,
             thread: thread.clone(),
+            jvm,
             registered: true,
         }
     }
@@ -114,11 +116,11 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
     }
 
     pub fn push_current_operand_stack(&mut self, jval: JavaValue<'gc_life>) {
-        self.current_frame_mut().push(jval)
+        self.current_frame_mut().push(self.jvm, jval)
     }
 
     pub fn pop_current_operand_stack(&mut self, expected_type: PTypeView) -> JavaValue<'gc_life> {
-        self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
+        self.current_frame_mut().operand_stack_mut(self.jvm).pop(expected_type).unwrap()
     }
 
     pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc_life> {
@@ -145,7 +147,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
         }
     }
 
-    pub fn set_throw(&mut self, val: Option<Arc<Object<'gc_life>>>) {
+    pub fn set_throw(&mut self, val: Option<GcManagedObject<'gc_life>>) {
         match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();
@@ -213,7 +215,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
                     throw.clone()
                 }*/
                 InterpreterState::Jit { call_stack, .. } => {
-                    unsafe { from_object(call_stack.throw()) }
+                    unsafe { from_object(self.jvm, call_stack.throw()) }
                 }
             },
         }
@@ -257,7 +259,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
                         // dbg!(method_view.name());
                         // dbg!(class_view.name());
                         for (i, local_var) in local_vars.into_iter().enumerate() {
-                            self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
+                            self.current_frame_mut().local_vars_mut(jvm).set(i as u16, local_var);
                         }
                         jvm.stack_frame_layouts.write().unwrap().insert(method_id, memory_layout);
                     } else {
@@ -425,7 +427,7 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
     //                 return;
     //             }
     //         }.get(&self.current_pc()).unwrap();
-    //         let local_java_vals = self.current_frame().local_vars();
+    //         let local_java_vals = self.current_frame().local_vars(jvm);
     //         let java_val_stack = self.current_frame().operand_stack();
     //         let stack_map = remove_tops(stack_map);
     //         if stack_map.len() != java_val_stack.len() {

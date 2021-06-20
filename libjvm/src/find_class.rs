@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = ClassName::Str(name_str);
 
-    let loader_obj = int_state.previous_frame().local_vars().get(0, PTypeView::object()).cast_class_loader();
+    let loader_obj = int_state.previous_frame().local_vars(jvm).get(0, PTypeView::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = match JavaValue::Object(todo!()/*from_object(name)*/).cast_string() {
+    let name_str = match JavaValue::Object(todo!()/*from_jclass(jvm,name)*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(name_str) => name_str
     }.to_rust_string();

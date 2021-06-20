@@ -21,7 +21,7 @@ use slow_interpreter::utils::throw_npe;
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let action = from_object(action);
+    let action = from_object(jvm, action);
     let unwrapped_action = match action.clone() {
         Some(x) => x,
         None => {

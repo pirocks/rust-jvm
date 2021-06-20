@@ -33,7 +33,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     let key = int_state.pop_current_operand_stack(ClassName::object().into());
     create_string_on_stack(jvm, int_state, val);
     let val = int_state.pop_current_operand_stack(ClassName::object().into());
-    let prop_obj = match from_object(p) {
+    let prop_obj = match from_object(jvm, p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };

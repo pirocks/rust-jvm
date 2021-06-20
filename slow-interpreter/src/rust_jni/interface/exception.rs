@@ -1,7 +1,7 @@
 use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jthrowable};
 
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
     let int_state = get_interpreter_state(env);
@@ -21,7 +21,8 @@ pub unsafe extern "C" fn exception_check(env: *mut JNIEnv) -> jboolean {
 
 
 pub unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
+    let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
-    interpreter_state.set_throw(from_object(obj));
+    interpreter_state.set_throw(from_object(jvm, obj));
     0 as jint
 }

@@ -21,7 +21,7 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -265,7 +265,7 @@ pub fn bootstrap_load(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
     Ok(runtime_class)
 }
 
-pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: Option<ClassName>, loader: LoaderName) -> Result<Arc<Object<'gc_life>>, WasException> {
+pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: Option<ClassName>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
             JavaValue::Object(todo!()/*jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into()*/)
@@ -275,7 +275,7 @@ pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inter
         }
     };
     if name == ClassName::new("java/lang/Object").into() {
-        return Ok(Arc::new(Object::Object(NormalObject {
+        return Ok(jvm.allocate_object(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
                 fields: JVMState::get_class_field_numbers().into_values().map(|_| UnsafeCell::new(JavaValue::Top)).collect_vec(),

@@ -25,7 +25,7 @@ fn load_class_constant(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpret
 
 pub fn load_class_constant_by_type(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, res_class_type: PTypeView) -> Result<(), WasException> {
     let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
-    int_state.current_frame_mut().push(JavaValue::Object(todo!()/*object.into()*/));
+    int_state.current_frame_mut().push(jvm, JavaValue::Object(object.into()));
     Ok(())
 }
 
@@ -81,10 +81,10 @@ pub fn ldc2_w(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {
         ConstantInfoView::Long(l) => {
-            current_frame.push(JavaValue::Long(l.long));
+            current_frame.push(jvm, JavaValue::Long(l.long));
         }
         ConstantInfoView::Double(d) => {
-            current_frame.push(JavaValue::Double(d.double));
+            current_frame.push(jvm, JavaValue::Double(d.double));
         }
         _ => {}
     }

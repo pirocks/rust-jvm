@@ -20,7 +20,7 @@ pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard
 
 
 pub fn anewarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
-    let len = match int_state.current_frame_mut().pop(PTypeView::IntType) {
+    let len = match int_state.current_frame_mut().pop(jvm, PTypeView::IntType) {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
@@ -47,7 +47,7 @@ pub fn a_new_array_from_name(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Int
         t.clone(),
     )?;
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::null(), t)?;
-    Ok(int_state.push_current_operand_stack(JavaValue::Object(todo!()/*Some(new_array.unwrap())*/)))
+    Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()))))
 }
 
 
@@ -102,7 +102,7 @@ pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
     let mut dimensions = vec![];
     let mut unwrapped_type: PTypeView = PTypeView::Ref(type_);
     for _ in 0..dims {
-        dimensions.push(int_state.current_frame_mut().pop(PTypeView::IntType).unwrap_int());
+        dimensions.push(int_state.current_frame_mut().pop(jvm, PTypeView::IntType).unwrap_int());
     }
     for _ in 1..dims {
         unwrapped_type = unwrapped_type.unwrap_array_type()

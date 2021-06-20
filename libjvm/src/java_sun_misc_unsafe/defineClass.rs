@@ -19,8 +19,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     assert_eq!(off, 0);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut byte_array = from_object(bytes).unwrap().unwrap_array().unwrap_byte_array().iter().map(|byte| *byte as u8).collect::<Vec<_>>();//todo handle npe
-    let jname = match JavaValue::Object(todo!()/*from_object(name)*/).cast_string() {
+    let mut byte_array = from_object(jvm, bytes).unwrap().unwrap_array().unwrap_byte_array().iter().map(|byte| *byte as u8).collect::<Vec<_>>();//todo handle npe
+    let jname = match JavaValue::Object(todo!()/*from_jclass(jvm,name)*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(jname) => jname
     };
@@ -28,7 +28,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let classfile = Arc::new(parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification"));
     let class_view = Arc::new(ClassBackedView::from(classfile.clone()));
     let loader_name = if loader != null_mut() {
-        JavaValue::Object(todo!()/*from_object(loader)*/).cast_class_loader().to_jvm_loader(jvm)
+        JavaValue::Object(todo!()/*from_jclass(jvm,loader)*/).cast_class_loader().to_jvm_loader(jvm)
     } else {
         LoaderName::BootstrapLoader
     };

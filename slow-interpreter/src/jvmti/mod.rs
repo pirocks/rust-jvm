@@ -352,14 +352,14 @@ unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, modi
     let jvm = get_state(env);
     null_check!(modifiers_ptr);
     //handle klass invalid
-    let runtime_class = from_jclass(klass).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, klass).as_runtime_class(jvm);
     modifiers_ptr.write(runtime_class.view().access_flags() as u32 as i32);
     jvmtiError_JVMTI_ERROR_NONE
 }
 
 
 unsafe extern "C" fn set_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jobject) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Object(todo!()/*from_object(value)*/))
+    set_local(env, thread, depth, slot, JavaValue::Object(todo!()/*from_jclass(jvm,value)*/))
 }
 
 unsafe extern "C" fn set_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jint) -> jvmtiError {
@@ -439,6 +439,7 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
         let mut int_state_not_ref = InterpreterStateGuard {
             int_state: Some(java_thread.interpreter_state.write().unwrap()),
             thread: java_thread,
+            jvm,
             registered: false,
         };
         action(&mut int_state_not_ref)

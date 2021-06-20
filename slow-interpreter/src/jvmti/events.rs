@@ -15,7 +15,7 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
     let thread_obj = if event_thread.is_null() {
         None
     } else {
-        JavaValue::Object(todo!()/*from_object(event_thread)*/).cast_thread().into()
+        JavaValue::Object(todo!()/*from_jclass(jvm,event_thread)*/).cast_thread().into()
     };
     let tid: Option<Arc<JavaThread>> = thread_obj.map(|it| it.get_java_thread(jvm));
     let jdwp_copy = jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.clone();

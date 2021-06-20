@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> 
 unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue<'gc_life>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match from_object(arr) {
+    match from_object(jvm, arr) {
         None => {
             throw_npe_res(jvm, int_state)?;
             unreachable!()
@@ -49,7 +49,7 @@ unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValu
         Some(possibly_arr) => {
             match possibly_arr.deref() {
                 Object::Array(_) => {
-                    Ok(JavaValue::Object(todo!()/*from_object(arr)*/))
+                    Ok(JavaValue::Object(todo!()/*from_jclass(jvm,arr)*/))
                 }
                 Object::Object(obj) => {
                     return throw_illegal_arg_res(jvm, int_state);
@@ -99,7 +99,7 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let array_type_name = from_jclass(eltClass).as_runtime_class(jvm).ptypeview();
+    let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).ptypeview();
     a_new_array_from_name(jvm, int_state, length, array_type_name);
     new_local_ref_public(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object(), int_state)
 }
@@ -113,12 +113,12 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let src_o = from_object(src);
+    let src_o = from_object(jvm, src);
     let src = match src_o.as_ref() {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     }.unwrap_array();
-    let dest_o = from_object(dst);
+    let dest_o = from_object(jvm, dst);
     let dest = match dest_o.as_ref() {
         Some(x) => x,
         None => {

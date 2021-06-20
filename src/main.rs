@@ -17,6 +17,7 @@ use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
 
 use rust_jvm_common::classnames::ClassName;
+use slow_interpreter::java_values::GC;
 use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
@@ -68,14 +69,14 @@ fn main() {
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
-
+    let gc = GC::new();
     crossbeam::scope(|scope| {
-        within_thread_scope(scope, jvm_options);
+        within_thread_scope(scope, jvm_options, &gc);
     }).expect("idk why this would happen")
 }
 
-fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions) {
-    let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope);
+fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
+    let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope, gc);
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
     unsafe { JVM = Some(transmute(jvm_ref)) }
     let thread_state = &jvm_ref.thread_state;

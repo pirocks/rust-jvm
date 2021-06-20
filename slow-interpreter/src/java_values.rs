@@ -1,8 +1,11 @@
 use std::cell::UnsafeCell;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
+use std::ops::Deref;
 use std::ptr::{NonNull, null, null_mut};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::{Itertools, repeat_n};
 
@@ -16,26 +19,63 @@ use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::monitors::Monitor;
 
-pub struct GC {}
+pub struct GC<'gc_life> {
+    //doesn't really need to be atomic usize
+    reentrant_roots: RwLock<HashMap<NonNull<Object<'gc_life>>, AtomicUsize>>,
+}
 
-impl GC {
-    pub fn register_root_reentrant(&'gc_life self, ptr: *mut Object<'gc_life>) {
-        todo!()
+impl<'gc_life> GC<'gc_life> {
+    pub fn register_root_reentrant(&'gc_life self, ptr: NonNull<Object<'gc_life>>) {
+        let mut guard = self.reentrant_roots.write().unwrap();
+        let count = guard.entry(ptr).or_insert(AtomicUsize::new(0));
+        count.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn deregister_root_reentrant(&'gc_life self, ptr: NonNull<Object<'gc_life>>) {
+        let mut guard = self.reentrant_roots.read().unwrap();
+        let count = guard.get(&ptr).unwrap();
+        count.fetch_sub(1, Ordering::SeqCst);
+        if count.load(Ordering::SeqCst) == 0 {
+            drop(guard);
+            self.reentrant_roots.write().unwrap().remove(&ptr);
+        }
+    }
+
+    pub fn allocate_object(&'gc_life self, object: Object<'gc_life>) -> GcManagedObject<'gc_life> {
+        let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
+        GcManagedObject {
+            raw_ptr: ptr,
+            gc: self,
+        }
+    }
+
+    pub fn new() -> Self {
+        Self {
+            reentrant_roots: RwLock::new(Default::default())
+        }
     }
 }
 
 pub struct GcManagedObject<'gc_life> {
-    raw_ptr: NonNull<*mut Object<'gc_life>>,
+    raw_ptr: NonNull<Object<'gc_life>>,
     //allocated from a box
-    gc: &'gc_life GC,
+    gc: &'gc_life GC<'gc_life>,
+}
+
+impl<'gc_life> Deref for GcManagedObject<'gc_life> {
+    type Target = Object<'gc_life>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.raw_ptr.as_ref() }
+    }
 }
 
 
 impl<'gc_life> Clone for GcManagedObject<'gc_life> {
-    fn clone<'l>(&'l self) -> Self {
+    fn clone(&self) -> Self {
         //this doesn't leak b/c if we ever try to create a cycle we put into a field and deregister as a root.
         unsafe {
-            self.gc.register_root_reentrant(*self.raw_ptr.as_ref());
+            self.gc.register_root_reentrant(self.raw_ptr);
             Self {
                 raw_ptr: self.raw_ptr,
                 gc: self.gc,
@@ -44,6 +84,30 @@ impl<'gc_life> Clone for GcManagedObject<'gc_life> {
     }
 }
 
+impl Drop for GcManagedObject<'_> {
+    fn drop(&mut self) {
+        self.gc.deregister_root_reentrant(self.raw_ptr)
+    }
+}
+
+
+impl<'gc_life> GcManagedObject<'gc_life> {
+    pub fn lookup_field(&self, field_name: impl Into<String>) -> JavaValue<'gc_life> {
+        self.deref().lookup_field(field_name.into().as_str())
+    }
+
+    pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
+        self.deref().unwrap_normal_object()
+    }
+
+    pub fn ptr_eq(one: &GcManagedObject<'gc_life>, two: &GcManagedObject<'gc_life>) -> bool {
+        one.raw_ptr.as_ptr() == two.raw_ptr.as_ptr()
+    }
+
+    pub fn raw_ptr_usize(&self) -> usize {
+        self.raw_ptr.as_ptr() as usize
+    }
+}
 
 // #[derive(Copy)]
 pub enum JavaValue<'gc_life> {
@@ -62,11 +126,11 @@ pub enum JavaValue<'gc_life> {
 }
 
 // pub trait CycleDetectingDebug {
-//     fn cycle_fmt<'gc_life>(&self, prev: &Vec<&Arc<Object<'gc_life>>>, f: &mut Formatter<'_>) -> Result<(), Error>;
+//     fn cycle_fmt<'gc_life>(&self, prev: &Vec<&GcManagedObject<'gc_life>>, f: &mut Formatter<'_>) -> Result<(), Error>;
 // }
 
 // impl<'gc_life> CycleDetectingDebug for JavaValue<'gc_life> {
-//     fn cycle_fmt(&self, prev: &Vec<&Arc<Object<'gc_life>>>, f: &mut Formatter<'_>) -> Result<(), Error> {
+//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc_life>>, f: &mut Formatter<'_>) -> Result<(), Error> {
 //         match self {
 //             JavaValue::Long(l) => { write!(f, "{}", l) }
 //             JavaValue::Int(l) => { write!(f, "{}", l) }
@@ -98,7 +162,7 @@ pub enum JavaValue<'gc_life> {
 // }
 //
 // impl<'gc_life> CycleDetectingDebug for Object<'gc_life> {
-//     fn cycle_fmt(&self, prev: &Vec<&Arc<Object<'gc_life>>>, f: &mut Formatter<'_>) -> Result<(), Error> {
+//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc_life>>, f: &mut Formatter<'_>) -> Result<(), Error> {
 //         write!(f, "\n")?;
 //         for _ in 0..prev.len() {
 //             write!(f, " ")?;
@@ -122,7 +186,7 @@ pub enum JavaValue<'gc_life> {
 // }
 //
 // impl<'gc_life> CycleDetectingDebug for NormalObject<'gc_life> {
-//     fn cycle_fmt(&self, prev: &Vec<&Arc<Object<'gc_life>>>, f: &mut Formatter<'_>) -> Result<(), Error> {
+//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc_life>>, f: &mut Formatter<'_>) -> Result<(), Error> {
 // //         let o = self;
 // //         if o.class_pointer.view().name() == ClassName::class().into() {
 // //             write!(f, "need a jvm pointer here to give more info on class object")?;
@@ -279,7 +343,7 @@ impl<'gc_life> JavaValue<'gc_life> {
     pub fn try_unwrap_object(&self) -> Option<Option<GcManagedObject<'gc_life>>> {
         match self {
             JavaValue::Object(o) => {
-                Some(/*o.clone()*/todo!())
+                Some(o.clone())
             }
             _ => {
                 // dbg!(other);
@@ -327,21 +391,21 @@ impl<'gc_life> JavaValue<'gc_life> {
         }
     }
 
-    pub fn new_object(jvm: &'_ JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>) -> Option<Arc<Object<'gc_life>>> {
+    pub fn new_object(jvm: &'_ JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>) -> Option<GcManagedObject<'gc_life>> {
         assert!(!runtime_class.view().is_abstract());
 
-        Arc::new(Object::Object(NormalObject {
+        jvm.allocate_object(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("".to_string()),
             objinfo: Self::new_object_impl(&runtime_class),
         })).into()
     }
 
-    pub fn new_vec(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, len: usize, val: JavaValue<'gc_life>, elem_type: PTypeView) -> Result<Option<Arc<Object<'gc_life>>>, WasException> {
+    pub fn new_vec(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, len: usize, val: JavaValue<'gc_life>, elem_type: PTypeView) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Ok(Some(Arc::new(Object::Array(ArrayObject::new_array(
+        Ok(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
             jvm,
             int_state,
             buf,
@@ -552,7 +616,7 @@ impl<'gc_life> Object<'gc_life> {
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
         match self {
             Object::Array(_) => panic!(),
-            Object::Object(o) => todo!()/*o*/,
+            Object::Object(o) => o,
         }
     }
     pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject<'gc_life>> {
@@ -565,7 +629,7 @@ impl<'gc_life> Object<'gc_life> {
 
     pub fn unwrap_array(&self) -> &ArrayObject<'gc_life> {
         match self {
-            Object::Array(a) => todo!()/*a*/,
+            Object::Array(a) => a,
             Object::Object(_) => panic!(),
         }
     }
@@ -842,8 +906,8 @@ impl<'gc_life> ArrayObject<'gc_life> {
     }
 }
 
-impl<'gc_life> std::convert::From<Option<Arc<Object<'gc_life>>>> for JavaValue<'gc_life> {
-    fn from(f: Option<Arc<Object<'gc_life>>>) -> Self {
+impl<'gc_life> std::convert::From<Option<GcManagedObject<'gc_life>>> for JavaValue<'gc_life> {
+    fn from(f: Option<GcManagedObject<'gc_life>>) -> Self {
         JavaValue::Object(todo!()/*f*/)
     }
 }

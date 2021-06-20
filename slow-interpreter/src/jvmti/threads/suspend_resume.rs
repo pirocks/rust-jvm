@@ -210,7 +210,7 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
 
 
 unsafe fn resume_thread_impl(jvm: &'_ JVMState<'gc_life>, thread_raw: jthread) -> jvmtiError {
-    let thread_object_raw = from_object(thread_raw);
+    let thread_object_raw = from_object(jvm, thread_raw);
     let jthread = match JavaValue::Object(todo!()/*thread_object_raw*/).try_cast_thread() {
         None => {
             assert!(false);

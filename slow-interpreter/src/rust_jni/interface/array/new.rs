@@ -12,14 +12,14 @@ use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let jvm = get_state(env);
-    let type_ = from_jclass(clazz).as_type(jvm);
+    let type_ = from_jclass(jvm, clazz).as_type(jvm);
     let res = new_array(env, len, type_);
-    let res_safe = match from_object(res) {
+    let res_safe = match from_object(jvm, res) {
         Some(x) => x,
         None => return throw_npe(jvm, get_interpreter_state(env)),
     };
     for jv in res_safe.unwrap_array().mut_array().iter_mut() {
-        *jv = JavaValue::Object(todo!()/*from_object(init)*/);
+        *jv = JavaValue::Object(todo!()/*from_jclass(jvm,init)*/);
     }
     res
 }
@@ -63,10 +63,10 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray 
     for _ in 0..len {
         the_vec.push(default_value(elem_type.clone()))
     }
-    new_local_ref_public(Some(Arc::new(Object::Array(match ArrayObject::new_array(jvm, int_state,
-                                                                                  the_vec,
-                                                                                  elem_type,
-                                                                                  jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
+    new_local_ref_public(Some(jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state,
+                                                                                             the_vec,
+                                                                                             elem_type,
+                                                                                             jvm.thread_state.new_monitor("monitor for jni created byte array".to_string()),
     ) {
         Ok(arr) => arr,
         Err(WasException {}) => return null_mut()

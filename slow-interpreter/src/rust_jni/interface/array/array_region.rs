@@ -33,7 +33,7 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let non_null_array_obj = match from_object(array) {
+    let non_null_array_obj = match from_object(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }
@@ -51,7 +51,7 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
 pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(array) {
+    let non_null_array_obj = match from_object(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
 pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *mut jdouble) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(array) {
+    let non_null_array_obj = match from_object(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
 pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArray, start: jsize, len: jsize, buf: *mut jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(array) {
+    let non_null_array_obj = match from_object(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn set_long_array_region(env: *mut JNIEnv, array: jdoubleA
 unsafe fn set_array_region<'gc_life>(env: *mut JNIEnv, array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> JavaValue<'gc_life>) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_nullarray = match from_object(array) {
+    let non_nullarray = match from_object(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }

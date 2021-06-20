@@ -251,7 +251,7 @@ pub mod method_handle {
     use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct MethodHandle<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
     }
@@ -407,7 +407,7 @@ pub mod lambda_form {
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone)]
         pub struct NamedFunction<'gc_life> {
             normal_object: GcManagedObject<'gc_life>,
         }
@@ -455,7 +455,7 @@ pub mod lambda_form {
         use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
         use crate::java_values::{GcManagedObject, JavaValue, Object};
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone)]
         pub struct Name<'gc_life> {
             normal_object: GcManagedObject<'gc_life>,
         }
@@ -532,7 +532,7 @@ pub mod lambda_form {
         use crate::java_values::{GcManagedObject, JavaValue, Object};
         use crate::JString;
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone)]
         pub struct BasicType<'gc_life> {
             normal_object: GcManagedObject<'gc_life>,
         }
@@ -610,7 +610,7 @@ pub mod lambda_form {
     }
 
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct LambdaForm<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
     }
@@ -664,7 +664,7 @@ pub mod call_site {
     use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone)]
     pub struct CallSite<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
     }

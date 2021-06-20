@@ -47,7 +47,7 @@ pub mod is_x;
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let interface_vec = match from_jclass(cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
+    let interface_vec = match from_jclass(jvm, cls).as_runtime_class(jvm).view().interfaces().map(|interface| {
         let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
         Ok(JavaValue::Object(todo!()/*Some(class_obj)*/))
     }).collect::<Result<Vec<_>, WasException>>() {
@@ -56,7 +56,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             return null_mut();
         }
     };
-    let res = Some(Arc::new(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
+    let res = Some(jvm.allocate_object(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
         Ok(arr) => arr,
         Err(WasException {}) => return null_mut()
     })));
@@ -73,7 +73,7 @@ unsafe extern "system" fn JVM_GetClassSigners(env: *mut JNIEnv, cls: jclass) -> 
 unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let class = from_jclass(cls).as_runtime_class(jvm);
+    let class = from_jclass(jvm, cls).as_runtime_class(jvm);
     match jvm.protection_domains.read().unwrap().get_by_left(&ByAddress(class)) {
         None => null_mut(),
         Some(pd_obj) => {
@@ -87,7 +87,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let object = from_object(cls);
+    let object = from_object(jvm, cls);
     let temp = JavaValue::Object(todo!()/*object*/).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public(match JClass::from_type(jvm, int_state, object_class.unwrap_array()) {
@@ -100,7 +100,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let jclass = from_jclass(cls);
+    let jclass = from_jclass(jvm, cls);
     jclass.as_runtime_class(jvm).view().access_flags() as jint
 }
 
@@ -108,7 +108,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
 unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let class = from_jclass(ofClass).as_runtime_class(jvm);
+    let class = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let res_array = match class.view().inner_classes_view() {
         None => vec![],
         Some(inner_classes) => {
@@ -133,7 +133,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let ptype = from_jclass(cls).as_runtime_class(jvm).ptypeview();
+    let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).ptypeview();
     match JString::from_rust(jvm, int_state, ptype.jvm_representation()) {
         Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
         Err(WasException) => null_mut()
@@ -145,7 +145,7 @@ pub mod get_methods;
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {
     let jvm = get_state(env);
-    let res = from_jclass(cls).as_runtime_class(jvm).view().access_flags() as i32;
+    let res = from_jclass(jvm, cls).as_runtime_class(jvm).view().access_flags() as i32;
     res
 }
 
@@ -184,7 +184,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jstring = match JavaValue::Object(todo!()/*from_object(JVM_GetClassName(env, cb))*/).cast_string() {
+    let jstring = match JavaValue::Object(todo!()/*from_jclass(jvm,JVM_GetClassName(env, cb))*/).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(jstring) => jstring
     };
@@ -235,7 +235,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
 unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match Reflection::is_same_class_package(jvm, int_state, from_jclass(class1), from_jclass(class2)) {
+    match Reflection::is_same_class_package(jvm, int_state, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
         Ok(res) => res,
         Err(WasException {}) => return jboolean::MAX
     }
@@ -255,7 +255,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let p_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone())));
 
-    let loader_name = from_object(loader)
+    let loader_name = from_object(jvm, loader)
         .map(|loader_obj| JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
 
     let class_lookup_result = get_or_create_class_object_force_loader(
@@ -284,7 +284,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
 unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let obj = from_jclass(cls).as_runtime_class(jvm);
+    let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
     let full_name = &obj.ptypeview().class_name_representation();
     new_string_with_string(env, full_name.to_string())
 }

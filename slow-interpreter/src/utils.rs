@@ -21,7 +21,7 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
-use crate::java_values::{ExceptionReturn, JavaValue, Object};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
@@ -54,7 +54,7 @@ pub fn lookup_method_parsed_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_stat
 }
 
 
-pub fn string_obj_to_string<'gc_life>(str_obj: Arc<Object<'gc_life>>) -> String {
+pub fn string_obj_to_string<'gc_life>(str_obj: GcManagedObject<'gc_life>) -> String {
     let temp = str_obj.lookup_field("value");
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.mut_array();
@@ -113,7 +113,7 @@ pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_st
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, java_value: JavaValue<'gc_life>) -> Result<Option<Arc<Object<'gc_life>>>, WasException> {
+pub fn java_value_to_boxed_object<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, java_value: JavaValue<'gc_life>) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),

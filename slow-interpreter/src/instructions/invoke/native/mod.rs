@@ -27,9 +27,9 @@ pub fn run_native_method<'gc_life>(
     class: Arc<RuntimeClass<'gc_life>>,
     method_i: u16) -> Result<(), WasException> {
     let view = &class.view();
-    let before = int_state.current_frame().operand_stack().len();
+    let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
-    assert_eq!(before, int_state.current_frame().operand_stack().len());
+    assert_eq!(before, int_state.current_frame().operand_stack(jvm).len());
     let method = view.method_view_i(method_i);
     if !method.is_static() {
         assert_ne!(before, 0);

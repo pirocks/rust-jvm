@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let loader = int_state.current_loader().clone();
-    let of_class_obj = JavaValue::Object(todo!()/*from_object(ofClass)*/).cast_class().expect("todo");
+    let of_class_obj = JavaValue::Object(todo!()/*from_jclass(jvm,ofClass)*/).cast_class().expect("todo");
     let int_state = get_interpreter_state(env);
     match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
         Ok(res) => res,
@@ -65,7 +65,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'_ JVMState<'gc_life>, int_state: &'_ 
         let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
         object_array.push(method.java_value());
     });
-    let res = Arc::new(Object::object_array(jvm, int_state, object_array, method_class.view().type_())?).into();
+    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, method_class.view().type_())?).into();
     unsafe { Ok(new_local_ref_public(res, int_state)) }
 }
 
@@ -73,7 +73,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'_ JVMState<'gc_life>, int_state: &'_ 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
-    let temp1 = from_object(ofClass);
+    let temp1 = from_jclass(jvm, ofClass);
     let class_obj = JavaValue::Object(todo!()/*temp1*/).cast_class().expect("todo");
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
@@ -104,6 +104,6 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'_ JVMState<'gc_life>, int_state:
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.java_value())
     });
-    let res = Arc::new(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())?).into();
+    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())?).into();
     Ok(unsafe { new_local_ref_public(res, int_state) })
 }

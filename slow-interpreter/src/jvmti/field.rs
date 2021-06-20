@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::field_table::FieldId;
 use crate::JVMState;
@@ -24,7 +24,7 @@ pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, f
 fn get_field(klass: jclass, field: jfieldID, jvm: &'_ JVMState<'gc_life>) -> (Arc<dyn ClassView>, u16) {
     let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-    unsafe { Arc::ptr_eq(&from_jclass(klass).as_runtime_class(jvm), &runtime_class); }
+    unsafe { Arc::ptr_eq(&from_jclass(jvm, klass as jobject).as_runtime_class(jvm), &runtime_class); }
     let view = runtime_class.view();
     (view.clone(), i)
 }
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn get_class_fields(
 ) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
-    let class_obj = from_jclass(klass);
+    let class_obj = from_jclass(jvm, klass as jobject);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let num_fields = class_view.num_fields();

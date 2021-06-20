@@ -55,7 +55,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
 
-        let op_stack = current_frame.operand_stack();
+        let op_stack = current_frame.operand_stack(jvm);
         let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.parameter_types.len() as u16 + 1)) as u16, ClassName::method_handle().into());
         let method_handle = temp_value.cast_method_handle();
         let form: LambdaForm = method_handle.get_form();
@@ -129,6 +129,7 @@ pub fn call_vmentry<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'
 }
 
 pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &MethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16) {
+    let jvm = int_state.jvm;
     let mut current_frame = int_state.current_frame_mut();
     // dbg!(current_frame.operand_stack_types());
     for _ in 0..max_locals {
@@ -136,7 +137,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
     }
     let mut i = 1;
     for ptype in expected_descriptor.parameter_types.iter().rev() {
-        let value = current_frame.pop(PTypeView::from_ptype(ptype));
+        let value = current_frame.pop(jvm, PTypeView::from_ptype(ptype));
         // dbg!(ptype);
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
@@ -153,7 +154,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
     if !expected_descriptor.parameter_types.is_empty() {
         args[1..i].reverse();
     }
-    args[0] = current_frame.pop(ClassName::object().into());
+    args[0] = current_frame.pop(jvm, ClassName::object().into());
 }
 
 
@@ -174,7 +175,7 @@ pub fn invoke_virtual(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
 //Let C be the class of objectref.
     let this_pointer = {
         let current_frame = int_state.current_frame();
-        let operand_stack = &current_frame.operand_stack();
+        let operand_stack = &current_frame.operand_stack(jvm);
         // int_state.print_stack_trace();
         // dbg!(&operand_stack);
         &operand_stack.get((operand_stack.len() as usize - md.parameter_types.len() - 1) as u16, PTypeView::object())

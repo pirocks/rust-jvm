@@ -22,7 +22,7 @@ pub unsafe extern "C" fn get_source_file_name(
 ) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
-    let class_obj = from_jclass(klass);
+    let class_obj = from_jclass(jvm, klass);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let sourcefile = class_view.sourcefile_attr();
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
-    let class_obj = from_jclass(klass);
+    let class_obj = from_jclass(jvm, klass);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let num_interfaces = class_view.num_interfaces();
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
-    let class = from_object(transmute(klass)).unwrap();//todo handle null
+    let class = from_object(jvm, klass as jobject).unwrap();//todo handle null
     let res = {
         let type_ = &JavaValue::Object(todo!()/*class.into()*/).cast_class().unwrap().as_type(jvm);
         let mut status = 0;
@@ -156,7 +156,7 @@ pub unsafe extern "C" fn get_loaded_classes<'gc_life>(env: *mut jvmtiEnv, class_
 pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
-    let notnull_class = from_object(transmute(klass)).unwrap();//todo handle npe
+    let notnull_class = from_object(jvm, klass as jobject).unwrap();//todo handle npe
     let class_object_ptype = JavaValue::Object(todo!()/*notnull_class.into()*/).cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
@@ -218,7 +218,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     assert!(jvm.vm_live());
     //todo capabilities
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
-    let class = match try_from_jclass(klass) {
+    let class = match try_from_jclass(jvm, klass as jobject) {
         None => {
             return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS);
         }
@@ -240,7 +240,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
 pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, classloader_ptr: *mut jobject) -> jvmtiError {
     // assert_eq!(classloader_ptr, std::ptr::null_mut());//only implement bootstrap loader case
     let jvm = get_state(env);
-    let class = from_jclass(klass);
+    let class = from_jclass(jvm, klass as jobject);
     let int_state = get_interpreter_state(env);
     let class_loader = match class.get_class_loader(jvm, int_state) {
         Ok(class_loader) => class_loader,

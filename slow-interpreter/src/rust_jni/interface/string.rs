@@ -12,7 +12,7 @@ use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
-use crate::java_values::{ExceptionReturn, JavaValue, Object};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -71,14 +71,14 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 
 
 pub unsafe fn intern_impl_unsafe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, str_unsafe: jstring) -> Result<jstring, WasException> {
-    let str_obj = match from_object(str_unsafe) {
+    let str_obj = match from_object(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
     Ok(to_object(intern_safe(jvm, str_obj).object().into()))
 }
 
-pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: Arc<Object<'gc_life>>) -> JString<'gc_life> {
+pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
     let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
@@ -108,7 +108,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let str_obj = match from_object(str) {
+    let str_obj = match from_object(jvm, str) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, st
 unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(String) -> T) -> T {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let str_obj = match from_object(str) {
+    let str_obj = match from_object(jvm, str) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

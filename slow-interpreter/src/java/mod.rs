@@ -12,26 +12,26 @@ macro_rules! as_object_or_java_value {
         }
 
         pub fn to_string(&self, jvm: &'_ crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'_>) -> Result<Option<crate::java::lang::string::JString<'gc_life>>,crate::WasException> {
-            int_state.current_frame_mut().push(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.current_frame_mut().push(jvm, JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             crate::instructions::invoke::virtual_::invoke_virtual(
              jvm,
              int_state,
              &"toString".to_string(),
              &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::string()))}
              )?;
-            Ok(int_state.current_frame_mut().pop(rust_jvm_common::classnames::ClassName::string().into()).cast_string())
+            Ok(int_state.current_frame_mut().pop(jvm,rust_jvm_common::classnames::ClassName::string().into()).cast_string())
         }
 
         pub fn get_class(&self, state: &'_ crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'_>) -> Result<crate::java::lang::class::JClass<'gc_life>,crate::WasException> {
-            int_state.current_frame_mut().push(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.current_frame_mut().push(state, JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             crate::instructions::invoke::virtual_::invoke_virtual(state, int_state,&"getClass".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::Ref(rust_jvm_common::ptype::ReferenceType::Class(rust_jvm_common::classnames::ClassName::class()))})?;
-            Ok(int_state.current_frame_mut().pop(rust_jvm_common::classnames::ClassName::class().into()).cast_class().expect("object can never not have a class"))
+            Ok(int_state.current_frame_mut().pop(state,rust_jvm_common::classnames::ClassName::class().into()).cast_class().expect("object can never not have a class"))
         }
 
         pub fn hash_code(&self, state: &'_ crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'_>) -> Result<i32,crate::WasException> {
-            int_state.current_frame_mut().push(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.current_frame_mut().push(state, JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &rust_jvm_common::descriptor_parser::MethodDescriptor {parameter_types: vec![], return_type: rust_jvm_common::ptype::PType::IntType})?;
-            Ok(int_state.current_frame_mut().pop(classfile_view::view::ptype_view::PTypeView::IntType).unwrap_int())
+            Ok(int_state.current_frame_mut().pop(state,classfile_view::view::ptype_view::PTypeView::IntType).unwrap_int())
         }
     };
 }

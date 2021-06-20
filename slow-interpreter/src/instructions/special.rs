@@ -12,7 +12,7 @@ use crate::instructions::load::{aload, dload, fload, iload, lload};
 use crate::instructions::store::{astore, dstore, fstore, istore, lstore};
 use crate::interpreter::{ret, WasException};
 use crate::java_values;
-use crate::java_values::JavaValue;
+use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryMut;
@@ -20,21 +20,21 @@ use crate::utils::throw_npe;
 
 pub fn arraylength(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let mut current_frame = int_state.current_frame_mut();
-    let array_o = match current_frame.pop(PTypeView::object()).unwrap_object() {
+    let array_o = match current_frame.pop(jvm, PTypeView::object()).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
     let array = array_o.unwrap_array();
-    current_frame.push(JavaValue::Int(array.mut_array().len() as i32));
+    current_frame.push(jvm, JavaValue::Int(array.mut_array().len() as i32));
 }
 
 
 pub fn invoke_checkcast(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
-    let possibly_null = int_state.current_frame_mut().pop(PTypeView::object()).unwrap_object();
+    let possibly_null = int_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object();
     if possibly_null.is_none() {
-        int_state.current_frame_mut().push(JavaValue::Object(todo!()/*possibly_null*/));
+        int_state.current_frame_mut().push(jvm, JavaValue::Object(todo!()/*possibly_null*/));
         return;
     }
     let object = match possibly_null {
@@ -119,7 +119,7 @@ pub fn invoke_instanceof(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
     }
 }
 
-pub fn instance_of_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, unwrapped: Arc<java_values::Object<'gc_life>>, instance_of_class_type: ReferenceTypeView) -> Result<(), WasException> {
+pub fn instance_of_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, unwrapped: GcManagedObject<'gc_life>, instance_of_class_type: ReferenceTypeView) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -206,46 +206,46 @@ pub fn inherits_from<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut I
     }) || interfaces_match)
 }
 
-pub fn wide(mut current_frame: StackEntryMut, w: Wide) {
+pub fn wide(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, w: Wide) {
     match w {
         Wide::Iload(WideIload { index }) => {
-            iload(current_frame, index)
+            iload(jvm, current_frame, index)
         }
         Wide::Fload(WideFload { index }) => {
-            fload(current_frame, index)
+            fload(jvm, current_frame, index)
         }
         Wide::Aload(WideAload { index }) => {
-            aload(current_frame, index)
+            aload(jvm, current_frame, index)
         }
         Wide::Lload(WideLload { index }) => {
-            lload(current_frame, index)
+            lload(jvm, current_frame, index)
         }
         Wide::Dload(WideDload { index }) => {
-            dload(current_frame, index)
+            dload(jvm, current_frame, index)
         }
         Wide::Istore(WideIstore { index }) => {
-            istore(current_frame, index)
+            istore(jvm, current_frame, index)
         }
         Wide::Fstore(WideFstore { index }) => {
-            fstore(current_frame, index)
+            fstore(jvm, current_frame, index)
         }
         Wide::Astore(WideAstore { index }) => {
-            astore(current_frame, index)
+            astore(jvm, current_frame, index)
         }
         Wide::Lstore(WideLstore { index }) => {
-            lstore(current_frame, index)
+            lstore(jvm, current_frame, index)
         }
         Wide::Ret(WideRet { index }) => {
-            ret(current_frame, index)
+            ret(jvm, current_frame, index)
         }
         Wide::Dstore(WideDstore { index }) => {
-            dstore(current_frame, index)
+            dstore(jvm, current_frame, index)
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars().get(index, PTypeView::IntType).unwrap_int();
+            let mut val = current_frame.local_vars(jvm).get(index, PTypeView::IntType).unwrap_int();
             val += const_ as i32;
-            current_frame.local_vars_mut().set(index, JavaValue::Int(val));
+            current_frame.local_vars_mut(jvm).set(index, JavaValue::Int(val));
         }
     }
 }

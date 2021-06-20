@@ -10,8 +10,8 @@ use crate::utils::throw_illegal_arg;
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let java_obj = from_object(obj);
-    let class_object = from_object(clazz);
+    let java_obj = from_object(jvm, obj);
+    let class_object = from_object(jvm, clazz);
     let type_view = JavaValue::Object(todo!()/*class_object*/).cast_class().expect("todo").as_type(jvm);
     let type_ = match type_view.try_unwrap_ref_type() {
         None => {

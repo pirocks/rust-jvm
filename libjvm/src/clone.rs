@@ -13,21 +13,21 @@ use slow_interpreter::sun::misc::unsafe_::Unsafe;
 unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let to_clone = from_object(obj);
+    let to_clone = from_object(jvm, obj);
     new_local_ref_public(match to_clone {
         None => unimplemented!(),
         Some(o) => {
             match o.deref() {
                 Object::Array(a) => {
                     let cloned_arr: Vec<_> = a.mut_array().iter().cloned().collect();
-                    Some(Arc::new(Object::Array(ArrayObject {
+                    Some(jvm.allocate_object(Object::Array(ArrayObject {
                         elems: UnsafeCell::new(cloned_arr),
                         elem_type: a.elem_type.clone(),
                         monitor: jvm.thread_state.new_monitor("".to_string()),
                     })))
                 }
                 Object::Object(o) => {
-                    Arc::new(Object::Object(NormalObject {
+                    jvm.allocate_object(Object::Object(NormalObject {
                         monitor: jvm.thread_state.new_monitor("".to_string()),
                         objinfo: ObjectFieldsAndClass {
                             fields: o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect(),

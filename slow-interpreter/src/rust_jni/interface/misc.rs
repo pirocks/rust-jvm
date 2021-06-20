@@ -19,7 +19,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use crate::java_values::JavaValue;
+use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::{JVMState, LibJavaLoading};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let super_name = match from_jclass(sub).as_runtime_class(jvm).view().super_name() {
+    let super_name = match from_jclass(jvm, sub).as_runtime_class(jvm).view().super_name() {
         None => return null_mut(),
         Some(n) => n,
     };
@@ -63,11 +63,11 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let sub_not_null = match from_object(sub) {
+    let sub_not_null = match from_object(jvm, sub) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    let sup_not_null = match from_object(sup) {
+    let sup_not_null = match from_object(jvm, sup) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
@@ -96,9 +96,10 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 }
 
 
-pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
-    let _1 = from_object(obj1);
-    let _2 = from_object(obj2);
+pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
+    let jvm = get_state(env);
+    let _1 = from_object(jvm, obj1);
+    let _2 = from_object(jvm, obj2);
     (match _1 {
         None => {
             match _2 {
@@ -109,7 +110,7 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
         Some(_1_) => {
             match _2 {
                 None => JNI_FALSE,
-                Some(_2_) => Arc::ptr_eq(&_1_, &_2_) as u32,
+                Some(_2_) => GcManagedObject::ptr_eq(&_1_, &_2_) as u32,
             }
         }
     }) as u8
@@ -133,7 +134,7 @@ pub unsafe extern "C" fn is_same_object(_env: *mut JNIEnv, obj1: jobject, obj2: 
 // Returns “0” on success; returns a negative value on failure.
 pub unsafe extern "C" fn unregister_natives(env: *mut JNIEnv, clazz: jclass) -> jint {
     let jvm = get_state(env);
-    let rc = from_jclass(clazz).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, clazz).as_runtime_class(jvm);
     if let None = jvm.libjava.registered_natives.write().unwrap().remove(&ByAddress(rc)) {
         return JNI_ERR;
     }
@@ -150,7 +151,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
-        let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(clazz).as_runtime_class(jvm);
+        let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_name = match runtime_class.ptypeview().try_unwrap_class_type() {
             None => { return JNI_ERR; }
             Some(cn) => cn,
@@ -170,12 +171,12 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
 }
 
 
-fn register_native_with_lib_java_loading<'gc_life>(jni_context: &LibJavaLoading, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc_life>>, method_i: usize) {
-    if jni_context.registered_natives.read().unwrap().contains_key(&ByAddress(todo!()/*runtime_class.clone()*/)) {
+fn register_native_with_lib_java_loading<'gc_life>(jni_context: &LibJavaLoading<'gc_life>, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc_life>>, method_i: usize) {
+    if jni_context.registered_natives.read().unwrap().contains_key(&ByAddress(runtime_class.clone())) {
         unsafe {
             jni_context.registered_natives
                 .read().unwrap()
-                .get(&ByAddress(todo!()/*runtime_class.clone()*/))
+                .get(&ByAddress(runtime_class.clone()))
                 .unwrap()
                 .write().unwrap()
                 .insert(method_i as CPIndex, transmute(method.fnPtr));
@@ -183,7 +184,7 @@ fn register_native_with_lib_java_loading<'gc_life>(jni_context: &LibJavaLoading,
     } else {
         let mut map = HashMap::new();
         map.insert(method_i as CPIndex, unsafe { transmute(method.fnPtr) });
-        jni_context.registered_natives.write().unwrap().insert(ByAddress(todo!()/*runtime_class.clone()*/), RwLock::new(map));
+        jni_context.registered_natives.write().unwrap().insert(ByAddress(runtime_class.clone()), RwLock::new(map));
     }
 }
 

@@ -60,7 +60,7 @@ pub fn invoke_static_impl<'gc_life>(
         let name = method_view.name();
         if name == "linkToStatic" {
             let current_frame = interpreter_state.current_frame();
-            let op_stack = current_frame.operand_stack();
+            let op_stack = current_frame.operand_stack(jvm);
             // dbg!(interpreter_state.current_frame().operand_stack_types());
             let member_name = op_stack.get((op_stack.len() - 1) as u16, ClassName::member_name().into()).cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
@@ -81,7 +81,7 @@ pub fn invoke_static_impl<'gc_life>(
         }
         let mut i = 0;
         for ptype in expected_descriptor.parameter_types.iter().rev() {
-            let popped = current_frame.pop(PTypeView::from_ptype(&ptype));
+            let popped = current_frame.pop(jvm, PTypeView::from_ptype(&ptype));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
                 _ => {}

@@ -185,7 +185,7 @@ pub fn monitor_for_function(
             ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()
         } else {
-            int_state.current_frame_mut().local_vars().get(0, PTypeView::object()).unwrap_normal_object().monitor.clone()
+            int_state.current_frame_mut().local_vars(jvm).get(0, PTypeView::object()).unwrap_normal_object().monitor.clone()
         };
         monitor.lock(jvm);
         monitor.into()
@@ -228,137 +228,137 @@ fn run_single_instruction(
     match instruct {
         InstructionInfo::aaload => aaload(interpreter_state),
         InstructionInfo::aastore => aastore(jvm, interpreter_state),
-        InstructionInfo::aconst_null => aconst_null(interpreter_state.current_frame_mut()),
-        InstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::aload_2 => aload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::aload_3 => aload(interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::aconst_null => aconst_null(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::aload(n) => aload(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::aload_0 => aload(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::aload_1 => aload(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::aload_2 => aload(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::aload_3 => aload(jvm, interpreter_state.current_frame_mut(), 3),
         InstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
         InstructionInfo::areturn => areturn(jvm, interpreter_state),
         InstructionInfo::arraylength => arraylength(jvm, interpreter_state),
-        InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::astore_2 => astore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::astore_3 => astore(interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::astore(n) => astore(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::astore_0 => astore(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::astore_1 => astore(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::astore_2 => astore(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::astore_3 => astore(jvm, interpreter_state.current_frame_mut(), 3),
         InstructionInfo::athrow => athrow(jvm, interpreter_state),
-        InstructionInfo::baload => baload(interpreter_state.current_frame_mut()),
+        InstructionInfo::baload => baload(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::bastore => bastore(jvm, interpreter_state),
-        InstructionInfo::bipush(b) => bipush(interpreter_state.current_frame_mut(), b),
+        InstructionInfo::bipush(b) => bipush(jvm, interpreter_state.current_frame_mut(), b),
         InstructionInfo::caload => caload(jvm, interpreter_state),
         InstructionInfo::castore => castore(jvm, interpreter_state),
         InstructionInfo::checkcast(cp) => invoke_checkcast(jvm, interpreter_state, cp),
-        InstructionInfo::d2f => d2f(interpreter_state.current_frame_mut()),
-        InstructionInfo::d2i => d2i(interpreter_state.current_frame_mut()),
-        InstructionInfo::d2l => d2l(interpreter_state.current_frame_mut()),
-        InstructionInfo::dadd => dadd(interpreter_state.current_frame_mut()),
-        InstructionInfo::daload => daload(interpreter_state.current_frame_mut()),
+        InstructionInfo::d2f => d2f(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::d2i => d2i(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::d2l => d2l(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dadd => dadd(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::daload => daload(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::dastore => dastore(jvm, interpreter_state),
-        InstructionInfo::dcmpg => dcmpg(interpreter_state.current_frame_mut()),
-        InstructionInfo::dcmpl => dcmpl(interpreter_state.current_frame_mut()),
-        InstructionInfo::dconst_0 => dconst_0(interpreter_state.current_frame_mut()),
-        InstructionInfo::dconst_1 => dconst_1(interpreter_state.current_frame_mut()),
-        InstructionInfo::ddiv => ddiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::dload(i) => dload(interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::dload_0 => dload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::dload_1 => dload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::dload_2 => dload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::dload_3 => dload(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::dmul => dmul(interpreter_state.current_frame_mut()),
-        InstructionInfo::dneg => dneg(interpreter_state.current_frame_mut()),
-        InstructionInfo::drem => drem(interpreter_state.current_frame_mut()),
+        InstructionInfo::dcmpg => dcmpg(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dcmpl => dcmpl(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dconst_0 => dconst_0(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dconst_1 => dconst_1(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::ddiv => ddiv(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dload(i) => dload(jvm, interpreter_state.current_frame_mut(), i as u16),
+        InstructionInfo::dload_0 => dload(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::dload_1 => dload(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::dload_2 => dload(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::dload_3 => dload(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::dmul => dmul(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dneg => dneg(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::drem => drem(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::dreturn => dreturn(jvm, interpreter_state),
-        InstructionInfo::dstore(i) => dstore(interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::dstore_0 => dstore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::dstore_1 => dstore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::dstore_2 => dstore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::dstore_3 => dstore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::dsub => dsub(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup => dup(interpreter_state.current_frame_mut()),
-        InstructionInfo::dup_x1 => dup_x1(interpreter_state.current_frame_mut()),
+        InstructionInfo::dstore(i) => dstore(jvm, interpreter_state.current_frame_mut(), i as u16),
+        InstructionInfo::dstore_0 => dstore(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::dstore_1 => dstore(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::dstore_2 => dstore(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::dstore_3 => dstore(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::dsub => dsub(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dup => dup(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::dup2 => dup2(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::dup2_x1 => dup2_x1(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::f2d => f2d(interpreter_state.current_frame_mut()),
-        InstructionInfo::f2i => f2i(interpreter_state.current_frame_mut()),
-        InstructionInfo::f2l => f2l(interpreter_state.current_frame_mut()),
-        InstructionInfo::fadd => fadd(interpreter_state.current_frame_mut()),
-        InstructionInfo::faload => faload(interpreter_state.current_frame_mut()),
+        InstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fadd => fadd(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::faload => faload(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::fastore => fastore(jvm, interpreter_state),
-        InstructionInfo::fcmpg => fcmpg(interpreter_state.current_frame_mut()),
-        InstructionInfo::fcmpl => fcmpl(interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_0 => fconst_0(interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_1 => fconst_1(interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_2 => fconst_2(interpreter_state.current_frame_mut()),
-        InstructionInfo::fdiv => fdiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::fload(n) => fload(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::fload_0 => fload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::fload_1 => fload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::fload_2 => fload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::fload_3 => fload(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::fmul => fmul(interpreter_state.current_frame_mut()),
-        InstructionInfo::fneg => fneg(interpreter_state.current_frame_mut()),
-        InstructionInfo::frem => frem(interpreter_state.current_frame_mut()),
+        InstructionInfo::fcmpg => fcmpg(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fcmpl => fcmpl(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fconst_0 => fconst_0(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fconst_1 => fconst_1(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fconst_2 => fconst_2(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fdiv => fdiv(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fload(n) => fload(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::fload_0 => fload(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::fload_1 => fload(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::fload_2 => fload(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::fload_3 => fload(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::fmul => fmul(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::fneg => fneg(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::frem => frem(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::freturn => freturn(jvm, interpreter_state),
-        InstructionInfo::fstore(i) => fstore(interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::fstore_0 => fstore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::fstore_1 => fstore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::fstore_2 => fstore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::fstore_3 => fstore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::fsub => fsub(interpreter_state.current_frame_mut()),
+        InstructionInfo::fstore(i) => fstore(jvm, interpreter_state.current_frame_mut(), i as u16),
+        InstructionInfo::fstore_0 => fstore(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::fstore_1 => fstore(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::fstore_2 => fstore(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::getfield(cp) => get_field(jvm, interpreter_state, cp, false),
         InstructionInfo::getstatic(cp) => get_static(jvm, interpreter_state, cp),
-        InstructionInfo::goto_(target) => goto_(interpreter_state.current_frame_mut(), target as i32),
-        InstructionInfo::goto_w(target) => goto_(interpreter_state.current_frame_mut(), target),
-        InstructionInfo::i2b => i2b(interpreter_state.current_frame_mut()),
-        InstructionInfo::i2c => i2c(interpreter_state.current_frame_mut()),
-        InstructionInfo::i2d => i2d(interpreter_state.current_frame_mut()),
-        InstructionInfo::i2f => i2f(interpreter_state.current_frame_mut()),
-        InstructionInfo::i2l => i2l(interpreter_state.current_frame_mut()),
-        InstructionInfo::i2s => i2s(interpreter_state.current_frame_mut()),
-        InstructionInfo::iadd => iadd(interpreter_state.current_frame_mut()),
-        InstructionInfo::iaload => iaload(interpreter_state.current_frame_mut()),
-        InstructionInfo::iand => iand(interpreter_state.current_frame_mut()),
+        InstructionInfo::goto_(target) => goto_(jvm, interpreter_state.current_frame_mut(), target as i32),
+        InstructionInfo::goto_w(target) => goto_(jvm, interpreter_state.current_frame_mut(), target),
+        InstructionInfo::i2b => i2b(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::i2c => i2c(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::i2d => i2d(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::i2f => i2f(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::i2l => i2l(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::i2s => i2s(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iadd => iadd(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iaload => iaload(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iand => iand(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::iastore => iastore(jvm, interpreter_state),
-        InstructionInfo::iconst_m1 => iconst_m1(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_0 => iconst_0(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_1 => iconst_1(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_2 => iconst_2(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_3 => iconst_3(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_4 => iconst_4(interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_5 => iconst_5(interpreter_state.current_frame_mut()),
-        InstructionInfo::idiv => idiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::if_acmpeq(offset) => if_acmpeq(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_acmpne(offset) => if_acmpne(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpeq(offset) => if_icmpeq(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpne(offset) => if_icmpne(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmplt(offset) => if_icmplt(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpge(offset) => if_icmpge(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpgt(offset) => if_icmpgt(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmple(offset) => if_icmple(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifeq(offset) => ifeq(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifne(offset) => ifne(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::iflt(offset) => iflt(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifge(offset) => ifge(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifgt(offset) => ifgt(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifle(offset) => ifle(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifnonnull(offset) => ifnonnull(interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifnull(offset) => ifnull(interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::iconst_m1 => iconst_m1(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_0 => iconst_0(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_1 => iconst_1(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_2 => iconst_2(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_3 => iconst_3(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_4 => iconst_4(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::iconst_5 => iconst_5(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::idiv => idiv(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::if_acmpeq(offset) => if_acmpeq(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_acmpne(offset) => if_acmpne(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmpeq(offset) => if_icmpeq(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmpne(offset) => if_icmpne(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmplt(offset) => if_icmplt(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmpge(offset) => if_icmpge(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmpgt(offset) => if_icmpgt(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::if_icmple(offset) => if_icmple(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifeq(offset) => ifeq(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifne(offset) => ifne(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::iflt(offset) => iflt(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifge(offset) => ifge(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifgt(offset) => ifgt(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifle(offset) => ifle(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifnonnull(offset) => ifnonnull(jvm, interpreter_state.current_frame_mut(), offset),
+        InstructionInfo::ifnull(offset) => ifnull(jvm, interpreter_state.current_frame_mut(), offset),
         InstructionInfo::iinc(iinc) => {
             let mut current_frame = interpreter_state.current_frame_mut();
-            let val = current_frame.local_vars().get(iinc.index, PTypeView::IntType).unwrap_int();
+            let val = current_frame.local_vars(jvm).get(iinc.index, PTypeView::IntType).unwrap_int();
             let res = val + iinc.const_ as i32;
-            current_frame.local_vars_mut().set(iinc.index, JavaValue::Int(res));
+            current_frame.local_vars_mut(jvm).set(iinc.index, JavaValue::Int(res));
         }
-        InstructionInfo::iload(n) => iload(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::iload_0 => iload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::iload_1 => iload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::iload_2 => iload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::iload_3 => iload(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::imul => imul(interpreter_state.current_frame_mut()),
-        InstructionInfo::ineg => ineg(interpreter_state.current_frame_mut()),
+        InstructionInfo::iload(n) => iload(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::iload_0 => iload(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::iload_1 => iload(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::iload_2 => iload(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::iload_3 => iload(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::imul => imul(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
         InstructionInfo::invokedynamic(cp) => {
             invoke_dynamic(jvm, interpreter_state, cp)
@@ -367,85 +367,85 @@ fn run_single_instruction(
         InstructionInfo::invokespecial(cp) => invoke_special(jvm, interpreter_state, cp),
         InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, interpreter_state, cp),
         InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, interpreter_state, cp),
-        InstructionInfo::ior => ior(interpreter_state.current_frame_mut()),
-        InstructionInfo::irem => irem(interpreter_state.current_frame_mut()),
+        InstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::ireturn => ireturn(jvm, interpreter_state),
-        InstructionInfo::ishl => ishl(interpreter_state.current_frame_mut()),
-        InstructionInfo::ishr => ishr(interpreter_state.current_frame_mut()),
-        InstructionInfo::istore(n) => istore(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::istore_0 => istore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::istore_1 => istore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::istore_2 => istore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::istore_3 => istore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::isub => isub(interpreter_state.current_frame_mut()),
+        InstructionInfo::ishl => ishl(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::ishr => ishr(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::istore(n) => istore(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::istore_0 => istore(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::istore_1 => istore(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::istore_2 => istore(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::istore_3 => istore(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::isub => isub(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::iushr => iushr(interpreter_state),
-        InstructionInfo::ixor => ixor(interpreter_state.current_frame_mut()),
+        InstructionInfo::ixor => ixor(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::jsr(target) => jsr(interpreter_state, target as i32),
         InstructionInfo::jsr_w(target) => jsr(interpreter_state, target),
-        InstructionInfo::l2d => l2d(interpreter_state.current_frame_mut()),
-        InstructionInfo::l2f => l2f(interpreter_state.current_frame_mut()),
-        InstructionInfo::l2i => l2i(interpreter_state.current_frame_mut()),
-        InstructionInfo::ladd => ladd(interpreter_state.current_frame_mut()),
-        InstructionInfo::laload => laload(interpreter_state.current_frame_mut()),
-        InstructionInfo::land => land(interpreter_state.current_frame_mut()),
+        InstructionInfo::l2d => l2d(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::l2f => l2f(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::l2i => l2i(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::ladd => ladd(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::laload => laload(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::land => land(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::lastore => lastore(jvm, interpreter_state),
-        InstructionInfo::lcmp => lcmp(interpreter_state.current_frame_mut()),
-        InstructionInfo::lconst_0 => lconst(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lconst_1 => lconst(interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::lcmp => lcmp(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lconst_0 => lconst(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::lconst_1 => lconst(jvm, interpreter_state.current_frame_mut(), 1),
         InstructionInfo::ldc(cp) => ldc_w(jvm, interpreter_state, cp as u16),
         InstructionInfo::ldc_w(cp) => ldc_w(jvm, interpreter_state, cp),
         InstructionInfo::ldc2_w(cp) => ldc2_w(jvm, interpreter_state.current_frame_mut(), cp),
-        InstructionInfo::ldiv => ldiv(interpreter_state.current_frame_mut()),
-        InstructionInfo::lload(i) => lload(interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::lload_0 => lload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lload_1 => lload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::lload_2 => lload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::lload_3 => lload(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::lmul => lmul(interpreter_state.current_frame_mut()),
-        InstructionInfo::lneg => lneg(interpreter_state.current_frame_mut()),
-        InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, interpreter_state.current_frame_mut()),
-        InstructionInfo::lor => lor(interpreter_state.current_frame_mut()),
-        InstructionInfo::lrem => lrem(interpreter_state.current_frame_mut()),
+        InstructionInfo::ldiv => ldiv(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lload(i) => lload(jvm, interpreter_state.current_frame_mut(), i as u16),
+        InstructionInfo::lload_0 => lload(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::lload_1 => lload(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::lload_2 => lload(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::lload_3 => lload(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::lmul => lmul(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lneg => lneg(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lor => lor(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lrem => lrem(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::lreturn => lreturn(jvm, interpreter_state),
-        InstructionInfo::lshl => lshl(interpreter_state.current_frame_mut()),
-        InstructionInfo::lshr => lshr(interpreter_state.current_frame_mut()),
-        InstructionInfo::lstore(n) => lstore(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::lstore_0 => lstore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lstore_1 => lstore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::lstore_2 => lstore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::lstore_3 => lstore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::lsub => lsub(interpreter_state.current_frame_mut()),
-        InstructionInfo::lushr => lushr(interpreter_state.current_frame_mut()),
-        InstructionInfo::lxor => lxor(interpreter_state.current_frame_mut()),
+        InstructionInfo::lshl => lshl(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lshr => lshr(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lstore(n) => lstore(jvm, interpreter_state.current_frame_mut(), n as u16),
+        InstructionInfo::lstore_0 => lstore(jvm, interpreter_state.current_frame_mut(), 0),
+        InstructionInfo::lstore_1 => lstore(jvm, interpreter_state.current_frame_mut(), 1),
+        InstructionInfo::lstore_2 => lstore(jvm, interpreter_state.current_frame_mut(), 2),
+        InstructionInfo::lstore_3 => lstore(jvm, interpreter_state.current_frame_mut(), 3),
+        InstructionInfo::lsub => lsub(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::monitorenter => {
-            interpreter_state.current_frame_mut().pop(PTypeView::object()).unwrap_object_nonnull().monitor_lock(jvm);
+            interpreter_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object_nonnull().monitor_lock(jvm);
         }
         InstructionInfo::monitorexit => {
-            interpreter_state.current_frame_mut().pop(PTypeView::object()).unwrap_object_nonnull().monitor_unlock(jvm);
+            interpreter_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object_nonnull().monitor_unlock(jvm);
         }
         InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, interpreter_state, cp),
         InstructionInfo::new(cp) => new(jvm, interpreter_state, cp),
         InstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, a_type),
         InstructionInfo::nop => {}
-        InstructionInfo::pop => pop(interpreter_state.current_frame_mut()),
+        InstructionInfo::pop => pop(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
         InstructionInfo::putfield(cp) => putfield(jvm, interpreter_state, cp),
         InstructionInfo::putstatic(cp) => putstatic(jvm, interpreter_state, cp),
-        InstructionInfo::ret(local_var_index) => ret(interpreter_state.current_frame_mut(), local_var_index as u16),
+        InstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), local_var_index as u16),
         InstructionInfo::return_ => return_(interpreter_state),
-        InstructionInfo::saload => saload(interpreter_state.current_frame_mut()),
+        InstructionInfo::saload => saload(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::sastore => sastore(jvm, interpreter_state),
-        InstructionInfo::sipush(val) => sipush(interpreter_state.current_frame_mut(), val),
-        InstructionInfo::swap => swap(interpreter_state.current_frame_mut()),
-        InstructionInfo::tableswitch(switch) => tableswitch(switch, interpreter_state.current_frame_mut()),
-        InstructionInfo::wide(w) => wide(interpreter_state.current_frame_mut(), w),
+        InstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), val),
+        InstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::tableswitch(switch) => tableswitch(switch, jvm, interpreter_state.current_frame_mut()),
+        InstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         InstructionInfo::EndOfCode => panic!(),
     }
 }
 
-fn l2d(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop(PTypeView::LongType).unwrap_long();
-    current_frame.push(JavaValue::Double(val as f64))
+fn l2d(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val = current_frame.pop(jvm, PTypeView::LongType).unwrap_long();
+    current_frame.push(jvm, JavaValue::Double(val as f64))
 }
 
 fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target: i32) {
@@ -454,8 +454,8 @@ fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target: i
     interpreter_state.set_current_pc_offset(target);
 }
 
-fn f2l(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop(PTypeView::FloatType
+fn f2l(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val = current_frame.pop(jvm, PTypeView::FloatType,
     ).unwrap_float();
     let res = if val.is_infinite() {
         if val.is_sign_positive() {
@@ -468,83 +468,83 @@ fn f2l(mut current_frame: StackEntryMut) {
     } else {
         val as i64
     };
-    current_frame.push(JavaValue::Long(res))
+    current_frame.push(jvm, JavaValue::Long(res))
 }
 
-fn dup2_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut) {
+fn dup2_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life>) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     let value2_vtype = data[1].clone();
-    let value1 = current_frame.pop(PTypeView::LongType);
-    let value2 = current_frame.pop(PTypeView::LongType);
+    let value1 = current_frame.pop(jvm, PTypeView::LongType);
+    let value2 = current_frame.pop(jvm, PTypeView::LongType);
     match value1_vtype {
         VType::LongType | VType::DoubleType => {
             match value2_vtype {
                 VType::LongType | VType::DoubleType => {
                     //form 4
-                    current_frame.push(value1.clone());
-                    current_frame.push(value2);
-                    current_frame.push(value1);
+                    current_frame.push(jvm, value1.clone());
+                    current_frame.push(jvm, value2);
+                    current_frame.push(jvm, value1);
                 }
                 _ => {
                     //form 2
-                    let value3 = current_frame.pop(PTypeView::LongType);
+                    let value3 = current_frame.pop(jvm, PTypeView::LongType);
                     // assert!(value3.is_size_1());
-                    current_frame.push(value1.clone());
-                    current_frame.push(value3);
-                    current_frame.push(value2);
-                    current_frame.push(value1);
+                    current_frame.push(jvm, value1.clone());
+                    current_frame.push(jvm, value3);
+                    current_frame.push(jvm, value2);
+                    current_frame.push(jvm, value1);
                 }
             }
         }
         _ => {
             // assert!(value2.is_size_1());
             let value2_vtype = data[2].clone();
-            let value3 = current_frame.pop(PTypeView::LongType);
+            let value3 = current_frame.pop(jvm, PTypeView::LongType);
             match value2_vtype {
                 VType::LongType | VType::DoubleType => {
                     //form 3
-                    current_frame.push(value2.clone());
-                    current_frame.push(value1.clone());
-                    current_frame.push(value3);
-                    current_frame.push(value2);
-                    current_frame.push(value1);
+                    current_frame.push(jvm, value2.clone());
+                    current_frame.push(jvm, value1.clone());
+                    current_frame.push(jvm, value3);
+                    current_frame.push(jvm, value2);
+                    current_frame.push(jvm, value1);
                 }
                 _ => {
                     //form 1
-                    let value4 = current_frame.pop(PTypeView::LongType);
+                    let value4 = current_frame.pop(jvm, PTypeView::LongType);
                     // assert!(value4.is_size_1());
-                    current_frame.push(value2.clone());
-                    current_frame.push(value1.clone());
-                    current_frame.push(value4);
-                    current_frame.push(value3);
-                    current_frame.push(value2);
-                    current_frame.push(value1);
+                    current_frame.push(jvm, value2.clone());
+                    current_frame.push(jvm, value1.clone());
+                    current_frame.push(jvm, value4);
+                    current_frame.push(jvm, value3);
+                    current_frame.push(jvm, value2);
+                    current_frame.push(jvm, value1);
                 }
             }
         }
     }
 }
 
-fn frem(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_float();
-    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_float();
+fn frem(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let value2 = current_frame.pop(jvm, PTypeView::FloatType).unwrap_float();
+    let value1 = current_frame.pop(jvm, PTypeView::FloatType).unwrap_float();
     let res = drem_impl(value2 as f64, value1 as f64) as f32;
-    current_frame.push(JavaValue::Float(res));
+    current_frame.push(jvm, JavaValue::Float(res));
 }
 
-fn fneg(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop(PTypeView::FloatType).unwrap_float();
-    current_frame.push(JavaValue::Float(-val))
+fn fneg(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val = current_frame.pop(jvm, PTypeView::FloatType).unwrap_float();
+    current_frame.push(jvm, JavaValue::Float(-val))
 }
 
-fn drem(mut current_frame: StackEntryMut) {
-    let value2 = current_frame.pop(PTypeView::FloatType).unwrap_double();//divisor
-    let value1 = current_frame.pop(PTypeView::FloatType).unwrap_double();
+fn drem(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let value2 = current_frame.pop(jvm, PTypeView::FloatType).unwrap_double();//divisor
+    let value1 = current_frame.pop(jvm, PTypeView::FloatType).unwrap_double();
     let res = drem_impl(value2, value1);
-    current_frame.push(JavaValue::Double(res))
+    current_frame.push(jvm, JavaValue::Double(res))
 }
 
 fn drem_impl(value2: f64, value1: f64) -> f64 {
@@ -570,34 +570,34 @@ fn drem_impl(value2: f64, value1: f64) -> f64 {
     res
 }
 
-fn dneg(mut current_frame: StackEntryMut) {
-    let val = current_frame.pop(PTypeView::DoubleType).unwrap_double();
-    current_frame.push(JavaValue::Double(-val))
+fn dneg(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val = current_frame.pop(jvm, PTypeView::DoubleType).unwrap_double();
+    current_frame.push(jvm, JavaValue::Double(-val))
 }
 
-fn swap(mut current_frame: StackEntryMut) {
-    let first = current_frame.pop(PTypeView::LongType);
-    let second = current_frame.pop(PTypeView::LongType);
-    current_frame.push(first);
-    current_frame.push(second);
+fn swap(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let first = current_frame.pop(jvm, PTypeView::LongType);
+    let second = current_frame.pop(jvm, PTypeView::LongType);
+    current_frame.push(jvm, first);
+    current_frame.push(jvm, second);
 }
 
-pub fn ret(mut current_frame: StackEntryMut, local_var_index: u16) {
-    let ret = current_frame.local_vars().get(local_var_index, PTypeView::LongType).unwrap_long();
+pub fn ret(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, local_var_index: u16) {
+    let ret = current_frame.local_vars(jvm).get(local_var_index, PTypeView::LongType).unwrap_long();
     current_frame.set_pc(ret as u16);
     *current_frame.pc_offset_mut() = 0;
 }
 
-fn dcmpl(mut current_frame: StackEntryMut) {
-    let val2 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
-    let val1 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
+fn dcmpl(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val2 = current_frame.pop(jvm, PTypeView::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(jvm, PTypeView::DoubleType).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
-        current_frame.push(JavaValue::Int(-1));
+        current_frame.push(jvm, JavaValue::Int(-1));
     }
-    dcmp_common(current_frame, val2, val1);
+    dcmp_common(jvm, current_frame, val2, val1);
 }
 
-fn dcmp_common(mut current_frame: StackEntryMut, val2: f64, val1: f64) {
+fn dcmp_common(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, val2: f64, val1: f64) {
     let res = if val1 > val2 {
         1
     } else if val1 == val2 {
@@ -607,16 +607,16 @@ fn dcmp_common(mut current_frame: StackEntryMut, val2: f64, val1: f64) {
     } else {
         unreachable!()
     };
-    current_frame.push(JavaValue::Int(res));
+    current_frame.push(jvm, JavaValue::Int(res));
 }
 
-fn dcmpg(mut current_frame: StackEntryMut) {
-    let val2 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
-    let val1 = current_frame.pop(PTypeView::DoubleType).unwrap_double();
+fn dcmpg(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+    let val2 = current_frame.pop(jvm, PTypeView::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(jvm, PTypeView::DoubleType).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
-        current_frame.push(JavaValue::Int(-1));
+        current_frame.push(jvm, JavaValue::Int(-1));
     }
-    dcmp_common(current_frame, val2, val1)
+    dcmp_common(jvm, current_frame, val2, val1)
 }
 
 fn athrow(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {

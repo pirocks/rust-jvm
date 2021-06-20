@@ -111,7 +111,7 @@ fn setup_program_args<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut 
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
     ).expect("todo"))))*/todo!());
     let mut current_frame_mut = int_state.current_frame_mut();
-    let mut local_vars = current_frame_mut.local_vars_mut();
+    let mut local_vars = current_frame_mut.local_vars_mut(jvm);
     local_vars.set(0, arg_array);
 }
 

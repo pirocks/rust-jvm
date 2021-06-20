@@ -112,7 +112,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
 unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let runtime_class = from_jclass(cls).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, cls).as_runtime_class(jvm);
     let loader_name = jvm.classes.read().unwrap().get_initiating_loader(&runtime_class);
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }

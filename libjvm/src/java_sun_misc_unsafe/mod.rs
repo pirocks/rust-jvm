@@ -72,7 +72,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
     address: jlong,
     len: jlong,
 ) {
-    let nonnull = match from_object(src_obj) {
+    let jvm = get_state(env);
+    let nonnull = match from_object(jvm, src_obj) {
         Some(x) => x,
         None => return throw_npe(get_state(env), get_interpreter_state(env)),
     };
@@ -111,7 +112,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
                                                                  field_obj: jobject,
 ) -> jlong {
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(todo!()/*from_object(field_obj)*/).cast_field();
+    let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
     let name = jfield.name().to_rust_string();
     let clazz = jfield.clazz().as_runtime_class(jvm);
     let class_view = clazz.view();
@@ -132,7 +133,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
 ) -> jlong {
     //todo major duplication
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(todo!()/*from_object(field_obj)*/).cast_field();
+    let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
     let name = jfield.name().to_rust_string();
     let clazz = jfield.clazz().as_runtime_class(jvm);
     let class_view = clazz.view();
@@ -157,7 +158,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
 ) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match from_object(obj) {
+    match from_object(jvm, obj) {
         Some(notnull) => {
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
@@ -217,7 +218,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_freeMemory(env: *mut JNIEnv, the_
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, field_id_and_array_idx: jlong) -> jobject {
     let jvm = get_state(env);
-    match from_object(obj) {
+    match from_object(jvm, obj) {
         None => {
             let field_id = field_id_and_array_idx as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
@@ -244,7 +245,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
     let jvm = get_state(env);
-    match from_object(obj) {
+    match from_object(jvm, obj) {
         None => {
             let field_id = offset as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
@@ -254,14 +255,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let name = field_view.field_name();
             let mut static_vars_guard = runtime_class.static_vars();
             let res = static_vars_guard.get_mut(&name).unwrap();
-            *res = JavaValue::Object(todo!()/*from_object(to_put)*/);//todo dup with get function
+            *res = JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/);//todo dup with get function
         }
         Some(object_to_read) => {
             match object_to_read.deref() {
                 Object::Array(arr) => {
                     let array_idx = offset as usize;
                     let res = &mut arr.mut_array()[array_idx];
-                    *res = JavaValue::Object(todo!()/*from_object(to_put)*/);
+                    *res = JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/);
                 }
                 Object::Object(obj) => {
                     let field_id = offset as FieldId;
@@ -270,7 +271,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     let field_view = runtime_class_view.field(i as usize);
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
-                    obj.set_var_top_level(name, JavaValue::Object(todo!()/*from_object(to_put)*/));
+                    obj.set_var_top_level(name, JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/));
                 }
             }
         }

@@ -99,7 +99,7 @@ unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, f
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = match from_object(obj) {
+    let notnull = match from_object(jvm, obj) {
         Some(x) => x,
         None => {
             throw_npe_res(jvm, int_state)?;
@@ -114,7 +114,7 @@ unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, f
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
     let jvm = get_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string(); //todo handle utf8
-    let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
     let (field_rc, field_i) = match get_all_fields(jvm, int_state, runtime_class, true) {
         Ok(res) => res,
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn get_static_method_id(
     let int_state = get_interpreter_state(env);
     let method_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
-    let class_obj_o = match from_object(clazz) {
+    let class_obj_o = match from_object(jvm, clazz) {
         None => return throw_npe(jvm, int_state),
         Some(class_obj_o) => Some(class_obj_o)
     };
@@ -171,7 +171,7 @@ unsafe fn get_static_field<'gc_life>(env: *mut JNIEnv, klass: jclass, field_id_r
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
-    let jclass = from_jclass(klass);
+    let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
     check_initing_or_inited_class(jvm, int_state, rc.ptypeview())?;
     let guard = rc.static_vars();

@@ -32,13 +32,13 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     assert_eq!(obj, std::ptr::null_mut());//non-static methods not supported atm.
-    let method_obj = match from_object(method) {
+    let method_obj = match from_object(jvm, method) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let args_not_null = match from_object(args0) {
+    let args_not_null = match from_object(jvm, args0) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -90,7 +90,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let args = if args0.is_null() {
         vec![]
     } else {
-        let temp_1 = match from_object(args0) {
+        let temp_1 = match from_object(jvm, args0) {
             Some(x) => x,
             None => {
                 return throw_npe(jvm, int_state);
@@ -113,7 +113,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             _ => jv.clone()
         }).collect::<Vec<_>>()
     };
-    let constructor_obj = match from_object(c) {
+    let constructor_obj = match from_object(jvm, c) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

@@ -313,7 +313,6 @@ thread_local! {
 
 pub type JavaThreadId = i64;
 
-#[derive(Debug)]
 pub struct JavaThread<'vm_life> {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread<'vm_life>,

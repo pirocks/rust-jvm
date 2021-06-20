@@ -130,7 +130,7 @@ pub mod dynamic {
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
-        let (num_args, args) = if int_state.current_frame().operand_stack().is_empty() {
+        let (num_args, args) = if int_state.current_frame().operand_stack(jvm).is_empty() {
             (0u16, vec![])
         } else {
             let method_type = target.type__();
@@ -140,8 +140,8 @@ pub mod dynamic {
             let static_: bool = member_name.is_static(jvm, int_state)?;
             (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
         }; //todo also sketch
-        let operand_stack_len = int_state.current_frame().operand_stack().len();
-        int_state.current_frame_mut().operand_stack_mut().insert((operand_stack_len - num_args) as usize, target.java_value());
+        let operand_stack_len = int_state.current_frame().operand_stack(jvm).len();
+        int_state.current_frame_mut().operand_stack_mut(jvm).insert((operand_stack_len - num_args) as usize, target.java_value());
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);

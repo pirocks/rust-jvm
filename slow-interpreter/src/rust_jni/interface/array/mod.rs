@@ -12,7 +12,7 @@ use crate::utils::{throw_illegal_arg, throw_npe};
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let temp = match from_object(array) {
+    let temp = match from_object(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
 pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let notnull = match from_object(array) {
+    let notnull = match from_object(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let notnull = match from_object(array) {
+    let notnull = match from_object(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
     };
     let array = notnull.unwrap_array();
     let borrow_mut = array.mut_array();
-    borrow_mut[index as usize] = from_object(val).into();
+    borrow_mut[index as usize] = from_object(jvm, val).into();
 }
 
 pub mod array_region;
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     //todo handle JNI_COMMIT
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object(array) {
+    let not_null = match from_object(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -101,7 +101,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 *elem = JavaValue::Long((carray as *const jlong).offset(i as isize).read());
             }
             PTypeView::Ref(_) => {
-                *elem = JavaValue::Object(todo!()/*from_object((carray as *const jobject).offset(i as isize).read())*/);
+                *elem = JavaValue::Object(todo!()/*from_jclass(jvm,(carray as *const jobject).offset(i as isize).read())*/);
             }
             PTypeView::ShortType => {
                 *elem = JavaValue::Short((carray as *const jshort).offset(i as isize).read());
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
 pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object(array) {
+    let not_null = match from_object(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

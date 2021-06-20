@@ -14,7 +14,7 @@ pub fn putstatic(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*view);
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
-    let mut stack = entry_mut.operand_stack_mut();
+    let mut stack = entry_mut.operand_stack_mut(jvm);
     let field_value = stack.pop(PTypeView::from_ptype(&field_descriptor.field_type)).unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
 }
@@ -24,19 +24,18 @@ pub fn putfield(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterState
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
-    let stack = &mut entry_mut.operand_stack_mut();
+    let stack = &mut entry_mut.operand_stack_mut(jvm);
     let val = stack.pop(PTypeView::from_ptype(&field_type)).unwrap();
     let object_ref = stack.pop(PTypeView::object()).unwrap();
     match object_ref {
         JavaValue::Object(o) => {
             {
-                /*match o {
+                match o {
                     Some(x) => x,
                     None => {
                         return throw_npe(jvm, int_state);
                     }
-                }.unwrap_normal_object().set_var(target_class, field_name, val, PTypeView::from_ptype(&field_type));*/
-                todo!()
+                }.unwrap_normal_object().set_var(target_class, field_name, val, PTypeView::from_ptype(&field_type));
             }
         }
         _ => {
@@ -92,7 +91,7 @@ pub fn get_field(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     let view = current_frame.class_pointer(jvm).view();
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
-    let object_ref = int_state.current_frame_mut().pop(PTypeView::object());
+    let object_ref = int_state.current_frame_mut().pop(jvm, PTypeView::object());
     match object_ref {
         JavaValue::Object(o) => {
             /*let res = o.unwrap().unwrap_normal_object().get_var(target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));

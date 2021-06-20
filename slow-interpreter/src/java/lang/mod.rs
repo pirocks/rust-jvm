@@ -253,7 +253,7 @@ pub mod class {
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct JClass<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
     }
@@ -291,7 +291,7 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, ClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(ClassName::class().into());
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::Object(todo!()/*None*/)], "(Ljava/lang/ClassLoader;)V".to_string())?;
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::null()], "(Ljava/lang/ClassLoader;)V".to_string())?;
             Ok(res.cast_class().unwrap())
         }
 
@@ -412,7 +412,7 @@ pub mod string {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue};
+    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
 
@@ -444,7 +444,7 @@ pub mod string {
                 monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
-            let array = JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(array_object)))*/);
+            let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
                             "([C)V".to_string())?;
             Ok(string_object.cast_string().expect("error creating string"))
@@ -586,7 +586,7 @@ pub mod thread {
     impl<'gc_life> JThread<'gc_life> {
         pub fn invalid_thread(jvm: &'_ JVMState<'gc_life>) -> JThread<'gc_life> {
             JThread {
-                normal_object: Arc::new(Object::Object(NormalObject {
+                normal_object: jvm.allocate_object(Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
 
                     objinfo: ObjectFieldsAndClass {
@@ -712,7 +712,7 @@ pub mod thread_group {
     use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct JThreadGroup<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
     }

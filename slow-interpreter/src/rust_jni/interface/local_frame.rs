@@ -11,7 +11,7 @@ use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 use crate::interpreter_state::InterpreterState;
 use crate::InterpreterStateGuard;
 use crate::java_values::{GcManagedObject, Object};
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, to_object};
 use crate::stack_entry::FrameView;
 
 ///PopLocalFrame
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
         return null_mut();
     }
     let interpreter_state = get_interpreter_state(env);
-    let rust_obj = from_object(ref_).unwrap();
+    let rust_obj = from_object(interpreter_state.jvm, ref_).unwrap();
     new_local_ref_internal(rust_obj, interpreter_state)
 }
 

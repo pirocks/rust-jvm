@@ -28,7 +28,7 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
         Err(_) => return null_mut()
     };
 
-    let runtime_class = from_jclass(clazz).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let all_methods = match get_all_methods(jvm, int_state, runtime_class, false) {
         Ok(all_methods) => all_methods,
         Err(WasException {}) => { return null_mut(); }
