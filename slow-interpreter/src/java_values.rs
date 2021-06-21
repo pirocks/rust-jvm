@@ -32,17 +32,17 @@ impl<'gc_life> GC<'gc_life> {
     }
 
     pub fn deregister_root_reentrant(&'gc_life self, ptr: NonNull<Object<'gc_life>>) {
-        let mut guard = self.reentrant_roots.read().unwrap();
+        let mut guard = self.reentrant_roots.write().unwrap();
         let count = guard.get(&ptr).unwrap();
         count.fetch_sub(1, Ordering::SeqCst);
         if count.load(Ordering::SeqCst) == 0 {
-            drop(guard);
-            self.reentrant_roots.write().unwrap().remove(&ptr);
+            guard.remove(&ptr);
         }
     }
 
     pub fn allocate_object(&'gc_life self, object: Object<'gc_life>) -> GcManagedObject<'gc_life> {
         let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
+        self.register_root_reentrant(ptr);
         GcManagedObject {
             raw_ptr: ptr,
             gc: self,
@@ -86,6 +86,8 @@ impl<'gc_life> Clone for GcManagedObject<'gc_life> {
 
 impl Drop for GcManagedObject<'_> {
     fn drop(&mut self) {
+        // dbg!("deregister");
+        // dbg!(self.raw_ptr.as_ptr());
         self.gc.deregister_root_reentrant(self.raw_ptr)
     }
 }
