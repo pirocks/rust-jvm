@@ -60,6 +60,6 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    let type_ = JavaValue::Object(todo!()/*from_jclass(jvm,cls)*/).cast_class().expect("todo").as_type(jvm);
+    let type_ = JavaValue::Object(from_object(jvm, cls)).cast_class().expect("todo").as_type(jvm);
     type_.is_primitive() as jboolean
 }

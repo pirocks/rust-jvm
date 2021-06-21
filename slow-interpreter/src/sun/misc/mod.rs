@@ -72,7 +72,7 @@ pub mod launcher {
 
         pub fn get_loader(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<ClassLoader<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/misc/Launcher".to_string()).into())?;
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &launcher, "getClassLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string())?;
             Ok(int_state.pop_current_operand_stack(ClassName::classloader().into()).cast_class_loader())
         }

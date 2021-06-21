@@ -89,7 +89,7 @@ pub unsafe extern "C" fn set_static_double_field(env: *mut JNIEnv, clazz: jclass
 pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
     let jvm = get_state(env);
     let value = from_object(jvm, value);
-    set_static_field(env, clazz, field_id_raw, JavaValue::Object(todo!()/*value*/));
+    set_static_field(env, clazz, field_id_raw, JavaValue::Object(value));
 }
 
 unsafe fn set_static_field<'gc_life>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue<'gc_life>) {

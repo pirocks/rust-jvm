@@ -114,7 +114,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'_ JVMState<'gc_life>, int_s
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
-                    let class_loader: ClassLoader = JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader();
+                    let class_loader: ClassLoader = JavaValue::Object(loader_obj.into()).cast_class_loader();
                     match ptype.clone() {
                         PTypeView::ByteType => Arc::new(RuntimeClass::Byte),
                         PTypeView::CharType => Arc::new(RuntimeClass::Char),
@@ -268,7 +268,7 @@ pub fn bootstrap_load(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
 pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, name: Option<ClassName>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
-            JavaValue::Object(todo!()/*jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into()*/)
+            JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
         }
         LoaderName::BootstrapLoader => {
             JavaValue::null()

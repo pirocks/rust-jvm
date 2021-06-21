@@ -355,25 +355,25 @@ impl<'gc_life> JavaValue<'gc_life> {
     pub fn deep_clone(&self, jvm: &'_ JVMState<'gc_life>) -> Self {
         match &self {
             JavaValue::Object(o) => {
-                JavaValue::Object(todo!()/*match o {
+                JavaValue::Object(match o {
                     None => None,
                     Some(o) => {
-                        Arc::new(o.deref().deep_clone(jvm)).into()
+                        jvm.allocate_object(o.deref().deep_clone(jvm)).into()
                     }
-                }*/)
+                })
             }
             JavaValue::Top => panic!(),
             jv => (*jv).clone()
         }
     }
     pub fn empty_byte_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<JavaValue<'gc_life>, WasException> {
-        Ok(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
+        Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
             jvm,
             int_state,
             vec![],
             PTypeView::ByteType,
             jvm.thread_state.new_monitor("".to_string()),
-        )?)))*/))
+        )?)))))
     }
 
     fn new_object_impl(runtime_class: &Arc<RuntimeClass<'gc_life>>) -> ObjectFieldsAndClass<'gc_life> {

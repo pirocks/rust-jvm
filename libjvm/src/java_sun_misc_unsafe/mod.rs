@@ -255,14 +255,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let name = field_view.field_name();
             let mut static_vars_guard = runtime_class.static_vars();
             let res = static_vars_guard.get_mut(&name).unwrap();
-            *res = JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/);//todo dup with get function
+            *res = JavaValue::Object(from_object(jvm, to_put));//todo dup with get function
         }
         Some(object_to_read) => {
             match object_to_read.deref() {
                 Object::Array(arr) => {
                     let array_idx = offset as usize;
                     let res = &mut arr.mut_array()[array_idx];
-                    *res = JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/);
+                    *res = JavaValue::Object(from_object(jvm, to_put));
                 }
                 Object::Object(obj) => {
                     let field_id = offset as FieldId;
@@ -271,7 +271,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
                     let field_view = runtime_class_view.field(i as usize);
                     assert!(!field_view.is_static());
                     let name = field_view.field_name();
-                    obj.set_var_top_level(name, JavaValue::Object(todo!()/*from_jclass(jvm,to_put)*/));
+                    obj.set_var_top_level(name, JavaValue::Object(from_object(jvm, to_put)));
                 }
             }
         }

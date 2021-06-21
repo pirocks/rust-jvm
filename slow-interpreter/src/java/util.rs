@@ -25,7 +25,7 @@ pub mod properties {
     impl<'gc_life> Properties<'gc_life> {
         pub fn set_property(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<(), WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, ClassName::properties().into());
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
             run_static_or_virtual(jvm, int_state, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;

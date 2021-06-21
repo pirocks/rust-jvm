@@ -30,7 +30,7 @@ pub mod heap_byte_buffer {
 
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();
             let array_object = ArrayObject::new_array(jvm, int_state, elems, PTypeView::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;
-            let array = JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(array_object)))*/);
+            let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
             run_constructor(jvm, int_state, heap_byte_buffer_class, vec![object.clone(), array, JavaValue::Int(off), JavaValue::Int(len)],
                             "([BII)V".to_string())?;
             Ok(object.cast_heap_byte_buffer())

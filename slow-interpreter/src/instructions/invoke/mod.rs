@@ -222,7 +222,7 @@ fn resolved_class<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inte
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 )?;
-                int_state.push_current_operand_stack(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(array_object)))*/));
+                int_state.push_current_operand_stack(JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object)))));
                 return Ok(None);
             } else {
                 unimplemented!();

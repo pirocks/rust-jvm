@@ -31,7 +31,8 @@ use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
-use crate::java_values::JavaValue;
+use crate::java_values::{ArrayObject, JavaValue};
+use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntry;
 use crate::sun::misc::launcher::Launcher;
@@ -103,13 +104,13 @@ fn setup_program_args<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut 
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).expect("todo").java_value());
     }
-    let arg_array = JavaValue::Object(/*Some(Arc::new(Array(ArrayObject::new_array(
+    let arg_array = JavaValue::Object(Some(jvm.allocate_object(Array(ArrayObject::new_array(
         jvm,
         int_state,
         arg_strings,
         PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
-    ).expect("todo"))))*/todo!());
+    ).expect("todo")))));
     let mut current_frame_mut = int_state.current_frame_mut();
     let mut local_vars = current_frame_mut.local_vars_mut(jvm);
     local_vars.set(0, arg_array);

@@ -90,13 +90,13 @@ fn exception_types_table<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ m
     for ptype in types_iter {
         exception_table.push(JClass::from_type(jvm, int_state, ptype)?.java_value())
     }
-    Ok(JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject::new_array(
+    Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,
         int_state,
         exception_table,
         class_type,
         jvm.thread_state.new_monitor("".to_string()),
-    )?)))*/))
+    )?)))))
 }
 
 fn parameters_type_objects<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {

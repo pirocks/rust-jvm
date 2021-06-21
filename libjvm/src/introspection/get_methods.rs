@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let loader = int_state.current_loader().clone();
-    let of_class_obj = JavaValue::Object(todo!()/*from_jclass(jvm,ofClass)*/).cast_class().expect("todo");
+    let of_class_obj = JavaValue::Object(from_object(jvm, ofClass)).cast_class().expect("todo");
     let int_state = get_interpreter_state(env);
     match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
         Ok(res) => res,

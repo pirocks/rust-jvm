@@ -42,7 +42,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());
     let meth = candidate_meth.get(0).unwrap();
     let md = meth.desc();
-    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*prop_obj.clone().into()*/));
+    int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
     invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth);
