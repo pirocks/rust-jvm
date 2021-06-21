@@ -115,7 +115,7 @@ pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))
         }
-        current = JavaValue::Object(todo!()/*Arc::new(Object::Array(match ArrayObject::new_array(
+        current = JavaValue::Object(jvm.allocate_object(Object::Array(match ArrayObject::new_array(
             jvm,
             int_state,
             new_vec,
@@ -124,7 +124,7 @@ pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
         ) {
             Ok(arr) => arr,
             Err(WasException {}) => return
-        })).into()*/);
+        })).into());
         current_type = next_type;
     }
     int_state.push_current_operand_stack(current);
