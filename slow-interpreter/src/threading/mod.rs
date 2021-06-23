@@ -207,7 +207,7 @@ impl<'gc_life> ThreadState<'gc_life> {
     pub fn get_current_thread_name(&self, jvm: &'_ JVMState<'gc_life>) -> String {
         let current_thread = self.get_current_thread();
         let thread_object = current_thread.thread_object.read().unwrap();
-        thread_object.as_ref().map(|jthread| jthread.name(jvm).to_rust_string())
+        thread_object.as_ref().map(|jthread| jthread.name(jvm).to_rust_string(jvm))
             .unwrap_or(std::thread::current().name().unwrap_or("unknown").to_string())
     }
 
@@ -249,7 +249,7 @@ impl<'gc_life> ThreadState<'gc_life> {
     }
 
     pub fn start_thread_from_obj(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
-        let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string().into());
+        let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
 
         let (send, recv) = channel();
         let java_thread: Arc<JavaThread<'gc_life>> = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);

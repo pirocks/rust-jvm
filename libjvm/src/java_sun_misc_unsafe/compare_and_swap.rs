@@ -36,12 +36,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
                                                                  old: jint,
                                                                  new: jint,
 ) -> jboolean {
+    let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let curval = normal_obj.get_var(rc.clone(), field_name.as_str(), PTypeView::TopType);
+    let curval = normal_obj.get_var(jvm, rc.clone(), field_name.as_str(), PTypeView::TopType);
     (if curval.unwrap_int() == old {
         normal_obj.set_var(rc, field_name, JavaValue::Int(new), PTypeView::TopType);
         1
@@ -57,12 +58,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
                                                                   old: jlong,
                                                                   new: jlong,
 ) -> jboolean {
+    let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let curval = normal_obj.get_var_top_level(field_name.as_str());
+    let curval = normal_obj.get_var_top_level(jvm, field_name.as_str());
     (if curval.unwrap_long() == old {
         normal_obj.set_var_top_level(field_name, JavaValue::Long(new));
         1
@@ -92,27 +94,28 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
     let new = JavaValue::Object(from_object(jvm, new));
     match notnull.deref() {
         Object::Array(arr) => {
-            let mut ref_mut = arr.unwrap_mut();
-            let curval = ref_mut.get_mut((offset as usize)).unwrap();
+            let curval = arr.get_i(jvm, (offset as i32));
             let old = from_object(jvm, old);
-            do_swap(curval, old, new)
+            let (should_replace, new) = do_swap(curval, old, new);
+            arr.set_i(jvm, offset as i32, new);
+            should_replace
         }
         Object::Object(normal_obj) => {
             let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
                 Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
                 Err(WasException {}) => return jboolean::MAX
             };
-            let mut curval = normal_obj.get_var_top_level(field_name.as_str());
+            let mut curval = normal_obj.get_var_top_level(jvm, field_name.as_str());
             let old = from_object(jvm, old);
-            let res = do_swap(&mut curval, old, new);
-            normal_obj.set_var_top_level(field_name, curval);
-            res
+            let (should_replace, new) = do_swap(curval, old, new);
+            normal_obj.set_var_top_level(field_name, new);
+            should_replace
         }
     }
 }
 
 
-pub fn do_swap(curval: &mut JavaValue<'gc_life>, old: Option<GcManagedObject<'gc_life>>, new: JavaValue<'gc_life>) -> jboolean {
+pub fn do_swap(curval: JavaValue<'gc_life>, old: Option<GcManagedObject<'gc_life>>, new: JavaValue<'gc_life>) -> (jboolean, JavaValue<'gc_life>) {
     let should_replace = match curval.unwrap_object() {
         None => {
             match old {
@@ -127,8 +130,9 @@ pub fn do_swap(curval: &mut JavaValue<'gc_life>, old: Option<GcManagedObject<'gc
             }
         }
     };
+    let mut res = curval;
     if should_replace {
-        *curval = new;
+        res = new;
     }
-    should_replace as jboolean
+    (should_replace as jboolean, res)
 }

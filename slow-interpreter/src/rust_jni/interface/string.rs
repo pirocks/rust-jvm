@@ -79,16 +79,16 @@ pub unsafe fn intern_impl_unsafe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut
 }
 
 pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
-    let char_array_ptr = match str_obj.clone().lookup_field("value").unwrap_object() {
+    let char_array_ptr = match str_obj.clone().lookup_field(jvm, "value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
             return JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr
     };
-    let char_array = char_array_ptr.unwrap_array().mut_array();
-    let mut native_string_bytes = Vec::with_capacity(char_array.len());
-    for char_ in &*char_array {
+    let char_array = char_array_ptr.unwrap_array();
+    let mut native_string_bytes = Vec::with_capacity(char_array.len() as usize);
+    for char_ in char_array.array_iterator(jvm) {
         native_string_bytes.push(char_.unwrap_char());
     }
     let mut guard = jvm.string_internment.write().unwrap();
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
         }
     };
     let jstring = JavaValue::Object(str_obj.into()).cast_string().unwrap();
-    let rust_str = jstring.to_rust_string();
+    let rust_str = jstring.to_rust_string(jvm);
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
 
@@ -143,7 +143,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
             return throw_npe(jvm, int_state);
         }
     };
-    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string();
+    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string(jvm);
     and_then(rust_str)
 }
 

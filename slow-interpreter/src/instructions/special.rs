@@ -27,7 +27,7 @@ pub fn arraylength(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
         }
     };
     let array = array_o.unwrap_array();
-    current_frame.push(jvm, JavaValue::Int(array.mut_array().len() as i32));
+    current_frame.push(jvm, JavaValue::Int(array.len() as i32));
 }
 
 

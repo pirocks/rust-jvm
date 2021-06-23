@@ -71,23 +71,25 @@ pub fn aaload(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, ClassName::object().into());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    match array_refcell[index as usize] {
+    let jv_res = unborrowed.get_i(int_state.jvm, index);
+    if index < 0 || index >= unborrowed.len() {
+        return throw_array_out_of_bounds(jvm, int_state, index);
+    }
+    match jv_res {
         JavaValue::Object(_) => {}
         _ => panic!(),
     };
-    current_frame.push(int_state.jvm, array_refcell[index as usize].clone())
+    current_frame.push(int_state.jvm, jv_res.clone())
 }
 
 pub fn caload(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let index = int_state.pop_current_operand_stack(PTypeView::IntType).unwrap_int();
     let temp = int_state.pop_current_operand_stack(ClassName::object().into());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    if index < 0 || index >= array_refcell.len() as i32 {
+    if index < 0 || index >= unborrowed.len() as i32 {
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
-    let as_int = match array_refcell[index as usize] {
+    let as_int = match unborrowed.get_i(jvm, index) {
         JavaValue::Char(c) => c as i32,
         _ => panic!(),
     };
@@ -99,8 +101,7 @@ pub fn iaload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let as_int = array_refcell[index as usize].clone().unwrap_int();
+    let as_int = unborrowed.get_i(jvm, index).unwrap_int();
     current_frame.push(jvm, JavaValue::Int(as_int))
 }
 
@@ -109,8 +110,7 @@ pub fn laload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let long = array_refcell[index as usize].clone().unwrap_long();
+    let long = unborrowed.get_i(jvm, index).unwrap_long();
     current_frame.push(jvm, JavaValue::Long(long))
 }
 
@@ -119,8 +119,7 @@ pub fn faload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let f = array_refcell[index as usize].clone().unwrap_float();
+    let f = unborrowed.get_i(jvm, index).unwrap_float();
     current_frame.push(jvm, JavaValue::Float(f))
 }
 
@@ -128,8 +127,7 @@ pub fn daload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let d = array_refcell[index as usize].clone().unwrap_double();
+    let d = unborrowed.get_i(jvm, index).unwrap_double();
     current_frame.push(jvm, JavaValue::Double(d))
 }
 
@@ -138,8 +136,7 @@ pub fn saload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let d = array_refcell[index as usize].clone().unwrap_short();
+    let d = unborrowed.get_i(jvm, index).unwrap_short();
     current_frame.push(jvm, JavaValue::Short(d))
 }
 
@@ -148,8 +145,7 @@ pub fn baload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
-    let array_refcell = unborrowed.mut_array();
-    let as_byte = match &array_refcell[index as usize] {
+    let as_byte = match &unborrowed.get_i(jvm, index) {
         JavaValue::Byte(i) => *i,
         val => {
             dbg!(&unborrowed.elem_type);

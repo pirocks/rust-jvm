@@ -44,17 +44,16 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
             return throw_npe(jvm, int_state);
         }
     };
-    let args_refcell = args_not_null.unwrap_array().mut_array();
-    let args = args_refcell.deref();
-    let method_name = string_obj_to_string(match method_obj.lookup_field("name").unwrap_object() {
+    let args = args_not_null.unwrap_array();
+    let method_name = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, "name").unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name
     });
-    let signature = string_obj_to_string(match method_obj.lookup_field("signature").unwrap_object() {
+    let signature = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, "signature").unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name
     });
-    let clazz_java_val = method_obj.lookup_field("clazz");
+    let clazz_java_val = method_obj.lookup_field(jvm, "clazz");
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
@@ -67,7 +66,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     };
 
     //todo this arg array setup is almost certainly wrong.
-    for arg in args {
+    for arg in args.array_iterator(jvm) {
         int_state.push_current_operand_stack(arg.clone());
     }
 
@@ -96,9 +95,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
                 return throw_npe(jvm, int_state);
             }
         };
-        let array_temp = temp_1.unwrap_array().borrow();
-        let elems_refcell = array_temp.mut_array();
-        elems_refcell.clone().iter().map(|jv| match jv {
+        let elems_refcell = temp_1.unwrap_array();
+        elems_refcell.array_iterator(jvm).map(|jv| match jv {
             JavaValue::Object(o) => {
                 todo!()/*if let Some(o) = o {
                     if let Object::Object(obj) = o.deref() {
@@ -119,15 +117,15 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    let signature_str_obj = constructor_obj.lookup_field("signature");
-    let temp_4 = constructor_obj.lookup_field("clazz");
+    let signature_str_obj = constructor_obj.lookup_field(jvm, "signature");
+    let temp_4 = constructor_obj.lookup_field(jvm, "clazz");
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let mut signature = string_obj_to_string(match signature_str_obj.unwrap_object() {
+    let mut signature = string_obj_to_string(jvm, match signature_str_obj.unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(signature) => signature
     });

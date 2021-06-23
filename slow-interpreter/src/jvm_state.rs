@@ -260,21 +260,22 @@ impl<'gc_life> JVMState<'gc_life> {
         classes
     }
 
-    pub fn get_class_field_numbers() -> HashMap<String, usize> {
+    pub fn get_class_field_numbers() -> HashMap<String, (usize, PTypeView)> {
         let class_class_fields = vec![
-            "cachedConstructor",
-            "newInstanceCallerCache",
-            "name",
-            "classLoader",
-            "reflectionData",
-            "classRedefinedCount",
-            "genericInfo",
-            "enumConstants",
-            "enumConstantDirectory",
-            "annotationData",
-            "annotationType",
-            "classValueMap"];
-        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted().enumerate().map(|(_1, _2)| (_2.to_string(), _1)).collect_vec().into_iter());
+            ("cachedConstructor", ClassName::constructor().into()),
+            ("newInstanceCallerCache", ClassName::class().into()),
+            ("name", ClassName::string().into()),
+            ("classLoader", ClassName::classloader().into()),
+            ("reflectionData", PTypeView::object()),
+            ("classRedefinedCount", PTypeView::IntType),
+            ("genericInfo", PTypeView::object()),
+            ("enumConstants", PTypeView::array(PTypeView::object())),
+            ("enumConstantDirectory", PTypeView::object()),
+            ("annotationData", PTypeView::object()),
+            ("annotationType", PTypeView::object()),
+            ("classValueMap", PTypeView::object()),
+        ];
+        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.to_string()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.to_string()), (_1, _2_type))).collect_vec().into_iter());
         field_numbers
     }
 

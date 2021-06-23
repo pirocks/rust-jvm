@@ -128,7 +128,7 @@ pub struct RuntimeClassArray<'gc_life> {
 
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<String, usize>,
+    pub field_numbers: HashMap<String, (usize, PTypeView)>,
     pub static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
     pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
@@ -140,7 +140,7 @@ pub struct RuntimeClassClass<'gc_life> {
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
     pub fn new(class_view: Arc<dyn ClassView>,
-               field_numbers: HashMap<String, usize>,
+               field_numbers: HashMap<String, (usize, PTypeView)>,
                static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
                parent: Option<Arc<RuntimeClass<'gc_life>>>,
                interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
@@ -247,7 +247,7 @@ pub fn initialize_class<'gc_life>(
         }
         Err(WasException {}) => {
             interpreter_state.pop_frame(jvm, new_function_frame, false);
-            // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string());
+            // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string(jvm));
             interpreter_state.debug_print_stack_trace(jvm);
             return Err(WasException);
         }

@@ -54,11 +54,11 @@ pub fn lookup_method_parsed_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_stat
 }
 
 
-pub fn string_obj_to_string<'gc_life>(str_obj: GcManagedObject<'gc_life>) -> String {
-    let temp = str_obj.lookup_field("value");
+pub fn string_obj_to_string<'gc_life>(jvm: &JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> String {
+    let temp = str_obj.lookup_field(jvm, "value");
     let chars = temp.unwrap_array();
-    let borrowed_elems = chars.mut_array();
-    char::decode_utf16(borrowed_elems.iter().map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
+    let borrowed_elems = chars.array_iterator(jvm);
+    char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
 pub fn throw_npe_res<T: ExceptionReturn>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<T, WasException> {

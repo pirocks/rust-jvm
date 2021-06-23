@@ -18,8 +18,9 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
         Some(x) => x,
         None => return throw_npe(jvm, get_interpreter_state(env)),
     };
-    for jv in res_safe.unwrap_array().mut_array().iter_mut() {
-        *jv = JavaValue::Object(todo!()/*from_jclass(jvm,init)*/);
+    let array = res_safe.unwrap_array();
+    for i in 0..array.len() {
+        array.set_i(jvm, i, JavaValue::Object(from_object(jvm, init)));
     }
     res
 }

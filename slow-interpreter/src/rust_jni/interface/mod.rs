@@ -399,7 +399,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
         None => return throw_npe(jvm, int_state),
         Some(string) => string
     };
-    let char_vec = string.value();
+    let char_vec = string.value(jvm);
     let mut res = null_mut();
     jvm.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
     res
@@ -635,9 +635,9 @@ pub fn field_object_from_view<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
     let method_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_method();
-    let runtime_class = method_obj.get_clazz().as_runtime_class(jvm);
-    let param_types = method_obj.parameter_types().iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
-    let name = method_obj.get_name().to_rust_string();
+    let runtime_class = method_obj.get_clazz(jvm).as_runtime_class(jvm);
+    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
+    let name = method_obj.get_name(jvm).to_rust_string(jvm);
     runtime_class.clone().view().lookup_method_name(&name).iter().find(|candiate_method| {
         candiate_method.desc().parameter_types == param_types.iter().map(|from| from.to_ptype()).collect::<Vec<_>>()
     }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
@@ -647,8 +647,8 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
     let jvm = get_state(env);
     let field_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_field();
-    let runtime_class = field_obj.clazz().as_runtime_class(jvm);
-    let field_name = field_obj.name().to_rust_string();
+    let runtime_class = field_obj.clazz(jvm).as_runtime_class(jvm);
+    let field_name = field_obj.name(jvm).to_rust_string(jvm);
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
         .map(|field| field.field_i())
         .map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID)

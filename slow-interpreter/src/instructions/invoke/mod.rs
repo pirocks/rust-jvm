@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
@@ -133,10 +135,10 @@ pub mod dynamic {
         let (num_args, args) = if int_state.current_frame().operand_stack(jvm).is_empty() {
             (0u16, vec![])
         } else {
-            let method_type = target.type__();
+            let method_type = target.type__(jvm);
             let args = method_type.get_ptypes_as_types(jvm);
-            let form: LambdaForm<'gc_life> = target.get_form();
-            let member_name: MemberName<'gc_life> = form.get_vmentry();
+            let form: LambdaForm<'gc_life> = target.get_form(jvm);
+            let member_name: MemberName<'gc_life> = form.get_vmentry(jvm);
             let static_: bool = member_name.is_static(jvm, int_state)?;
             (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
         }; //todo also sketch
@@ -218,7 +220,7 @@ fn resolved_class<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inte
                 let array_object = ArrayObject::new_array(
                     jvm,
                     int_state,
-                    temp.unwrap_array().mut_array().clone(),
+                    temp.unwrap_array().array_iterator(jvm).collect_vec(),
                     elem_type.clone(),
                     jvm.thread_state.new_monitor("monitor for cloned object".to_string()),
                 )?;

@@ -58,8 +58,8 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         let op_stack = current_frame.operand_stack(jvm);
         let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.parameter_types.len() as u16 + 1)) as u16, ClassName::method_handle().into());
         let method_handle = temp_value.cast_method_handle();
-        let form: LambdaForm = method_handle.get_form();
-        let vmentry: MemberName = form.get_vmentry();
+        let form: LambdaForm = method_handle.get_form(jvm);
+        let vmentry: MemberName = form.get_vmentry(jvm);
         if target_method.name() == "invoke" || target_method.name() == "invokeBasic" || target_method.name() == "invokeExact" {
             //todo do conversion.
             //todo handle void return
@@ -103,7 +103,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
 
 pub fn call_vmentry<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, vmentry: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
     assert_eq!(vmentry.clone().java_value().to_type(), ClassName::member_name().into());
-    let flags = vmentry.get_flags() as u32;
+    let flags = vmentry.get_flags(jvm) as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
     let invoke_static = ref_kind == JVM_REF_invokeStatic;
     let invoke_virtual = ref_kind == JVM_REF_invokeVirtual;

@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, c
 unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> jint {
     match get_array(env, arr) {
         Ok(jv) => {
-            jv.unwrap_array().mut_array().len() as i32
+            jv.unwrap_array().len() as i32
         }
         Err(WasException {}) => -1 as i32
     }
@@ -65,11 +65,11 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
     let int_state = get_interpreter_state(env);
     match get_array(env, arr) {
         Ok(jv) => {
-            let len = jv.unwrap_array().mut_array().len() as i32;
+            let len = jv.unwrap_array().len() as i32;
             if index < 0 || index >= len {
                 return throw_array_out_of_bounds(jvm, int_state, index);
             }
-            let java_value = jv.unwrap_array().mut_array()[index as usize].clone();
+            let java_value = jv.unwrap_array().get_i(jvm, index);
             new_local_ref_public(match java_value_to_boxed_object(jvm, int_state, java_value) {
                 Ok(boxed) => boxed,
                 Err(WasException {}) => None
@@ -128,18 +128,18 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     if src_pos < 0
         || dst_pos < 0
         || length < 0
-        || src_pos + length > src.mut_array().len() as i32
-        || dst_pos + length > dest.mut_array().len() as i32 {
+        || src_pos + length > src.len() as i32
+        || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }
     let mut to_copy = vec![];
-    for i in 0..(length as usize) {
-        let borrowed = src.mut_array();
-        let temp = (borrowed)[src_pos as usize + i].borrow().clone();
+    for i in 0..(length) {
+        let borrowed = src;
+        let temp = borrowed.get_i(jvm, (src_pos + i));
         to_copy.push(temp);
     }
-    for i in 0..(length as usize) {
-        let borrowed = dest.mut_array();
-        borrowed[dst_pos as usize + i] = to_copy[i].clone();
+    for i in 0..(length) {
+        let borrowed = dest;
+        borrowed.set_i(jvm, dst_pos + i, to_copy[i as usize].clone());
     }
 }

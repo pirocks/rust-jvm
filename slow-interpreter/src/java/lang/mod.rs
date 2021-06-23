@@ -128,8 +128,8 @@ pub mod member_name {
             Ok(int_state.pop_current_operand_stack(PTypeView::BooleanType).unwrap_boolean() != 0)
         }
 
-        pub fn get_name_or_null(&self) -> Option<JString<'gc_life>> {
-            let str_jvalue = self.normal_object.lookup_field("name");
+        pub fn get_name_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JString<'gc_life>> {
+            let str_jvalue = self.normal_object.lookup_field(jvm, "name");
             if str_jvalue.unwrap_object().is_none() {
                 None
             } else {
@@ -137,8 +137,8 @@ pub mod member_name {
             }
         }
 
-        pub fn get_name(&self) -> JString<'gc_life> {
-            self.get_name_or_null().unwrap()
+        pub fn get_name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+            self.get_name_or_null(jvm).unwrap()
         }
 
 
@@ -146,8 +146,8 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().set_var_top_level("name", new_val.java_value());
         }
 
-        pub fn get_clazz_or_null(&self) -> Option<JClass<'gc_life>> {
-            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level("clazz").clone();
+        pub fn get_clazz_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "clazz").clone();
             if possibly_null.unwrap_object().is_none() {
                 None
             } else {
@@ -155,8 +155,8 @@ pub mod member_name {
             }
         }
 
-        pub fn get_clazz(&self) -> JClass<'gc_life> {
-            self.get_clazz_or_null().unwrap()
+        pub fn get_clazz(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+            self.get_clazz_or_null(jvm).unwrap()
         }
 
         pub fn set_clazz(&self, new_val: JClass<'gc_life>) {
@@ -168,8 +168,8 @@ pub mod member_name {
         }
 
 
-        pub fn get_type(&self) -> JavaValue<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level("type").clone()
+        pub fn get_type(&self, jvm: &JVMState<'gc_life>) -> JavaValue<'gc_life> {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "type").clone()
         }
 
         pub fn set_flags(&self, new_val: jint) {
@@ -177,18 +177,32 @@ pub mod member_name {
         }
 
 
-        getter_gen!(flags,jint,unwrap_int);
+        pub fn get_flags_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jint> {
+            let maybe_null = self.normal_object.lookup_field(jvm, "flags");
+            if maybe_null.try_unwrap_object().is_some() {
+                if maybe_null.unwrap_object().is_some() {
+                    maybe_null.unwrap_int().into()
+                } else {
+                    None
+                }
+            } else {
+                maybe_null.unwrap_int().into()
+            }
+        }
+        pub fn get_flags(&self, jvm: &JVMState<'gc_life>) -> jint {
+            self.get_flags_or_null(jvm).unwrap()
+        }
 
         pub fn set_resolution(&self, new_val: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("resolution".to_string(), new_val);
         }
 
-        pub fn get_resolution(&self) -> JavaValue<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(&"resolution".to_string()).clone()
+        pub fn get_resolution(&self, jvm: &JVMState<'gc_life>) -> JavaValue<'gc_life> {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "resolution").clone()
         }
 
-        pub fn clazz(&self) -> Option<JClass<'gc_life>> {
-            self.normal_object.unwrap_normal_object().get_var_top_level("clazz").cast_class()
+        pub fn clazz(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "clazz").cast_class()
         }
 
         pub fn get_method_type(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<MethodType<'gc_life>, WasException> {
@@ -404,6 +418,8 @@ pub mod class_loader {
 pub mod string {
     use std::cell::UnsafeCell;
 
+    use itertools::Itertools;
+
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::classnames::ClassName;
@@ -428,8 +444,8 @@ pub mod string {
     }
 
     impl<'gc_life> JString<'gc_life> {
-        pub fn to_rust_string(&self) -> String {
-            string_obj_to_string(self.normal_object.clone().into())
+        pub fn to_rust_string(&self, jvm: &JVMState<'gc_life>) -> String {
+            string_obj_to_string(jvm, self.normal_object.clone().into())
         }
 
         pub fn from_rust(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, rust_str: String) -> Result<JString<'gc_life>, WasException> {
@@ -437,7 +453,7 @@ pub mod string {
             push_new_object(jvm, int_state, &string_class);
             let string_object = int_state.pop_current_operand_stack(ClassName::string().into());
 
-            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16)).collect::<Vec<JavaValue<'gc_life>>>();
+            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
             let array_object = ArrayObject {
                 elems: UnsafeCell::new(vec1),
                 elem_type: PTypeView::CharType,
@@ -463,9 +479,9 @@ pub mod string {
             Ok(int_state.pop_current_operand_stack(ClassName::string().into()).cast_string().expect("error interning strinng"))
         }
 
-        pub fn value(&self) -> Vec<jchar> {
+        pub fn value(&self, jvm: &JVMState<'gc_life>) -> Vec<jchar> {
             let mut res = vec![];
-            for elem in self.normal_object.lookup_field("value").unwrap_array().unwrap_mut() {
+            for elem in self.normal_object.lookup_field(jvm, "value").unwrap_array().array_iterator(jvm) {
                 res.push(elem.unwrap_char())
             }
             res
@@ -511,8 +527,8 @@ pub mod integer {
             unimplemented!()
         }
 
-        pub fn value(&self) -> jint {
-            self.normal_object.unwrap_normal_object().get_var_top_level("value").unwrap_int()
+        pub fn value(&self, jvm: &JVMState<'gc_life>) -> jint {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "value").unwrap_int()
         }
 
         as_object_or_java_value!();
@@ -599,7 +615,7 @@ pub mod thread {
 
         pub fn tid(&self, jvm: &'_ JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(thread_class, "tid", PTypeView::LongType).unwrap_long()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "tid", PTypeView::LongType).unwrap_long()
         }
 
         pub fn run(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
@@ -616,12 +632,12 @@ pub mod thread {
 
         pub fn name(&self, jvm: &'_ JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(thread_class, "name", ClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "name", ClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
         }
 
         pub fn priority(&self, jvm: &'_ JVMState<'gc_life>) -> i32 {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(thread_class, "priority", PTypeView::IntType).unwrap_int()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "priority", PTypeView::IntType).unwrap_int()
         }
 
         pub fn set_priority(&self, priority: i32) {
@@ -630,7 +646,7 @@ pub mod thread {
 
         pub fn daemon(&self, jvm: &'_ JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(thread_class, "daemon", PTypeView::BooleanType).unwrap_int() != 0
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "daemon", PTypeView::BooleanType).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &'_ JVMState<'gc_life>, thread_status: jint) {
@@ -690,8 +706,8 @@ pub mod thread {
             Ok(res.cast_class_loader().into())
         }
 
-        pub fn get_inherited_access_control_context(&self) -> JThread<'gc_life> {
-            self.normal_object.lookup_field("inheritedAccessControlContext").cast_thread()
+        pub fn get_inherited_access_control_context(&self, jvm: &JVMState<'gc_life>) -> JThread<'gc_life> {
+            self.normal_object.lookup_field(jvm, "inheritedAccessControlContext").cast_thread()
         }
 
         as_object_or_java_value!();
@@ -745,9 +761,9 @@ pub mod thread_group {
             Ok(thread_group_object.cast_thread_group())
         }
 
-        pub fn threads(&self) -> Vec<Option<JThread>> {
+        pub fn threads(&self, jvm: &JVMState<'gc_life>) -> Vec<Option<JThread>> {
             unsafe {
-                self.normal_object.lookup_field("threads").unwrap_array().elems.get().as_ref().unwrap().iter().map(|thread|
+                self.normal_object.lookup_field(jvm, "threads").unwrap_array().array_iterator(jvm).map(|thread|
                     {
                         match thread.unwrap_object() {
                             None => None,
@@ -758,24 +774,24 @@ pub mod thread_group {
             }
         }
 
-        pub fn threads_non_null(&self) -> Vec<JThread> {
-            self.threads().into_iter().flatten().collect()
+        pub fn threads_non_null(&self, jvm: &JVMState<'gc_life>) -> Vec<JThread> {
+            self.threads(jvm).into_iter().flatten().collect()
         }
 
-        pub fn name(&self) -> JString<'gc_life> {
-            self.normal_object.lookup_field("name").cast_string().expect("thread group null name")
+        pub fn name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+            self.normal_object.lookup_field(jvm, "name").cast_string().expect("thread group null name")
         }
 
-        pub fn daemon(&self) -> jboolean {
-            self.normal_object.lookup_field("daemon").unwrap_boolean()
+        pub fn daemon(&self, jvm: &JVMState<'gc_life>) -> jboolean {
+            self.normal_object.lookup_field(jvm, "daemon").unwrap_boolean()
         }
 
-        pub fn max_priority(&self) -> jint {
-            self.normal_object.lookup_field("maxPriority").unwrap_int()
+        pub fn max_priority(&self, jvm: &JVMState<'gc_life>) -> jint {
+            self.normal_object.lookup_field(jvm, "maxPriority").unwrap_int()
         }
 
-        pub fn parent(&self) -> Option<JThreadGroup<'gc_life>> {
-            self.normal_object.lookup_field("parent").try_cast_thread_group()
+        pub fn parent(&self, jvm: &JVMState<'gc_life>) -> Option<JThreadGroup<'gc_life>> {
+            self.normal_object.lookup_field(jvm, "parent").try_cast_thread_group()
         }
 
         as_object_or_java_value!();

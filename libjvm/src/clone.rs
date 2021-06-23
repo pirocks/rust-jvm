@@ -2,6 +2,8 @@ use std::cell::{RefCell, UnsafeCell};
 use std::ops::Deref;
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use classfile_view::vtype::VType::Uninitialized;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
@@ -19,7 +21,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
         Some(o) => {
             match o.deref() {
                 Object::Array(a) => {
-                    let cloned_arr: Vec<_> = a.mut_array().iter().cloned().collect();
+                    let cloned_arr: Vec<_> = a.elems.get().as_ref().unwrap().iter().map(|elem| elem.clone()).collect_vec();
                     Some(jvm.allocate_object(Object::Array(ArrayObject {
                         elems: UnsafeCell::new(cloned_arr),
                         elem_type: a.elem_type.clone(),

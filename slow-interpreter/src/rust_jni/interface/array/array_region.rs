@@ -39,15 +39,14 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
         }
         Some(x) => x
     };
-    let array_ref = non_null_array_obj.unwrap_array().mut_array();
-    let array = array_ref.deref();
+    let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let elem = T::from(array[(start + i) as usize].unwrap_int()).unwrap();
+        let elem = T::from(array.get_i(jvm, (start + i)).unwrap_int()).unwrap();
         buf.offset(i as isize).write(elem)
     }
 }
 
-//a lot of duplication here, but hard to template out.
+//todo a lot of duplication here, but hard to template out, have an unwrap type_ closure
 pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -57,10 +56,9 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
         }
         Some(x) => x
     };
-    let array_ref = non_null_array_obj.unwrap_array().mut_array();
-    let array = array_ref.deref();
+    let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let float = array[(start + i) as usize].unwrap_float() as jfloat;
+        let float = array.get_i(jvm, (start + i)).unwrap_float() as jfloat;
         buf.offset(i as isize).write(float)
     }
 }
@@ -74,10 +72,9 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
         }
         Some(x) => x
     };
-    let array_ref = non_null_array_obj.unwrap_array().mut_array();
-    let array = array_ref.deref();
+    let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let double = array[(start + i) as usize].unwrap_double() as jdouble;
+        let double = array.get_i(jvm, (start + i)).unwrap_double() as jdouble;
         buf.offset(i as isize).write(double)
     }
 }
@@ -91,10 +88,9 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
         }
         Some(x) => x
     };
-    let array_ref = non_null_array_obj.unwrap_array().mut_array();
-    let array = array_ref.deref();
+    let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let long = array[(start + i) as usize].unwrap_long() as jlong;
+        let long = array.get_i(jvm, (start + i)).unwrap_long() as jlong;
         buf.offset(i as isize).write(long)
     }
 }
@@ -161,9 +157,8 @@ unsafe fn set_array_region<'gc_life>(env: *mut JNIEnv, array: jarray, start: i32
         }
         Some(x) => x
     };
-    let vec_mut = non_nullarray
-        .unwrap_array().mut_array();
+    let vec_mut = non_nullarray.unwrap_array();
     for i in 0..len {
-        vec_mut[(start + i) as usize] = java_value_getter(i as isize);
+        vec_mut.set_i(jvm, (start + i), java_value_getter(i as isize));
     }
 }

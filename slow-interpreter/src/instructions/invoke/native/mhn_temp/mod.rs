@@ -61,9 +61,9 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'gc_life>(jvm: &'_ J
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
-    let match_name = args[1].cast_string().map(|string| string.to_rust_string());
+    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm));
     //signature to lookup on
-    let matchSig = args[2].cast_string().map(|string| string.to_rust_string());
+    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm));
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks
@@ -117,12 +117,12 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'gc_life>(jvm: &'_ J
             }?
         }
     };
-    let res_arr = results.mut_array();
+    // let res_arr = results.mut_array();
     let mut i = skip;
     let len = member_names.len();
     for member in member_names {
-        if (i as usize) < res_arr.len() {
-            res_arr[i as usize] = member.java_value();
+        if i < results.len() {
+            results.set_i(jvm, i, member.java_value());
         }
         i += 1;
     }
@@ -206,7 +206,7 @@ fn get_matching_methods<'gc_life>(
 pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     let member_name = args[0].cast_member_name();
     let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
-    let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz())?;
+    let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz(jvm))?;
     let field_type_option = member_name.get_field_type(jvm, int_state)?;
     let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
     let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;

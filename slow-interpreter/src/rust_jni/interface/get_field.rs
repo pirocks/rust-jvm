@@ -107,7 +107,7 @@ unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, f
         }
     };
     let normal_obj = notnull.unwrap_normal_object();
-    Ok(normal_obj.get_var_top_level(name).clone())
+    Ok(normal_obj.get_var_top_level(jvm, name).clone())
 }
 
 

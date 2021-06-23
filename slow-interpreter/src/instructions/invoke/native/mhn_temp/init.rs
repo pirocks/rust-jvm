@@ -19,7 +19,7 @@ pub fn MHN_init<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interp
     //two params, is a static function.
     let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
-    let to_string = target.cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string();
+    let to_string = target.cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm);
     let assertion_case = match to_string.as_str() {
         "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => {
             InitAssertionCase::CHECK_EXACT_TYPE.into()
@@ -30,8 +30,8 @@ pub fn MHN_init<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interp
     if let Some(case) = assertion_case {
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
-                assert_eq!(mname.get_flags(), 100728840);
-                assert_eq!(mname.get_clazz().as_type(jvm).unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
+                assert_eq!(mname.get_flags(jvm), 100728840);
+                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
             }
         }
     }
@@ -49,7 +49,7 @@ pub fn init<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
         method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
     } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::constructor().into() {
         let target = target.cast_constructor();
-        constructor_init(mname.clone(), target, view.left().unwrap(), synthetic)?;
+        constructor_init(jvm, mname.clone(), target, view.left().unwrap(), synthetic)?;
     } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::field().into() {
         todo!()
     } else {
@@ -105,8 +105,8 @@ pub fn init<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
 
 /// the method view param here and elsewhere is only passed when resolving
 fn method_init(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, mname: MemberName<'gc_life>, method: Method<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
-    let flags = method.get_modifiers();
-    let clazz = method.get_clazz();
+    let flags = method.get_modifiers(jvm);
+    let clazz = method.get_clazz(jvm);
     mname.set_clazz(clazz.clone());
     //static v. invoke_virtual v. interface
     //see MethodHandles::init_method_MemberName
@@ -128,7 +128,7 @@ fn method_init(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
         }
     } as u32) << REFERENCE_KIND_SHIFT) as i32;
     let extra_flags = IS_METHOD | invoke_type_flag as u32;
-    let mut modifiers = method.get_modifiers();
+    let mut modifiers = method.get_modifiers(jvm);
     if let Some(method_view) = method_view {
         update_modifiers_with_method_view(synthetic, &mut modifiers, method_view)
     }
@@ -158,14 +158,14 @@ fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, metho
 }
 
 
-fn constructor_init(mname: MemberName<'gc_life>, constructor: Constructor<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
-    let clazz = constructor.get_clazz();
+fn constructor_init(jvm: &JVMState<'gc_life>, mname: MemberName<'gc_life>, constructor: Constructor<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+    let clazz = constructor.get_clazz(jvm);
     mname.set_clazz(clazz.clone());
     //static v. invoke_virtual v. interface
     //see MethodHandles::init_method_MemberName
     let invoke_type_flag = ((REF_INVOKE_SPECIAL as i32) << REFERENCE_KIND_SHIFT) as i32;
     let extra_flags = IS_CONSTRUCTOR | invoke_type_flag as u32;
-    let mut modifiers = constructor.get_modifiers();
+    let mut modifiers = constructor.get_modifiers(jvm);
     if let Some(method_view) = method_view {
         update_modifiers_with_method_view(synthetic, &mut modifiers, method_view)
     }

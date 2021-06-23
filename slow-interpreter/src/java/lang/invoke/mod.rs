@@ -41,8 +41,8 @@ pub mod method_type {
             self.normal_object.unwrap_normal_object().set_var_top_level("rtype".to_string(), rtype.java_value());
         }
 
-        pub fn get_rtype_or_null(&self) -> Option<JClass<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field("rtype");
+        pub fn get_rtype_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+            let maybe_null = self.normal_object.lookup_field(jvm, "rtype");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_class().into()
@@ -53,20 +53,20 @@ pub mod method_type {
                 maybe_null.cast_class().into()
             }
         }
-        pub fn get_rtype(&self) -> JClass<'gc_life> {
-            self.get_rtype_or_null().unwrap()
+        pub fn get_rtype(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+            self.get_rtype_or_null(jvm).unwrap()
         }
 
         pub fn get_rtype_as_type(&self, jvm: &'_ JVMState<'gc_life>) -> PType {
-            self.get_rtype().as_type(jvm).to_ptype()
+            self.get_rtype(jvm).as_type(jvm).to_ptype()
         }
 
         pub fn set_ptypes(&self, ptypes: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("ptypes".to_string(), ptypes);
         }
 
-        pub fn get_ptypes_or_null(&self) -> Option<JavaValue<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field("ptypes");
+        pub fn get_ptypes_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JavaValue<'gc_life>> {
+            let maybe_null = self.normal_object.lookup_field(jvm, "ptypes");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.clone().into()
@@ -77,32 +77,32 @@ pub mod method_type {
                 maybe_null.clone().into()
             }
         }
-        pub fn get_ptypes(&self) -> JavaValue<'gc_life> {
-            self.get_ptypes_or_null().unwrap()
+        pub fn get_ptypes(&self, jvm: &JVMState<'gc_life>) -> JavaValue<'gc_life> {
+            self.get_ptypes_or_null(jvm).unwrap()
         }
 
         pub fn get_ptypes_as_types(&self, jvm: &'_ JVMState<'gc_life>) -> Vec<PType> {
-            self.get_ptypes().unwrap_array().unwrap_object_array().iter()
+            self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter()
                 .map(|x| JavaValue::Object(todo!()/*x.clone()*/).cast_class().unwrap().as_type(jvm).to_ptype()).collect()
         }
 
-        pub fn set_form(&self, form: MethodTypeForm<'gc_life>) {
+        pub fn set_form(&self, jvm: &JVMState<'gc_life>, form: MethodTypeForm<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("form".to_string(), form.java_value());
         }
 
-        pub fn get_form(&self) -> MethodTypeForm<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level("form").cast_method_type_form()
+        pub fn get_form(&self, jvm: &JVMState<'gc_life>) -> MethodTypeForm<'gc_life> {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "form").cast_method_type_form()
         }
 
-        pub fn set_wrap_alt(&self, val: JavaValue<'gc_life>) {
+        pub fn set_wrap_alt(&self, jvm: &JVMState<'gc_life>, val: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("ptypes".to_string(), val);
         }
 
-        pub fn set_invokers(&self, invokers: JavaValue<'gc_life>) {
+        pub fn set_invokers(&self, jvm: &JVMState<'gc_life>, invokers: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("invokers".to_string(), invokers);
         }
 
-        pub fn set_method_descriptors(&self, method_descriptor: JavaValue<'gc_life>) {
+        pub fn set_method_descriptors(&self, jvm: &JVMState<'gc_life>, method_descriptor: JavaValue<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level("methodDescriptor".to_string(), method_descriptor);
         }
 
@@ -135,10 +135,10 @@ pub mod method_type {
                 })))*/);
             res.set_ptypes(ptypes_arr);
             res.set_rtype(rtype);
-            res.set_form(form);
-            res.set_wrap_alt(wrap_alt);
-            res.set_invokers(invokers);
-            res.set_method_descriptors(method_descriptor);
+            res.set_form(jvm, form);
+            res.set_wrap_alt(jvm, wrap_alt);
+            res.set_invokers(jvm, invokers);
+            res.set_method_descriptors(jvm, method_descriptor);
             res
         }
 
@@ -281,8 +281,8 @@ pub mod method_handle {
             Ok(int_state.pop_current_operand_stack(ClassName::method_handle().into()).cast_member_name())
         }
 
-        pub fn type__(&self) -> MethodType<'gc_life> {
-            self.normal_object.lookup_field("type").cast_method_type()
+        pub fn type__(&self, jvm: &JVMState<'gc_life>) -> MethodType<'gc_life> {
+            self.normal_object.lookup_field(jvm, "type").cast_method_type()
         }
 
         pub fn type_(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<MethodType<'gc_life>, WasException> {
@@ -293,8 +293,8 @@ pub mod method_handle {
         }
 
 
-        pub fn get_form_or_null(&self) -> Option<LambdaForm<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field("form");
+        pub fn get_form_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<LambdaForm<'gc_life>> {
+            let maybe_null = self.normal_object.lookup_field(jvm, "form");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_lambda_form().into()
@@ -305,8 +305,8 @@ pub mod method_handle {
                 maybe_null.cast_lambda_form().into()
             }
         }
-        pub fn get_form(&self) -> LambdaForm<'gc_life> {
-            self.get_form_or_null().unwrap()
+        pub fn get_form(&self, jvm: &JVMState<'gc_life>) -> LambdaForm<'gc_life> {
+            self.get_form_or_null(jvm).unwrap()
         }
 
 
@@ -392,6 +392,7 @@ pub mod lambda_form {
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
     use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::jvm_state::JVMState;
 
     pub mod named_function {
         use std::sync::Arc;
@@ -421,8 +422,8 @@ pub mod lambda_form {
         impl<'gc_life> NamedFunction<'gc_life> {
             as_object_or_java_value!();
 
-            pub fn get_member_or_null(&self) -> Option<MemberName<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field("member");
+            pub fn get_member_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<MemberName<'gc_life>> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "member");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_member_name().into()
@@ -433,8 +434,8 @@ pub mod lambda_form {
                     maybe_null.cast_member_name().into()
                 }
             }
-            pub fn get_member(&self) -> MemberName<'gc_life> {
-                self.get_member_or_null().unwrap()
+            pub fn get_member(&self, jvm: &JVMState<'gc_life>) -> MemberName<'gc_life> {
+                self.get_member_or_null(jvm).unwrap()
             }
 
             pub fn method_type(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<MethodType<'gc_life>, WasException> { // java.lang.invoke.LambdaForm.NamedFunction
@@ -449,11 +450,14 @@ pub mod lambda_form {
     pub mod name {
         use std::sync::Arc;
 
+        use itertools::Itertools;
+
         use jvmti_jni_bindings::jint;
 
         use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
         use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
         use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::jvm_state::JVMState;
 
         #[derive(Clone)]
         pub struct Name<'gc_life> {
@@ -468,14 +472,14 @@ pub mod lambda_form {
 
         impl<'gc_life> Name<'gc_life> {
             as_object_or_java_value!();
-            pub fn arguments(&self) -> Vec<JavaValue<'gc_life>> {
-                self.normal_object.unwrap_normal_object().get_var_top_level("arguments")
-                    .unwrap_array().mut_array().clone()
+            pub fn arguments(&self, jvm: &JVMState<'gc_life>) -> Vec<JavaValue<'gc_life>> {
+                self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "arguments")
+                    .unwrap_array().array_iterator(jvm).collect_vec()
             }
 
 
-            pub fn get_index_or_null(&self) -> Option<jint> {
-                let maybe_null = self.normal_object.lookup_field("index");
+            pub fn get_index_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jint> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "index");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_int().into()
@@ -486,11 +490,11 @@ pub mod lambda_form {
                     maybe_null.unwrap_int().into()
                 }
             }
-            pub fn get_index(&self) -> jint {
-                self.get_index_or_null().unwrap()
+            pub fn get_index(&self, jvm: &JVMState<'gc_life>) -> jint {
+                self.get_index_or_null(jvm).unwrap()
             }
-            pub fn get_type_or_null(&self) -> Option<BasicType<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field("type");
+            pub fn get_type_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<BasicType<'gc_life>> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "type");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_lambda_form_basic_type().into()
@@ -501,11 +505,11 @@ pub mod lambda_form {
                     maybe_null.cast_lambda_form_basic_type().into()
                 }
             }
-            pub fn get_type(&self) -> BasicType<'gc_life> {
-                self.get_type_or_null().unwrap()
+            pub fn get_type(&self, jvm: &JVMState<'gc_life>) -> BasicType<'gc_life> {
+                self.get_type_or_null(jvm).unwrap()
             }
-            pub fn get_function_or_null(&self) -> Option<NamedFunction<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field("function");
+            pub fn get_function_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<NamedFunction<'gc_life>> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "function");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_lambda_form_named_function().into()
@@ -516,8 +520,8 @@ pub mod lambda_form {
                     maybe_null.cast_lambda_form_named_function().into()
                 }
             }
-            pub fn get_function(&self) -> NamedFunction<'gc_life> {
-                self.get_function_or_null().unwrap()
+            pub fn get_function(&self, jvm: &JVMState<'gc_life>) -> NamedFunction<'gc_life> {
+                self.get_function_or_null(jvm).unwrap()
             }
         }
     }
@@ -531,6 +535,7 @@ pub mod lambda_form {
         use crate::java::lang::class::JClass;
         use crate::java_values::{GcManagedObject, JavaValue, Object};
         use crate::JString;
+        use crate::jvm_state::JVMState;
 
         #[derive(Clone)]
         pub struct BasicType<'gc_life> {
@@ -546,8 +551,8 @@ pub mod lambda_form {
         impl<'gc_life> BasicType<'gc_life> {
             as_object_or_java_value!();
 
-            pub fn get_ordinal_or_null(&self) -> Option<jint> {
-                let maybe_null = self.normal_object.lookup_field("ordinal");
+            pub fn get_ordinal_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jint> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "ordinal");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_int().into()
@@ -558,11 +563,11 @@ pub mod lambda_form {
                     maybe_null.unwrap_int().into()
                 }
             }
-            pub fn get_ordinal(&self) -> jint {
-                self.get_ordinal_or_null().unwrap()
+            pub fn get_ordinal(&self, jvm: &JVMState<'gc_life>) -> jint {
+                self.get_ordinal_or_null(jvm).unwrap()
             }
-            pub fn get_bt_char_or_null(&self) -> Option<jchar> {
-                let maybe_null = self.normal_object.lookup_field("btChar");
+            pub fn get_bt_char_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jchar> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "btChar");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_char().into()
@@ -573,11 +578,11 @@ pub mod lambda_form {
                     maybe_null.unwrap_char().into()
                 }
             }
-            pub fn get_bt_char(&self) -> jchar {
-                self.get_bt_char_or_null().unwrap()
+            pub fn get_bt_char(&self, jvm: &JVMState<'gc_life>) -> jchar {
+                self.get_bt_char_or_null(jvm).unwrap()
             }
-            pub fn get_bt_class_or_null(&self) -> Option<JClass<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field("btClass");
+            pub fn get_bt_class_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "btClass");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_class().into()
@@ -588,11 +593,11 @@ pub mod lambda_form {
                     maybe_null.cast_class().into()
                 }
             }
-            pub fn get_bt_class(&self) -> JClass<'gc_life> {
-                self.get_bt_class_or_null().unwrap()
+            pub fn get_bt_class(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+                self.get_bt_class_or_null(jvm).unwrap()
             }
-            pub fn get_name_or_null(&self) -> Option<JString<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field("name");
+            pub fn get_name_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JString<'gc_life>> {
+                let maybe_null = self.normal_object.lookup_field(jvm, "name");
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_string().into()
@@ -603,8 +608,8 @@ pub mod lambda_form {
                     maybe_null.cast_string().into()
                 }
             }
-            pub fn get_name(&self) -> JString<'gc_life> {
-                self.get_name_or_null().unwrap()
+            pub fn get_name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+                self.get_name_or_null(jvm).unwrap()
             }
         }
     }
@@ -622,15 +627,15 @@ pub mod lambda_form {
     }
 
     impl<'gc_life> LambdaForm<'gc_life> {
-        pub fn names(&self) -> Vec<Name<'gc_life>> {
-            self.normal_object.unwrap_normal_object().get_var_top_level("names")
+        pub fn names(&self, jvm: &JVMState<'gc_life>) -> Vec<Name<'gc_life>> {
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "names")
                 .unwrap_array()
-                .unwrap_object_array()
+                .unwrap_object_array(jvm)
                 .iter().map(|name| JavaValue::Object(todo!()/*name.clone()*/).cast_lambda_form_name()).collect()
         }
 
-        pub fn get_vmentry_or_null(&self) -> Option<MemberName<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field("vmentry");
+        pub fn get_vmentry_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<MemberName<'gc_life>> {
+            let maybe_null = self.normal_object.lookup_field(jvm, "vmentry");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_member_name().into()
@@ -641,8 +646,8 @@ pub mod lambda_form {
                 maybe_null.cast_member_name().into()
             }
         }
-        pub fn get_vmentry(&self) -> MemberName<'gc_life> {
-            self.get_vmentry_or_null().unwrap()
+        pub fn get_vmentry(&self, jvm: &JVMState<'gc_life>) -> MemberName<'gc_life> {
+            self.get_vmentry_or_null(jvm).unwrap()
         }
 
         as_object_or_java_value!();

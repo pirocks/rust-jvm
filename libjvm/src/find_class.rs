@@ -73,7 +73,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     let name_str = match JavaValue::Object(from_object(jvm, name)).cast_string() {
         None => return throw_npe(jvm, int_state),
         Some(name_str) => name_str
-    }.to_rust_string();
+    }.to_rust_string(jvm);
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl

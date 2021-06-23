@@ -59,9 +59,8 @@ pub fn castore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
     let char_ = val as u16;
-    array_ref[index as usize] = JavaValue::Char(char_);
+    arrar_ref_o.unwrap_array().set_i(jvm, index, JavaValue::Char(char_));
 }
 
 pub fn bastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
@@ -75,8 +74,8 @@ pub fn bastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
         }
     };
     assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
-    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
-    array_ref[index as usize] = JavaValue::Byte(val);
+    let array_ref = array_ref_o.unwrap_array();
+    array_ref.set_i(jvm, index, JavaValue::Byte(val));
 }
 
 
@@ -91,8 +90,8 @@ pub fn sastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
         }
     };
     assert_eq!(array_ref_o.unwrap_array().elem_type, PTypeView::ShortType);
-    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
-    array_ref[index as usize] = JavaValue::Short(val);
+    let array_ref = array_ref_o.unwrap_array();
+    array_ref.set_i(jvm, index, JavaValue::Short(val));
 }
 
 
@@ -106,8 +105,8 @@ pub fn fastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
-    array_ref[index as usize] = JavaValue::Float(val);
+    let array_ref = array_ref_o.unwrap_array();
+    array_ref.set_i(jvm, index, JavaValue::Float(val));
 }
 
 
@@ -121,8 +120,8 @@ pub fn dastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = &mut array_ref_o.unwrap_array().mut_array();
-    array_ref[index as usize] = JavaValue::Double(val);
+    let array_ref = array_ref_o.unwrap_array();
+    array_ref.set_i(jvm, index, JavaValue::Double(val));
 }
 
 
@@ -136,9 +135,9 @@ pub fn iastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
+    let array_ref = arrar_ref_o.unwrap_array();
     let int_ = val;
-    array_ref[index as usize] = JavaValue::Int(int_);
+    array_ref.set_i(jvm, index, JavaValue::Int(int_));
 }
 
 
@@ -152,12 +151,12 @@ pub fn aastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = arrary_ref_o.unwrap_array().mut_array();
+    let array_ref = arrary_ref_o.unwrap_array();
     match val {
         JavaValue::Object(_) => {}
         _ => panic!(),
     }
-    array_ref[index as usize] = val;
+    array_ref.set_i(jvm, index, val);
 }
 
 
@@ -177,7 +176,7 @@ pub fn lastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
             return throw_npe(jvm, int_state);
         }
     };
-    let array_ref = &mut arrar_ref_o.unwrap_array().mut_array();
+    let array_ref = arrar_ref_o.unwrap_array();
     let long = val;
-    array_ref[index as usize] = JavaValue::Long(long);
+    array_ref.set_i(jvm, index, JavaValue::Long(long));
 }

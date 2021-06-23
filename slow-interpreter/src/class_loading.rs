@@ -234,7 +234,7 @@ pub fn bootstrap_load(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interprete
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-                let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| name.field_name()).sorted().enumerate().map(|(index, name)| (name, index + start_field_number)).collect::<HashMap<_, _>>();
+                let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.to_string()).enumerate().map(|(index, (name, ptype))| (name, (index + start_field_number, ptype))).collect::<HashMap<_, _>>();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     field_numbers,
@@ -278,7 +278,7 @@ pub fn create_class_object(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inter
         return Ok(jvm.allocate_object(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields: JVMState::get_class_field_numbers().into_values().map(|_| UnsafeCell::new(JavaValue::Top)).collect_vec(),
+                fields: JVMState::get_class_field_numbers().into_values().map(|_| UnsafeCell::new(JavaValue::Top.to_native())).collect_vec(),
                 class_pointer: jvm.classes.read().unwrap().class_class.clone(),
             },
         })));

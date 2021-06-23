@@ -82,49 +82,49 @@ enum ResolveAssertionCase {
 */
 
 fn resolve_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
-    let assertion_case = if &member_name.get_name().to_rust_string() == "cast" &&
-        member_name.get_clazz().as_type(jvm).unwrap_class_type() == ClassName::class() &&
-        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.Class.cast(Object)Object/invokeVirtual"
+    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" &&
+        member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == ClassName::class() &&
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual"
     {
         None
-    } else if &member_name.get_name().to_rust_string() == "linkToStatic" {
-        assert_eq!(member_name.get_flags(), 100728832);
-        assert!(member_name.get_resolution().unwrap_object().is_some());
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
+        assert_eq!(member_name.get_flags(jvm), 100728832);
+        assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
         ResolveAssertionCase::LINK_TO_STATIC.into()
-    } else if &member_name.get_name().to_rust_string() == "zero_L" {
-        assert_eq!(member_name.get_flags(), 100728832);
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "zero_L" {
+        assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::ZERO_L.into()
-    } else if &member_name.get_name().to_rust_string() == "linkToSpecial" &&
-        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
-        assert_eq!(member_name.get_flags(), 100728832);
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToSpecial" &&
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
+        assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::LINK_TO_SPECIAL.into()
-    } else if &member_name.get_name().to_rust_string() == "make" &&
-        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
-        assert_eq!(member_name.get_flags(), 100728832);
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "make" &&
+        member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
+        assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::MAKE.into()
-    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
-        assert_eq!(member_name.get_flags(), 17039360);
+    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
+        assert_eq!(member_name.get_flags(jvm), 17039360);
         ResolveAssertionCase::ARG_L0.into()
-    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string() == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
-        assert_eq!(member_name.get_flags(), 83951616);
-        assert_eq!(member_name.get_type().cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(), "(Object,long)Object");
+    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
+        assert_eq!(member_name.get_flags(jvm), 83951616);
+        assert_eq!(member_name.get_type(jvm).cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
     } else {
         None
     };
 
-    let type_java_value = member_name.get_type();
-    let flags_val = member_name.get_flags();
+    let type_java_value = member_name.get_type(jvm);
+    let flags_val = member_name.get_flags(jvm);
     let ref_kind = ((flags_val >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK as i32) as u32;
     let ALL_KINDS = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE;
     let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz().as_runtime_class(jvm), true)?;
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).as_runtime_class(jvm), true)?;
 
-            let name = member_name.get_name().to_rust_string();
+            let name = member_name.get_name(jvm).to_rust_string(jvm);
 
-            let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type().cast_class())?;
+            let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type(jvm).cast_class())?;
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
                 let view = c.view();
@@ -193,36 +193,36 @@ fn resolve_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interp
         }
         _ => panic!()
     }
-    let clazz = member_name.get_clazz();
+    let clazz = member_name.get_clazz(jvm);
     let _clazz_as_runtime_class = clazz.as_runtime_class(jvm);
-    let _name = member_name.get_name().to_rust_string();
+    let _name = member_name.get_name(jvm).to_rust_string(jvm);
     let _type_ = type_java_value.unwrap_normal_object();
     if let Some(assertion_case) = assertion_case {
         match assertion_case {
             ResolveAssertionCase::LINK_TO_STATIC => {
-                assert_eq!(&member_name.get_name().to_rust_string(), "linkToStatic");
-                assert_eq!(member_name.get_flags(), 100733208);
-                assert!(member_name.get_resolution().unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+                assert_eq!(&member_name.get_name(jvm).to_rust_string(jvm), "linkToStatic");
+                assert_eq!(member_name.get_flags(jvm), 100733208);
+                assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
             }
             ResolveAssertionCase::ZERO_L => {}
             ResolveAssertionCase::LINK_TO_SPECIAL => {
-                assert_eq!(&member_name.get_name().to_rust_string(), "linkToSpecial");
-                assert_eq!(member_name.get_flags(), 100733208);
-                assert!(member_name.get_resolution().unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+                assert_eq!(&member_name.get_name(jvm).to_rust_string(jvm), "linkToSpecial");
+                assert_eq!(member_name.get_flags(jvm), 100733208);
+                assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
             }
             ResolveAssertionCase::MAKE => {
-                assert_eq!(&member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
-                assert_eq!(member_name.get_flags(), 100728840);
-                assert!(member_name.get_resolution().unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution().cast_member_name().get_flags(), 100728832);
+                assert_eq!(&member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
+                assert_eq!(member_name.get_flags(jvm), 100728840);
+                assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
+                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
             }
             ResolveAssertionCase::ARG_L0 => {
-                assert_eq!(member_name.get_flags(), 17039376);
+                assert_eq!(member_name.get_flags(jvm), 17039376);
             }
             ResolveAssertionCase::GET_OBJECT_UNSAFE => {
-                assert_eq!(member_name.get_flags(), 117506305);
+                assert_eq!(member_name.get_flags(jvm), 117506305);
             }
         }
     }

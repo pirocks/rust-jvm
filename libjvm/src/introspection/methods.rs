@@ -26,11 +26,11 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, me
         }
         Some(method_obj) => method_obj
     })*/).cast_method();
-    let clazz = method.get_clazz().as_runtime_class(jvm);
-    let name = method.get_name().to_rust_string();
-    let return_type_jclass: JClass<'gc_life> = method.get_return_type();
+    let clazz = method.get_clazz(jvm).as_runtime_class(jvm);
+    let name = method.get_name(jvm).to_rust_string(jvm);
+    let return_type_jclass: JClass<'gc_life> = method.get_return_type(jvm);
     let return_type = return_type_jclass.as_type(jvm).to_ptype();
-    let parameter_types = method.parameter_types().into_iter().map(|jclass_| jclass_.as_type(jvm).to_ptype()).collect::<Vec<_>>();
+    let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm).to_ptype()).collect::<Vec<_>>();
     let view = clazz.view();
     let res_method_view = match view.lookup_method(name.as_str(), &MethodDescriptor { parameter_types, return_type }) {
         None => {

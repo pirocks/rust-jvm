@@ -188,7 +188,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
         None => return throw_npe(jvm, int_state),
         Some(jstring) => jstring
     };
-    let rust_string = jstring.to_rust_string();
+    let rust_string = jstring.to_rust_string(jvm);
     let sketch_string = JVMString::from_regular_string(rust_string.as_str());
     let mut len = 0;
     let mut data_ptr: *mut u8 = null_mut();

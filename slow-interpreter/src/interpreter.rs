@@ -627,7 +627,7 @@ fn athrow(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterSta
     };
     if jvm.debug_print_exceptions {
         println!("EXCEPTION:");
-        dbg!(exception_obj.lookup_field("detailMessage"));
+        dbg!(exception_obj.lookup_field(jvm, "detailMessage"));
         interpreter_state.debug_print_stack_trace(jvm);
     }
 

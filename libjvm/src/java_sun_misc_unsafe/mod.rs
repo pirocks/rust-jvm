@@ -79,11 +79,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
     };
     let as_array = nonnull.unwrap_array();//not defined for non-byte-array objects
     assert_eq!(as_array.elem_type, PTypeView::ByteType);
-    let array_mut = as_array.mut_array();
-    let src_slice = &array_mut.deref()[offset as usize..((offset + len) as usize)];
+    let array_mut = as_array;
+    let src_slice_indices = offset..(offset + len);
     let mut src_buffer: Vec<i8> = vec![];
-    for src_elem in src_slice {
-        src_buffer.push(src_elem.unwrap_byte());
+    for i in src_slice_indices {
+        src_buffer.push(array_mut.get_i(jvm, i as i32).unwrap_byte());
     }
     assert_eq!(dst_obj, null_mut());
     libc::memcpy(transmute(address), src_buffer.as_ptr() as *const libc::c_void, len as usize);
@@ -113,8 +113,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
 ) -> jlong {
     let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
-    let name = jfield.name().to_rust_string();
-    let clazz = jfield.clazz().as_runtime_class(jvm);
+    let name = jfield.name(jvm).to_rust_string(jvm);
+    let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {
@@ -134,8 +134,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
     //todo major duplication
     let jvm = get_state(env);
     let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
-    let name = jfield.name().to_rust_string();
-    let clazz = jfield.clazz().as_runtime_class(jvm);
+    let name = jfield.name(jvm).to_rust_string(jvm);
+    let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {
@@ -162,7 +162,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(
         Some(notnull) => {
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            notnull.unwrap_normal_object().get_var_top_level(field_name).unwrap_int()
+            notnull.unwrap_normal_object().get_var_top_level(jvm, field_name).unwrap_int()
         }
         None => {
             //static
@@ -232,8 +232,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
         Some(object_to_read) => {
             match object_to_read.deref() {
                 Object::Array(arr) => {
-                    let array_idx = field_id_and_array_idx as usize;
-                    let res = &arr.mut_array()[array_idx];
+                    let array_idx = field_id_and_array_idx;
+                    let res = &arr.get_i(jvm, array_idx as i32);
                     to_object(res.unwrap_object())
                 }
                 Object::Object(_) => unimplemented!(),
@@ -260,9 +260,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
         Some(object_to_read) => {
             match object_to_read.deref() {
                 Object::Array(arr) => {
-                    let array_idx = offset as usize;
-                    let res = &mut arr.mut_array()[array_idx];
-                    *res = JavaValue::Object(from_object(jvm, to_put));
+                    let array_idx = offset;
+                    arr.set_i(jvm, array_idx as i32, JavaValue::Object(from_object(jvm, to_put)));
                 }
                 Object::Object(obj) => {
                     let field_id = offset as FieldId;

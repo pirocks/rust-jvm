@@ -62,12 +62,12 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     };
     null_check!(info_ptr);
 
-    let name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_group.name().to_rust_string()).unwrap());
+    let name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_group.name(jvm).to_rust_string(jvm)).unwrap());
     let info_pointer_writer = info_ptr.as_mut().unwrap();
     info_pointer_writer.name = name;
-    info_pointer_writer.is_daemon = thread_group.daemon();
-    info_pointer_writer.max_priority = thread_group.max_priority();
-    info_pointer_writer.parent = new_local_ref_public(thread_group.parent().map(|x| x.object()), int_state);
+    info_pointer_writer.is_daemon = thread_group.daemon(jvm);
+    info_pointer_writer.max_priority = thread_group.max_priority(jvm);
+    info_pointer_writer.parent = new_local_ref_public(thread_group.parent(jvm).map(|x| x.object()), int_state);
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

@@ -21,7 +21,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
     let non_null_array: &Object = temp.deref();
     let len = match non_null_array {
         Object::Array(a) => {
-            a.mut_array().len()
+            a.len()
         }
         Object::Object(_o) => {
             return throw_illegal_arg(jvm, int_state);
@@ -41,8 +41,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     };
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
-    let borrow = array.mut_array();
-    new_local_ref_public(borrow[index as usize].unwrap_object(), int_state)
+    new_local_ref_public(array.get_i(jvm, index).unwrap_object(), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
@@ -55,8 +54,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
         }
     };
     let array = notnull.unwrap_array();
-    let borrow_mut = array.mut_array();
-    borrow_mut[index as usize] = from_object(jvm, val).into();
+    array.set_i(jvm, index, from_object(jvm, val).into());
 }
 
 pub mod array_region;
@@ -79,37 +77,36 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     };
     let array = not_null.unwrap_array();
     let array_type = &array.elem_type;
-    let array = array.mut_array();
-    for (i, elem) in array.iter_mut().enumerate() {
+    for i in 0..array.len() {
         match array_type {
             PTypeView::ByteType => {
-                *elem = JavaValue::Byte((carray as *const jbyte).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
             }
             PTypeView::CharType => {
-                *elem = JavaValue::Char((carray as *const jchar).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
             }
             PTypeView::DoubleType => {
-                *elem = JavaValue::Double((carray as *const jdouble).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Double((carray as *const jdouble).offset(i as isize).read()));
             }
             PTypeView::FloatType => {
-                *elem = JavaValue::Float((carray as *const jfloat).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Float((carray as *const jfloat).offset(i as isize).read()));
             }
             PTypeView::IntType => {
-                *elem = JavaValue::Int((carray as *const jint).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Int((carray as *const jint).offset(i as isize).read()));
             }
             PTypeView::LongType => {
-                *elem = JavaValue::Long((carray as *const jlong).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
             }
             PTypeView::Ref(_) => {
-                *elem = JavaValue::Object(todo!()/*from_jclass(jvm,(carray as *const jobject).offset(i as isize).read())*/);
+                array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
             }
             PTypeView::ShortType => {
-                *elem = JavaValue::Short((carray as *const jshort).offset(i as isize).read());
+                array.set_i(jvm, i, JavaValue::Short((carray as *const jshort).offset(i as isize).read()));
             }
             PTypeView::BooleanType => {
                 let boolean = (carray as *const jboolean).offset(i as isize).read();
                 assert!(boolean == 1 || boolean == 0);
-                *elem = JavaValue::Boolean(boolean);
+                array.set_i(jvm, i, JavaValue::Boolean(boolean));
             }
             _ => panic!()
         }
@@ -132,39 +129,39 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
     //dup but difficult to make into template so ehh
     match &array.elem_type {
         PTypeView::ByteType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::CharType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_char()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_char()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::DoubleType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_double()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_double()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::FloatType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_float()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_float()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::IntType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_int()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_int()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::LongType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::ShortType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::BooleanType => {
-            let res = array.mut_array().iter().map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         PTypeView::Ref(_) => {
-            let res = array.mut_array().iter().map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
+            let res = array.array_iterator(jvm).map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         _ => panic!(),
