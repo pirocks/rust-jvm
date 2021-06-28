@@ -557,7 +557,11 @@ pub mod object {
 }
 
 pub mod thread {
+    use std::cell::UnsafeCell;
+    use std::ptr::null_mut;
     use std::sync::Arc;
+
+    use itertools::Itertools;
 
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jboolean, jint};
@@ -570,7 +574,7 @@ pub mod thread {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
-    use crate::java_values::{GcManagedObject, NormalObject, Object, ObjectFieldsAndClass};
+    use crate::java_values::{GcManagedObject, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
     use crate::threading::{JavaThread, JavaThreadId};
@@ -601,12 +605,13 @@ pub mod thread {
 
     impl<'gc_life> JThread<'gc_life> {
         pub fn invalid_thread(jvm: &'_ JVMState<'gc_life>) -> JThread<'gc_life> {
+            const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
             JThread {
                 normal_object: jvm.allocate_object(Object::Object(NormalObject {
                     monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
 
                     objinfo: ObjectFieldsAndClass {
-                        fields: Default::default(),
+                        fields: (0..NUMBER_OF_LOCAL_VARS_IN_THREAD).map(|_| UnsafeCell::new(NativeJavaValue { object: null_mut() })).collect_vec(),
                         class_pointer: Arc::new(RuntimeClass::Top),
                     },
                 }))
@@ -762,16 +767,14 @@ pub mod thread_group {
         }
 
         pub fn threads(&self, jvm: &JVMState<'gc_life>) -> Vec<Option<JThread>> {
-            unsafe {
-                self.normal_object.lookup_field(jvm, "threads").unwrap_array().array_iterator(jvm).map(|thread|
-                    {
-                        match thread.unwrap_object() {
-                            None => None,
-                            Some(t) => JavaValue::Object(todo!()/*t.into()*/).cast_thread().into(),
-                        }
+            self.normal_object.lookup_field(jvm, "threads").unwrap_array().array_iterator(jvm).map(|thread|
+                {
+                    match thread.unwrap_object() {
+                        None => None,
+                        Some(t) => JavaValue::Object(todo!()/*t.into()*/).cast_thread().into(),
                     }
-                ).collect()
-            }
+                }
+            ).collect()
         }
 
         pub fn threads_non_null(&self, jvm: &JVMState<'gc_life>) -> Vec<JThread> {

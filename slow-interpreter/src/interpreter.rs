@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::mem::transmute;
 use std::ops::Rem;
 use std::sync::Arc;
 
@@ -43,6 +44,7 @@ use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::threading::monitors::Monitor;
+use crate::threading::safepoints::Monitor2;
 
 #[derive(Debug)]
 pub struct WasException;
@@ -113,7 +115,7 @@ pub fn run_function(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut Inte
         }
     }
     if synchronized {//todo synchronize better so that natives are synced
-        monitor.unwrap().unlock(jvm);
+        monitor.unwrap().unlock(jvm).unwrap();
     }
     // let res = if interpreter_state.call_stack_depth() >= 2 {
     //     let frame = interpreter_state.previous_frame();
@@ -175,7 +177,7 @@ pub fn monitor_for_function(
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     method: &MethodView,
     synchronized: bool,
-) -> Option<Arc<Monitor>> {
+) -> Option<Arc<Monitor2>> {
     if synchronized {
         let monitor = if method.is_static() {
             let class_object = get_or_create_class_object(
@@ -187,7 +189,7 @@ pub fn monitor_for_function(
         } else {
             int_state.current_frame_mut().local_vars(jvm).get(0, PTypeView::object()).unwrap_normal_object().monitor.clone()
         };
-        monitor.lock(jvm);
+        monitor.lock(jvm, int_state).unwrap();
         monitor.into()
     } else {
         None
@@ -204,8 +206,18 @@ fn run_single_instruction(
 ) {
     unsafe {
         TIMES += 1;
-        if TIMES % 100000 == 0 {
+        if TIMES % 100000000 == 0 {
             interpreter_state.debug_print_stack_trace(jvm);
+            for thread in jvm.thread_state.get_all_threads().values() {
+                thread.suspend_thread(jvm, interpreter_state, true).unwrap();
+            }
+            drop(interpreter_state.int_state.take());
+            jvm.gc.gc_jvm(jvm);
+            let current_thread = jvm.thread_state.get_current_thread();
+            interpreter_state.int_state = Some(transmute(current_thread.interpreter_state.write().unwrap()));
+            for thread in jvm.thread_state.get_all_threads().values() {
+                thread.resume_thread().unwrap();
+            }
         }
     };
     // interpreter_state.verify_frame(jvm);
@@ -418,7 +430,7 @@ fn run_single_instruction(
         InstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::monitorenter => {
-            interpreter_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object_nonnull().monitor_lock(jvm);
+            interpreter_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object_nonnull().monitor_lock(jvm, interpreter_state);
         }
         InstructionInfo::monitorexit => {
             interpreter_state.current_frame_mut().pop(jvm, PTypeView::object()).unwrap_object_nonnull().monitor_unlock(jvm);

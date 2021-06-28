@@ -63,8 +63,7 @@ pub unsafe fn to_native<'gc_life>(j: JavaValue<'gc_life>, t: &PType) -> Arg {
         }
         PType::Ref(_) => {
             let object_ptr = to_object(j.unwrap_object());
-            let ref_box = Box::new(object_ptr);
-            Arg::new(Box::into_raw(ref_box).as_ref().unwrap() as &jobject)
+            Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
         PType::ShortType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort)

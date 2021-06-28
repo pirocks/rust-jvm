@@ -69,7 +69,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> jvmtiError {
     let jthread = get_thread_or_error!(thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
-    match java_thread.suspend_thread(jvm, int_state) {
+    match java_thread.suspend_thread(jvm, int_state, false) {
         Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
         Err(err) => match err {
             SuspendError::AlreadySuspended => jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,

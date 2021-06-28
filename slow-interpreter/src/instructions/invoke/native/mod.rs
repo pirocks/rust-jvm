@@ -58,7 +58,7 @@ pub fn run_native_method<'gc_life>(
 
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
-        m.lock(jvm)
+        m.lock(jvm, int_state).unwrap();
     }
 
     let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
@@ -94,7 +94,7 @@ pub fn run_native_method<'gc_life>(
             }
         }
     };
-    if let Some(m) = monitor.as_ref() { m.unlock(jvm) }
+    if let Some(m) = monitor.as_ref() { m.unlock(jvm).unwrap(); }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
     if was_exception {

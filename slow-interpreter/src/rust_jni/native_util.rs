@@ -1,4 +1,6 @@
+use std::mem;
 use std::ops::Deref;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -36,20 +38,19 @@ pub unsafe fn get_interpreter_state<'k, 'l>(env: *mut JNIEnv) -> &'l mut Interpr
     jvm.get_int_state()
 }
 
-
 pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
-        Some(o) => Box::into_raw(Box::new(o)) as *mut _jobject,
+        Some(o) => {
+            o.self_check();
+            let res = o.raw_ptr_usize() as *mut _jobject;
+            res
+        }
     }
 }
 
 pub unsafe fn from_object<'gc_life>(jvm: &JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
-    if obj.is_null() {
-        None
-    } else {
-        (obj as *mut GcManagedObject<'gc_life>).as_ref().unwrap().clone().into()
-    }
+    Some(GcManagedObject::from_native(NonNull::new(obj as *mut Object<'gc_life>)?, &jvm.gc))
 }
 
 pub unsafe fn from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {

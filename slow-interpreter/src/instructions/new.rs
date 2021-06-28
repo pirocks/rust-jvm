@@ -116,7 +116,6 @@ pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))
         }
-        dbg!(current.unwrap_object().map(|obj| obj.raw_ptr_usize() as *mut c_void));
         drop(current);
         current = JavaValue::Object(jvm.allocate_object(Object::Array(match ArrayObject::new_array(
             jvm,

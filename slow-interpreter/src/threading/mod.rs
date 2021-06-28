@@ -34,7 +34,7 @@ use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
-use crate::threading::safepoints::SafePoint;
+use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct ThreadState<'gc_life> {
     pub threads: Threads<'gc_life>,
@@ -42,7 +42,7 @@ pub struct ThreadState<'gc_life> {
     pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread<'gc_life>>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc_life>>>,
-    monitors: RwLock<Vec<Arc<Monitor>>>,
+    monitors: RwLock<Vec<Arc<Monitor2>>>,
     pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static>>>>,
     pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
 }
@@ -69,7 +69,6 @@ impl<'gc_life> ThreadState<'gc_life> {
     pub fn setup_main_thread(&self, jvm: &'gc_life JVMState<'gc_life>, main_thread: &'gc_life Arc<JavaThread<'gc_life>>) -> Sender<MainThreadStartInfo> {
         *self.main_thread.write().unwrap() = main_thread.clone().into();
         let (main_send, main_recv) = channel();
-        let main_thread_clone = main_thread.clone();
         main_thread.clone().underlying_thread.start_thread(box move |_| {
             jvm.thread_state.set_current_thread(main_thread.clone());
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
@@ -217,10 +216,10 @@ impl<'gc_life> ThreadState<'gc_life> {
         })
     }
 
-    pub fn new_monitor(&self, name: String) -> Arc<Monitor> {
+    pub fn new_monitor(&self, name: String) -> Arc<Monitor2> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
-        let res = Arc::new(Monitor::new(name, index));
+        let res = Arc::new(Monitor2::new(index));
         monitor_guard.push(res.clone());
         res
     }
@@ -229,11 +228,11 @@ impl<'gc_life> ThreadState<'gc_life> {
         self.try_get_current_thread().unwrap()
     }
 
-    pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor> {
+    pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor2> {
         self.try_get_monitor(monitor).unwrap()
     }
 
-    pub fn try_get_monitor(&self, monitor: jrawMonitorID) -> Option<Arc<Monitor>> {
+    pub fn try_get_monitor(&self, monitor: jrawMonitorID) -> Option<Arc<Monitor2>> {
         let monitors_read_guard = self.monitors.read().unwrap();
         let monitor = monitors_read_guard.get(monitor as usize).cloned();
         std::mem::drop(monitors_read_guard);
@@ -265,7 +264,6 @@ impl<'gc_life> ThreadState<'gc_life> {
 
     fn foo(jvm: &'gc_life JVMState<'gc_life>, java_thread: Arc<JavaThread<'gc_life>>, loader_name: LoaderName) {
         let java_thread_clone: Arc<JavaThread<'gc_life>> = java_thread.clone();
-        let java_thread_clone_borrow: &'_ Arc<JavaThread<'gc_life>> = &java_thread_clone;
         let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
         let mut interpreter_state_guard: InterpreterStateGuard<'gc_life, '_> = InterpreterStateGuard::new(jvm, java_thread_clone, option);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
         interpreter_state_guard.register_interpreter_state_guard(jvm);
@@ -412,14 +410,16 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub unsafe fn suspend_thread(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }
         self.safepoint_state.set_suspended()?;
         if self.underlying_thread.is_this_thread() {
             assert_eq!(self.java_tid, int_state.thread.java_tid);
-            safepoint_check(jvm, int_state)?;
+            if !without_self_suspend {
+                safepoint_check(jvm, int_state)?;
+            }
         }
         Ok(())
     }
@@ -441,12 +441,14 @@ pub struct ThreadStatus {
 }
 
 
+#[derive(Debug)]
 pub enum SuspendError {
     AlreadySuspended,
     NotAlive,
     WasException(WasException),
 }
 
+#[derive(Debug)]
 pub enum ResumeError {
     NotSuspended
 }

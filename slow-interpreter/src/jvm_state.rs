@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -33,7 +34,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
-use crate::java_values::{GC, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
@@ -226,10 +227,11 @@ impl<'gc_life> JVMState<'gc_life> {
         let mut fields: HashMap<String, JavaValue<'gc_life>, RandomState> = Default::default();
         fields.insert("name".to_string(), JavaValue::null());
         fields.insert("classLoader".to_string(), JavaValue::null());
+        const MAX_LOCAL_VARS: i32 = 100;
         let class_object = self.allocate_object(Object::Object(NormalObject {
             monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields: Default::default(),
+                fields: (0..MAX_LOCAL_VARS).map(|_| UnsafeCell::new(NativeJavaValue { object: null_mut() })).collect_vec(),
                 class_pointer: classes.class_class.clone(),
             },
         }));

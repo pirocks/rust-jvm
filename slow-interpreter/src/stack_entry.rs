@@ -3,6 +3,7 @@ use std::ffi::c_void;
 use std::intrinsics::size_of;
 use std::marker::PhantomData;
 use std::ops::{DerefMut, Index, IndexMut};
+use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
 use bimap::BiMap;
@@ -13,7 +14,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use gc_memory_layout_common::{FrameHeader, FrameInfo, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
+use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::classfile::CPIndex;
 
 use crate::java_values::{GcManagedObject, JavaValue, Object};
@@ -169,8 +170,14 @@ impl<'gc_life> FrameView<'gc_life> {
                     (target as *mut jdouble).write(val)
                 }
                 JavaValue::Object(val) => {
-                    let to_write = to_object(val);
-                    (target as *mut jobject).write(to_write)
+                    match val {
+                        None => {
+                            (target as *mut jobject).write(null_mut())
+                        }
+                        Some(val) => {
+                            (target as *mut jobject).write(val.raw_ptr_usize() as jobject)
+                        }
+                    }
                 }
                 JavaValue::Top => {
                     (target as *mut u64).write(0xBEAFCAFEBEAFCAFE)
@@ -206,7 +213,15 @@ impl<'gc_life> FrameView<'gc_life> {
                     JavaValue::Long((target as *const jlong).read())
                 }
                 PTypeView::Ref(ref_) => {
-                    JavaValue::Object(from_object(jvm, (target as *const jobject).read()))
+                    let obj = (target as *const jobject).read();
+                    match NonNull::new(obj as *mut Object<'gc_life>) {
+                        None => {
+                            JavaValue::Object(None)
+                        }
+                        Some(ptr) => {
+                            JavaValue::Object(GcManagedObject::from_native(ptr, &jvm.gc).into())
+                        }
+                    }
                 }
                 PTypeView::ShortType => {
                     assert_eq!((target as *const u64).read() >> 32, 0);

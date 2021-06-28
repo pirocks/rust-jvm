@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use by_address::ByAddress;
 use itertools::{Itertools, repeat_n};
+use num::abs_sub;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
@@ -19,23 +20,26 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::rust_jni::native_util::from_object;
+use crate::stack_entry::StackEntry;
 use crate::threading::monitors::Monitor;
+use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc_life> {
     //doesn't really need to be atomic usize
-    reentrant_roots: RwLock<HashMap<NonNull<Object<'gc_life>>, AtomicUsize>>,
+    vm_temp_owned_roots: RwLock<HashMap<NonNull<Object<'gc_life>>, AtomicUsize>>,
     all_allocated_object: RwLock<HashSet<NonNull<Object<'gc_life>>>>,
 }
 
 impl<'gc_life> GC<'gc_life> {
     pub fn register_root_reentrant(&'gc_life self, ptr: NonNull<Object<'gc_life>>) {
-        let mut guard = self.reentrant_roots.write().unwrap();
+        let mut guard = self.vm_temp_owned_roots.write().unwrap();
         let count = guard.entry(ptr).or_insert(AtomicUsize::new(0));
         count.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn deregister_root_reentrant(&'gc_life self, ptr: NonNull<Object<'gc_life>>) {
-        let mut guard = self.reentrant_roots.write().unwrap();
+        let mut guard = self.vm_temp_owned_roots.write().unwrap();
         let count = guard.get(&ptr).unwrap();
         count.fetch_sub(1, Ordering::SeqCst);
         if count.load(Ordering::SeqCst) == 0 {
@@ -53,31 +57,101 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    fn gc_recurse(obj: &Object<'gc_life>, visited: &mut HashSet<NonNull<Object<'gc_life>>>) {
-        match obj {
-            Object::Array(arr) => {}
+    fn gc_recurse(obj: NonNull<Object<'gc_life>>, visited: &mut HashSet<NonNull<Object<'gc_life>>>) {
+        if visited.contains(&obj) {
+            return
+        }
+        unsafe {
+            if obj.as_ptr() == transmute(0xDEADDEADDEADDEADusize) {
+                //todo need better handling of top, but is fine for now
+                return
+            }
+        }
+        visited.insert(obj);
+        match unsafe { obj.as_ref() } {
+            Object::Array(arr) => {
+                if let PTypeView::Ref(_) = arr.elem_type {
+                    for elem in unsafe { arr.elems.get().as_ref() }.unwrap() {
+                        unsafe {
+                            Self::gc_recurse(match NonNull::new(elem.object) {
+                                None => continue,
+                                Some(ptr) => ptr
+                            }, visited);
+                        }
+                    }
+                }
+            }
             Object::Object(obj) => {
-                for new_jv in obj.objinfo.fields.iter() {
-                    todo!("need to not store stuff in objects as jvs")
+                for (_name, (index, ptype)) in obj.objinfo.class_pointer.unwrap_class_class().field_numbers.iter() {
+                    if let PTypeView::Ref(_) = ptype {
+                        Self::gc_recurse(match NonNull::new(unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }) {
+                            None => continue,
+                            Some(ptr) => ptr
+                        }, visited)
+                    }
                 }
             }
         }
     }
 
-    fn gc_with_roots(roots: HashSet<NonNull<Object<'gc_life>>>) {
+    fn gc_with_roots(&self, roots: HashSet<NonNull<Object<'gc_life>>>) {
         let mut visited = HashSet::new();
         for root in roots.iter() {
-            unsafe { Self::gc_recurse(root.as_ref(), &mut visited); }
+            Self::gc_recurse(*root, &mut visited);
+        }
+        let all_objs = self.all_allocated_object.read().unwrap();
+        let to_frees = all_objs.difference(&visited).cloned().collect_vec();
+        for to_free in to_frees.iter() {
+            drop(unsafe { Box::from_raw(to_free.as_ptr()) })
+        }
+        drop(all_objs);
+        let mut guard = self.all_allocated_object.write().unwrap();
+        for to_free in to_frees {
+            guard.remove(&to_free);
         }
     }
 
-    pub fn gc(&self, interprete_states: Vec<InterpreterStateGuard<'gc_life, '_>>) {
-        todo!()
+    pub fn gc_jvm(&self, jvm: &JVMState<'gc_life>) {
+        let interpreter_states = jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| {
+            InterpreterStateGuard {
+                int_state: Some(jt.interpreter_state.write().unwrap()),
+                thread: jt.clone(),
+                jvm,
+                registered: false,
+            }.cloned_stack_snapshot(jvm)
+        }).collect_vec();
+        let mut roots = HashSet::new();
+        unsafe {
+            for stack in interpreter_states {
+                for stack_entry in stack {
+                    for local_var in stack_entry.local_vars().iter().cloned().chain(
+                        stack_entry.operand_stack().iter().cloned()).chain(
+                        stack_entry.native_local_refs.iter().flat_map(|hashet| hashet.iter().map(|raw| JavaValue::Object(from_object(jvm, *raw))))) {
+                        if let JavaValue::Object(Some(gc_managed)) = local_var {
+                            roots.insert(gc_managed.raw_ptr);
+                        }
+                    }
+                }
+            }
+        }
+        for (root, _) in self.vm_temp_owned_roots.read().unwrap().iter() {
+            roots.insert(root.clone());
+        }
+        for root in jvm.classes.read().unwrap().class_object_pool.left_values().map(|by_address| by_address.0.clone()).chain(
+            jvm.classes.read().unwrap().anon_class_live_object_ldc_pool.read().unwrap().iter().cloned()).chain(
+            jvm.class_loaders.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
+            jvm.protection_domains.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
+            jvm.string_internment.read().unwrap().strings.values().cloned()).chain(
+            jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned()).chain(
+            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())) {
+            roots.insert(root.raw_ptr);
+        }
+        self.gc_with_roots(roots)
     }
 
     pub fn new() -> Self {
         Self {
-            reentrant_roots: RwLock::new(Default::default()),
+            vm_temp_owned_roots: RwLock::new(Default::default()),
             all_allocated_object: Default::default(),
         }
     }
@@ -91,7 +165,22 @@ pub struct GcManagedObject<'gc_life> {
 
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn from_native(raw_ptr: NonNull<Object<'gc_life>>, gc: &'gc_life GC<'gc_life>) -> Self {
+        gc.register_root_reentrant(raw_ptr);
         Self { raw_ptr, gc }
+    }
+
+    pub fn from_native_assert_already_registered(raw_ptr: NonNull<Object<'gc_life>>, gc: &'gc_life GC<'gc_life>) -> Self {
+        dbg!(&raw_ptr.as_ptr());
+        assert!(gc.vm_temp_owned_roots.read().unwrap().contains_key(&raw_ptr));
+        Self { raw_ptr, gc }
+    }
+
+    pub fn self_check(&self) {
+        assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&self.raw_ptr));
+    }
+
+    pub fn strong_count(&self) -> usize {
+        self.gc.vm_temp_owned_roots.read().unwrap().get(&self.raw_ptr).unwrap().load(Ordering::SeqCst)
     }
 }
 
@@ -107,12 +196,10 @@ impl<'gc_life> Deref for GcManagedObject<'gc_life> {
 impl<'gc_life> Clone for GcManagedObject<'gc_life> {
     fn clone(&self) -> Self {
         //this doesn't leak b/c if we ever try to create a cycle we put into a field and deregister as a root.
-        unsafe {
-            self.gc.register_root_reentrant(self.raw_ptr);
-            Self {
-                raw_ptr: self.raw_ptr,
-                gc: self.gc,
-            }
+        self.gc.register_root_reentrant(self.raw_ptr);
+        Self {
+            raw_ptr: self.raw_ptr,
+            gc: self.gc,
         }
     }
 }
@@ -670,7 +757,6 @@ impl<'gc_life> PartialEq for JavaValue<'gc_life> {
     }
 }
 
-#[derive(Debug)]
 pub enum Object<'gc_life> {
     Array(ArrayObject<'gc_life>),
     Object(NormalObject<'gc_life>),
@@ -738,7 +824,7 @@ impl<'gc_life> Object<'gc_life> {
         Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
     }
 
-    pub fn monitor(&self) -> &Monitor {
+    pub fn monitor(&self) -> &Monitor2 {
         match self {
             Object::Array(a) => &a.monitor,
             Object::Object(o) => &o.monitor,
@@ -746,19 +832,19 @@ impl<'gc_life> Object<'gc_life> {
     }
 
     pub fn monitor_unlock(&self, jvm: &'_ JVMState<'gc_life>) {
-        self.monitor().unlock(jvm);
+        self.monitor().unlock(jvm).unwrap();
     }
 
-    pub fn monitor_lock(&self, jvm: &'_ JVMState<'gc_life>) {
-        self.monitor().lock(jvm);
+    pub fn monitor_lock(&self, jvm: &'_ JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+        let monitor_to_lock = self.monitor();
+        monitor_to_lock.lock(jvm, int_state).unwrap();
     }
 }
 
-#[derive(Debug)]
 pub struct ArrayObject<'gc_life> {
     pub elems: UnsafeCell<Vec<NativeJavaValue<'gc_life>>>,
     pub elem_type: PTypeView,
-    pub monitor: Arc<Monitor>,
+    pub monitor: Arc<Monitor2>,
 }
 
 pub struct ArrayIterator<'gc_life, 'l> {
@@ -804,7 +890,7 @@ impl<'gc_life> ArrayObject<'gc_life> {
         unsafe { self.elems.get().as_ref() }.unwrap().len() as i32
     }
 
-    pub fn new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, elems: Vec<JavaValue<'gc_life>>, type_: PTypeView, monitor: Arc<Monitor>) -> Result<Self, WasException> {
+    pub fn new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, elems: Vec<JavaValue<'gc_life>>, type_: PTypeView, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
         check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())))?;
         Ok(Self {
             elems: UnsafeCell::new(elems.into_iter().map(|jv| jv.to_native()).collect_vec()),
@@ -824,7 +910,7 @@ pub union NativeJavaValue<'gc_life> {
     long: i64,
     float: f32,
     double: f64,
-    object: *mut Object<'gc_life>,
+    pub(crate) object: *mut Object<'gc_life>,
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {
@@ -884,7 +970,7 @@ pub struct ObjectFieldsAndClass<'gc_life> {
 }
 
 pub struct NormalObject<'gc_life> {
-    pub monitor: Arc<Monitor>,
+    pub monitor: Arc<Monitor2>,
     pub objinfo: ObjectFieldsAndClass<'gc_life>,
 }
 

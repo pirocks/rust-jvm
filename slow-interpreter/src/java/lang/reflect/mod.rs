@@ -71,7 +71,7 @@ fn get_signature<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inter
 fn exception_types_table<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_type: PTypeView = ClassName::class().into();
     let empty_vec = vec![];
-    let mut types_iter = method_view.code_attribute()
+    let types_iter = method_view.code_attribute()
         .map(|x| &x.exception_table)
         .unwrap_or(&empty_vec)
         .iter()

@@ -44,7 +44,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let target_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    if let Err(_err) = target_thread.suspend_thread(jvm, int_state) {
+    if let Err(_err) = target_thread.suspend_thread(jvm, int_state, false) {
         // it appears we should ignore any errors here.
         //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
     }
@@ -71,7 +71,7 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    let _ = java_thread.suspend_thread(jvm, int_state);
+    let _ = java_thread.suspend_thread(jvm, int_state, false);
     //javadoc doesn't say anything about error handling so we just don't anything
 }
 
@@ -138,7 +138,8 @@ unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, threadClass: jclass, o
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let monitor = JavaValue::Object(todo!()/*from_jclass(jvm,obj)*/).unwrap_normal_object().monitor.clone();
-    monitor.this_thread_holds_lock(jvm) as jboolean
+    /*monitor.this_thread_holds_lock(jvm) as jboolean*/
+    todo!()
 }
 
 #[no_mangle]

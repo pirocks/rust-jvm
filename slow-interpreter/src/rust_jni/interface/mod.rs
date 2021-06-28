@@ -336,7 +336,7 @@ pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
     match from_object(jvm, obj) {
         Some(x) => x,
         None => return JNI_ERR,
-    }.monitor_lock(jvm);
+    }.monitor_lock(jvm, get_interpreter_state(env));
     JNI_OK as i32
 }
 
