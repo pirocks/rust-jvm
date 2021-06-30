@@ -113,9 +113,13 @@ impl<'gc_life> RuntimeClass<'gc_life> {
     }
 
     pub fn unwrap_class_class(&self) -> &RuntimeClassClass<'gc_life> {
+        self.try_unwrap_class_class().unwrap()
+    }
+
+    pub fn try_unwrap_class_class(&self) -> Option<&RuntimeClassClass<'gc_life>> {
         match self {
-            RuntimeClass::Object(classclass) => classclass,
-            _ => panic!()
+            RuntimeClass::Object(classclass) => Some(classclass),
+            _ => None
         }
     }
 }

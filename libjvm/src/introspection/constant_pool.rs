@@ -1,7 +1,6 @@
 use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_uchar};
 use std::ptr::{null, null_mut};
-use std::sync::Arc;
 
 use by_address::ByAddress;
 

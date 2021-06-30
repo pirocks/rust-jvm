@@ -1,7 +1,6 @@
 use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_int, c_uchar, c_ushort};
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;

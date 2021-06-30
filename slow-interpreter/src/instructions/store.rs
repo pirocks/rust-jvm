@@ -7,7 +7,7 @@ use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
-pub fn astore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn astore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let object_ref = current_frame.pop(jvm, PTypeView::object());
     match object_ref {
         JavaValue::Object(_) => {}
@@ -19,7 +19,7 @@ pub fn astore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.local_vars_mut(jvm).set(n, object_ref);
 }
 
-pub fn lstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn lstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let val = current_frame.pop(jvm, PTypeView::LongType);
     match val {
         JavaValue::Long(_) => {}
@@ -31,7 +31,7 @@ pub fn lstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.local_vars_mut(jvm).set(n, val);
 }
 
-pub fn dstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn dstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let jv = current_frame.pop(jvm, PTypeView::DoubleType);
     match jv {
         JavaValue::Double(_) => {}
@@ -43,7 +43,7 @@ pub fn dstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.local_vars_mut(jvm).set(n, jv);
 }
 
-pub fn fstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn fstore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let jv = current_frame.pop(jvm, PTypeView::FloatType);
     jv.unwrap_float();
     current_frame.local_vars_mut(jvm).set(n, jv);
@@ -160,7 +160,7 @@ pub fn aastore(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateG
 }
 
 
-pub fn istore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn istore(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let object_ref = current_frame.pop(jvm, PTypeView::IntType);
     current_frame.local_vars_mut(jvm).set(n, JavaValue::Int(object_ref.unwrap_int()));
 }

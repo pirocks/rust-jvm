@@ -2,15 +2,13 @@ use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
-use std::mem::{MaybeUninit, transmute};
+use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::{NonNull, null, null_mut};
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use by_address::ByAddress;
 use itertools::{Itertools, repeat_n};
-use num::abs_sub;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
@@ -21,14 +19,12 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
-use crate::stack_entry::StackEntry;
-use crate::threading::monitors::Monitor;
 use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc_life> {
     //doesn't really need to be atomic usize
     vm_temp_owned_roots: RwLock<HashMap<NonNull<Object<'gc_life>>, AtomicUsize>>,
-    all_allocated_object: RwLock<HashSet<NonNull<Object<'gc_life>>>>,
+    pub(crate) all_allocated_object: RwLock<HashSet<NonNull<Object<'gc_life>>>>,
 }
 
 impl<'gc_life> GC<'gc_life> {
@@ -49,6 +45,7 @@ impl<'gc_life> GC<'gc_life> {
 
     pub fn allocate_object(&'gc_life self, object: Object<'gc_life>) -> GcManagedObject<'gc_life> {
         let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
+        dbg!(ptr);
         self.all_allocated_object.write().unwrap().insert(ptr);
         self.register_root_reentrant(ptr);
         GcManagedObject {
@@ -59,12 +56,12 @@ impl<'gc_life> GC<'gc_life> {
 
     fn gc_recurse(obj: NonNull<Object<'gc_life>>, visited: &mut HashSet<NonNull<Object<'gc_life>>>) {
         if visited.contains(&obj) {
-            return
+            return;
         }
         unsafe {
             if obj.as_ptr() == transmute(0xDEADDEADDEADDEADusize) {
                 //todo need better handling of top, but is fine for now
-                return
+                return;
             }
         }
         visited.insert(obj);
@@ -102,6 +99,7 @@ impl<'gc_life> GC<'gc_life> {
         let all_objs = self.all_allocated_object.read().unwrap();
         let to_frees = all_objs.difference(&visited).cloned().collect_vec();
         for to_free in to_frees.iter() {
+            eprintln!("Freeing:{:?}", to_free.as_ptr());
             drop(unsafe { Box::from_raw(to_free.as_ptr()) })
         }
         drop(all_objs);
@@ -143,8 +141,14 @@ impl<'gc_life> GC<'gc_life> {
             jvm.protection_domains.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
             jvm.string_internment.read().unwrap().strings.values().cloned()).chain(
             jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned()).chain(
-            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())) {
+            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())).chain(
+            jvm.classes.read().unwrap().initiating_loaders.values()
+                .flat_map(|(_loader, class)| { class.try_unwrap_class_class() })
+                .flat_map(|class| class.static_vars.read().unwrap().values().flat_map(|jv| jv.try_unwrap_object()).flatten().collect_vec())) {
             roots.insert(root.raw_ptr);
+        }
+        for root in roots.iter() {
+            dbg!(root.as_ptr());
         }
         self.gc_with_roots(roots)
     }
@@ -177,6 +181,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
 
     pub fn self_check(&self) {
         assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&self.raw_ptr));
+        assert!(self.gc.all_allocated_object.read().unwrap().contains(&self.raw_ptr));
     }
 
     pub fn strong_count(&self) -> usize {
@@ -247,6 +252,13 @@ pub enum JavaValue<'gc_life> {
 
 
 impl<'gc_life> JavaValue<'gc_life> {
+    pub(crate) fn self_check(&self) {
+        if let JavaValue::Object(Some(obj)) = self {
+            obj.self_check()
+        }
+    }
+
+
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
         match self.clone() {
             JavaValue::Long(val_) => {
@@ -791,7 +803,11 @@ impl<'gc_life> Object<'gc_life> {
     pub fn unwrap_array(&self) -> &ArrayObject<'gc_life> {
         match self {
             Object::Array(a) => a,
-            Object::Object(_) => panic!(),
+            Object::Object(obj) => {
+                dbg!(obj.objinfo.class_pointer.view().name());
+                dbg!(obj.objinfo.class_pointer.unwrap_class_class().class_view.name());
+                panic!()
+            }
         }
     }
 
@@ -831,8 +847,8 @@ impl<'gc_life> Object<'gc_life> {
         }
     }
 
-    pub fn monitor_unlock(&self, jvm: &'_ JVMState<'gc_life>) {
-        self.monitor().unlock(jvm).unwrap();
+    pub fn monitor_unlock(&self, jvm: &'_ JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+        self.monitor().unlock(jvm, int_state).unwrap();
     }
 
     pub fn monitor_lock(&self, jvm: &'_ JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {

@@ -3,11 +3,12 @@ use rust_jvm_common::classnames::ClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
-use crate::stack_entry::StackEntryMut;
+use crate::stack_entry::{LocalVarsRef, StackEntryMut};
 use crate::utils::throw_array_out_of_bounds;
 
-pub fn aload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
-    let ref_ = current_frame.local_vars(jvm).get(n, PTypeView::object());
+pub fn aload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
+    let local_vars_ref: LocalVarsRef<'l, 'gc_life> = current_frame.local_vars(jvm);
+    let ref_ = local_vars_ref.get(n, PTypeView::object());
     match ref_ {
         JavaValue::Object(_) => {}
         _ => {
@@ -20,13 +21,13 @@ pub fn aload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_l
     current_frame.push(jvm, ref_);
 }
 
-pub fn iload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn iload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars(jvm).get(n, PTypeView::IntType);
     java_val.unwrap_int();
     current_frame.push(jvm, java_val)
 }
 
-pub fn lload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn lload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars(jvm).get(n, PTypeView::LongType);
     match java_val {
         JavaValue::Long(_) => {}
@@ -40,7 +41,7 @@ pub fn lload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_l
     current_frame.push(jvm, java_val)
 }
 
-pub fn fload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn fload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars(jvm).get(n, PTypeView::FloatType);
     match java_val {
         JavaValue::Float(_) => {}
@@ -52,7 +53,7 @@ pub fn fload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_l
     current_frame.push(jvm, java_val)
 }
 
-pub fn dload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, n: u16) {
+pub fn dload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars(jvm).get(n, PTypeView::DoubleType);
     match java_val {
         JavaValue::Double(_) => {}
@@ -82,7 +83,7 @@ pub fn aaload(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     current_frame.push(int_state.jvm, jv_res.clone())
 }
 
-pub fn caload(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
+pub fn caload(jvm: &'l JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
     let index = int_state.pop_current_operand_stack(PTypeView::IntType).unwrap_int();
     let temp = int_state.pop_current_operand_stack(ClassName::object().into());
     let unborrowed = temp.unwrap_array();
@@ -97,7 +98,7 @@ pub fn caload(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGu
 }
 
 
-pub fn iaload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn iaload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
@@ -106,7 +107,7 @@ pub fn iaload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 
-pub fn laload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn laload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
@@ -115,7 +116,7 @@ pub fn laload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 
-pub fn faload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn faload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
@@ -123,7 +124,7 @@ pub fn faload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.push(jvm, JavaValue::Float(f))
 }
 
-pub fn daload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn daload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
@@ -132,7 +133,7 @@ pub fn daload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 
-pub fn saload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn saload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();
@@ -141,7 +142,7 @@ pub fn saload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 
-pub fn baload(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn baload(jvm: &'l JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
     let temp = current_frame.pop(jvm, PTypeView::object());
     let unborrowed = temp.unwrap_array();

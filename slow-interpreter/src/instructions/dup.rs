@@ -8,13 +8,13 @@ use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
 
-pub fn dup(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn dup(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let val = current_frame.pop(jvm, PTypeView::LongType);//type doesn't currently matter so do whatever(well it has to be 64 bit).//todo fix for when type does matter
     current_frame.push(jvm, val.clone());
     current_frame.push(jvm, val);
 }
 
-pub fn dup_x1(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn dup_x1(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let value1 = current_frame.pop(jvm, PTypeView::LongType);//type doesn't matter
     let value2 = current_frame.pop(jvm, PTypeView::LongType);//type doesn't matter
     current_frame.push(jvm, value1.clone());
@@ -22,7 +22,7 @@ pub fn dup_x1(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.push(jvm, value1);
 }
 
-pub fn dup_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn dup_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -46,7 +46,7 @@ pub fn dup_x2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_fram
 }
 
 
-pub fn dup2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn dup2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -76,7 +76,7 @@ pub fn dup2(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame:
 }
 
 
-pub fn dup2_x1(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life>) {
+pub fn dup2_x1(jvm: &'_ JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];

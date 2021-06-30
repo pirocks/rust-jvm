@@ -4,11 +4,12 @@ use std::sync::Arc;
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jobject, jshort};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use rust_jvm_common::ptype::PType;
 
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
+use crate::rust_jni::interface::local_frame::new_local_ref;
 use crate::rust_jni::native_util::to_object;
 
 pub fn runtime_class_to_native<'gc_life>(runtime_class: Arc<RuntimeClass<'gc_life>>) -> Arg {
@@ -41,7 +42,7 @@ pub fn to_native_type(t: &PType) -> Type {
 }
 
 
-pub unsafe fn to_native<'gc_life>(j: JavaValue<'gc_life>, t: &PType) -> Arg {
+pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &PType) -> Arg {
     match t {
         PType::ByteType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte)
@@ -62,7 +63,8 @@ pub unsafe fn to_native<'gc_life>(j: JavaValue<'gc_life>, t: &PType) -> Arg {
             Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong)
         }
         PType::Ref(_) => {
-            let object_ptr = to_object(j.unwrap_object());
+            let object_ptr = new_local_ref(env, to_object(j.unwrap_object()));
+            drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
         PType::ShortType => {

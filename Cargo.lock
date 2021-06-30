@@ -374,10 +374,10 @@ version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd3aec53de10fe96d7d8c565eb17f2c687bb5518a2ec453b5b1252964526abe0"
 dependencies = [
-    "cfg-if 1.0.0",
-    "crc32fast",
-    "libc",
-    "miniz_oxide",
+ "cfg-if 1.0.0",
+ "crc32fast",
+ "libc",
+ "miniz_oxide",
 ]
 
 [[package]]
@@ -504,13 +504,13 @@ checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 name = "jar-manipulation"
 version = "0.1.0"
 dependencies = [
-    "classfile-parser",
-    "ntest_timeout",
-    "regex",
-    "rust-jvm-common",
-    "tempfile",
-    "timebomb",
-    "zip",
+ "classfile-parser",
+ "ntest_timeout",
+ "regex",
+ "rust-jvm-common",
+ "tempfile",
+ "timebomb",
+ "zip",
 ]
 
 [[package]]
@@ -519,9 +519,9 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d3b9f3f5c9b31aa0f5ed3260385ac205db665baa41d49bb8338008ae94ede45"
 dependencies = [
-    "cc",
-    "fs_extra",
-    "libc",
+ "cc",
+ "fs_extra",
+ "libc",
 ]
 
 [[package]]
@@ -530,19 +530,19 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43ae63fcfc45e99ab3d1b29a46782ad679e98436c3169d15a167a1108a724b69"
 dependencies = [
-    "jemalloc-sys",
-    "libc",
+ "jemalloc-sys",
+ "libc",
 ]
 
 [[package]]
 name = "jit"
 version = "0.1.0"
 dependencies = [
-    "compiler_builtins",
-    "gc-memory-layout-common",
-    "iced-x86",
-    "jit-common",
-    "jit-ir",
+ "compiler_builtins",
+ "gc-memory-layout-common",
+ "iced-x86",
+ "jit-common",
+ "jit-ir",
  "jvmti-jni-bindings",
  "libc",
  "memoffset",
@@ -578,25 +578,25 @@ dependencies = [
 name = "jvm"
 version = "0.1.0"
 dependencies = [
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "crossbeam",
-    "heapsize",
-    "itertools",
-    "jemallocator",
-    "jvmti-jni-bindings",
-    "lazy_static",
-    "libc",
-    "lock_api 0.3.4",
-    "nix 0.17.0",
-    "num_cpus",
-    "parking_lot 0.10.2",
-    "regex",
-    "rust-jvm-common",
-    "sketch-jvm-version-of-utf8",
-    "slow-interpreter",
-    "verification",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "crossbeam",
+ "heapsize",
+ "itertools",
+ "jemallocator",
+ "jvmti-jni-bindings",
+ "lazy_static",
+ "libc",
+ "lock_api 0.3.4",
+ "nix 0.17.0",
+ "num_cpus",
+ "parking_lot 0.10.2",
+ "regex",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "slow-interpreter",
+ "verification",
 ]
 
 [[package]]
@@ -1083,19 +1083,19 @@ dependencies = [
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
-    "argparse",
-    "classfile-parser",
-    "classfile-view",
-    "crossbeam",
-    "itertools",
-    "jar-manipulation",
-    "jvm",
-    "jvmti-jni-bindings",
-    "rust-jvm-common",
-    "sketch-jvm-version-of-utf8",
-    "slow-interpreter",
-    "type-safe-proc-macro-utils",
-    "verification",
+ "argparse",
+ "classfile-parser",
+ "classfile-view",
+ "crossbeam",
+ "itertools",
+ "jar-manipulation",
+ "jvm",
+ "jvmti-jni-bindings",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "slow-interpreter",
+ "type-safe-proc-macro-utils",
+ "verification",
 ]
 
 [[package]]
@@ -1199,27 +1199,27 @@ version = "0.1.0"
 dependencies = [
  "bimap",
  "bindgen",
-    "by_address",
-    "classfile-parser",
-    "classfile-view",
-    "closure",
-    "crossbeam",
-    "errno",
-    "futures-intrusive",
-    "gc-memory-layout-common",
-    "itertools",
-    "jar-manipulation",
-    "jemallocator",
-    "jit-common",
-    "jvmti-jni-bindings",
-    "libc",
-    "libffi",
-    "libloading 0.6.5",
-    "lock_api 0.3.4",
-    "nix 0.17.0",
-    "num",
-    "parking_lot 0.11.1",
-    "regex",
+ "by_address",
+ "classfile-parser",
+ "classfile-view",
+ "closure",
+ "crossbeam",
+ "errno",
+ "futures-intrusive",
+ "gc-memory-layout-common",
+ "itertools",
+ "jar-manipulation",
+ "jemallocator",
+ "jit-common",
+ "jvmti-jni-bindings",
+ "libc",
+ "libffi",
+ "libloading 0.6.5",
+ "lock_api 0.3.4",
+ "nix 0.17.0",
+ "num",
+ "parking_lot 0.11.1",
+ "regex",
  "rust-jvm-common",
  "sketch-jvm-version-of-utf8",
  "thread-priority",

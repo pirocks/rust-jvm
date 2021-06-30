@@ -2,8 +2,6 @@ pub mod invoke;
 
 
 pub mod throwable {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -37,8 +35,6 @@ pub mod throwable {
 
 
 pub mod stack_trace_element {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
@@ -78,8 +74,6 @@ pub mod stack_trace_element {
 }
 
 pub mod member_name {
-    use std::sync::Arc;
-
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
@@ -353,8 +347,6 @@ pub mod class {
 }
 
 pub mod class_loader {
-    use std::sync::Arc;
-
     use by_address::ByAddress;
 
     use classfile_view::loading::LoaderName;
@@ -365,7 +357,7 @@ pub mod class_loader {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
@@ -505,8 +497,6 @@ pub mod string {
 }
 
 pub mod integer {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jint;
 
     use crate::{JVMState, StackEntry};
@@ -536,8 +526,6 @@ pub mod integer {
 }
 
 pub mod object {
-    use std::sync::Arc;
-
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::java_values::Object;
 
@@ -803,8 +791,6 @@ pub mod thread_group {
 
 
 pub mod class_not_found_exception {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -841,8 +827,6 @@ pub mod class_not_found_exception {
 }
 
 pub mod null_pointer_exception {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -880,8 +864,6 @@ pub mod null_pointer_exception {
 
 
 pub mod array_out_of_bounds_exception {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
@@ -918,8 +900,6 @@ pub mod array_out_of_bounds_exception {
 
 
 pub mod illegal_argument_exception {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -954,8 +934,6 @@ pub mod illegal_argument_exception {
 }
 
 pub mod long {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::classnames::ClassName;
 
@@ -991,8 +969,6 @@ pub mod long {
 }
 
 pub mod int {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1028,8 +1004,6 @@ pub mod int {
 }
 
 pub mod short {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jshort;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1065,8 +1039,6 @@ pub mod short {
 }
 
 pub mod byte {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1102,8 +1074,6 @@ pub mod byte {
 }
 
 pub mod boolean {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1139,8 +1109,6 @@ pub mod boolean {
 }
 
 pub mod char {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jchar;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1176,8 +1144,6 @@ pub mod char {
 }
 
 pub mod float {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::classnames::ClassName;
 
@@ -1213,8 +1179,6 @@ pub mod float {
 }
 
 pub mod double {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::classnames::ClassName;
 

@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;

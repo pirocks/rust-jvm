@@ -130,7 +130,7 @@ pub fn java_value_to_boxed_object<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_sta
 }
 
 
-pub fn run_static_or_virtual<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: &Arc<RuntimeClass<'gc_life>>, method_name: String, desc_str: String) -> Result<(), WasException> {
+pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'l JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: String, desc_str: String) -> Result<(), WasException> {
     let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
     let view = class.view();
     let res_fun = view.lookup_method(&method_name, &parsed_desc);

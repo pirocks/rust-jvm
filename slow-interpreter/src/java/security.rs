@@ -1,6 +1,4 @@
 pub mod protection_domain {
-    use std::sync::Arc;
-
     use crate::java_values::{GcManagedObject, JavaValue, Object};
 
     pub struct ProtectionDomain<'gc_life> {
@@ -19,8 +17,6 @@ pub mod protection_domain {
 }
 
 pub mod access_control_context {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;

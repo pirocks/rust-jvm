@@ -2,7 +2,6 @@ use std::ffi::{c_void, CStr};
 use std::iter::once;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use rust_jvm_common::classnames::ClassName;

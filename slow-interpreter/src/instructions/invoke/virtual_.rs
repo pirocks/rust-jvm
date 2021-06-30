@@ -40,13 +40,13 @@ pub fn invoke_virtual_instruction(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mu
     let _ = invoke_virtual(jvm, int_state, &method_name, &expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'l JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: MethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method)
 }
 
-fn invoke_virtual_method_i_impl<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+fn invoke_virtual_method_i_impl<'gc_life, 'l>(
+    jvm: &'l JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
     target_method: &MethodView,

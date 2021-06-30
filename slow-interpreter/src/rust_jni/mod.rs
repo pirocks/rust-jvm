@@ -93,7 +93,7 @@ pub fn call_impl<'gc_life>(
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let class_constant = unsafe {
             let class_popped_jv = int_state.pop_current_operand_stack(ClassName::object().into());
-            to_native(class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
+            to_native(env, class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
         };
         let res = vec![Arg::new(&env), class_constant];
         res
@@ -112,7 +112,7 @@ pub fn call_impl<'gc_life>(
     };
     for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
-        unsafe { c_args.push(to_native((*j).clone(), &t)); }
+        unsafe { c_args.push(to_native(env, (*j).clone(), &t)); }
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());
     let fn_ptr = CodePtr::from_fun(*raw);

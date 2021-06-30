@@ -1,5 +1,4 @@
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};

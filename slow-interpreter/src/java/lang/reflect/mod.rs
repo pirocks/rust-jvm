@@ -265,8 +265,6 @@ pub mod method {
 }
 
 pub mod constructor {
-    use std::sync::Arc;
-
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
@@ -387,8 +385,6 @@ pub mod constructor {
 }
 
 pub mod field {
-    use std::sync::Arc;
-
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
@@ -463,8 +459,6 @@ pub mod field {
 }
 
 pub mod constant_pool {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;

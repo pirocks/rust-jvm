@@ -206,7 +206,7 @@ pub fn inherits_from<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut I
     }) || interfaces_match)
 }
 
-pub fn wide(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, w: Wide) {
+pub fn wide(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, w: Wide) {
     match w {
         Wide::Iload(WideIload { index }) => {
             iload(jvm, current_frame, index)

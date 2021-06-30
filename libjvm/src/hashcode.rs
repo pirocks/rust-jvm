@@ -1,5 +1,4 @@
 use std::mem::transmute;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jint, JNIEnv, jobject};
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};

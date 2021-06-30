@@ -74,7 +74,7 @@ pub fn create_string_on_stack<'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter
     Ok(())
 }
 
-pub fn ldc2_w(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life>, cp: u16) {
+pub fn ldc2_w(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, cp: u16) {
     let view = current_frame.class_pointer(jvm).view();
     let pool_entry = &view.constant_pool_view(cp as usize);
     match &pool_entry {

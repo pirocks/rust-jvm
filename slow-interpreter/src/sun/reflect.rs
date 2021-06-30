@@ -1,6 +1,4 @@
 pub mod reflection {
-    use std::sync::Arc;
-
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::classnames::ClassName;

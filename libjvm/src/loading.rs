@@ -1,5 +1,4 @@
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_view::loading::{ClassLoadingError, LoaderName};
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};

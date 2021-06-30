@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use by_address::ByAddress;
 use nix::sys::aio::aio_suspend;

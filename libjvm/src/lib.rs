@@ -21,7 +21,6 @@ use std::intrinsics::transmute;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int};
 use std::str::from_utf8;
-use std::sync::Arc;
 use std::thread::Thread;
 
 use jvmti_jni_bindings::{__va_list_tag, FILE, getc, JavaVM, jboolean, jbyte, jbyteArray, jclass, jdouble, jfloat, jint, jintArray, jlong, jmethodID, JNI_VERSION_1_8, JNIEnv, jobject, jobjectArray, jsize, jstring, jvalue, JVM_CALLER_DEPTH, JVM_ExceptionTableEntryType, jvm_version_info, sockaddr, vsnprintf};

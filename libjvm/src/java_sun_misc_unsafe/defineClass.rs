@@ -1,5 +1,4 @@
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_parser::parse_class_file;
 use classfile_view::loading::LoaderName;

@@ -1,6 +1,4 @@
 pub mod unsafe_ {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -41,8 +39,6 @@ pub mod unsafe_ {
 }
 
 pub mod launcher {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -81,8 +77,6 @@ pub mod launcher {
     }
 
     pub mod ext_class_loader {
-        use std::sync::Arc;
-
         use rust_jvm_common::classnames::ClassName;
 
         use crate::class_loading::check_initing_or_inited_class;

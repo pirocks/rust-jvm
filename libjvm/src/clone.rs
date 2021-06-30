@@ -1,6 +1,5 @@
 use std::cell::{RefCell, UnsafeCell};
 use std::ops::Deref;
-use std::sync::Arc;
 
 use itertools::Itertools;
 

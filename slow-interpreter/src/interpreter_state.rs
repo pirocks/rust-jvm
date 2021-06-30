@@ -45,8 +45,8 @@ impl InterpreterState {
     }
 }
 
-pub struct InterpreterStateGuard<'vm_life: 'l, 'l> {
-    pub(crate) int_state: Option<RwLockWriteGuard<'l, InterpreterState>>,
+pub struct InterpreterStateGuard<'vm_life: 'l, 'l, 'interpreter_guard> {
+    pub(crate) int_state: Option<RwLockWriteGuard<'interpreter_guard, InterpreterState>>,
     pub(crate) thread: Arc<JavaThread<'vm_life>>,
     pub(crate) jvm: &'l JVMState<'vm_life>,
     pub(crate) registered: bool,
@@ -63,6 +63,14 @@ pub static CURRENT_INT_STATE_GUARD :RefCell<Option<*mut InterpreterStateGuard<'s
 
 
 impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
+    pub fn self_check(&self, jvm: &'_ JVMState<'gc_life>) {
+        for stack_entry in self.cloned_stack_snapshot(jvm) {
+            for jv in stack_entry.operand_stack.iter().chain(stack_entry.local_vars.iter()) {
+                jv.self_check();
+            }
+        }
+    }
+
     pub fn register_interpreter_state_guard(&mut self, jvm: &'_ JVMState<'gc_life>) {
         let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc_life, '_>) };
         jvm.thread_state.int_state_guard.with(|refcell| refcell.replace(ptr.into()));
@@ -91,26 +99,26 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
     }
 
 
-    pub fn current_frame(&'_ self) -> StackEntryRef<'gc_life> {
+    pub fn current_frame(&'_ self) -> StackEntryRef<'gc_life, 'm> {
         let interpreter_state = self.int_state.as_ref().unwrap();
         match interpreter_state.deref() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 StackEntryRef::LegacyInterpreter { entry: call_stack.last().unwrap() }
             }*/
             InterpreterState::Jit { call_stack } => {
-                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr()) }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack) }
             }
         }
     }
 
-    pub fn current_frame_mut(&mut self) -> StackEntryMut<'gc_life> {
+    pub fn current_frame_mut(&mut self) -> StackEntryMut<'gc_life, 'm> {
         let interpreter_state = self.int_state.as_mut().unwrap().deref_mut();
         match interpreter_state {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
             }*/
             InterpreterState::Jit { call_stack } => {
-                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr()) }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack) }
             }
         }
     }
@@ -123,26 +131,26 @@ impl<'gc_life, 'm> InterpreterStateGuard<'gc_life, 'm> {
         self.current_frame_mut().operand_stack_mut(self.jvm).pop(expected_type).unwrap()
     }
 
-    pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc_life> {
+    pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc_life, 'm> {
         match self.int_state.as_mut().unwrap().deref_mut() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 let len = call_stack.len();
                 StackEntryMut::LegacyInterpreter { entry: &mut call_stack[len - 2] }
             }*/
             InterpreterState::Jit { call_stack } => {
-                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr()) }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack) }
             }
         }
     }
 
-    pub fn previous_frame(&self) -> StackEntryRef<'gc_life> {
+    pub fn previous_frame(&self) -> StackEntryRef<'gc_life, 'm> {
         match self.int_state.as_ref().unwrap().deref() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 let len = call_stack.len();
                 StackEntryRef::LegacyInterpreter { entry: &call_stack[len - 2] }
             }*/
             InterpreterState::Jit { call_stack } => {
-                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr()) }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack) }
             }
         }
     }

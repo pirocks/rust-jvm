@@ -2,7 +2,6 @@ use std::borrow::Borrow;
 use std::ops::Deref;
 use std::panic::panic_any;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use rust_jvm_common::classnames::ClassName;

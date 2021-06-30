@@ -4,7 +4,6 @@ use std::ffi::{c_void, CStr};
 use std::ops::Deref;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use by_address::ByAddress;
 use num_cpus::get;

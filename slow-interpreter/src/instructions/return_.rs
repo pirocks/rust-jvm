@@ -5,8 +5,8 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
 use crate::stack_entry::StackEntryMut;
 
-pub fn freturn(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
-    let mut stack_entry_mut: StackEntryMut<'gc_life> = interpreter_state.current_frame_mut();
+pub fn freturn<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
+    let mut stack_entry_mut: StackEntryMut<'gc_life, 'l> = interpreter_state.current_frame_mut();
     let res: JavaValue<'gc_life> = stack_entry_mut.pop(jvm, PTypeView::FloatType);
     interpreter_state.set_function_return(true);
     match res {

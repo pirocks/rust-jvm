@@ -21,14 +21,16 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+pub fn run_native_method<'gc_life, 'l>(
+    jvm: &'l JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
     class: Arc<RuntimeClass<'gc_life>>,
     method_i: u16) -> Result<(), WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack(jvm).len();
+    int_state.self_check(jvm);
     assert_inited_or_initing_class(jvm, view.type_());
+    int_state.self_check(jvm);
     assert_eq!(before, int_state.current_frame().operand_stack(jvm).len());
     let method = view.method_view_i(method_i);
     if !method.is_static() {
@@ -53,6 +55,11 @@ pub fn run_native_method<'gc_life>(
     } else {
         panic!();
     }
+    int_state.self_check(jvm);
+    for arg in args.iter() {
+        arg.self_check()
+    }
+    int_state.self_check(jvm);
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()), jvm);
     assert!(int_state.current_frame().is_native());
 
@@ -94,7 +101,7 @@ pub fn run_native_method<'gc_life>(
             }
         }
     };
-    if let Some(m) = monitor.as_ref() { m.unlock(jvm).unwrap(); }
+    if let Some(m) = monitor.as_ref() { m.unlock(jvm, int_state).unwrap(); }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
     if was_exception {

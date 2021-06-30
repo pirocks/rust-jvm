@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
@@ -5,6 +6,7 @@ use std::sync::RwLock;
 
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
+use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jvmti_jni_bindings::jobject;
 
@@ -29,9 +31,13 @@ impl Default for JavaStatus {
 }
 
 #[derive(Debug)]
+pub struct TopOfFrame(pub *mut c_void);
+
+#[derive(Debug)]
 pub struct JavaStack {
     pub top: *mut c_void,
     saved_registers: RwLock<Option<SavedRegisters>>,
+    operand_stack_type_info: RwLock<HashMap<TopOfFrame, Vec<PTypeView>>>,
 }
 
 pub const STACK_LOCATION: usize = 0x1_000_000_000usize;
@@ -53,6 +59,7 @@ impl JavaStack {
                 instruction_pointer: null_mut(),
                 status_register: thread_status_register,
             })),
+            operand_stack_type_info: Default::default()
         }
     }
 

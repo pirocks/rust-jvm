@@ -13,7 +13,7 @@ pub mod method_type {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -148,8 +148,6 @@ pub mod method_type {
 
 
 pub mod method_type_form {
-    use std::sync::Arc;
-
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::classnames::ClassName;
 
@@ -157,7 +155,7 @@ pub mod method_type_form {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::invoke::method_type::MethodType;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     #[derive(Clone)]
@@ -237,8 +235,6 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -316,8 +312,6 @@ pub mod method_handle {
 
 pub mod method_handles {
     pub mod lookup {
-        use std::sync::Arc;
-
         use rust_jvm_common::classnames::ClassName;
 
         use crate::class_loading::assert_inited_or_initing_class;
@@ -387,16 +381,12 @@ pub mod method_handles {
 }
 
 pub mod lambda_form {
-    use std::sync::Arc;
-
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
     use crate::java_values::{GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
     pub mod named_function {
-        use std::sync::Arc;
-
         use rust_jvm_common::classnames::ClassName;
 
         use crate::class_loading::assert_inited_or_initing_class;
@@ -404,7 +394,7 @@ pub mod lambda_form {
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::member_name::MemberName;
-        use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
@@ -448,15 +438,13 @@ pub mod lambda_form {
     }
 
     pub mod name {
-        use std::sync::Arc;
-
         use itertools::Itertools;
 
         use jvmti_jni_bindings::jint;
 
         use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
         use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
-        use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;
 
         #[derive(Clone)]
@@ -527,8 +515,6 @@ pub mod lambda_form {
     }
 
     pub mod basic_type {
-        use std::sync::Arc;
-
         use jvmti_jni_bindings::jchar;
         use jvmti_jni_bindings::jint;
 
@@ -655,8 +641,6 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-    use std::sync::Arc;
-
     use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::descriptor_parser::MethodDescriptor;
     use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -666,7 +650,7 @@ pub mod call_site {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::invoke::method_handle::MethodHandle;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     #[derive(Clone)]

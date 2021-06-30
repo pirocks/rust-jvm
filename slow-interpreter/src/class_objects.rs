@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use by_address::ByAddress;
 
 use classfile_view::loading::LoaderName;

@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 use std::ops::Deref;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};

@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::sync::Arc;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};

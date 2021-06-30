@@ -1,7 +1,6 @@
 use std::mem;
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
@@ -50,7 +49,10 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
 }
 
 pub unsafe fn from_object<'gc_life>(jvm: &JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
-    Some(GcManagedObject::from_native(NonNull::new(obj as *mut Object<'gc_life>)?, &jvm.gc))
+    let option = NonNull::new(obj as *mut Object<'gc_life>)?;
+    dbg!(obj);
+    assert!(jvm.gc.all_allocated_object.read().unwrap().contains(&option));
+    Some(GcManagedObject::from_native(option, &jvm.gc))
 }
 
 pub unsafe fn from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {

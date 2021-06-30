@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
 
-use crate::interpreter::WasException;
+use crate::interpreter::{safepoint_check, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::{GcManagedObject, Object};
 use crate::jvm_state::JVMState;
@@ -282,17 +282,17 @@ impl Monitor2 {
             } else {
                 guard.waiting_lock.push(current_thread.java_tid);
                 current_thread.safepoint_state.set_monitor_lock(self.id);
-                drop(guard);
-                current_thread.safepoint_state.check(jvm, int_state)?;
             }
         } else {
             guard.owner = Some(current_thread.java_tid);
             guard.count = 1;
         }
+        drop(guard);
+        safepoint_check(jvm, int_state).unwrap();
         Ok(())
     }
 
-    pub fn unlock(&self, jvm: &'_ JVMState<'gc_life>) -> Result<(), WasException> {
+    pub fn unlock(&self, jvm: &'_ JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if guard.owner == current_thread.java_tid.into() {
@@ -307,6 +307,8 @@ impl Monitor2 {
         } else {
             todo!("illegal monitor state")
         }
+        drop(guard);
+        safepoint_check(jvm, int_state).unwrap();
         Ok(())
     }
 
@@ -343,13 +345,13 @@ impl Monitor2 {
             guard.owner = None;
             guard.waiting_notify.push(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
-            drop(guard);
-            current_thread.safepoint_state.check(jvm, int_state)?;
         } else {
             dbg!(guard.owner);
             int_state.debug_print_stack_trace(jvm);
             todo!("throw illegal monitor state")
         }
+        drop(guard);
+        safepoint_check(jvm, int_state).unwrap();
         Ok(())
     }
 
