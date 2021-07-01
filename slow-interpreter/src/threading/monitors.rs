@@ -45,12 +45,12 @@ impl Monitor {
         }
     }
 
-    pub fn lock(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn lock(&self, jvm: &'gc_life JVMState<'gc_life>) {
         jvm.tracing.trace_monitor_lock(self, jvm);
         self.lock_impl(jvm)
     }
 
-    fn lock_impl(&self, jvm: &'_ JVMState<'gc_life>) {
+    fn lock_impl(&self, jvm: &'gc_life JVMState<'gc_life>) {
         let mut current_owners_guard = self.owned.write().unwrap();
         //first we check if we currently own the lock. If we do increment and return.
         //If we do not currently hold the lock then we will continue to not own the lock until
@@ -67,7 +67,7 @@ impl Monitor {
         }
     }
 
-    pub fn unlock(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn unlock(&self, jvm: &'gc_life JVMState<'gc_life>) {
         jvm.tracing.trace_monitor_unlock(self, jvm);
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner, Monitor::get_tid(jvm).into());
@@ -78,7 +78,7 @@ impl Monitor {
         }
     }
 
-    pub fn wait(&self, millis: i64, jvm: &'_ JVMState<'gc_life>) {
+    pub fn wait(&self, millis: i64, jvm: &'gc_life JVMState<'gc_life>) {
         jvm.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
@@ -107,7 +107,7 @@ impl Monitor {
         write_guard.count = count;
     }
 
-    pub fn destroy(&self, jvm: &'_ JVMState<'gc_life>) -> Result<(), MonitorOwnedBySomeoneElse> {
+    pub fn destroy(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<(), MonitorOwnedBySomeoneElse> {
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
             return Result::Err(MonitorOwnedBySomeoneElse {});
@@ -118,21 +118,21 @@ impl Monitor {
         Result::Ok(())
     }
 
-    pub fn get_tid(jvm: &'_ JVMState<'gc_life>) -> usize {
+    pub fn get_tid(jvm: &'gc_life JVMState<'gc_life>) -> usize {
         jvm.thread_state.get_current_thread().java_tid as usize
     }
 
-    pub fn notify_all(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn notify_all(&self, jvm: &'gc_life JVMState<'gc_life>) {
         jvm.tracing.trace_monitor_notify_all(self, jvm);
         self.condvar.notify_all();
     }
 
-    pub fn notify(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn notify(&self, jvm: &'gc_life JVMState<'gc_life>) {
         jvm.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }
 
-    pub fn this_thread_holds_lock(&self, jvm: &'_ JVMState<'gc_life>) -> bool {
+    pub fn this_thread_holds_lock(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
         match self.owned.read().unwrap().owner.as_ref() {
             None => false,
             Some(owner_tid) => {

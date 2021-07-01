@@ -10,15 +10,15 @@ use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 
-pub fn resolve_invoke_virtual<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_virtual<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     resolve_virtual_impl(jvm, int_state, member_name, false)
 }
 
-pub fn resolve_invoke_interface<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     resolve_virtual_impl(jvm, int_state, member_name, true)
 }
 
-fn resolve_virtual_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>, include_interfaces: bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+fn resolve_virtual_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>, include_interfaces: bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let parameter_types = method_type.get_ptypes_as_types(jvm);
@@ -44,7 +44,7 @@ fn resolve_virtual_impl<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mu
 }
 
 
-pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let parameter_types = method_type.get_ptypes_as_types(jvm);
@@ -69,7 +69,7 @@ pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_sta
 }
 
 
-pub fn resolve_invoke_static<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, member_name: MemberName<'gc_life>, synthetic: &mut bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_static<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>, synthetic: &mut bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let parameter_types = method_type.get_ptypes_as_types(jvm);

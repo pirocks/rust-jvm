@@ -600,7 +600,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 }
 
 //shouldn't take class as arg and should be an impl method on Field
-pub fn field_object_from_view<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
     let parent_runtime_class = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -660,7 +660,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: Arc::new(class_view),
@@ -702,7 +702,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
 }
 
 
-pub(crate) unsafe fn push_type_to_operand_stack(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, type_: &PType, l: &mut VarargProvider) {
+pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, type_: &PType, l: &mut VarargProvider) {
     match PTypeView::from_ptype(type_) {
         PTypeView::ByteType => {
             let byte_ = l.arg_byte();
@@ -730,7 +730,7 @@ pub(crate) unsafe fn push_type_to_operand_stack(int_state: &'_ mut InterpreterSt
         }
         PTypeView::Ref(_) => {
             let native_object: jobject = l.arg_ptr();
-            let o = from_object(int_state.jvm, native_object);
+            let o = from_object(jvm, native_object);
             int_state.push_current_operand_stack(JavaValue::Object(o));
         }
         PTypeView::ShortType => {

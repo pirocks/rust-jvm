@@ -66,7 +66,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> jvmtiError {
+unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> jvmtiError {
     let jthread = get_thread_or_error!(thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
     match java_thread.suspend_thread(jvm, int_state, false) {
@@ -209,7 +209,7 @@ pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: j
 }
 
 
-unsafe fn resume_thread_impl(jvm: &'_ JVMState<'gc_life>, thread_raw: jthread) -> jvmtiError {
+unsafe fn resume_thread_impl(jvm: &'gc_life JVMState<'gc_life>, thread_raw: jthread) -> jvmtiError {
     let thread_object_raw = from_object(jvm, thread_raw);
     let jthread = match JavaValue::Object(todo!()/*thread_object_raw*/).try_cast_thread() {
         None => {

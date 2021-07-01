@@ -11,7 +11,8 @@ use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 use crate::interpreter_state::InterpreterState;
 use crate::InterpreterStateGuard;
 use crate::java_values::{GcManagedObject, Object};
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, to_object};
+use crate::jvm_state::JVMState;
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use crate::stack_entry::FrameView;
 
 ///PopLocalFrame
@@ -61,7 +62,8 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
         return null_mut();
     }
     let interpreter_state = get_interpreter_state(env);
-    let rust_obj = from_object(interpreter_state.jvm, ref_).unwrap();
+    let jvm = get_state(env);
+    let rust_obj = from_object(jvm, ref_).unwrap();
     new_local_ref_internal(rust_obj, interpreter_state)
 }
 
@@ -104,7 +106,7 @@ fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr()).set_local_refs_top_frame(new)
+            FrameView::new(call_stack.current_frame_ptr(), call_stack).set_local_refs_top_frame(new)
         }
     }
 }
@@ -113,7 +115,7 @@ fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuar
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr()).pop_local_refs()
+            FrameView::new(call_stack.current_frame_ptr(), call_stack).pop_local_refs()
         }
     }
 }
@@ -122,7 +124,7 @@ fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGua
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr()).push_local_refs(to_push)
+            FrameView::new(call_stack.current_frame_ptr(), call_stack).push_local_refs(to_push)
         }
     }
 }
@@ -131,7 +133,7 @@ fn current_native_local_refs<'l>(interpreter_state: &'l InterpreterStateGuard) -
     match interpreter_state.int_state.as_ref().unwrap().deref() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr()).get_local_refs()
+            FrameView::new(call_stack.current_frame_ptr(), call_stack).get_local_refs()
         }
     }
 }

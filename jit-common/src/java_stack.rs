@@ -59,7 +59,7 @@ impl JavaStack {
                 instruction_pointer: null_mut(),
                 status_register: thread_status_register,
             })),
-            operand_stack_type_info: Default::default()
+            operand_stack_type_info: Default::default(),
         }
     }
 

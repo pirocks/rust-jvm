@@ -14,6 +14,7 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
+use crate::jvm_state::JVMState;
 use crate::method_table::{from_jmethod_id, MethodId};
 use crate::rust_jni::interface::push_type_to_operand_stack;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
@@ -35,7 +36,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     let parsed = method.desc();
     int_state.push_current_operand_stack(JavaValue::Object(from_object(jvm, obj)));
     for type_ in &parsed.parameter_types {
-        push_type_to_operand_stack(int_state, type_, &mut l)
+        push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
     invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
     assert!(int_state.throw().is_none());
@@ -57,7 +58,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     let method_descriptor_str = method.desc_str();
     let _name = method.name();
     let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
-    push_params_onto_frame(&mut l, int_state, &parsed);
+    push_params_onto_frame(jvm, &mut l, int_state, &parsed);
     invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method)?;
     Ok(if method.desc().return_type == PType::VoidType {
         None
@@ -67,12 +68,13 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
 }
 
 unsafe fn push_params_onto_frame(
+    jvm: &'gc_life JVMState<'gc_life>,
     l: &mut VarargProvider,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     parsed: &MethodDescriptor,
 ) {
     for type_ in &parsed.parameter_types {
-        push_type_to_operand_stack(int_state, type_, l)
+        push_type_to_operand_stack(jvm, int_state, type_, l)
     }
 }
 

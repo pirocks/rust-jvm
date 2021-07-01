@@ -69,7 +69,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
 }
 
 
-pub unsafe fn intern_impl_unsafe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -77,7 +77,7 @@ pub unsafe fn intern_impl_unsafe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut
     Ok(to_object(intern_safe(jvm, str_obj).object().into()))
 }
 
-pub fn intern_safe<'gc_life>(jvm: &'_ JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
+pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
     let char_array_ptr = match str_obj.clone().lookup_field(jvm, "value").unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");

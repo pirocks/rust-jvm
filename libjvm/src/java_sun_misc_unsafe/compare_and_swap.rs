@@ -1,5 +1,6 @@
 use std::mem::transmute;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;

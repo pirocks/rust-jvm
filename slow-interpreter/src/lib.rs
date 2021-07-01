@@ -5,6 +5,7 @@
 #![feature(core_intrinsics)]
 #![feature(entry_insert)]
 #![feature(in_band_lifetimes)]
+#![feature(destructuring_assignment)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
@@ -68,7 +69,7 @@ pub mod threading;
 mod resolvers;
 pub mod class_loading;
 
-pub fn run_main(args: Vec<String>, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), Box<dyn Error>> {
+pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -99,7 +100,7 @@ pub fn run_main(args: Vec<String>, jvm: &'_ JVMState<'gc_life>, int_state: &'_ m
 }
 
 
-fn setup_program_args<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) {
+fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).expect("todo").java_value());
@@ -112,13 +113,13 @@ fn setup_program_args<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut 
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
     ).expect("todo")))));
     let mut current_frame_mut = int_state.current_frame_mut();
-    let mut local_vars = current_frame_mut.local_vars_mut(jvm);
+    let mut local_vars = current_frame_mut.local_vars_mut();
     local_vars.set(0, arg_array);
 }
 
 
-fn set_properties(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader()), jvm);
+fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]), jvm);
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

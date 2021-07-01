@@ -32,7 +32,7 @@ pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_li
     &(*((**env).reserved0 as *const JVMState))
 }
 
-pub unsafe fn get_interpreter_state<'k, 'l>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l, 'k> {
+pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l, 'interpreter_guard> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
@@ -48,18 +48,17 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     }
 }
 
-pub unsafe fn from_object<'gc_life>(jvm: &JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
+pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
     let option = NonNull::new(obj as *mut Object<'gc_life>)?;
-    dbg!(obj);
     assert!(jvm.gc.all_allocated_object.read().unwrap().contains(&option));
     Some(GcManagedObject::from_native(option, &jvm.gc))
 }
 
-pub unsafe fn from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
+pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
     try_from_jclass(jvm, obj).unwrap()//todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(jvm: &'_ JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> {
+pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> {
     let possibly_null = from_object(jvm, obj);
     possibly_null.as_ref()?;
     JavaValue::Object(possibly_null).cast_class().into()

@@ -43,7 +43,7 @@ pub struct ThreadState<'gc_life> {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc_life>>>,
     monitors: RwLock<Vec<Arc<Monitor2>>>,
-    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static, 'static>>>>,
+    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static>>>>,
     pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
 }
 
@@ -93,10 +93,10 @@ impl<'gc_life> ThreadState<'gc_life> {
             if let Some(jvmti) = jvm.jvmti_state.as_ref() {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
-            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader), jvm);//todo think this is correct, check
+            let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]), jvm);//todo think this is correct, check
             //handle any excpetions from here
             int_state.pop_frame(jvm, push_guard, false);
-            let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader), jvm);
+            let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]), jvm);
             run_main(args, jvm, &mut int_state).unwrap();
             //todo handle exception exit from main
             int_state.pop_frame(jvm, main_frame_guard, false);
@@ -105,7 +105,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         main_send
     }
 
-    fn jvm_init_from_main_thread(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
+    fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, ClassName::system().into());
@@ -158,7 +158,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
-            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus::default()) as *mut JavaStatus)),
+            interpreter_state: RwLock::new(InterpreterState::new(jvm, Box::into_raw(box JavaStatus::default()))),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
@@ -182,7 +182,7 @@ impl<'gc_life> ThreadState<'gc_life> {
                 (*setup_hack_symbol.deref())(get_invoke_interface(jvm, &mut new_int_state))
             }
         }
-        let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader);
+        let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
         let frame_for_bootstrapping = new_int_state.push_frame(frame, jvm);
 
         let object_rc = check_loaded_class(jvm, &mut new_int_state, ClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
@@ -203,7 +203,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
     }
 
-    pub fn get_current_thread_name(&self, jvm: &'_ JVMState<'gc_life>) -> String {
+    pub fn get_current_thread_name(&self, jvm: &'gc_life JVMState<'gc_life>) -> String {
         let current_thread = self.get_current_thread();
         let thread_object = current_thread.thread_object.read().unwrap();
         thread_object.as_ref().map(|jthread| jthread.name(jvm).to_rust_string(jvm))
@@ -272,7 +272,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
         }
 
-        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name), jvm);
+        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name, vec![]), jvm);
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
             JavaValue::Object(todo!()/*interpreter_state_guard.throw()*/).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
             interpreter_state_guard.set_throw(None);
@@ -315,7 +315,7 @@ pub struct JavaThread<'vm_life> {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread<'vm_life>,
     thread_object: RwLock<Option<JThread<'vm_life>>>,
-    pub interpreter_state: RwLock<InterpreterState>,
+    pub interpreter_state: RwLock<InterpreterState<'vm_life>>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
@@ -328,12 +328,12 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.thread_status.read().unwrap().alive
     }
 
-    pub fn new(jvm: &'_ JVMState<'gc_life>, thread_obj: JThread<'gc_life>, underlying: Thread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
+    pub fn new(jvm: &'gc_life JVMState<'gc_life>, thread_obj: JThread<'gc_life>, underlying: Thread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
-            interpreter_state: RwLock::new(InterpreterState::new(Box::leak(box JavaStatus::default()) as *mut JavaStatus)),
+            interpreter_state: RwLock::new(InterpreterState::new(jvm, Box::into_raw(box JavaStatus::default()))),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
@@ -368,13 +368,13 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.thread_object.read().unwrap().clone()
     }
 
-    pub fn notify_alive(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn notify_alive(&self, jvm: &'gc_life JVMState<'gc_life>) {
         let mut status = self.thread_status.write().unwrap();
         status.alive = true;
         self.update_thread_object(jvm, status)
     }
 
-    fn update_thread_object(&self, jvm: &'_ JVMState<'gc_life>, status: RwLockWriteGuard<ThreadStatus>) {
+    fn update_thread_object(&self, jvm: &'gc_life JVMState<'gc_life>, status: RwLockWriteGuard<ThreadStatus>) {
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
             obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()))
@@ -382,7 +382,7 @@ impl<'gc_life> JavaThread<'gc_life> {
     }
 
 
-    pub fn notify_terminated(&self, jvm: &'_ JVMState<'gc_life>) {
+    pub fn notify_terminated(&self, jvm: &'gc_life JVMState<'gc_life>) {
         let mut status = self.thread_status.write().unwrap();
 
         status.terminated = true;
@@ -395,7 +395,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -405,12 +405,16 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
+    pub fn unpark(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub unsafe fn suspend_thread(&self, jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn gc_suspend(&self) {
+        self.safepoint_state.set_suspended().unwrap();//todo should use gc flag for this
+    }
+
+    pub unsafe fn suspend_thread(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }

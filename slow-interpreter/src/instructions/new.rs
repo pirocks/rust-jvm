@@ -10,7 +10,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
-pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
+pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
     let view = &int_state.current_frame().class_pointer(jvm).view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
     let target_classfile = check_initing_or_inited_class(jvm,
@@ -19,8 +19,8 @@ pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard
 }
 
 
-pub fn anewarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
-    let len = match int_state.current_frame_mut().pop(jvm, PTypeView::IntType) {
+pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+    let len = match int_state.current_frame_mut().pop(PTypeView::IntType) {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
@@ -40,7 +40,7 @@ pub fn anewarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     }
 }
 
-pub fn a_new_array_from_name(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, len: i32, t: PTypeView) -> Result<(), WasException> {
+pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: i32, t: PTypeView) -> Result<(), WasException> {
     check_resolved_class(
         jvm,
         int_state,
@@ -51,7 +51,7 @@ pub fn a_new_array_from_name(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Int
 }
 
 
-pub fn newarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, a_type: Atype) {
+pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, a_type: Atype) {
     let count = int_state.pop_current_operand_stack(PTypeView::IntType).unwrap_int();
     let type_ = match a_type {
         Atype::TChar => {
@@ -90,7 +90,7 @@ pub fn newarray(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterState
 }
 
 
-pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: MultiNewArray) {
+pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: MultiNewArray) {
     let dims = cp.dims;
     let view = int_state.current_frame().class_pointer(jvm).view();
     let temp = view.constant_pool_view(cp.index as usize);
@@ -102,7 +102,7 @@ pub fn multi_a_new_array(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
     let mut dimensions = vec![];
     let mut unwrapped_type: PTypeView = PTypeView::Ref(type_);
     for _ in 0..dims {
-        dimensions.push(int_state.current_frame_mut().pop(jvm, PTypeView::IntType).unwrap_int());
+        dimensions.push(int_state.current_frame_mut().pop(PTypeView::IntType).unwrap_int());
     }
     for _ in 1..dims {
         unwrapped_type = unwrapped_type.unwrap_array_type()

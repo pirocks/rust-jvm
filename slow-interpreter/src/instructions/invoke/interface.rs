@@ -12,7 +12,7 @@ use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtu
 use crate::java_values::JavaValue;
 use crate::stack_entry::{OperandStackRef, StackEntryRef};
 
-pub fn invoke_interface<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, invoke_interface: InvokeInterface) {
+pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
     let view = &int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &**view);
@@ -20,8 +20,8 @@ pub fn invoke_interface<'l, 'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'
     let _target_class = check_initing_or_inited_class(jvm, int_state, class_name_.into());
     let desc_len = expected_descriptor.parameter_types.len();
     assert_eq!(desc_len + 1, invoke_interface.count as usize);
-    let current_frame: StackEntryRef<'gc_life, 'l> = int_state.current_frame();
-    let operand_stack_ref: OperandStackRef<'gc_life, '_> = current_frame.operand_stack(jvm);
+    let current_frame = int_state.current_frame();
+    let operand_stack_ref = current_frame.operand_stack(jvm);
     let operand_stack_len = operand_stack_ref.len();
     let this_pointer_jv: JavaValue<'gc_life> = operand_stack_ref.get(operand_stack_len - invoke_interface.count as u16, PTypeView::object());
     let this_pointer_o = this_pointer_jv.unwrap_object().unwrap();//todo handle npe

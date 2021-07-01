@@ -282,7 +282,7 @@ fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_map
 
 /**
 assumes that stackmaps and instructions are ordered
-*/
+ */
 pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);

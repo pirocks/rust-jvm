@@ -44,7 +44,7 @@ impl<'gc_life> LibJavaLoading<'gc_life> {
 
 
 pub fn call<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+    jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     classfile: Arc<RuntimeClass<'gc_life>>,
     method_view: MethodView,
@@ -74,7 +74,7 @@ pub fn call<'gc_life>(
 }
 
 pub fn call_impl<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+    jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     classfile: Arc<RuntimeClass<'gc_life>>,
     args: Vec<JavaValue<'gc_life>>,

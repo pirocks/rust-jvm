@@ -166,7 +166,7 @@ pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, dep
 }
 
 
-unsafe fn get_thread_from_obj_or_current<'gc_life>(jvm: &'_ JVMState<'gc_life>, thread: jthread) -> Result<Arc<JavaThread<'gc_life>>, jvmtiError> {
+unsafe fn get_thread_from_obj_or_current<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread) -> Result<Arc<JavaThread<'gc_life>>, jvmtiError> {
     Ok(if !thread.is_null() {
         match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).try_cast_thread() {
             None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
@@ -177,7 +177,7 @@ unsafe fn get_thread_from_obj_or_current<'gc_life>(jvm: &'_ JVMState<'gc_life>, 
     })
 }
 
-unsafe fn get_local_t<'gc_life>(jvm: &'_ JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc_life>, jvmtiError> {
+unsafe fn get_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc_life>, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
@@ -196,7 +196,7 @@ unsafe fn get_local_t<'gc_life>(jvm: &'_ JVMState<'gc_life>, thread: jthread, de
 }
 
 
-unsafe fn set_local_t<'gc_life>(jvm: &'_ JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint, to_set: JavaValue<'gc_life>) -> Result<(), jvmtiError> {
+unsafe fn set_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint, to_set: JavaValue<'gc_life>) -> Result<(), jvmtiError> {
     if depth < 0 {
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }

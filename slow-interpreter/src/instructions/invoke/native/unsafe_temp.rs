@@ -10,7 +10,7 @@ use crate::jvm_state::ClassStatus;
 use crate::JVMState;
 use crate::utils::unwrap_or_npe;
 
-pub fn shouldBeInitialized<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn shouldBeInitialized(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     let class_to_check = unwrap_or_npe(jvm, int_state, args[1].cast_class())?.as_runtime_class(jvm);
     let is_init = matches!(class_to_check.status(),ClassStatus::INITIALIZED);
     Ok(JavaValue::Boolean(is_init as u8))

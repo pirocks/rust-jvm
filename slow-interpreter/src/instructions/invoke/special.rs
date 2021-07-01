@@ -13,7 +13,7 @@ use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special(jvm: &'l JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, cp: u16) {
     let (method_class_type, method_name, parsed_descriptor) = get_method_descriptor(cp as usize, &*int_state.current_frame().class_pointer(jvm).view());
     let method_class_name = method_class_type.unwrap_class_type();
     let target_class = match check_initing_or_inited_class(
@@ -28,9 +28,9 @@ pub fn invoke_special(jvm: &'l JVMState<'gc_life>, int_state: &'_ mut Interprete
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone());
 }
 
-pub fn invoke_special_impl<'gc_life, 'l>(
-    jvm: &'l JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+pub fn invoke_special_impl(
+    jvm: &'gc_life JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
     parsed_descriptor: &MethodDescriptor,
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc_life>>,

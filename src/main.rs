@@ -11,6 +11,7 @@ use std::ffi::OsString;
 use std::mem::transmute;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;

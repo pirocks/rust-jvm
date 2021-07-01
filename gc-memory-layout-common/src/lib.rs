@@ -1,3 +1,5 @@
+#![feature(destructuring_assignment)]
+
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -5,6 +7,7 @@ use std::mem::size_of;
 use itertools::{Either, Itertools};
 
 use classfile_view::loading::LoaderName;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jlong, jobject};
 use verification::verifier::Frame;
 
@@ -199,12 +202,14 @@ pub enum FrameInfo {
     FullyOpaque {
         loader: LoaderName,
         operand_stack_depth: u16,
+        operand_stack_types: Vec<PTypeView>,
     },
     Native {
         method_id: usize,
         loader: LoaderName,
         operand_stack_depth: u16,
         native_local_refs: Vec<HashSet<jobject>>,
+        operand_stack_types: Vec<PTypeView>,
     },
     JavaFrame {
         method_id: usize,
@@ -213,6 +218,8 @@ pub enum FrameInfo {
         java_pc: u16,
         pc_offset: i32,
         operand_stack_depth: u16,
+        operand_stack_types: Vec<PTypeView>,
+        locals_types: Vec<PTypeView>,
     },
 }
 
@@ -223,6 +230,47 @@ impl FrameInfo {
             FrameInfo::Native { operand_stack_depth, .. } => operand_stack_depth,
             FrameInfo::JavaFrame { operand_stack_depth, .. } => operand_stack_depth,
         }
+    }
+
+    pub fn push_operand_stack(&mut self, ptype: PTypeView) {
+        match &ptype {
+            PTypeView::ByteType => {}
+            PTypeView::CharType => {}
+            PTypeView::DoubleType => {}
+            PTypeView::FloatType => {}
+            PTypeView::IntType => {}
+            PTypeView::LongType => {}
+            PTypeView::Ref(_) => {}
+            PTypeView::ShortType => {}
+            PTypeView::BooleanType => {}
+            PTypeView::VoidType => {}
+            PTypeView::TopType => panic!(),
+            PTypeView::NullType => {}
+            PTypeView::Uninitialized(_) => {}
+            PTypeView::UninitializedThis => {}
+            PTypeView::UninitializedThisOrClass(_) => {}
+        }
+        match self {
+            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
+            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
+            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types,
+        }.push(ptype);
+    }
+
+    pub fn pop_operand_stack(&mut self) -> Option<PTypeView> {
+        match self {
+            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
+            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
+            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types,
+        }.pop()
+    }
+
+    pub fn set_local_var_type(&mut self, ptype: PTypeView, i: usize) {
+        match self {
+            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::Native { .. } => panic!(),
+            FrameInfo::JavaFrame { locals_types, .. } => { locals_types[i] = ptype }
+        };
     }
 }
 

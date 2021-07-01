@@ -12,7 +12,7 @@ use crate::runtime_class::RuntimeClass;
 //todo jni should really live in interpreter state
 
 pub fn push_new_object<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+    jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     runtime_class: &'_ Arc<RuntimeClass<'gc_life>>,
 ) {
@@ -20,11 +20,11 @@ pub fn push_new_object<'gc_life>(
     let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
-    int_state.current_frame_mut().push(jvm, new_obj);
+    int_state.current_frame_mut().push(new_obj);
 }
 
 fn default_init_fields<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+    jvm: &'gc_life JVMState<'gc_life>,
     current_class_pointer: &Arc<RuntimeClass<'gc_life>>,
     object_pointer: &GcManagedObject<'gc_life>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
@@ -50,7 +50,7 @@ fn default_init_fields<'gc_life>(
 }
 
 pub fn run_constructor<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+    jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     target_classfile: Arc<RuntimeClass<'gc_life>>,
     full_args: Vec<JavaValue<'gc_life>>,

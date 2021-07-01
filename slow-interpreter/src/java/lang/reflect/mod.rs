@@ -64,11 +64,11 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 }
 
 
-fn get_signature<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
+fn get_signature(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
     Ok(JString::from_rust(jvm, int_state, method_view.desc_str())?.intern(jvm, int_state)?)
 }
 
-fn exception_types_table<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
+fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_type: PTypeView = ClassName::class().into();
     let empty_vec = vec![];
     let types_iter = method_view.code_attribute()
@@ -99,7 +99,7 @@ fn exception_types_table<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ m
     )?)))))
 }
 
-fn parameters_type_objects<'gc_life>(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
+fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_type: PTypeView = ClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -149,7 +149,7 @@ pub mod method {
     }
 
     impl<'gc_life> Method<'gc_life> {
-        pub fn method_object_from_method_view(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<Method<'gc_life>, WasException> {
+        pub fn method_object_from_method_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Method<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -179,8 +179,8 @@ pub mod method {
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
-        pub fn new_method(jvm: &'_ JVMState<'gc_life>,
-                          int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+        pub fn new_method(jvm: &'gc_life JVMState<'gc_life>,
+                          int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
                           clazz: JClass<'gc_life>,
                           name: JString<'gc_life>,
                           parameter_types: JavaValue<'gc_life>,
@@ -213,23 +213,23 @@ pub mod method {
             Ok(method_object.cast_method())
         }
 
-        pub fn get_clazz(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.normal_object.lookup_field(jvm, "clazz").cast_class().unwrap()//todo this unwrap
         }
 
-        pub fn get_modifiers(&self, jvm: &JVMState<'gc_life>) -> jint {
+        pub fn get_modifiers(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
             self.normal_object.lookup_field(jvm, "modifiers").unwrap_int()
         }
 
-        pub fn get_name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+        pub fn get_name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             self.normal_object.lookup_field(jvm, "name").cast_string().expect("methods must have names")
         }
 
-        pub fn parameter_types(&self, jvm: &JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
+        pub fn parameter_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
             self.normal_object.lookup_field(jvm, "parameterTypes").unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
-        pub fn get_slot_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jint> {
+        pub fn get_slot_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
             let maybe_null = self.normal_object.lookup_field(jvm, "slot");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -241,10 +241,10 @@ pub mod method {
                 maybe_null.unwrap_int().into()
             }
         }
-        pub fn get_slot(&self, jvm: &JVMState<'gc_life>) -> jint {
+        pub fn get_slot(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
             self.get_slot_or_null(jvm).unwrap()
         }
-        pub fn get_return_type_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+        pub fn get_return_type_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
             let maybe_null = self.normal_object.lookup_field(jvm, "returnType");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -256,7 +256,7 @@ pub mod method {
                 maybe_null.cast_class().into()
             }
         }
-        pub fn get_return_type(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_return_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.get_return_type_or_null(jvm).unwrap()
         }
 
@@ -294,7 +294,7 @@ pub mod constructor {
     }
 
     impl<'gc_life> Constructor<'gc_life> {
-        pub fn constructor_object_from_method_view(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, method_view: &MethodView) -> Result<Constructor<'gc_life>, WasException> {
+        pub fn constructor_object_from_method_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Constructor<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -313,8 +313,8 @@ pub mod constructor {
 
 
         pub fn new_constructor(
-            jvm: &'_ JVMState<'gc_life>,
-            int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+            jvm: &'gc_life JVMState<'gc_life>,
+            int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
             clazz: JClass<'gc_life>,
             parameter_types: JavaValue<'gc_life>,
             exception_types: JavaValue<'gc_life>,
@@ -333,23 +333,23 @@ pub mod constructor {
             Ok(constructor_object.cast_constructor())
         }
 
-        pub fn get_clazz(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.normal_object.lookup_field(jvm, "clazz").cast_class().unwrap()//todo this unwrap
         }
 
-        pub fn get_modifiers(&self, jvm: &JVMState<'gc_life>) -> jint {
+        pub fn get_modifiers(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
             self.normal_object.lookup_field(jvm, "modifiers").unwrap_int()
         }
 
-        pub fn get_name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+        pub fn get_name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             self.normal_object.lookup_field(jvm, "name").cast_string().expect("methods must have names")
         }
 
-        pub fn parameter_types(&self, jvm: &JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
+        pub fn parameter_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
             self.normal_object.lookup_field(jvm, "parameterTypes").unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
-        pub fn get_slot_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<jint> {
+        pub fn get_slot_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
             let maybe_null = self.normal_object.lookup_field(jvm, "slot");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -361,10 +361,10 @@ pub mod constructor {
                 maybe_null.unwrap_int().into()
             }
         }
-        pub fn get_slot(&self, jvm: &JVMState<'gc_life>) -> jint {
+        pub fn get_slot(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
             self.get_slot_or_null(jvm).unwrap()
         }
-        pub fn get_return_type_or_null(&self, jvm: &JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+        pub fn get_return_type_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
             let maybe_null = self.normal_object.lookup_field(jvm, "returnType");
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -376,7 +376,7 @@ pub mod constructor {
                 maybe_null.cast_class().into()
             }
         }
-        pub fn get_return_type(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_return_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.get_return_type_or_null(jvm).unwrap()
         }
 
@@ -409,8 +409,8 @@ pub mod field {
 
     impl<'gc_life> Field<'gc_life> {
         pub fn init(
-            jvm: &'_ JVMState<'gc_life>,
-            int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
+            jvm: &'gc_life JVMState<'gc_life>,
+            int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
             clazz: JClass<'gc_life>,
             name: JString<'gc_life>,
             type_: JClass<'gc_life>,
@@ -446,11 +446,11 @@ pub mod field {
             Ok(field_object.cast_field())
         }
 
-        pub fn name(&self, jvm: &JVMState<'gc_life>) -> JString<'gc_life> {
+        pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             self.normal_object.lookup_field(jvm, "name").cast_string().expect("fields must have names")
         }
 
-        pub fn clazz(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.normal_object.lookup_field(jvm, "clazz").cast_class().expect("todo")
         }
 
@@ -480,7 +480,7 @@ pub mod constant_pool {
     }
 
     impl<'gc_life> ConstantPool<'gc_life> {
-        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
+        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into())?;
             push_new_object(jvm, int_state, &constant_pool_classfile);
             let constant_pool_object = int_state.pop_current_operand_stack(ClassName::object().into());
@@ -489,7 +489,7 @@ pub mod constant_pool {
             Ok(res)
         }
 
-        pub fn get_constant_pool_oop(&self, jvm: &JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_constant_pool_oop(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.normal_object.lookup_field(jvm, "constantPoolOop").cast_class().unwrap()
         }
 

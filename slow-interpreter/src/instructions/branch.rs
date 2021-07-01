@@ -5,12 +5,12 @@ use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 
-pub fn goto_(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, target: i32) {
+pub fn goto_(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, target: i32) {
     *current_frame.pc_offset_mut() = target;
 }
 
-pub fn ifnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, ClassName::object().into());
+pub fn ifnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(ClassName::object().into());
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
         _ => panic!()
@@ -20,8 +20,8 @@ pub fn ifnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     }
 }
 
-pub fn ifnonnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, ClassName::object().into());
+pub fn ifnonnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(ClassName::object().into());
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
         _ => panic!()
@@ -31,58 +31,58 @@ pub fn ifnonnull(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
     }
 }
 
-pub fn ifle(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+pub fn ifle(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() <= 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn ifgt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+pub fn ifgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() > 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn ifge(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+pub fn ifge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() >= 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn iflt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+pub fn iflt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn ifne(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+pub fn ifne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() != 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn ifeq(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+pub fn ifeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     //todo dup
-    let val = current_frame.pop(jvm, PTypeView::IntType);
+    let val = current_frame.pop(PTypeView::IntType);
     let succeeds = val.unwrap_int() == 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn if_icmpgt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmpgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 > value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -90,9 +90,9 @@ pub fn if_icmpgt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_icmplt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmplt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 < value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -100,18 +100,18 @@ pub fn if_icmplt(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_icmple(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmple(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 <= value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
     }
 }
 
-pub fn if_icmpge(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmpge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 >= value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -119,9 +119,9 @@ pub fn if_icmpge(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_icmpne(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 != value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -129,9 +129,9 @@ pub fn if_icmpne(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_icmpeq(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(jvm, PTypeView::IntType).unwrap_int();
+pub fn if_icmpeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
     let succeeds = value1 == value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -139,9 +139,9 @@ pub fn if_icmpeq(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_acmpne(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::object());
-    let value1 = current_frame.pop(jvm, PTypeView::object());
+pub fn if_acmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::object());
+    let value1 = current_frame.pop(PTypeView::object());
     let succeeds = !equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -149,9 +149,9 @@ pub fn if_acmpne(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 
-pub fn if_acmpeq(jvm: &'_ JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(jvm, PTypeView::object());
-    let value1 = current_frame.pop(jvm, PTypeView::object());
+pub fn if_acmpeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
+    let value2 = current_frame.pop(PTypeView::object());
+    let value1 = current_frame.pop(PTypeView::object());
     let succeeds = equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;

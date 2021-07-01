@@ -1,6 +1,7 @@
 use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_uchar};
 use std::ptr::{null, null_mut};
+use std::sync::Arc;
 
 use by_address::ByAddress;
 
@@ -102,7 +103,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
     }
 }
 
-fn get_class_from_type_maybe(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, ptype: PTypeView, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
+fn get_class_from_type_maybe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: PTypeView, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if load_class {
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {

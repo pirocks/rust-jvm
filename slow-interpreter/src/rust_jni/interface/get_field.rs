@@ -126,7 +126,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     new_field_id(jvm, field_rc, field_i)
 }
 
-pub fn new_field_id<'gc_life>(jvm: &'_ JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>, field_i: usize) -> jfieldID {
+pub fn new_field_id<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>, field_i: usize) -> jfieldID {
     let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
     unsafe { transmute(id) }
 }

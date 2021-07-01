@@ -38,7 +38,7 @@ pub mod access_control_context {
     }
 
     impl<'gc_life> AccessControlContext<'gc_life> {
-        pub fn new(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, protection_domains: Vec<ProtectionDomain<'gc_life>>) -> Result<Self, WasException> {
+        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, protection_domains: Vec<ProtectionDomain<'gc_life>>) -> Result<Self, WasException> {
             let access_control_context_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/security/AccessControlContext".to_string()).into());
             push_new_object(jvm, int_state, &access_control_context_class);
             let access_control_object = int_state.pop_current_operand_stack(ClassName::object().into());

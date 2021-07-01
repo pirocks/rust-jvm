@@ -45,7 +45,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())//todo local ref
 }
 
-pub fn defineAnonymousClass(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, mut args: &mut Vec<JavaValue<'gc_life>>) -> JavaValue<'gc_life> {
+pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, mut args: &mut Vec<JavaValue<'gc_life>>) -> JavaValue<'gc_life> {
     let _parent_class = &args[1];//todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array(jvm).iter().map(|b| *b as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
@@ -68,7 +68,7 @@ pub fn defineAnonymousClass(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 
-fn patch_all(jvm: &'_ JVMState<'gc_life>, frame: StackEntryRef, args: &mut Vec<JavaValue<'gc_life>>, unpatched: &mut Classfile) {
+fn patch_all(jvm: &'gc_life JVMState<'gc_life>, frame: StackEntryRef, args: &mut Vec<JavaValue<'gc_life>>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array(jvm);
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| {

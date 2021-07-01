@@ -17,7 +17,7 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, cp: u16) {
+pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
 //todo handle monitor enter and exit
 //handle init cases
     int_state.self_check(jvm);
@@ -46,8 +46,8 @@ pub fn run_invoke_static(jvm: &'_ JVMState<'gc_life>, int_state: &'_ mut Interpr
     );
 }
 
-pub fn invoke_static_impl<'gc_life>(
-    jvm: &'_ JVMState<'gc_life>,
+pub fn invoke_static_impl(
+    jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     expected_descriptor: MethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
@@ -83,7 +83,7 @@ pub fn invoke_static_impl<'gc_life>(
         }
         let mut i = 0;
         for ptype in expected_descriptor.parameter_types.iter().rev() {
-            let popped = current_frame.pop(jvm, PTypeView::from_ptype(&ptype));
+            let popped = current_frame.pop(PTypeView::from_ptype(&ptype));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
                 _ => {}
