@@ -128,7 +128,7 @@ pub mod dynamic {
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
-        let call_site = int_state.pop_current_operand_stack(ClassName::object().into()).cast_call_site();
+        let call_site = int_state.pop_current_operand_stack(Some(ClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
@@ -151,7 +151,7 @@ pub mod dynamic {
 
         assert!(int_state.throw().is_none());
 
-        let res = int_state.pop_current_operand_stack(ClassName::object().into());
+        let res = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
         int_state.push_current_operand_stack(res);
         Ok(())
     }
@@ -209,7 +209,7 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
             ReferenceTypeView::Class(c) => c,
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
-                let temp = match int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object() {
+                let temp = match int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object() {
                     Some(x) => x,
                     None => {
                         throw_npe_res(jvm, int_state)?;

@@ -44,7 +44,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
     push_new_object(jvm, interpreter_state, &string_class);
-    let string_object = interpreter_state.pop_current_operand_stack(ClassName::string().into());
+    let string_object = interpreter_state.pop_current_operand_stack(Some(ClassName::string().into()));
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,
@@ -128,7 +128,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'g
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            let string_value = int_state.pop_current_operand_stack(ClassName::string().into());
+            let string_value = int_state.pop_current_operand_stack(Some(ClassName::string().into()));
             intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
         }
         _ => panic!()

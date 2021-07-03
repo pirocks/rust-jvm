@@ -20,7 +20,7 @@ use crate::utils::throw_npe;
 
 pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let array_o = match current_frame.pop(PTypeView::object()).unwrap_object() {
+    let array_o = match current_frame.pop(Some(PTypeView::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -32,7 +32,7 @@ pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
 
 
 pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let possibly_null = int_state.current_frame_mut().pop(PTypeView::object()).unwrap_object();
+    let possibly_null = int_state.current_frame_mut().pop(Some(PTypeView::object())).unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
         return;
@@ -106,7 +106,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
 
 
 pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let possibly_null = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
+    let possibly_null = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let view = &int_state.current_class_view(jvm);
         let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();

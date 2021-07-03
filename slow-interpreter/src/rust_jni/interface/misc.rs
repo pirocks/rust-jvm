@@ -40,7 +40,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_)) {
         return null_mut();
     };
-    let obj = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
+    let obj = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
     new_local_ref_public(obj, int_state)
 }
 
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
         return null_mut();
     };
-    new_local_ref_public(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object(), int_state)
 }
 
 

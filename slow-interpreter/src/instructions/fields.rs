@@ -15,7 +15,7 @@ pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
-    let field_value = stack.pop(PTypeView::from_ptype(&field_descriptor.field_type)).unwrap();
+    let field_value = stack.pop(Some(PTypeView::from_ptype(&field_descriptor.field_type))).unwrap();
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
@@ -25,8 +25,8 @@ pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let stack = &mut entry_mut.operand_stack_mut();
-    let val = stack.pop(PTypeView::from_ptype(&field_type)).unwrap();
-    let object_ref = stack.pop(PTypeView::object()).unwrap();
+    let val = stack.pop(Some(PTypeView::from_ptype(&field_type))).unwrap();
+    let object_ref = stack.pop(Some(PTypeView::object())).unwrap();
     match object_ref {
         JavaValue::Object(o) => {
             {
@@ -91,7 +91,7 @@ pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     let view = current_frame.class_pointer(jvm).view();
     let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
-    let object_ref = int_state.current_frame_mut().pop(PTypeView::object());
+    let object_ref = int_state.current_frame_mut().pop(Some(PTypeView::object()));
     match object_ref {
         JavaValue::Object(o) => {
             let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name.clone(), PTypeView::from_ptype(&field_type));

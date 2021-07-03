@@ -66,7 +66,7 @@ pub fn invoke_static_impl(
             // dbg!(interpreter_state.current_frame().operand_stack_types());
             let member_name = op_stack.get((op_stack.len() - 1) as u16, ClassName::member_name().into()).cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
-            interpreter_state.pop_current_operand_stack(ClassName::object().into());//todo am I sure this is an object
+            interpreter_state.pop_current_operand_stack(Some(ClassName::object().into()));//todo am I sure this is an object
             let res = call_vmentry(jvm, interpreter_state, member_name)?;
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
@@ -83,7 +83,7 @@ pub fn invoke_static_impl(
         }
         let mut i = 0;
         for ptype in expected_descriptor.parameter_types.iter().rev() {
-            let popped = current_frame.pop(PTypeView::from_ptype(&ptype));
+            let popped = current_frame.pop(Some(PTypeView::from_ptype(&ptype)));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
                 _ => {}

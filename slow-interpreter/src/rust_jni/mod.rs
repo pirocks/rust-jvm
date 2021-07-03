@@ -92,7 +92,7 @@ pub fn call_impl<'gc_life>(
     } else {
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let class_constant = unsafe {
-            let class_popped_jv = int_state.pop_current_operand_stack(ClassName::object().into());
+            let class_popped_jv = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
             to_native(env, class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
         };
         let res = vec![Arg::new(&env), class_constant];

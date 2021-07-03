@@ -191,7 +191,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::thread().into()).expect("couldn't load thread class");
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);
-        let thread_object = new_int_state.pop_current_operand_stack(ClassName::thread().into()).cast_thread();
+        let thread_object = new_int_state.pop_current_operand_stack(Some(ClassName::thread().into())).cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into()).expect("couldn't load thread group class");
@@ -411,7 +411,7 @@ impl<'gc_life> JavaThread<'gc_life> {
     }
 
     pub unsafe fn gc_suspend(&self) {
-        self.safepoint_state.set_suspended().unwrap();//todo should use gc flag for this
+        self.safepoint_state.set_gc_suspended().unwrap();//todo should use gc flag for this
     }
 
     pub unsafe fn suspend_thread(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
@@ -430,6 +430,10 @@ impl<'gc_life> JavaThread<'gc_life> {
 
     pub unsafe fn resume_thread(&self) -> Result<(), ResumeError> {
         self.safepoint_state.set_unsuspended()
+    }
+
+    pub unsafe fn gc_resume_thread(&self) -> Result<(), ResumeError> {
+        self.safepoint_state.set_gc_unsuspended()
     }
 
     pub fn is_this_thread(&self) -> bool {

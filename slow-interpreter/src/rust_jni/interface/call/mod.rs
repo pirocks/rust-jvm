@@ -43,7 +43,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(ClassName::object().into()).into()
+        int_state.pop_current_operand_stack(Some(ClassName::object().into())).into()
     })
 }
 
@@ -63,7 +63,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(PTypeView::from_ptype(&method.desc().return_type)).into()
+        int_state.pop_current_operand_stack(Some(PTypeView::from_ptype(&method.desc().return_type))).into()
     })
 }
 

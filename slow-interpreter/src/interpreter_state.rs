@@ -126,7 +126,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         self.current_frame_mut().push(jval)
     }
 
-    pub fn pop_current_operand_stack(&mut self, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn pop_current_operand_stack(&mut self, expected_type: Option<PTypeView>) -> JavaValue<'gc_life> {
         self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
     }
 
@@ -259,7 +259,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                                 loader,
                                 java_pc: pc,
                                 pc_offset,
-                                operand_stack_depth: operand_stack.len() as u16,
+                                operand_stack_depth: 0,
                                 operand_stack_types: vec![],
                                 locals_types: vec![PTypeView::TopType; code.max_locals as usize],
                             });
@@ -291,6 +291,9 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     unsafe {
                         call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] })
                     }
+                }
+                for operand in operand_stack {
+                    self.current_frame_mut().operand_stack_mut().push(operand);
                 }
             }
         };

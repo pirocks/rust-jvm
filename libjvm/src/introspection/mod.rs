@@ -225,7 +225,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     load_class_constant_by_type(jvm, int_state, type_);
-    let jclass = int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object();
+    let jclass = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
 

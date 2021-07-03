@@ -34,7 +34,7 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     let _name = method.name();
     let parsed = method.desc();
     push_new_object(jvm, int_state, &class);
-    let obj = int_state.pop_current_operand_stack(ClassName::object().into());
+    let obj = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
     int_state.push_current_operand_stack(obj.clone());
     for type_ in &parsed.parameter_types {
         push_type_to_operand_stack(jvm, int_state, type_, &mut l)

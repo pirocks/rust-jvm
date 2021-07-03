@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::fs::File;
+use std::intrinsics::size_of;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
@@ -63,9 +64,11 @@ thread_local! {
 pub fn get_interface(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
-        let new = get_interface_impl(state, int_state);
-        let jni_data_structure_ptr = Box::leak(box new) as *const JNINativeInterface_;
-        refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);//todo leak
+        if refcell.borrow().is_null() {
+            let new = get_interface_impl(state, int_state);
+            let jni_data_structure_ptr = Box::leak(box new) as *const JNINativeInterface_;
+            refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);//todo leak
+        }
         let new_borrow = refcell.borrow();
         *new_borrow as *mut *const JNINativeInterface_
     })
@@ -433,7 +436,7 @@ unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     push_new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm));
-    to_object(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object())
+    to_object(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object())
 }
 
 ///ToReflectedMethod
@@ -603,7 +606,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().ptypeview();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
-    let parent_runtime_class = int_state.pop_current_operand_stack(ClassName::object().into());
+    let parent_runtime_class = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
 
     let field_name = f.field_name();
 

@@ -78,15 +78,22 @@ impl<'gc_life> GC<'gc_life> {
                 }
             }
             Object::Object(obj) => {
-                for (_name, (index, ptype)) in obj.objinfo.class_pointer.unwrap_class_class().field_numbers.iter() {
-                    if let PTypeView::Ref(_) = ptype {
-                        Self::gc_recurse(match NonNull::new(unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }) {
-                            None => continue,
-                            Some(ptr) => ptr
-                        }, visited)
-                    }
-                }
+                Self::gc_recurse_super(obj, obj.objinfo.class_pointer.unwrap_class_class(), visited)
             }
+        }
+    }
+
+    fn gc_recurse_super(obj: &NormalObject<'gc_life>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<Object<'gc_life>>>) {
+        for (_name, (index, ptype)) in class_class.field_numbers.iter() {
+            if let PTypeView::Ref(_) = ptype {
+                Self::gc_recurse(match NonNull::new(unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }) {
+                    None => continue,
+                    Some(ptr) => ptr
+                }, visited)
+            }
+        }
+        if let Some(parent) = &class_class.parent {
+            Self::gc_recurse_super(obj, parent.unwrap_class_class(), visited)
         }
     }
 
@@ -122,16 +129,17 @@ impl<'gc_life> GC<'gc_life> {
         }).collect_vec();
         let mut roots = HashSet::new();
         unsafe {
-            dbg!(interpreter_states.len());
+            // dbg!(interpreter_states.len());
             for stack in interpreter_states {
-                dbg!(stack.len());
+                // dbg!(stack.len());
                 for stack_entry in stack {
-                    dbg!(stack_entry.operand_stack.len());
+                    // dbg!(stack_entry.operand_stack.len());
+                    // dbg!(stack_entry.local_vars().len());
                     for local_var in stack_entry.local_vars().iter().cloned().chain(
                         stack_entry.operand_stack().iter().cloned()).chain(
                         stack_entry.native_local_refs.iter().flat_map(|hashet| hashet.iter().map(|raw| JavaValue::Object(from_object(jvm, *raw))))) {
                         if let JavaValue::Object(Some(gc_managed)) = local_var {
-                            dbg!(gc_managed.raw_ptr);
+                            // dbg!(gc_managed.raw_ptr);
                             roots.insert(gc_managed.raw_ptr);
                         }
                     }
@@ -152,9 +160,6 @@ impl<'gc_life> GC<'gc_life> {
                 .flat_map(|(_loader, class)| { class.try_unwrap_class_class() })
                 .flat_map(|class| class.static_vars.read().unwrap().values().flat_map(|jv| jv.try_unwrap_object()).flatten().collect_vec())) {
             roots.insert(root.raw_ptr);
-        }
-        for root in roots.iter() {
-            dbg!(root.as_ptr());
         }
         self.gc_with_roots(roots)
     }
@@ -651,14 +656,18 @@ impl<'gc_life> JavaValue<'gc_life> {
             JavaValue::Object(obj) => {
                 match obj {
                     None => PTypeView::NullType,
-                    Some(not_null) => PTypeView::Ref(match not_null.deref() {
-                        Object::Array(array) => {
-                            ReferenceTypeView::Array(array.elem_type.clone().into())
-                        }
-                        Object::Object(obj) => {
-                            ReferenceTypeView::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
-                        }
-                    })
+                    Some(not_null) => {
+                        // dbg!(not_null.raw_ptr.as_ptr());
+                        not_null.self_check();
+                        PTypeView::Ref(match not_null.deref() {
+                            Object::Array(array) => {
+                                ReferenceTypeView::Array(array.elem_type.clone().into())
+                            }
+                            Object::Object(obj) => {
+                                ReferenceTypeView::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
+                            }
+                        })
+                    }
                 }
             }
             JavaValue::Top => PTypeView::TopType
@@ -1009,6 +1018,7 @@ impl<'gc_life> NormalObject<'gc_life> {
     pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: impl Into<String>, jv: JavaValue<'gc_life>, expected_type: PTypeView) {
         let name = name.into();
         // self.expected_type_check(class_pointer.clone(), expected_type.clone(), name.clone(), &jv);
+        jv.self_check();
         unsafe { self.set_var_impl(&self.objinfo.class_pointer.unwrap_class_class(), class_pointer, name, jv, true) }
     }
 
@@ -1079,6 +1089,7 @@ impl<'gc_life> NormalObject<'gc_life> {
         // }
         let res = unsafe { Self::get_var_impl(self, jvm, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), &name, true) };
         // self.expected_type_check(class_pointer, expected_type, name, &res);
+        res.self_check();
         res
     }
 

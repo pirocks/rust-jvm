@@ -100,7 +100,7 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let jvm = get_state(env);
     let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).ptypeview();
     a_new_array_from_name(jvm, int_state, length, array_type_name);
-    new_local_ref_public(int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object(), int_state)
 }
 
 #[no_mangle]

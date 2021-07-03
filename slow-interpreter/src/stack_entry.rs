@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::intrinsics::size_of;
+use std::io;
+use std::io::Write;
 use std::marker::PhantomData;
+use std::mem::transmute;
 use std::ops::{DerefMut, Index, IndexMut};
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
@@ -13,7 +16,7 @@ use itertools::Itertools;
 use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use gc_memory_layout_common::{FrameHeader, FrameInfo, StackframeMemoryLayout};
+use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, JVM_Available};
 use rust_jvm_common::classfile::CPIndex;
@@ -44,7 +47,10 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     fn get_header(&self) -> &FrameHeader {
-        unsafe { (self.frame_ptr as *const FrameHeader).as_ref() }.unwrap()
+        let res = unsafe { (self.frame_ptr as *const FrameHeader).as_ref() }.unwrap();
+        assert_eq!((*res).magic_part_1, MAGIC_1_EXPECTED);
+        assert_eq!((*res).magic_part_2, MAGIC_2_EXPECTED);
+        res
     }
 
     fn get_frame_info(&self) -> &FrameInfo {
@@ -106,7 +112,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
 
     pub fn operand_stack_length(&self) -> u16 {
         match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
+            FrameInfo::FullyOpaque { operand_stack_depth, .. } => *operand_stack_depth,
             FrameInfo::Native { operand_stack_depth, .. } => *operand_stack_depth,
             FrameInfo::JavaFrame { operand_stack_depth, .. } => *operand_stack_depth
         }
@@ -256,8 +262,26 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
+    fn get_frame_ptrs(&self) -> Vec<usize> {
+        let mut start = self.frame_ptr;
+        let mut res = vec![];
+        loop {
+            unsafe {
+                if start == null_mut() || start == transmute(0xDEADDEADDEADDEADusize) || start == self.call_stack.top {
+                    break;
+                }
+                res.push(start as usize);
+                start = (*(start as *mut FrameHeader)).prev_rpb;
+            }
+        }
+        res
+    }
+
     pub fn push_operand_stack(&mut self, j: JavaValue<'gc_life>) {
-        self.get_frame_info_mut().push_operand_stack(j.to_type());
+        let _header = self.get_header();
+        let frame_info = self.get_frame_info_mut();
+        frame_info.push_operand_stack(j.to_type());
+        // dbg!(self.get_frame_ptrs());
         let operand_stack_depth = self.get_frame_info_mut().operand_stack_depth_mut();
         let current_depth = *operand_stack_depth;
         *operand_stack_depth += 1;
@@ -266,7 +290,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Self::write_target(target, j)
     }
 
-    pub fn pop_operand_stack(&mut self, jvm: &'gc_life JVMState<'gc_life>, expected_type: PTypeView) -> Option<JavaValue<'gc_life>> {
+    pub fn pop_operand_stack(&mut self, jvm: &'gc_life JVMState<'gc_life>, expected_type: Option<PTypeView>) -> Option<JavaValue<'gc_life>> {
         let operand_stack_depth_mut = self.get_frame_info_mut().operand_stack_depth_mut();
         let current_depth = *operand_stack_depth_mut;
         if current_depth == 0 {
@@ -274,13 +298,28 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         *operand_stack_depth_mut -= 1;
         let new_current_depth = *operand_stack_depth_mut;
-        self.get_frame_info_mut().pop_operand_stack().unwrap();
+        let type_ = self.get_frame_info_mut().pop_operand_stack().unwrap();
         let operand_stack_base = self.get_operand_stack_base();
         let target = unsafe { operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize) };
-        Some(Self::read_target(jvm, target, expected_type))
+        let res = Self::read_target(jvm, target, expected_type.unwrap_or(type_.clone()));
+        // match type_ {
+        //     PTypeView::NullType => {
+        //         if jvm.vm_live() {
+        //             match res {
+        //                 JavaValue::Object(None) => {}
+        //                 _ => {
+        //                     dbg!(res.to_type());
+        //                     panic!()}
+        //             }
+        //         }
+        //     }
+        //     _ => {}
+        // }
+        Some(res)
     }
 
     pub fn set_local_var(&mut self, jvm: &'gc_life JVMState<'gc_life>, i: u16, jv: JavaValue<'gc_life>) {
+        self.get_frame_info_mut().set_local_var_type(jv.to_type(), i as usize);
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::write_target(target, jv)
     }
@@ -306,6 +345,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
             FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types
         };
+        assert_eq!(self.operand_stack_length() as usize, operand_stack_types.len());
         let operand_stack = operand_stack_types.iter().enumerate().map(|(i, ptype)| {
             self.get_operand_stack(jvm, i as u16, ptype.clone())
         }).rev().collect_vec();
@@ -539,7 +579,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         }
     }
 
-    pub fn pop(&mut self, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn pop(&mut self, expected_type: Option<PTypeView>) -> JavaValue<'gc_life> {
         match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 entry.pop()
@@ -626,6 +666,22 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
             }
         }
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            LocalVarsRef::Jit { frame_view, .. } => {
+                match frame_view.get_frame_info() {
+                    FrameInfo::FullyOpaque { .. } => panic!(),
+                    FrameInfo::Native { .. } => panic!(),
+                    FrameInfo::JavaFrame { num_locals, locals_types, .. } => {
+                        assert_eq!(locals_types.len(), *num_locals as usize);
+
+                        *num_locals as usize
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub enum OperandStackRef<'gc_life, 'l, 'k> {
@@ -667,6 +723,25 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
             }
         }
     }
+
+    pub fn types(&self) -> Vec<PTypeView> {
+        match self {
+            OperandStackRef::Jit { frame_view, .. } => {
+                match frame_view.get_frame_info() {
+                    FrameInfo::FullyOpaque { .. } => panic!(),
+                    FrameInfo::Native { .. } => panic!(),
+                    FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types.clone()
+                }
+            }
+        }
+    }
+    pub fn types_vals(&self) -> Vec<JavaValue<'gc_life>> {
+        match self {
+            OperandStackRef::Jit { frame_view, jvm } => {
+                frame_view.as_stack_entry_partially_correct(jvm).operand_stack.clone()
+            }
+        }
+    }
 }
 
 pub enum OperandStackMut<'gc_life, 'l, 'k> {
@@ -691,7 +766,7 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
         }
     }
 
-    pub fn pop(&mut self, ptypeview: PTypeView) -> Option<JavaValue<'gc_life>> {
+    pub fn pop(&mut self, ptypeview: Option<PTypeView>) -> Option<JavaValue<'gc_life>> {
         match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.pop()

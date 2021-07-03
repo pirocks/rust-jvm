@@ -30,9 +30,9 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     create_string_on_stack(jvm, int_state, key);
-    let key = int_state.pop_current_operand_stack(ClassName::object().into());
+    let key = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
     create_string_on_stack(jvm, int_state, val);
-    let val = int_state.pop_current_operand_stack(ClassName::object().into());
+    let val = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
     let prop_obj = match from_object(jvm, p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -46,7 +46,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
     invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth);
-    int_state.pop_current_operand_stack(ClassName::object().into());
+    int_state.pop_current_operand_stack(Some(ClassName::object().into()));
     Ok(p)
 }
 

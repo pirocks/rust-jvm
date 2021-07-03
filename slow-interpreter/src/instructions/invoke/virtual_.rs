@@ -121,7 +121,7 @@ pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let res_method = class_view.method_view_i(method_i);
         run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc_str())?;
         assert!(interpreter_state.throw().is_none());
-        let res = interpreter_state.pop_current_operand_stack(ClassName::object().into());
+        let res = interpreter_state.pop_current_operand_stack(Some(ClassName::object().into()));
         Ok(res)
     } else {
         unimplemented!()
@@ -135,7 +135,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
     }
     let mut i = 1;
     for ptype in expected_descriptor.parameter_types.iter().rev() {
-        let value = current_frame.pop(PTypeView::from_ptype(ptype));
+        let value = current_frame.pop(Some(PTypeView::from_ptype(ptype)));
         // dbg!(ptype);
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
@@ -152,7 +152,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
     if !expected_descriptor.parameter_types.is_empty() {
         args[1..i].reverse();
     }
-    args[0] = current_frame.pop(ClassName::object().into());
+    args[0] = current_frame.pop(Some(ClassName::object().into()));
 }
 
 

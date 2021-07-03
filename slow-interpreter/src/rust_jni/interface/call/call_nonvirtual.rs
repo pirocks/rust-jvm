@@ -281,7 +281,7 @@ unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jcl
     push_params_onto_frame(jvm, &mut vararg_provider, int_state, &method_desc);
     invoke_special_impl(jvm, int_state, &method_desc, i, rc)?;
     if !is_void {
-        int_state.pop_current_operand_stack(ClassName::object().into());
+        int_state.pop_current_operand_stack(Some(ClassName::object().into()));
     }
     Ok(JavaValue::Top)
 }

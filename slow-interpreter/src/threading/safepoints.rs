@@ -24,6 +24,7 @@ struct SafePointStopReasonState<'gc_life> {
     waiting_monitor_lock: Option<MonitorID>,
     waiting_monitor_notify: Option<MonitorWait>,
     suspended: bool,
+    gc_suspended: bool,
     parks: isize,
     park_until: Option<Instant>,
     throw_exception: Option<GcManagedObject<'gc_life>>,
@@ -36,6 +37,7 @@ impl<'gc_life> Default for SafePointStopReasonState<'gc_life> {
             waiting_monitor_lock: None,
             waiting_monitor_notify: None,
             suspended: false,
+            gc_suspended: false,
             parks: 0,
             park_until: None,
             throw_exception: None,
@@ -106,6 +108,27 @@ impl<'gc_life> SafePoint<'gc_life> {
         self.waiton.notify_one();
         Ok(())
     }
+
+    pub fn set_gc_suspended(&self) -> Result<(), SuspendError> {
+        let mut guard = self.state.lock().unwrap();
+        if guard.gc_suspended {
+            return Result::Err(SuspendError::AlreadySuspended);
+        }
+        guard.gc_suspended = true;
+        self.waiton.notify_one();
+        Ok(())
+    }
+
+    pub fn set_gc_unsuspended(&self) -> Result<(), ResumeError> {
+        let mut guard = self.state.lock().unwrap();
+        if !guard.gc_suspended {
+            return Result::Err(ResumeError::NotSuspended);
+        }
+        guard.gc_suspended = false;
+        self.waiton.notify_one();
+        Ok(())
+    }
+
 
     pub fn set_unsuspended(&self) -> Result<(), ResumeError> {
         let mut guard = self.state.lock().unwrap();
@@ -188,6 +211,15 @@ impl<'gc_life> SafePoint<'gc_life> {
 impl<'gc_life> SafePoint<'gc_life> {
     pub fn check(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
         let guard = self.state.lock().unwrap();
+
+        if guard.gc_suspended {
+            drop(int_state.int_state.take());
+            let _ = self.waiton.wait(guard).unwrap();
+            let current_thread = jvm.thread_state.get_current_thread();
+            let current_thread = current_thread.interpreter_state.write().unwrap();
+            unsafe { int_state.int_state = Some(transmute(current_thread)); }
+            return self.check(jvm, int_state);
+        }
 
         if let Some(exception) = &guard.throw_exception {
             int_state.set_throw(exception.clone().into());

@@ -23,5 +23,5 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         Ok(_) => {}
         Err(WasException {}) => return jboolean::invalid_default()
     };
-    (int_state.pop_current_operand_stack(ClassName::object().into()).unwrap_int() != 0) as jboolean
+    (int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_int() != 0) as jboolean
 }

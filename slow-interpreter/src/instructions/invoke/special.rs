@@ -46,6 +46,9 @@ pub fn invoke_special_impl(
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
+        // if jvm.vm_live(){
+        //     dbg!(parsed_descriptor);
+        // }
         setup_virtual_args(interpreter_state, &parsed_descriptor, &mut args, max_locals);
         assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);

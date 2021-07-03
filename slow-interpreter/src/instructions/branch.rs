@@ -10,7 +10,7 @@ pub fn goto_(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
 }
 
 pub fn ifnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(ClassName::object().into());
+    let val = current_frame.pop(Some(ClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
         _ => panic!()
@@ -21,7 +21,7 @@ pub fn ifnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
 }
 
 pub fn ifnonnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(ClassName::object().into());
+    let val = current_frame.pop(Some(ClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
         _ => panic!()
@@ -32,7 +32,7 @@ pub fn ifnonnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 }
 
 pub fn ifle(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() <= 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -40,7 +40,7 @@ pub fn ifle(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 }
 
 pub fn ifgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() > 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -48,7 +48,7 @@ pub fn ifgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 }
 
 pub fn ifge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() >= 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -56,7 +56,7 @@ pub fn ifge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 }
 
 pub fn iflt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -64,7 +64,7 @@ pub fn iflt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 }
 
 pub fn ifne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() != 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -73,7 +73,7 @@ pub fn ifne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 
 pub fn ifeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     //todo dup
-    let val = current_frame.pop(PTypeView::IntType);
+    let val = current_frame.pop(Some(PTypeView::IntType));
     let succeeds = val.unwrap_int() == 0;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -81,8 +81,8 @@ pub fn ifeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 }
 
 pub fn if_icmpgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 > value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -91,8 +91,8 @@ pub fn if_icmpgt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_icmplt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 < value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -101,8 +101,8 @@ pub fn if_icmplt(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_icmple(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 <= value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -110,8 +110,8 @@ pub fn if_icmple(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 }
 
 pub fn if_icmpge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 >= value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -120,8 +120,8 @@ pub fn if_icmpge(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_icmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 != value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -130,8 +130,8 @@ pub fn if_icmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_icmpeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::IntType).unwrap_int();
-    let value1 = current_frame.pop(PTypeView::IntType).unwrap_int();
+    let value2 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let value1 = current_frame.pop(Some(PTypeView::IntType)).unwrap_int();
     let succeeds = value1 == value2;
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -140,8 +140,8 @@ pub fn if_icmpeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_acmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::object());
-    let value1 = current_frame.pop(PTypeView::object());
+    let value2 = current_frame.pop(Some(PTypeView::object()));
+    let value1 = current_frame.pop(Some(PTypeView::object()));
     let succeeds = !equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
@@ -150,8 +150,8 @@ pub fn if_acmpne(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntr
 
 
 pub fn if_acmpeq(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let value2 = current_frame.pop(PTypeView::object());
-    let value1 = current_frame.pop(PTypeView::object());
+    let value2 = current_frame.pop(Some(PTypeView::object()));
+    let value1 = current_frame.pop(Some(PTypeView::object()));
     let succeeds = equal_ref(value2, value1);
     if succeeds {
         *current_frame.pc_offset_mut() = offset as i32;
