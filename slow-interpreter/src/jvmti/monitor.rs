@@ -162,7 +162,12 @@ pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMo
         None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
-    monitor.wait(jvm, int_state, Some(Duration::from_millis(millis as u64))).unwrap();//todo handle interrupted waits at a later date
+    let duration = if millis == 0 {
+        None
+    } else {
+        Some(Duration::from_millis(millis as u64))
+    };//todo dup, everywhere we call wait
+    monitor.wait(jvm, int_state, duration).unwrap();//todo handle interrupted waits at a later date
     jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

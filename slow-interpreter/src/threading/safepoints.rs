@@ -76,6 +76,7 @@ impl<'gc_life> SafePoint<'gc_life> {
     pub fn set_waiting_notify(&self, monitor: MonitorID, wait_until: Option<Instant>, prev_count: usize) {
         let mut guard = self.state.lock().unwrap();
         assert!(guard.waiting_monitor_notify.is_none());
+        dbg!(&wait_until);
         guard.waiting_monitor_notify = Some(MonitorWait { wait_until, monitor, prev_count });
         self.waiton.notify_one();
     }
@@ -337,6 +338,8 @@ impl Monitor2 {
                 }
             }
         } else {
+            int_state.debug_print_stack_trace(jvm);
+            dbg!(guard.owner);
             todo!("illegal monitor state")
         }
         drop(guard);
@@ -378,7 +381,6 @@ impl Monitor2 {
             guard.waiting_notify.push(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
         } else {
-            dbg!(guard.owner);
             int_state.debug_print_stack_trace(jvm);
             todo!("throw illegal monitor state")
         }

@@ -105,7 +105,7 @@ impl<'gc_life> GC<'gc_life> {
         let all_objs = self.all_allocated_object.read().unwrap();
         let to_frees = all_objs.difference(&visited).cloned().collect_vec();
         for to_free in to_frees.iter() {
-            eprintln!("Freeing:{:?}", to_free.as_ptr());
+            // eprintln!("Freeing:{:?}", to_free.as_ptr());
             drop(unsafe { Box::from_raw(to_free.as_ptr()) })
         }
         drop(all_objs);
@@ -658,7 +658,6 @@ impl<'gc_life> JavaValue<'gc_life> {
                     None => PTypeView::NullType,
                     Some(not_null) => {
                         // dbg!(not_null.raw_ptr.as_ptr());
-                        not_null.self_check();
                         PTypeView::Ref(match not_null.deref() {
                             Object::Array(array) => {
                                 ReferenceTypeView::Array(array.elem_type.clone().into())
@@ -1089,7 +1088,7 @@ impl<'gc_life> NormalObject<'gc_life> {
         // }
         let res = unsafe { Self::get_var_impl(self, jvm, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), &name, true) };
         // self.expected_type_check(class_pointer, expected_type, name, &res);
-        res.self_check();
+        // res.self_check();
         res
     }
 

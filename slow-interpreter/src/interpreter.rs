@@ -213,8 +213,8 @@ fn run_single_instruction(
 ) {
     unsafe {
         TIMES += 1;
-        if TIMES % 100000000 == 0 && jvm.vm_live() && jvm.thread_state.get_main_thread().is_this_thread() {
-            // interpreter_state.debug_print_stack_trace(jvm);
+        if TIMES % 10_000_000 == 0 && jvm.vm_live() && jvm.thread_state.get_main_thread().is_this_thread() {
+            interpreter_state.debug_print_stack_trace(jvm);
             //todo this thread suspension stuff is mega sketch
             drop(interpreter_state.int_state.take());
             jvm.gc.gc_jvm(jvm);

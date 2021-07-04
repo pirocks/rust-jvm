@@ -35,7 +35,6 @@ bimap = "0.5.2"
 itertools = "0.10.0"
 closure = "0.3.0"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
-jemallocator = "0.3.2"
 
 [build-dependencies]
 bindgen = "0.53.2"

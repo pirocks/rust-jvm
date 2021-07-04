@@ -184,7 +184,6 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                             (target as *mut jobject).write(null_mut())
                         }
                         Some(val) => {
-                            val.self_check();
                             (target as *mut jobject).write(val.raw_ptr_usize() as jobject);
                             // eprintln!("Write:{:?}", target as *mut jobject)
                         }
@@ -232,7 +231,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                         }
                         Some(ptr) => {
                             let res = JavaValue::Object(GcManagedObject::from_native(ptr, &jvm.gc).into());
-                            res.self_check();
+                            // res.self_check();
                             res
                         }
                     }
@@ -278,9 +277,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     pub fn push_operand_stack(&mut self, j: JavaValue<'gc_life>) {
-        let _header = self.get_header();
-        let frame_info = self.get_frame_info_mut();
-        frame_info.push_operand_stack(j.to_type());
+        self.get_frame_info_mut().push_operand_stack(j.to_type());
         // dbg!(self.get_frame_ptrs());
         let operand_stack_depth = self.get_frame_info_mut().operand_stack_depth_mut();
         let current_depth = *operand_stack_depth;

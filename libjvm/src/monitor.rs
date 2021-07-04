@@ -10,7 +10,12 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     let int_state = get_interpreter_state(env);
     let monitor_obj = from_object(jvm, obj).expect("null monitor?");
     let monitor_to_wait = monitor_obj.monitor();
-    monitor_to_wait.wait(jvm, int_state, Some(Duration::from_millis(ms as u64)));
+    let duration = if ms == 0 {
+        None
+    } else {
+        Some(Duration::from_millis(ms as u64))
+    };
+    monitor_to_wait.wait(jvm, int_state, duration);
 }
 
 #[no_mangle]

@@ -41,7 +41,7 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => {
-            o.self_check();
+            // o.self_check();
             let res = o.raw_ptr_usize() as *mut _jobject;
             res
         }

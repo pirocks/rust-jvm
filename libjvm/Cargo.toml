@@ -27,4 +27,3 @@ nix = "0.17.0"
 by_address = "1.0.4"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 itertools = "0.10.0"
-jemallocator = "0.3.2"
