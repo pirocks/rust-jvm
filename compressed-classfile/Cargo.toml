@@ -1,0 +1,8 @@
+[package]
+name = "compressed-classfile"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+rust-jvm-common = { path = "../rust-jvm-common" }
+add-only-static-vec = { path = "../add-only-static-vec" }

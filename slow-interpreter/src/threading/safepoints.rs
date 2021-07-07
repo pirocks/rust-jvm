@@ -214,11 +214,15 @@ impl<'gc_life> SafePoint<'gc_life> {
         let guard = self.state.lock().unwrap();
 
         if guard.gc_suspended {
+            dbg!(&guard.waiting_monitor_notify);
+            dbg!("gc suspended");
             drop(int_state.int_state.take());
-            let _ = self.waiton.wait(guard).unwrap();
+            let guard = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = current_thread.interpreter_state.write().unwrap();
             unsafe { int_state.int_state = Some(transmute(current_thread)); }
+            dbg!(&guard.waiting_monitor_notify);
+            drop(guard);
             return self.check(jvm, int_state);
         }
 
@@ -273,6 +277,7 @@ impl<'gc_life> SafePoint<'gc_life> {
                 let monitor = &monitors_gaurd[monitor];
                 drop(guard);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
+                self.check(jvm, int_state);
             } else {
                 drop(guard);//shouldn't need these but they are here for now b/c I'm paranoid
             }
@@ -375,8 +380,8 @@ impl Monitor2 {
             Some(wait_until) => wait_until,
         });
         let current_thread = jvm.thread_state.get_current_thread();
+        let prev_count = guard.count;
         if guard.owner == current_thread.java_tid.into() {
-            let prev_count = guard.count;
             guard.owner = None;
             guard.waiting_notify.push(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
@@ -386,6 +391,8 @@ impl Monitor2 {
         }
         drop(guard);
         safepoint_check(jvm, int_state).unwrap();
+        assert_eq!(self.monitor2_priv.read().unwrap().owner, current_thread.java_tid.into());
+        assert_eq!(self.monitor2_priv.read().unwrap().count, prev_count);
         Ok(())
     }
 

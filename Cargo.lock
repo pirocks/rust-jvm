@@ -11,6 +11,9 @@ checksum = "955f37ac58af2416bac687c8ab66a4ccba282229bd7422a28d2281a5e66a6116"
 [[package]]
 name = "add-only-static-vec"
 version = "0.1.0"
+dependencies = [
+    "static-rc",
+]
 
 [[package]]
 name = "adler"
@@ -231,13 +234,21 @@ version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
- "bitflags",
+    "bitflags",
 ]
 
 [[package]]
 name = "compiler_builtins"
 version = "0.1.45"
 source = "git+https://github.com/rust-lang/compiler-builtins#8ec7648739c03d4cf7f7a2cfeb42fefaa0972359"
+
+[[package]]
+name = "compressed-classfile"
+version = "0.1.0"
+dependencies = [
+    "add-only-static-vec",
+    "rust-jvm-common",
+]
 
 [[package]]
 name = "const_fn"
@@ -1212,8 +1223,14 @@ version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e113fb6f3de07a243d434a56ec6f186dfd51cb08448239fe7bcae73f87ff28ff"
 dependencies = [
- "version_check",
+    "version_check",
 ]
+
+[[package]]
+name = "static-rc"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80d794b4356c4963c73cda00eb2ad18cd560003ed6183803566c9a423c12f33c"
 
 [[package]]
 name = "static_assertions"
