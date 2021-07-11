@@ -95,7 +95,7 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
             ConstantInfoView::MethodType(mt) => BootstrapArgView::MethodType(mt),
             ConstantInfoView::MethodHandle(mh) => BootstrapArgView::MethodHandle(mh),
             ConstantInfoView::String(s) => BootstrapArgView::String(s),
-            other => {
+            _other => {
                 unimplemented!()
             }
         }.into();

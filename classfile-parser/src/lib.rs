@@ -3,6 +3,7 @@
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
+use rust_jvm_common::EXPECTED_CLASSFILE_MAGIC;
 use rust_jvm_common::loading::ClassfileParsingError;
 use rust_jvm_common::loading::ClassfileParsingError::WrongMagic;
 
@@ -14,8 +15,6 @@ use crate::parsing_util::ReadParsingContext;
 pub mod attribute_infos;
 pub mod code;
 pub mod constant_infos;
-
-const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
 
 mod parsing_util;

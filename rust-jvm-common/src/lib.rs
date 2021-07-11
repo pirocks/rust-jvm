@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
-
+#[allow(unreachable_code)]
+#[allow(dead_code)]
 pub mod classfile;
 pub mod ptype;
 pub mod classnames;
@@ -11,3 +12,4 @@ pub mod vtype;
 pub mod loading;
 pub mod compressed_classfile;
 
+pub const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;

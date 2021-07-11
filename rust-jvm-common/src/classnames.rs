@@ -193,6 +193,9 @@ impl ClassName {
     pub fn classloader() -> Self {
         Self::new("java/lang/ClassLoader")
     }
+    pub fn stack_trace_element() -> Self {
+        Self::new("java/lang/StackTraceElement")
+    }
 }
 
 impl Hash for ClassName {

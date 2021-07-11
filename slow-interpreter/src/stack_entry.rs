@@ -25,6 +25,7 @@ use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
+use crate::runtime_type::RuntimeType;
 use crate::rust_jni::native_util::{from_object, to_object};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -287,7 +288,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Self::write_target(target, j)
     }
 
-    pub fn pop_operand_stack(&mut self, jvm: &'gc_life JVMState<'gc_life>, expected_type: Option<PTypeView>) -> Option<JavaValue<'gc_life>> {
+    pub fn pop_operand_stack(&mut self, jvm: &'gc_life JVMState<'gc_life>, expected_type: Option<RuntimeType>) -> Option<JavaValue<'gc_life>> {
         let operand_stack_depth_mut = self.get_frame_info_mut().operand_stack_depth_mut();
         let current_depth = *operand_stack_depth_mut;
         if current_depth == 0 {
@@ -763,13 +764,13 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
         }
     }
 
-    pub fn pop(&mut self, ptypeview: Option<PTypeView>) -> Option<JavaValue<'gc_life>> {
+    pub fn pop(&mut self, rtype: Option<RuntimeType>) -> Option<JavaValue<'gc_life>> {
         match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.pop()
             }*/
             OperandStackMut::Jit { frame_view, jvm } => {
-                frame_view.pop_operand_stack(jvm, ptypeview)
+                frame_view.pop_operand_stack(jvm, rtype)
             }
         }
     }

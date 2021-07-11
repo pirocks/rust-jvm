@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CCString};
+use rust_jvm_common::compressed_classfile::CCString;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;

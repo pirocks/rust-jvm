@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::ops::Range;
 
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, InvokeDynamic, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use rust_jvm_common::EXPECTED_CLASSFILE_MAGIC;
 use sketch_jvm_version_of_utf8::ValidationError;
 
-use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::parse_validation::ClassfileError::{BadConstantPoolEntry, ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;

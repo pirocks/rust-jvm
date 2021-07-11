@@ -18,6 +18,7 @@ pub mod protection_domain {
 
 pub mod access_control_context {
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
@@ -39,10 +40,10 @@ pub mod access_control_context {
 
     impl<'gc_life> AccessControlContext<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, protection_domains: Vec<ProtectionDomain<'gc_life>>) -> Result<Self, WasException> {
-            let access_control_context_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/security/AccessControlContext".to_string()).into());
+            let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::Str("java/security/AccessControlContext".to_string()).into());
             push_new_object(jvm, int_state, &access_control_context_class);
-            let access_control_object = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
-            let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.into_iter().map(|pd| pd.java_value()).collect(), ClassName::new("java/security/ProtectionDomain").into());
+            let access_control_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+            let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.into_iter().map(|pd| pd.java_value()).collect(), CClassName::new("java/security/ProtectionDomain").into());
             run_constructor(jvm, int_state, access_control_context_class, vec![access_control_object.clone(), pds_jv],
                             "([Ljava/security/ProtectionDomain;)V".to_string())?;
             Ok(access_control_object.cast_access_control_context())

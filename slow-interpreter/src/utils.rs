@@ -3,6 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 
 use crate::class_loading::assert_inited_or_initing_class;
@@ -25,11 +26,11 @@ use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     lookup_method_parsed_impl(jvm, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &MethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(&name);
     let filtered = posible_methods.into_iter().filter(|m| {

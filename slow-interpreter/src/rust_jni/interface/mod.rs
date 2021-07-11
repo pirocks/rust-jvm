@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::fs::File;
-use std::intrinsics::size_of;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
@@ -23,7 +22,6 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
-use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;

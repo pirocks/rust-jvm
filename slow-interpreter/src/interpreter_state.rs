@@ -1,24 +1,22 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
 
-use itertools::{Either, Itertools};
+use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout, StackframeMemoryLayout};
+use classfile_view::view::ptype_view::PTypeView;
+use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
-use rust_jvm_common::vtype::VType;
-use verification::OperandStack;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
+use crate::runtime_type::RuntimeType;
 use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
@@ -126,7 +124,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         self.current_frame_mut().push(jval)
     }
 
-    pub fn pop_current_operand_stack(&mut self, expected_type: Option<PTypeView>) -> JavaValue<'gc_life> {
+    pub fn pop_current_operand_stack(&mut self, expected_type: Option<RuntimeType>) -> JavaValue<'gc_life> {
         self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
     }
 
@@ -375,13 +373,14 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 let type_ = stack_entry.class_pointer().view().type_();
                 let view = stack_entry.class_pointer().view();
                 let method_view = view.method_view_i(stack_entry.method_i());
-                let meth_name = method_view.name();
+                let meth_name = method_view.name().to_str(&jvm.string_pool);
+                let method_desc_str = method_view.desc_str().to_str(&jvm.string_pool);
                 if method_view.is_native() {
-                    println!("{:?}.{} {} {}", type_, meth_name, method_view.desc_str(), i)
+                    println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
                     println!("{:?}.{} {} {} pc: {} {}", type_
                              , meth_name,
-                             method_view.desc_str(), i, stack_entry
+                             method_desc_str, i, stack_entry
                                  .pc(), stack_entry.loader())
                 }
             } else {

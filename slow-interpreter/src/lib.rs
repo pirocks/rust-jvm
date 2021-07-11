@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(box_syntax)]
@@ -23,7 +24,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function, WasException};

@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::view::ClassView;
@@ -7,9 +6,10 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassName, CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 use rust_jvm_common::descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
-use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
+use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;

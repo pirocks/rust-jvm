@@ -3,7 +3,7 @@ use rust_jvm_common::classnames::ClassName;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java::util::properties::Properties;
-use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::java_values::{GcManagedObject, JavaValue};
 
 pub struct System<'gc_life> {
     normal_object: GcManagedObject<'gc_life>,

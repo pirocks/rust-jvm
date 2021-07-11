@@ -1,4 +1,3 @@
-use rust_jvm_common::classfile::FieldInfo;
 use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 

@@ -1,11 +1,9 @@
 use std::rc::Rc;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CPDType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 

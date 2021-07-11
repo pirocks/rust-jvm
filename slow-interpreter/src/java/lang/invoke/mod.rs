@@ -3,6 +3,7 @@ pub mod method_type {
 
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
     use rust_jvm_common::ptype::PType;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -32,9 +33,9 @@ pub mod method_type {
         pub fn from_method_descriptor_string(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str: JString<'gc_life>, class_loader: Option<ClassLoader<'gc_life>>) -> Result<MethodType<'gc_life>, WasException> {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(todo!()/*None*/)));
-            let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, ClassName::method_type().into());
+            let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::method_type().into())).cast_method_type())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
         pub fn set_rtype(&self, rtype: JClass<'gc_life>) {
@@ -107,11 +108,11 @@ pub mod method_type {
         }
 
         pub fn parameter_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, int: jint) -> Result<JClass<'gc_life>, WasException> {
-            let method_type = assert_inited_or_initing_class(jvm, ClassName::method_type().into());
+            let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(JavaValue::Int(int));
             run_static_or_virtual(jvm, int_state, &method_type, "parameterType".to_string(), "(I)Ljava/lang/Class;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::class().into())).cast_class().unwrap())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap())
         }
 
         pub fn new(
@@ -124,9 +125,9 @@ pub mod method_type {
             invokers: JavaValue<'gc_life>,
             method_descriptor: JavaValue<'gc_life>,
         ) -> MethodType<'gc_life> {
-            let method_type = assert_inited_or_initing_class(jvm, ClassName::method_type().into());
+            let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             push_new_object(jvm, int_state, &method_type);
-            let res = int_state.pop_current_operand_stack(Some(ClassName::method_type().into())).cast_method_type();
+            let res = int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type();
             let ptypes_arr = JavaValue::Object(todo!()/*Some(Arc::new(
                 Object::Array(ArrayObject {
                     elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value()).collect::<Vec<_>>()),
@@ -149,7 +150,7 @@ pub mod method_type {
 
 pub mod method_type_form {
     use jvmti_jni_bindings::jlong;
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_state::InterpreterStateGuard;
@@ -212,9 +213,9 @@ pub mod method_type_form {
                    basic_type: Option<MethodType<'gc_life>>,
                    method_handles: JavaValue<'gc_life>,
                    lambda_forms: JavaValue<'gc_life>) -> MethodTypeForm<'gc_life> {
-            let method_type_form = assert_inited_or_initing_class(jvm, ClassName::method_type_form().into());
+            let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
             push_new_object(jvm, int_state, &method_type_form);
-            let res = int_state.pop_current_operand_stack(Some(ClassName::method_type_form().into())).cast_method_type_form();
+            let res = int_state.pop_current_operand_stack(Some(CClassName::method_type_form().into())).cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
             res.set_slot_to_arg_table(slot_to_arg_table);
             res.set_arg_counts(arg_counts);
@@ -235,7 +236,7 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -260,21 +261,21 @@ pub mod method_handle {
 
     impl<'gc_life> MethodHandle<'gc_life> {
         pub fn lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Lookup<'gc_life>, WasException> {
-            let method_handles_class = assert_inited_or_initing_class(jvm, ClassName::method_handles().into());
+            let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
             run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::method_handles().into())).cast_lookup())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup())
         }
         pub fn public_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Lookup<'gc_life>, WasException> {
-            let method_handles_class = assert_inited_or_initing_class(jvm, ClassName::method_handles().into());
+            let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
             run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::method_handles().into())).cast_lookup())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup())
         }
 
         pub fn internal_member_name(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MemberName<'gc_life>, WasException> {
-            let method_handle_class = assert_inited_or_initing_class(jvm, ClassName::method_handle().into());
+            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MemberName;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::method_handle().into())).cast_member_name())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handle().into())).cast_member_name())
         }
 
         pub fn type__(&self, jvm: &'gc_life JVMState<'gc_life>) -> MethodType<'gc_life> {
@@ -282,10 +283,10 @@ pub mod method_handle {
         }
 
         pub fn type_(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
-            let method_handle_class = assert_inited_or_initing_class(jvm, ClassName::method_type().into());
+            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(jvm, int_state, &method_handle_class, "type".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::method_type().into())).cast_method_type())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
 
@@ -312,7 +313,7 @@ pub mod method_handle {
 
 pub mod method_handles {
     pub mod lookup {
-        use rust_jvm_common::classnames::ClassName;
+        use rust_jvm_common::compressed_classfile::names::CClassName;
 
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::interpreter::WasException;
@@ -338,41 +339,41 @@ pub mod method_handles {
 
         impl<'gc_life> Lookup<'gc_life> {
             pub fn trusted_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Self {
-                let lookup = assert_inited_or_initing_class(jvm, ClassName::lookup().into());
+                let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let static_vars = lookup.static_vars();
                 static_vars.get("IMPL_LOOKUP").unwrap().cast_lookup()
             }
 
             pub fn find_virtual(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
-                let lookup_class = assert_inited_or_initing_class(jvm, ClassName::lookup().into());
+                let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
                 run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-                Ok(int_state.pop_current_operand_stack(Some(ClassName::lookup().into())).cast_method_handle())
+                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
 
             pub fn find_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
-                let lookup_class = assert_inited_or_initing_class(jvm, ClassName::lookup().into());
+                let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
                 run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-                Ok(int_state.pop_current_operand_stack(Some(ClassName::lookup().into())).cast_method_handle())
+                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
             pub fn find_special(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>, special_caller: JClass<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
-                let lookup_class = assert_inited_or_initing_class(jvm, ClassName::lookup().into());
+                let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
                 int_state.push_current_operand_stack(special_caller.java_value());
                 run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
-                Ok(int_state.pop_current_operand_stack(Some(ClassName::lookup().into())).cast_method_handle())
+                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
             as_object_or_java_value!();
@@ -387,7 +388,7 @@ pub mod lambda_form {
     use crate::jvm_state::JVMState;
 
     pub mod named_function {
-        use rust_jvm_common::classnames::ClassName;
+        use rust_jvm_common::compressed_classfile::names::CClassName;
 
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::interpreter::WasException;
@@ -429,10 +430,10 @@ pub mod lambda_form {
             }
 
             pub fn method_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> { // java.lang.invoke.LambdaForm.NamedFunction
-                let named_function_type = assert_inited_or_initing_class(jvm, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into());
+                let named_function_type = assert_inited_or_initing_class(jvm, CClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
-                Ok(int_state.pop_current_operand_stack(Some(ClassName::method_type().into())).cast_method_type())
+                Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
             }
         }
     }
@@ -642,6 +643,7 @@ pub mod lambda_form {
 
 pub mod call_site {
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
     use rust_jvm_common::descriptor_parser::MethodDescriptor;
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -666,10 +668,10 @@ pub mod call_site {
 
     impl<'gc_life> CallSite<'gc_life> {
         pub fn get_target(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodHandle<'gc_life>, WasException> {
-            let _call_site_class = assert_inited_or_initing_class(jvm, ClassName::Str("java/lang/invoke/CallSite".to_string()).into());
+            let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) })?;
-            Ok(int_state.pop_current_operand_stack(Some(ClassName::object().into())).cast_method_handle())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 
         as_object_or_java_value!();

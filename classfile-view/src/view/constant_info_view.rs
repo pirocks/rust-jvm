@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;

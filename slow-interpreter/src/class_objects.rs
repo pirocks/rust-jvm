@@ -1,6 +1,7 @@
 use by_address::ByAddress;
 
 use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -9,7 +10,7 @@ use crate::interpreter::WasException;
 use crate::java_values::{GcManagedObject, Object};
 
 pub fn get_or_create_class_object(jvm: &'gc_life JVMState<'gc_life>,
-                                  type_: PTypeView,
+                                  type_: CPDType,
                                   int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
 ) -> Result<GcManagedObject<'gc_life>, WasException> {
     get_or_create_class_object_force_loader(jvm, type_, int_state, int_state.current_loader())

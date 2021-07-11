@@ -1117,7 +1117,7 @@ impl<'gc_life> NormalObject<'gc_life> {
     }*/
 
 
-    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, expected_type: CPDType) -> JavaValue<'gc_life> {
         // if !self.type_check(class_pointer.clone()) {
         //     dbg!(name);
         //     dbg!(class_pointer.view().name());

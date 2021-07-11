@@ -6,7 +6,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, GcManagedObject, JavaValue, Object};
+use crate::java_values::{default_value, GcManagedObject, JavaValue};
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state

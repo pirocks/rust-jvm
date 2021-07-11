@@ -3,6 +3,8 @@ use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -69,7 +71,7 @@ fn get_signature(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
 }
 
 fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
-    let class_type: PTypeView = ClassName::class().into();
+    let class_type: CPDType = CClassName::class().into();
     let empty_vec = vec![];
     let types_iter = method_view.code_attribute()
         .map(|x| &x.exception_table)
@@ -100,10 +102,10 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
 }
 
 fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
-    let class_type: PTypeView = ClassName::class().into();
+    let class_type: CPDType = CClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
-    for param_type in parsed.parameter_types {
+    for param_type in parsed.arg_types {
         res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type))?.java_value());
     }
 
@@ -123,6 +125,7 @@ pub mod method {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -154,19 +157,19 @@ pub mod method {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack(Some(ClassName::class().into())).cast_class().unwrap()
+                int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
                 if name == "<init>" {
                     return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, name)?.intern(jvm, int_state)?
+                JString::from_rust(jvm, int_state, name.to_str(&jvm.string_pool))?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {
-                let rtype = method_view.desc().return_type;
-                JClass::from_type(jvm, int_state, PTypeView::from_ptype(&rtype))?
+                let cpdtype = method_view.desc().return_type;
+                JClass::from_type(jvm, int_state, cpdtype)?
             };
             let exception_types = exception_types_table(jvm, int_state, &method_view)?;
             let modifiers = get_modifiers(&method_view);
@@ -193,9 +196,9 @@ pub mod method {
                           parameter_annotations: JavaValue<'gc_life>,
                           annotation_default: JavaValue<'gc_life>,
         ) -> Result<Method<'gc_life>, WasException> {
-            let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into()).unwrap();
+            let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
             push_new_object(jvm, int_state, &method_class);
-            let method_object = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+            let method_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             let full_args = vec![method_object.clone(),
                                  clazz.java_value(),
                                  name.java_value(),
@@ -269,6 +272,7 @@ pub mod constructor {
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -299,7 +303,7 @@ pub mod constructor {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
                 load_class_constant_by_type(jvm, int_state, field_class_type)?;
-                int_state.pop_current_operand_stack(Some(ClassName::class().into())).cast_class().unwrap()
+                int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
@@ -322,9 +326,9 @@ pub mod constructor {
             slot: jint,
             signature: JString<'gc_life>,
         ) -> Result<Constructor<'gc_life>, WasException> {
-            let constructor_class = check_initing_or_inited_class(jvm, int_state, ClassName::constructor().into())?;
+            let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
             push_new_object(jvm, int_state, &constructor_class);
-            let constructor_object = int_state.pop_current_operand_stack(Some(ClassName::constructor().into()));
+            let constructor_object = int_state.pop_current_operand_stack(Some(CClassName::constructor().into()));
 
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
@@ -388,6 +392,7 @@ pub mod field {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
@@ -419,9 +424,9 @@ pub mod field {
             signature: JString<'gc_life>,
             annotations: Vec<JavaValue<'gc_life>>,
         ) -> Result<Self, WasException> {
-            let field_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::field().into())?;
+            let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
             push_new_object(jvm, int_state, &field_classfile);
-            let field_object = int_state.pop_current_operand_stack(Some(ClassName::field().into()));
+            let field_object = int_state.pop_current_operand_stack(Some(CClassName::field().into()));
 
 
             let modifiers = JavaValue::Int(modifiers);
@@ -460,6 +465,7 @@ pub mod field {
 
 pub mod constant_pool {
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -481,9 +487,9 @@ pub mod constant_pool {
 
     impl<'gc_life> ConstantPool<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
-            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, ClassName::new("java/lang/reflect/ConstantPool").into())?;
+            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
             push_new_object(jvm, int_state, &constant_pool_classfile);
-            let constant_pool_object = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+            let constant_pool_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(class);
             Ok(res)

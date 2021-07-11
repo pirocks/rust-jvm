@@ -6,7 +6,8 @@ use std::hash::{Hash, Hasher};
 
 use sketch_jvm_version_of_utf8::ValidationError;
 
-use crate::compressed_classfile::{CClassName, CPRefType};
+use crate::compressed_classfile::CPRefType;
+use crate::compressed_classfile::names::CClassName;
 
 pub trait LivePoolGetter {
     fn elem_type(&self, idx: usize) -> CPRefType;

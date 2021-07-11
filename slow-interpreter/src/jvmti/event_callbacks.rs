@@ -8,8 +8,7 @@ use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 
 use jvmti_jni_bindings::*;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JavaThread, JVMState};

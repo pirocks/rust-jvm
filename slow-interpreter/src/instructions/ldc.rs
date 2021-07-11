@@ -1,6 +1,7 @@
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -21,7 +22,7 @@ fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Int
     Ok(())
 }
 
-pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: PTypeView) -> Result<(), WasException> {
+pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: CPDType) -> Result<(), WasException> {
     let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
     Ok(())

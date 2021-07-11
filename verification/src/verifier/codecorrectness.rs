@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::option::Option::Some;
 use std::rc::Rc;
 
@@ -6,9 +5,7 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassName};
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 

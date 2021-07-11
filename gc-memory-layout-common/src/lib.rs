@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![feature(destructuring_assignment)]
 
 use std::collections::{HashMap, HashSet};

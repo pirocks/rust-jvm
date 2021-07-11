@@ -5,9 +5,7 @@ use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{AppendFrame, AttributeType, ChopFrame, Code, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::*;
-use rust_jvm_common::vtype::VType;
 
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;

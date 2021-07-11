@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
-use std::sync::RwLock;
 
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 

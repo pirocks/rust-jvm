@@ -3,7 +3,8 @@ use std::ops::Deref;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use rust_jvm_common::compressed_classfile::{CClassName, CCString, CPDType};
+use rust_jvm_common::compressed_classfile::{CCString, CPDType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;

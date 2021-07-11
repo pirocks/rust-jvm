@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool};
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
 

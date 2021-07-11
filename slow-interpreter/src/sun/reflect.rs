@@ -1,14 +1,14 @@
 pub mod reflection {
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jboolean;
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::runtime_type::RuntimeType;
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc_life> {
@@ -23,11 +23,11 @@ pub mod reflection {
 
     impl<'gc_life> Reflection<'gc_life> {
         pub fn is_same_class_package(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class1: JClass<'gc_life>, class2: JClass<'gc_life>) -> Result<jboolean, WasException> {
-            let reflection = check_initing_or_inited_class(jvm, int_state, ClassName::Str("sun/reflect/Reflection".to_string()).into())?;
+            let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value());//I hope these are in the right order, but it shouldn't matter
             run_static_or_virtual(jvm, int_state, &reflection, "isSameClassPackage".to_string(), "(Ljava/lang/Class;Ljava/lang/Class;)Z".to_string())?;
-            Ok(int_state.pop_current_operand_stack(Some(PTypeView::BooleanType)).unwrap_boolean())
+            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean())
         }
 
         as_object_or_java_value!();

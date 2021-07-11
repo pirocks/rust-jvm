@@ -4,6 +4,7 @@ use itertools::Itertools;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -26,6 +27,7 @@ pub mod dynamic {
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
     use classfile_view::view::ptype_view::PTypeView;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::names::CClassName;
     use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
     use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -50,17 +52,17 @@ pub mod dynamic {
         let method_handle_class = check_initing_or_inited_class(
             jvm,
             int_state,
-            ClassName::method_handle().into(),
+            CClassName::method_handle().into(),
         )?;
         let _method_type_class = check_initing_or_inited_class(
             jvm,
             int_state,
-            ClassName::method_type().into(),
+            CClassName::method_type().into(),
         )?;
         let _call_site_class = check_initing_or_inited_class(
             jvm,
             int_state,
-            ClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
+            CClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
         )?;
         let class_pointer_view = int_state.current_class_view(jvm).clone();
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
@@ -128,7 +130,7 @@ pub mod dynamic {
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
-        let call_site = int_state.pop_current_operand_stack(Some(ClassName::object().into())).cast_call_site();
+        let call_site = int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
@@ -147,7 +149,7 @@ pub mod dynamic {
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
-        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(ClassName::object())) }, method_handle_class, invoke)?;
+        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(CClassName::object())) }, method_handle_class, invoke)?;
 
         assert!(int_state.throw().is_none());
 
@@ -204,7 +206,7 @@ pub mod dynamic {
 fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, String, MethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
-    let class_name_ = match class_name_type {
+    let class_name_ = match CPDType::from_ptype(&class_name_type.to_ptype(), &jvm.string_pool) {
         PTypeView::Ref(r) => match r {
             ReferenceTypeView::Class(c) => c,
             ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {

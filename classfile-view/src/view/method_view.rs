@@ -1,10 +1,9 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CClassName, CCString, CMethodDescriptor, CPDType};
-use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::descriptor_parser::{FieldDescriptor, parse_field_descriptor};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
-use crate::view::ptype_view::PTypeView;
 
 pub struct MethodView<'cl> {
     pub(crate) class_view: &'cl ClassBackedView,
