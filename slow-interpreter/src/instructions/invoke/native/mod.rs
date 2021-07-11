@@ -131,7 +131,7 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
             }
             Some(class) => class
         };
-        let ptype = jclass.as_runtime_class(jvm).ptypeview();
+        let ptype = jclass.as_runtime_class(jvm).cpdtype();
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {

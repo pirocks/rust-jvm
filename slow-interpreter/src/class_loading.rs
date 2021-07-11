@@ -68,7 +68,7 @@ pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_stat
             return Ok(class);
         }
         RuntimeClass::Array(a) => {
-            check_initing_or_inited_class(jvm, int_state, a.sub_class.ptypeview())?;
+            check_initing_or_inited_class(jvm, int_state, a.sub_class.cpdtype())?;
         }
         _ => {}
     }
@@ -96,7 +96,7 @@ pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_stat
     }
 }
 
-pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: PTypeView) -> Arc<RuntimeClass<'gc_life>> {
+pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) -> Arc<RuntimeClass<'gc_life>> {
     match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
         None => panic!(),
         Some((_, res)) => res.clone()
@@ -153,8 +153,8 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(res.ptypeview()).insert((loader, res.clone()));
-            guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.ptypeview(), res.clone());
+            guard.initiating_loaders.entry(res.cpdtype()).insert((loader, res.clone()));
+            guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.cpdtype(), res.clone());
             Ok(res)
         }
         Some((_, res)) => Ok(res.clone())
@@ -197,14 +197,15 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
         }
     }
     let (class_object, runtime_class) = match ptype.clone() {
-        CPDType::ByteType => (create_class_object(jvm, int_state, CClassName::new("byte").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Byte)),
-        CPDType::CharType => (create_class_object(jvm, int_state, CClassName::new("char").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Char)),
-        CPDType::DoubleType => (create_class_object(jvm, int_state, CClassName::new("double").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Double)),
-        CPDType::FloatType => (create_class_object(jvm, int_state, CClassName::new("float").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Float)),
-        CPDType::IntType => (create_class_object(jvm, int_state, CClassName::new("int").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Int)),
-        CPDType::LongType => (create_class_object(jvm, int_state, CClassName::new("long").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Long)),
+        //todo replace these names with actual tupes
+        CPDType::ByteType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("byte").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Byte)),
+        CPDType::CharType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("char").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Char)),
+        CPDType::DoubleType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("double").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Double)),
+        CPDType::FloatType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("float").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Float)),
+        CPDType::IntType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("int").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Int)),
+        CPDType::LongType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("long").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Long)),
         CPDType::Ref(ref_) => match ref_ {
-            ReferenceTypeView::Class(class_name) => {
+            CPRefType::Class(class_name) => {
                 let classfile = match jvm.classpath.lookup(&class_name) {
                     Ok(x) => x,
                     Err(_) => {
@@ -252,22 +253,22 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
-            ReferenceTypeView::Array(sub_type) => {
+            CPRefType::Array(sub_type) => {
                 let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone())?;
                 //todo handle class objects for arraus
                 (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
             }
         },
-        CPDType::ShortType => (create_class_object(jvm, int_state, CClassName::new("short").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Short)),
-        CPDType::BooleanType => (create_class_object(jvm, int_state, CClassName::new("boolean").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Boolean)),
-        CPDType::VoidType => (create_class_object(jvm, int_state, CClassName::new("void").into(), BootstrapLoader)?, Arc::new(RuntimeClass::Void)),
+        CPDType::ShortType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("short").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Short)),
+        CPDType::BooleanType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("boolean").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Boolean)),
+        CPDType::VoidType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("void").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Void)),
         _ => todo!()
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
 }
 
-pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<ClassName>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
+pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<CClassName>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
             JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
@@ -276,7 +277,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
             JavaValue::null()
         }
     };
-    if name == CClassName::new("java/lang/Object").into() {
+    if name == CClassName::object().into() {
         return Ok(jvm.allocate_object(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {

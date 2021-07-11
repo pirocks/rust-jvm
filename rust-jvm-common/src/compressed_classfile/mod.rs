@@ -168,6 +168,21 @@ impl CompressedParsedDescriptorType {
         }
     }
 
+    pub fn is_primitive(&self) -> bool {
+        match self {
+            CompressedParsedDescriptorType::BooleanType => true,
+            CompressedParsedDescriptorType::ByteType => true,
+            CompressedParsedDescriptorType::ShortType => true,
+            CompressedParsedDescriptorType::CharType => true,
+            CompressedParsedDescriptorType::IntType => true,
+            CompressedParsedDescriptorType::LongType => true,
+            CompressedParsedDescriptorType::FloatType => true,
+            CompressedParsedDescriptorType::DoubleType => true,
+            CompressedParsedDescriptorType::VoidType => true,
+            CompressedParsedDescriptorType::Ref(_) => false
+        }
+    }
+
     pub fn array(sub_type: Self) -> Self {
         Self::Ref(CPRefType::Array(box sub_type))
     }

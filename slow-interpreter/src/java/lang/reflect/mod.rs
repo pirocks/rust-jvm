@@ -1,9 +1,7 @@
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::interpreter::WasException;
@@ -67,7 +65,7 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 
 
 fn get_signature(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
-    Ok(JString::from_rust(jvm, int_state, method_view.desc_str())?.intern(jvm, int_state)?)
+    Ok(JString::from_rust(jvm, int_state, method_view.desc_str().to_str(&jvm.string_pool))?.intern(jvm, int_state)?)
 }
 
 fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
@@ -79,12 +77,12 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         .iter()
         .map(|x| x.catch_type)
         .map(|x| if x == 0 {
-            ReferenceTypeView::Class(ClassName::throwable())
+            CPRefType::Class(CClassName::throwable())
         } else {
             method_view.classview().constant_pool_view(x as usize).unwrap_class().class_ref_type()
         })
         .map(|x| {
-            PTypeView::Ref(x)
+            CPDType::Ref(x)
         });
 
 
@@ -106,7 +104,7 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in parsed.arg_types {
-        res.push(JClass::from_type(jvm, int_state, PTypeView::from_ptype(&param_type))?.java_value());
+        res.push(JClass::from_type(jvm, int_state, param_type)?.java_value());
     }
 
     Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
@@ -122,9 +120,7 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
 pub mod method {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -136,7 +132,7 @@ pub mod method {
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::reflect::constructor::Constructor;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
@@ -271,7 +267,6 @@ pub mod constructor {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -282,7 +277,7 @@ pub mod constructor {
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
@@ -391,7 +386,6 @@ pub mod constructor {
 pub mod field {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -464,7 +458,6 @@ pub mod field {
 }
 
 pub mod constant_pool {
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -472,7 +465,7 @@ pub mod constant_pool {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::push_new_object;
     use crate::java::lang::class::JClass;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct ConstantPool<'gc_life> {

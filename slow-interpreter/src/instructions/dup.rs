@@ -1,9 +1,7 @@
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 
-use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;

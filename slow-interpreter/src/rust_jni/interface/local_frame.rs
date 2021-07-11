@@ -1,18 +1,13 @@
 use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLockWriteGuard};
-
-use bimap::BiMap;
-use by_address::ByAddress;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
 use crate::interpreter_state::InterpreterState;
 use crate::InterpreterStateGuard;
-use crate::java_values::{GcManagedObject, Object};
-use crate::jvm_state::JVMState;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use crate::java_values::GcManagedObject;
+use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use crate::stack_entry::FrameView;
 
 ///PopLocalFrame

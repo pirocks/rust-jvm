@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
             let classes_guard = jvm.classes.read().unwrap();
-            match classes_guard.get_class_obj(rc.ptypeview()) {
+            match classes_guard.get_class_obj(rc.cpdtype()) {
                 None => null_mut(),
                 Some(obj) => to_object(obj.into())
             }

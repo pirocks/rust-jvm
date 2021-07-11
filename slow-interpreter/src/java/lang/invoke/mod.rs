@@ -2,9 +2,8 @@ pub mod method_type {
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::CPDType;
     use rust_jvm_common::compressed_classfile::names::CClassName;
-    use rust_jvm_common::ptype::PType;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -58,8 +57,8 @@ pub mod method_type {
             self.get_rtype_or_null(jvm).unwrap()
         }
 
-        pub fn get_rtype_as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> PType {
-            self.get_rtype(jvm).as_type(jvm).to_ptype()
+        pub fn get_rtype_as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {
+            self.get_rtype(jvm).as_type(jvm)
         }
 
         pub fn set_ptypes(&self, ptypes: JavaValue<'gc_life>) {
@@ -82,7 +81,7 @@ pub mod method_type {
             self.get_ptypes_or_null(jvm).unwrap()
         }
 
-        pub fn get_ptypes_as_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<PType> {
+        pub fn get_ptypes_as_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<CPDType> {
             self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter()
                 .map(|x| JavaValue::Object(todo!()/*x.clone()*/).cast_class().unwrap().as_type(jvm).to_ptype()).collect()
         }
@@ -430,7 +429,7 @@ pub mod lambda_form {
             }
 
             pub fn method_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> { // java.lang.invoke.LambdaForm.NamedFunction
-                let named_function_type = assert_inited_or_initing_class(jvm, CClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()).into());
+                let named_function_type = assert_inited_or_initing_class(jvm, CClassName::lambda_from_named_function().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 run_static_or_virtual(jvm, int_state, &named_function_type, "methodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())

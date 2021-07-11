@@ -1,5 +1,4 @@
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::view::{ClassBackedView, ClassView};
 
@@ -29,16 +28,16 @@ impl<'l> InterfaceView<'l> {
     fn from(c: &ClassBackedView, i: usize) -> InterfaceView {
         InterfaceView::ClassBacked { view: c, i }
     }
-    pub fn interface_name(&self) -> ClassName {
+    pub fn interface_name(&self) -> CClassName {
         match self {
             InterfaceView::ClassBacked { view, i } => {
-                PType::Ref(view.underlying_class.extract_class_from_constant_pool_name(view.underlying_class.interfaces[*i])).unwrap_class_type()
+                todo!()/*CPDType::Ref(view.underlying_class.extract_class_from_constant_pool_name(view.underlying_class.interfaces[*i])).unwrap_class_type()*/
             }
             InterfaceView::Cloneable => {
-                ClassName::cloneable()
+                CClassName::cloneable()
             }
             InterfaceView::Serializable => {
-                ClassName::serializable()
+                CClassName::serializable()
             }
         }
     }

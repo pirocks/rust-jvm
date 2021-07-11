@@ -1,6 +1,7 @@
 #![feature(box_syntax)]
-#[allow(unreachable_code)]
-#[allow(dead_code)]
+#![allow(unreachable_code)]
+#![allow(dead_code)]
+
 pub mod classfile;
 pub mod ptype;
 pub mod classnames;

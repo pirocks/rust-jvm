@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
                 Ok(x) => x,
                 Err(WasException {}) => return null_mut(),
             };
-            let ptype = runtime_class.ptypeview();
+            let ptype = runtime_class.cpdtype();
             let mut guard = jvm.classes.write().unwrap();
             guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone()));//todo wrong loader?
             guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());

@@ -273,8 +273,8 @@ pub mod class {
     }
 
     impl<'gc_life> JClass<'gc_life> {
-        pub fn as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> PTypeView {
-            self.as_runtime_class(jvm).ptypeview()
+        pub fn as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {
+            self.as_runtime_class(jvm).cpdtype()
         }
 
         pub fn as_runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {

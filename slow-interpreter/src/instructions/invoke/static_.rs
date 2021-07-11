@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_array_type};
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -47,7 +47,7 @@ pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
 pub fn invoke_static_impl(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: MethodDescriptor,
+    expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
     target_method_i: u16,
     target_method: &MethodView,
@@ -62,9 +62,9 @@ pub fn invoke_static_impl(
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack(jvm);
             // dbg!(interpreter_state.current_frame().operand_stack_types());
-            let member_name = op_stack.get((op_stack.len() - 1) as u16, ClassName::member_name().into()).cast_member_name();
-            assert_eq!(member_name.clone().java_value().to_type(), ClassName::member_name().into());
-            interpreter_state.pop_current_operand_stack(Some(ClassName::object().into()));//todo am I sure this is an object
+            let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();
+            assert_eq!(member_name.clone().java_value().to_type(), CClassName::member_name().into());
+            interpreter_state.pop_current_operand_stack(Some(CClassName::object().into()));//todo am I sure this is an object
             let res = call_vmentry(jvm, interpreter_state, member_name)?;
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
@@ -80,7 +80,7 @@ pub fn invoke_static_impl(
             args.push(JavaValue::Top);
         }
         let mut i = 0;
-        for ptype in expected_descriptor.parameter_types.iter().rev() {
+        for ptype in expected_descriptor.arg_types.iter().rev() {
             let popped = current_frame.pop(Some(PTypeView::from_ptype(&ptype)));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }

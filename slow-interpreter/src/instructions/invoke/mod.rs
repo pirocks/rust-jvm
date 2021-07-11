@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -26,10 +26,9 @@ pub mod dynamic {
     use classfile_view::view::ClassView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
     use classfile_view::view::ptype_view::PTypeView;
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
-    use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
-    use rust_jvm_common::ptype::{PType, ReferenceType};
+    use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
@@ -62,7 +61,7 @@ pub mod dynamic {
         let _call_site_class = check_initing_or_inited_class(
             jvm,
             int_state,
-            CClassName::Str("java/lang/invoke/CallSite".to_string()).into(),
+            CClassName::call_site().into(),
         )?;
         let class_pointer_view = int_state.current_class_view(jvm).clone();
         let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
@@ -149,11 +148,11 @@ pub mod dynamic {
         //todo not passing final call args?
         // int_state.print_stack_trace();
         // dbg!(&args);
-        invoke_virtual_method_i(jvm, int_state, MethodDescriptor { parameter_types: args, return_type: PType::Ref(ReferenceType::Class(CClassName::object())) }, method_handle_class, invoke)?;
+        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) }, method_handle_class, invoke)?;
 
         assert!(int_state.throw().is_none());
 
-        let res = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+        let res = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
         int_state.push_current_operand_stack(res);
         Ok(())
     }
@@ -193,7 +192,7 @@ pub mod dynamic {
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
-                            let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).ptypeview();
+                            let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();
                             let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                         }
@@ -203,7 +202,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, String, MethodDescriptor)>, WasException> {
+fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, String, CMethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
     let class_name_ = match CPDType::from_ptype(&class_name_type.to_ptype(), &jvm.string_pool) {

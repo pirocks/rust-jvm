@@ -1,7 +1,5 @@
 pub mod heap_byte_buffer {
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jbyte, jint};
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::CPDType;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
@@ -24,7 +22,7 @@ pub mod heap_byte_buffer {
 
     impl<'gc_life> HeapByteBuffer<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
-            let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::Str("java/nio/HeapByteBuffer".to_string()).into());
+            let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
             push_new_object(jvm, int_state, &heap_byte_buffer_class);
             let object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
 

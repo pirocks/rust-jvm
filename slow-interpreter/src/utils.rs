@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType, CPRefType};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -22,17 +20,17 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
-use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: CCString, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     lookup_method_parsed_impl(jvm, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: String, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: CCString, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
-    let posible_methods = view.lookup_method_name(&name);
+    let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| {
         if m.is_signature_polymorphic() {
             true
@@ -44,7 +42,7 @@ pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &
     match filtered.iter().next() {
         None => {
             let class_name = class.view().super_name().unwrap();//todo is this unwrap safe?
-            let lookup_type = PTypeView::Ref(ReferenceTypeView::Class(class_name));
+            let lookup_type = CPDType::Ref(CPRefType::Class(class_name));
             let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
         }
@@ -131,10 +129,9 @@ pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: 
 }
 
 
-pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: String, desc_str: String) -> Result<(), WasException> {
-    let parsed_desc = parse_method_descriptor(desc_str.as_str()).unwrap();
+pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: CCString, desc: &CMethodDescriptor) -> Result<(), WasException> {
     let view = class.view();
-    let res_fun = view.lookup_method(&method_name, &parsed_desc);
+    let res_fun = view.lookup_method(method_name, desc);
     let method_view = match res_fun {
         Some(x) => x,
         None => panic!(),

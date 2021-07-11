@@ -19,7 +19,7 @@ pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
     let class_view = class.view();
     let mv = class_view.method_view_i(method_i);
-    let name = mv.name();
+    let name = mv.name().to_str(&jvm.string_pool);
     let desc_str = mv.desc_str();
     if !generic_ptr.is_null() {
         // unimplemented!()//todo figure out what this is
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let runtime_class = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0;//todo handle error
     let class_object = get_or_create_class_object(
         jvm,
-        runtime_class.ptypeview(),
+        runtime_class.cpdtype(),
         int_state,
     );//todo fix this type verbosity thing
     declaring_class_ptr.write(new_local_ref_public(class_object.unwrap().into(), int_state));

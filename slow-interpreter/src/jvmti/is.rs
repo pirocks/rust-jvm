@@ -47,8 +47,8 @@ pub unsafe fn is_array_impl(jvm: &'gc_life JVMState<'gc_life>, cls: jclass) -> R
         None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
     };
-    let ptype = jclass.as_type(jvm);
-    let is_array = ptype.is_array();
+    let rtype = jclass.as_type(jvm);
+    let is_array = rtype.is_array();
     Result::Ok((if is_array { JNI_TRUE } else { JNI_FALSE }) as jboolean)
 }
 

@@ -1,5 +1,4 @@
 pub mod unsafe_ {
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -40,7 +39,6 @@ pub mod unsafe_ {
 }
 
 pub mod launcher {
-    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -79,7 +77,6 @@ pub mod launcher {
     }
 
     pub mod ext_class_loader {
-        use rust_jvm_common::classnames::ClassName;
         use rust_jvm_common::compressed_classfile::names::CClassName;
 
         use crate::class_loading::check_initing_or_inited_class;
@@ -101,7 +98,7 @@ pub mod launcher {
 
         impl<'gc_life> ExtClassLoader<'gc_life> {
             pub fn get_ext_class_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<ExtClassLoader<'gc_life>, WasException> {
-                let ext_class_loader = check_initing_or_inited_class(jvm, int_state, CClassName::new("sun/misc/Launcher$ExtClassLoader").into())?;
+                let ext_class_loader = check_initing_or_inited_class(jvm, int_state, CClassName::ext_class_loader().into())?;
                 run_static_or_virtual(jvm, int_state, &ext_class_loader, "getExtClassLoader".to_string(), "()Lsun/misc/Launcher;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_ext_class_launcher())
             }

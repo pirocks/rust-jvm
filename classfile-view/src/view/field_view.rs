@@ -1,9 +1,7 @@
-use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo};
-use rust_jvm_common::descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo, CPDType};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;
-use crate::view::ptype_view::PTypeView;
 
 pub struct FieldView<'l> {
     view: &'l ClassBackedView,
@@ -26,8 +24,9 @@ impl FieldView<'_> {
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i }
     }
-    pub fn field_type(&self) -> PTypeView {
-        PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
+    pub fn field_type(&self) -> CPDType {
+        self.field_info().descriptor_type.clone()
+        /*PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)*/
     }
 
     pub fn field_i(&self) -> usize {

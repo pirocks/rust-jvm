@@ -33,7 +33,7 @@ pub struct StackMap {
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
-    pool: &'l CompressedClassfileStringPool,
+    pub pool: &'l CompressedClassfileStringPool,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<u16, Frame>>,

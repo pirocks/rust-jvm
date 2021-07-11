@@ -1,5 +1,5 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::instructions::special::instance_of_impl;
 use crate::interpreter::WasException;
@@ -23,5 +23,5 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         Ok(_) => {}
         Err(WasException {}) => return jboolean::invalid_default()
     };
-    (int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_int() != 0) as jboolean
+    (int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_int() != 0) as jboolean
 }

@@ -18,15 +18,14 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::ClassBackedView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 use rust_jvm_common::loading::{LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::string_pool::StringPool;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::Frame;
 
@@ -121,7 +120,7 @@ impl<'gc_life> Classes<'gc_life> {
     }
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc_life>>) -> LoaderName {
-        let (res, actual_class) = self.initiating_loaders.get(&class_.ptypeview()).unwrap();
+        let (res, actual_class) = self.initiating_loaders.get(&class_.cpdtype()).unwrap();
         assert!(Arc::ptr_eq(class_, actual_class));
         *res
     }
@@ -155,10 +154,9 @@ impl<'gc_life> JVMState<'gc_life> {
             }.into()
         } else { None };
         let thread_state = ThreadState::new(scope);
-        let classes = JVMState::init_classes(&classpath_arc);
-        let string_pool = StringPool {
-            entries: HashSet::new()
-        };
+        let string_pool = CompressedClassfileStringPool::new();
+        let classes = JVMState::init_classes(&string_pool, &classpath_arc);
+        let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone()));
         let mut jvm = Self {
             libjava_path: libjava,
             properties,
@@ -210,16 +208,17 @@ impl<'gc_life> JVMState<'gc_life> {
             classfile_getter: Arc::new(DefaultClassfileGetter {
                 jvm: self
             }) as Arc<dyn ClassFileGetter>,
+            pool: &self.string_pool,
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,
         };
-        let lookup = self.classpath.lookup(&ClassName::object()).expect("Can not find Object class");
-        verify(&mut context, &ClassBackedView::from(lookup), LoaderName::BootstrapLoader).expect("Object doesn't verify");
+        let lookup = self.classpath.lookup(&CClassName::object()).expect("Can not find Object class");
+        verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Object doesn't verify");
         self.sink_function_verification_date(&context.verification_types, object_runtime_class);
         context.verification_types.clear();
-        let lookup = self.classpath.lookup(&ClassName::class()).expect("Can not find Class class");
-        verify(&mut context, &ClassBackedView::from(lookup), LoaderName::BootstrapLoader).expect("Class doesn't verify");
+        let lookup = self.classpath.lookup(&CClassName::class()).expect("Can not find Class class");
+        verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Class doesn't verify");
         self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
 
@@ -241,10 +240,10 @@ impl<'gc_life> JVMState<'gc_life> {
         classes.class_object_pool.insert(ByAddress(class_object), runtime_class);
     }
 
-    fn init_classes(classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
+    fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_field_numbers();
-        let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&ClassName::class()).unwrap()));
+        let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class()).unwrap(), pool));
         let static_vars = Default::default();
         let parent = None;
         let interfaces = vec![];

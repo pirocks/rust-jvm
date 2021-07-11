@@ -1,5 +1,6 @@
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::FieldDescriptor;
 use verification::verifier::instructions::special::extract_field_descriptor;
 
@@ -11,7 +12,7 @@ use crate::utils::throw_npe;
 
 pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
     let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(cp, &*view);
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
@@ -21,7 +22,7 @@ pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
 
 pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
     let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(cp, &*view);
+    let (field_class_name, field_name, FieldDescriptor { field_type }) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let stack = &mut entry_mut.operand_stack_mut();
@@ -60,7 +61,7 @@ pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     int_state.push_current_operand_stack(field_value);
 }
 
-fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: &ClassName, field_name: &str) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: CClassName, field_name: &str) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {

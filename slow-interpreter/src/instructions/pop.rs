@@ -1,5 +1,4 @@
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::P_tmpdir;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;

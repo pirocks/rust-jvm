@@ -12,10 +12,11 @@ use by_address::ByAddress;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_field_descriptor};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -434,7 +435,7 @@ unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     push_new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm));
-    to_object(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object())
+    to_object(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object())
 }
 
 ///ToReflectedMethod
@@ -602,9 +603,9 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 
 //shouldn't take class as arg and should be an impl method on Field
 pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
-    let field_class_name_ = class_obj.clone().ptypeview();
+    let field_class_name_ = class_obj.clone().cpdtype();
     load_class_constant_by_type(jvm, int_state, field_class_name_)?;
-    let parent_runtime_class = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let parent_runtime_class = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
 
     let field_name = f.field_name();
 
@@ -615,7 +616,7 @@ pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let name = JString::from_rust(jvm, int_state, field_name)?.intern(jvm, int_state)?;
-    let type_ = JClass::from_type(jvm, int_state, PTypeView::from_ptype(&field_type))?;
+    let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type))?;
     let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
     let annotations_ = vec![];//todo impl annotations.
 
@@ -637,10 +638,10 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
     let jvm = get_state(env);
     let method_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_method();
     let runtime_class = method_obj.get_clazz(jvm).as_runtime_class(jvm);
-    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).ptypeview()).collect::<Vec<_>>();
+    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).cpdtype()).collect::<Vec<_>>();
     let name = method_obj.get_name(jvm).to_rust_string(jvm);
     runtime_class.clone().view().lookup_method_name(&name).iter().find(|candiate_method| {
-        candiate_method.desc().parameter_types == param_types.iter().map(|from| from.to_ptype()).collect::<Vec<_>>()
+        candiate_method.desc().arg_types == param_types.into_iter().map(|from| from).collect::<Vec<_>>()
     }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
         .unwrap_or(transmute(-1isize))
 }
@@ -679,7 +680,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
     classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
-    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone())), &mut *runtime_class.static_vars());
+    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
@@ -696,49 +697,49 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
-    to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed)) {
+    to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
         Ok(class_) => class_,
         Err(_) => todo!()
     }.unwrap_object())
 }
 
 
-pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, type_: &PType, l: &mut VarargProvider) {
-    match PTypeView::from_ptype(type_) {
-        PTypeView::ByteType => {
+pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, type_: &CPDType, l: &mut VarargProvider) {
+    match type_ {
+        CPDType::ByteType => {
             let byte_ = l.arg_byte();
             int_state.push_current_operand_stack(JavaValue::Byte(byte_))
         }
-        PTypeView::CharType => {
+        CPDType::CharType => {
             let char_ = l.arg_char();
             int_state.push_current_operand_stack(JavaValue::Char(char_))
         }
-        PTypeView::DoubleType => {
+        CPDType::DoubleType => {
             let double_ = l.arg_double();
             int_state.push_current_operand_stack(JavaValue::Double(double_))
         }
-        PTypeView::FloatType => {
+        CPDType::FloatType => {
             let float_ = l.arg_float();
             int_state.push_current_operand_stack(JavaValue::Float(float_))
         }
-        PTypeView::IntType => {
+        CPDType::IntType => {
             let int: i32 = l.arg_int();
             int_state.push_current_operand_stack(JavaValue::Int(int))
         }
-        PTypeView::LongType => {
+        CPDType::LongType => {
             let long: i64 = l.arg_long();
             int_state.push_current_operand_stack(JavaValue::Long(long))
         }
-        PTypeView::Ref(_) => {
+        CPDType::Ref(_) => {
             let native_object: jobject = l.arg_ptr();
             let o = from_object(jvm, native_object);
             int_state.push_current_operand_stack(JavaValue::Object(o));
         }
-        PTypeView::ShortType => {
+        CPDType::ShortType => {
             let short = l.arg_short();
             int_state.push_current_operand_stack(JavaValue::Short(short))
         }
-        PTypeView::BooleanType => {
+        CPDType::BooleanType => {
             let boolean_ = l.arg_bool();
             int_state.push_current_operand_stack(JavaValue::Boolean(boolean_))
         }

@@ -4,6 +4,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
@@ -35,7 +36,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     }
     let parsed = method.desc();
     int_state.push_current_operand_stack(JavaValue::Object(from_object(jvm, obj)));
-    for type_ in &parsed.parameter_types {
+    for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
     invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
@@ -43,7 +44,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     Ok(if method.desc().return_type == PType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(ClassName::object().into())).into()
+        int_state.pop_current_operand_stack(Some(CClassName::object().into())).into()
     })
 }
 
@@ -52,7 +53,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
-    check_initing_or_inited_class(jvm, int_state, class.ptypeview())?;
+    check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let method_descriptor_str = method.desc_str();

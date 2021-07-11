@@ -1,8 +1,8 @@
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
@@ -16,7 +16,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     let unwrapped = from_object(jvm, obj).unwrap();//todo handle npe
     let class_object = match unwrapped.deref() {
         Object::Array(a) => {
-            get_or_create_class_object(jvm, PTypeView::Ref(ReferenceTypeView::Array(Box::new(a.elem_type.clone()))), int_state)
+            get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Array(Box::new(a.elem_type.clone()))), int_state)
         }
         Object::Object(o) => {
             get_or_create_class_object(jvm, o.objinfo.class_pointer.view().type_(), int_state)

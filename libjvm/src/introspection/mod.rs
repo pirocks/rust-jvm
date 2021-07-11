@@ -132,7 +132,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).ptypeview();
+    let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
     match JString::from_rust(jvm, int_state, ptype.jvm_representation()) {
         Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
         Err(WasException) => null_mut()
@@ -169,7 +169,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| {
-        Some(entry.try_class_pointer()?.ptypeview())
+        Some(entry.try_class_pointer()?.cpdtype())
     }).map(|ptype| {
         get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(todo!()/*elem.into()*/))
     }).collect::<Result<Vec<_>, WasException>>() {
@@ -220,7 +220,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         Some(class_pointer.clone())
     });
     let type_ = if let Some(class_pointer) = possibly_class_pointer {
-        class_pointer.ptypeview()
+        class_pointer.cpdtype()
     } else {
         return null_mut();
     };
@@ -284,7 +284,7 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
-    let full_name = &obj.ptypeview().class_name_representation();
+    let full_name = &obj.cpdtype().class_name_representation();
     new_string_with_string(env, full_name.to_string())
 }
 

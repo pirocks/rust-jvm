@@ -1,8 +1,6 @@
-use num::one;
-
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::InvokeInterface;
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::compressed_classfile::CompressedParsedDescriptorType;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -10,14 +8,13 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::{invoke_virtual_method_i, setup_virtual_args};
 use crate::java_values::JavaValue;
-use crate::stack_entry::{OperandStackRef, StackEntryRef};
 
 pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, invoke_interface: InvokeInterface) {
     // invoke_interface.count;//todo use this?
     let view = &int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(invoke_interface.index as usize, &**view);
     let class_name_ = class_name_type.unwrap_class_type();
-    let _target_class = check_initing_or_inited_class(jvm, int_state, class_name_.into());
+    let _target_class = check_initing_or_inited_class(jvm, int_state, CompressedParsedDescriptorType::from_ptype(class_name_.into().to_ptype(), &jvm.string_pool));
     let desc_len = expected_descriptor.parameter_types.len();
     assert_eq!(desc_len + 1, invoke_interface.count as usize);
     let current_frame = int_state.current_frame();

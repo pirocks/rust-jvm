@@ -10,6 +10,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
@@ -152,7 +153,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
         let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
         let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
-        let class_name = match runtime_class.ptypeview().try_unwrap_class_type() {
+        let class_name = match runtime_class.cpdtype().try_unwrap_class_type() {
             None => { return JNI_ERR; }
             Some(cn) => cn,
         };
@@ -237,7 +238,7 @@ fn get_all_fields_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Int
 
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
             object.view().fields().enumerate().for_each(|(i, _)| {
                 res.push((object.clone(), i));
             });

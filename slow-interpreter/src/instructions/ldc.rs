@@ -1,7 +1,8 @@
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -37,7 +38,7 @@ fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
 }
 
 pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, res_string: String) -> Result<(), WasException> {
-    let java_lang_string = ClassName::string();
+    let java_lang_string = CClassName::string();
     let string_class = assert_inited_or_initing_class(
         jvm,
         java_lang_string.into(),
@@ -51,11 +52,11 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
         jvm,
         interpreter_state,
         chars,
-        PTypeView::CharType,
+        CPDType::CharType,
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
     )?)))));
-    let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
-    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
+    let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
+    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: CPDType::VoidType.to_ptype() };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
@@ -113,9 +114,9 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
             int_state.push_current_operand_stack(JavaValue::Int(int));
         }
         _ => {
-            dbg!(cp);
+            // dbg!(cp);
             int_state.debug_print_stack_trace(jvm);
-            dbg!(&pool_entry);
+            // dbg!(&pool_entry);
             unimplemented!()
         }
     }

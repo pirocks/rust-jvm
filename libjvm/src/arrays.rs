@@ -98,7 +98,7 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).ptypeview();
+    let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).cpdtype();
     a_new_array_from_name(jvm, int_state, length, array_type_name);
     new_local_ref_public(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object(), int_state)
 }

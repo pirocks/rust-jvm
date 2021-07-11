@@ -173,6 +173,26 @@ impl CompressedClassName {
     pub fn call_site() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_CALL_SITE)
     }
+
+    pub fn lambda_from_named_function() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION)
+    }
+
+    pub fn heap_byte_buffer() -> Self {
+        Self::from_raw_id(JAVA_NIO_HEAP_BYTE_BUFFER)
+    }
+
+    pub fn access_control_context() -> Self {
+        Self::from_raw_id(JAVA_SECURITY_ACCESS_CONTROL_CONTEXT)
+    }
+
+    pub fn protection_domain() -> Self {
+        Self::from_raw_id(JAVA_SECURITY_PROTECTION_DOMAIN)
+    }
+
+    pub fn ext_class_loader() -> Self {
+        Self::from_raw_id(SUN_MISC_LAUNCHER_EXT_CLASS_LOADER)
+    }
 }
 
 
@@ -225,6 +245,9 @@ pub const JAVA_SECURITY_PROTECTION_DOMAIN: AddOnlyVecIDType = 38;
 pub const SUN_MISC_LAUNCHER: AddOnlyVecIDType = 39;
 pub const SUN_REFLECT_REFLECTION: AddOnlyVecIDType = 40;
 pub const JAVA_LANG_INVOKE_CALL_SITE: AddOnlyVecIDType = 41;
+pub const JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION: AddOnlyVecIDType = 42;
+pub const JAVA_NIO_HEAP_BYTE_BUFFER: AddOnlyVecIDType = 43;
+pub const SUN_MISC_LAUNCHER_EXT_CLASS_LOADER: AddOnlyVecIDType = 44;
 
 
 fn add_builtin_name(pool: &AddOnlyIdMap<String>, cname: ClassName, id: AddOnlyVecIDType) {
@@ -270,11 +293,13 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("java/lang/IllegalArgumentException".to_string()), JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION);
     add_builtin_name(pool, ClassName::Str("java/lang/ClassNotFoundException".to_string()), JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION);
     add_builtin_name(pool, ClassName::Str("java/lang/reflect/ConstantPool".to_string()), JAVA_LANG_REFLECT_CONSTANT_POOL);
-    add_builtin_name(pool, ClassName::Str("".to_string()), JAVA_SECURITY_ACCESS_CONTROL_CONTEXT);
+    add_builtin_name(pool, ClassName::Str("java/security/AccessControlContext".to_string()), JAVA_SECURITY_ACCESS_CONTROL_CONTEXT);
     add_builtin_name(pool, ClassName::Str("".to_string()), JAVA_SECURITY_PROTECTION_DOMAIN);
     add_builtin_name(pool, ClassName::Str("".to_string()), SUN_MISC_LAUNCHER);
     add_builtin_name(pool, ClassName::Str("sun/reflect/Reflection".to_string()), SUN_REFLECT_REFLECTION);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/CallSite".to_string()), JAVA_LANG_INVOKE_CALL_SITE);
+    add_builtin_name(pool, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()), JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION);
+    add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
 }
 
 

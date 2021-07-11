@@ -10,7 +10,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::{Itertools, repeat_n};
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 
@@ -665,7 +664,7 @@ impl<'gc_life> JavaValue<'gc_life> {
                                 RuntimeRefType::Array(array.elem_type.clone().into())
                             }
                             Object::Object(obj) => {
-                                RuntimeRefType::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
+                                RuntimeRefType::Class(obj.objinfo.class_pointer.cpdtype().unwrap_class_type())
                             }
                         }
                     }
@@ -1056,7 +1055,7 @@ impl<'gc_life> NormalObject<'gc_life> {
         }.unwrap() = jv.to_native();
     }
 
-    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, expected_type: PTypeView) {
+    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, _expected_type: CPDType) {
         jv.self_check();
         unsafe { self.set_var_impl(&self.objinfo.class_pointer.unwrap_class_class(), class_pointer, name, jv, true) }
     }
@@ -1195,23 +1194,18 @@ impl<'gc_life> Debug for NormalObject<'gc_life> {
     }
 }
 
-pub fn default_value<'gc_life>(type_: PTypeView) -> JavaValue<'gc_life> {
+pub fn default_value<'gc_life>(type_: CPDType) -> JavaValue<'gc_life> {
     match type_ {
-        PTypeView::ByteType => JavaValue::Byte(0),
-        PTypeView::CharType => JavaValue::Char('\u{000000}' as u16),
-        PTypeView::DoubleType => JavaValue::Double(0.0),
-        PTypeView::FloatType => JavaValue::Float(0.0),
-        PTypeView::IntType => JavaValue::Int(0),
-        PTypeView::LongType => JavaValue::Long(0),
-        PTypeView::Ref(_) => JavaValue::Object(None),
-        PTypeView::ShortType => JavaValue::Short(0),
-        PTypeView::BooleanType => JavaValue::Boolean(0),
-        PTypeView::VoidType => panic!(),
-        PTypeView::TopType => JavaValue::Top,
-        PTypeView::NullType => JavaValue::Object(todo!()/*None*/),
-        PTypeView::Uninitialized(_) => unimplemented!(),
-        PTypeView::UninitializedThis => unimplemented!(),
-        PTypeView::UninitializedThisOrClass(_) => panic!(),
+        CPDType::ByteType => JavaValue::Byte(0),
+        CPDType::CharType => JavaValue::Char('\u{000000}' as u16),
+        CPDType::DoubleType => JavaValue::Double(0.0),
+        CPDType::FloatType => JavaValue::Float(0.0),
+        CPDType::IntType => JavaValue::Int(0),
+        CPDType::LongType => JavaValue::Long(0),
+        CPDType::Ref(_) => JavaValue::Object(None),
+        CPDType::ShortType => JavaValue::Short(0),
+        CPDType::BooleanType => JavaValue::Boolean(0),
+        CPDType::VoidType => panic!(),
     }
 }
 

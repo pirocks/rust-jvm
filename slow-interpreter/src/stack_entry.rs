@@ -19,6 +19,7 @@ use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, JVM_Available};
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::java_values::{GcManagedObject, JavaValue, Object};
@@ -577,7 +578,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         }
     }
 
-    pub fn pop(&mut self, expected_type: Option<PTypeView>) -> JavaValue<'gc_life> {
+    pub fn pop(&mut self, expected_type: Option<RuntimeType>) -> JavaValue<'gc_life> {
         match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 entry.pop()

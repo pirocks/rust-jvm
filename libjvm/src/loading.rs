@@ -17,7 +17,7 @@ use slow_interpreter::sun::misc::launcher::Launcher;
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let ptype = int_state.current_frame().class_pointer(jvm).ptypeview();
+    let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
     match get_or_create_class_object(jvm, ptype, int_state) {
         Ok(class_obj) => to_object(class_obj.into()),
         Err(_) => null_mut()

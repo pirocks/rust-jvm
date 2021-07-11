@@ -18,6 +18,8 @@ use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -92,15 +94,15 @@ pub fn call_impl<'gc_life>(
     } else {
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let class_constant = unsafe {
-            let class_popped_jv = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
-            to_native(env, class_popped_jv, &Into::<PTypeView>::into(ClassName::object()).to_ptype())
+            let class_popped_jv = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+            to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object()).to_ptype())
         };
         let res = vec![Arg::new(&env), class_constant];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 
-    let temp_vec = vec![PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())).to_ptype()];
+    let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object())).to_ptype()];
     let args_and_type = if suppress_runtime_class {
         args
             .iter()

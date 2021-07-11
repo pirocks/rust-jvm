@@ -28,7 +28,7 @@ pub enum RuntimeClass<'gc_life> {
 }
 
 impl<'gc_life> RuntimeClass<'gc_life> {
-    pub fn ptypeview(&self) -> CPDType {
+    pub fn cpdtype(&self) -> CPDType {
         match self {
             RuntimeClass::Byte => CPDType::ByteType,
             RuntimeClass::Boolean => CPDType::BooleanType,
@@ -40,7 +40,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Double => CPDType::DoubleType,
             RuntimeClass::Void => CPDType::VoidType,
             RuntimeClass::Array(arr) => {
-                CPDType::Ref(CPRefType::Array(box arr.sub_class.ptypeview()))
+                CPDType::Ref(CPRefType::Array(box arr.sub_class.cpdtype()))
             }
             RuntimeClass::Object(o) => {
                 CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name()))

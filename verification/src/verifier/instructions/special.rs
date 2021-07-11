@@ -6,7 +6,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 use rust_jvm_common::descriptor_parser::{Descriptor, FieldDescriptor, parse_field_descriptor};
 use rust_jvm_common::loading::ClassWithLoader;
@@ -33,7 +33,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stac
 
 
 pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env, cp, &*get_class(&env.vf, &env.method.class));
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader, &env.vf.pool);
     passes_protected_check(env, field_class_name, field_name, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -42,7 +42,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
 }
 
 pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env, cp, &*get_class(&env.vf, &env.method.class));
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader, &env.vf.pool);
     type_transition(env, stack_frame, vec![], field_type)
 }
@@ -140,7 +140,7 @@ pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_f
 
 fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
-    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env, cp, &*get_class(&env.vf, &env.method.class));
+    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader, &env.vf.pool);
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
@@ -157,7 +157,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
 }
 
 fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env, cp, &*get_class(&env.vf, &env.method.class));
+    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader, &env.vf.pool);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -170,7 +170,7 @@ fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, 
 }
 
 //todo maybe move to impl
-pub fn extract_field_descriptor(env: &Environment, cp: CPIndex, class: &dyn ClassView) -> (CClassName, String, FieldDescriptor) {
+pub fn extract_field_descriptor(pool: &CompressedClassfileStringPool, cp: CPIndex, class: &dyn ClassView) -> (CClassName, String, FieldDescriptor) {
     let current_class = class;
     let field_entry = &current_class.constant_pool_view(cp as usize);
     let (class_index, name_and_type_index) = match field_entry {
@@ -184,11 +184,11 @@ pub fn extract_field_descriptor(env: &Environment, cp: CPIndex, class: &dyn Clas
     let field_class_name = ClassName::Str(class_index);
     let (field_name, descriptor_string) = (name_and_type_index.name(), name_and_type_index.desc_str());
     let field_descriptor = parse_field_descriptor(descriptor_string.as_ref()).unwrap();
-    (CompressedClassName(env.vf.pool.add_name(field_class_name.get_referred_name().to_string())), field_name, field_descriptor)
+    (CompressedClassName(pool.add_name(field_class_name.get_referred_name().to_string())), field_name, field_descriptor)
 }
 
 pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env, cp, &*get_class(&env.vf, &env.method.class));
+    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = PTypeView::from_ptype(&field_descriptor.field_type).to_verification_type(&env.class_loader, &env.vf.pool);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;

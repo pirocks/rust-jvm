@@ -11,7 +11,7 @@ use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
-use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};

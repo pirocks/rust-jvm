@@ -7,6 +7,7 @@ use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::loading::ClassLoadingError::ClassNotFoundException;
 
@@ -15,11 +16,11 @@ pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
     jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle<File>>>>,
-    class_cache: RwLock<HashMap<ClassName, Arc<Classfile>>>,
+    class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>,//todo deal with multiple entries with same name
 }
 
 impl Classpath {
-    pub fn lookup(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    pub fn lookup(&self, class_name: &CClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
         let mut guard = self.class_cache.write().unwrap();
         match guard.get(class_name) {
             None => {
