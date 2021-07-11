@@ -23,10 +23,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool, CPDType, CPRefType};
-use rust_jvm_common::ptype::PType;
 
 use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function, WasException};

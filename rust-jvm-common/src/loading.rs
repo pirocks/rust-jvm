@@ -1,13 +1,11 @@
 use core::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 
 use sketch_jvm_version_of_utf8::ValidationError;
 
-use crate::classnames::ClassName;
 use crate::compressed_classfile::{CClassName, CPRefType};
 
 pub trait LivePoolGetter {

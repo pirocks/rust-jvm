@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::{Itertools, repeat_n};
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 

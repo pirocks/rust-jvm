@@ -244,7 +244,7 @@ pub mod method_handle {
     use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -321,7 +321,7 @@ pub mod method_handles {
         use crate::java::lang::invoke::method_handle::MethodHandle;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::string::JString;
-        use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
@@ -383,7 +383,7 @@ pub mod method_handles {
 pub mod lambda_form {
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub mod named_function {
@@ -519,7 +519,7 @@ pub mod lambda_form {
         use jvmti_jni_bindings::jint;
 
         use crate::java::lang::class::JClass;
-        use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue};
         use crate::JString;
         use crate::jvm_state::JVMState;
 

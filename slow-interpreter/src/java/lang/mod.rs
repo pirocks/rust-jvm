@@ -7,7 +7,7 @@ pub mod throwable {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
@@ -43,7 +43,7 @@ pub mod stack_trace_element {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     #[derive(Clone)]
@@ -77,7 +77,7 @@ pub mod member_name {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::classnames::ClassName;
-    use type_safe_proc_macro_utils::getter_gen;
+    use rust_jvm_common::compressed_classfile::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -89,7 +89,7 @@ pub mod member_name {
     use crate::java::lang::reflect::field::Field;
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -116,7 +116,7 @@ pub mod member_name {
         }
 
         pub fn is_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<bool, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(PTypeView::BooleanType)).unwrap_boolean() != 0)
@@ -257,7 +257,7 @@ pub mod class {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -500,7 +500,7 @@ pub mod integer {
     use jvmti_jni_bindings::jint;
 
     use crate::{JVMState, StackEntry};
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
 
     pub struct Integer<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -527,7 +527,6 @@ pub mod integer {
 
 pub mod object {
     use crate::java_values::{GcManagedObject, JavaValue};
-    use crate::java_values::Object;
 
     pub struct JObject<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -554,6 +553,7 @@ pub mod thread {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::CClassName;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -668,7 +668,7 @@ pub mod thread {
         }
 
         pub fn is_alive(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<jboolean, WasException> {
-            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
                 jvm,
@@ -683,7 +683,7 @@ pub mod thread {
 
 
         pub fn get_context_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
-            let thread_class = assert_inited_or_initing_class(jvm, ClassName::thread().into());
+            let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(
                 jvm,
@@ -692,7 +692,7 @@ pub mod thread {
                 "getContextClassLoader".to_string(),
                 "()Ljava/lang/ClassLoader;".to_string(),
             )?;
-            let res = int_state.pop_current_operand_stack(Some(ClassName::classloader().into()));
+            let res = int_state.pop_current_operand_stack(Some(CClassName::classloader().into()));
             if res.unwrap_object().is_none() {
                 return Ok(None);
             }
@@ -718,7 +718,7 @@ pub mod thread_group {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::runtime_class::RuntimeClass;
 
     #[derive(Clone)]
@@ -799,7 +799,6 @@ pub mod class_not_found_exception {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java_values::{GcManagedObject, JavaValue};
-    use crate::java_values::Object;
     use crate::jvm_state::JVMState;
 
     pub struct ClassNotFoundException<'gc_life> {
@@ -834,7 +833,7 @@ pub mod null_pointer_exception {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct NullPointerException<'gc_life> {
@@ -871,7 +870,7 @@ pub mod array_out_of_bounds_exception {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct ArrayOutOfBoundsException<'gc_life> {
@@ -941,7 +940,7 @@ pub mod long {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct Long<'gc_life> {
@@ -1151,7 +1150,7 @@ pub mod float {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct Float<'gc_life> {
@@ -1186,7 +1185,7 @@ pub mod double {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{push_new_object, run_constructor};
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
     pub struct Double<'gc_life> {

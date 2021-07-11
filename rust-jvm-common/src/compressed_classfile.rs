@@ -1,9 +1,6 @@
-use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Mutex, RwLock};
 
 use itertools::Itertools;
-use num_traits::one;
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap, AddOnlyVecIDType};
 
@@ -34,14 +31,37 @@ impl CompressedClassfileStringPool {
             ONLY_ONE = true;
         }
         let pool: AddOnlyIdMap<String> = AddOnlyIdMap::new();
-        Self::add_builtin_name(&pool, ClassName::object(), COMPRESSED_ID_OBJECT);
-        Self::add_builtin_name(&pool, ClassName::class(), COMPRESSED_ID_CLASS);
-        Self::add_builtin_name(&pool, ClassName::method_handle(), COMPRESSED_ID_METHOD_HANDLE);
-        Self::add_builtin_name(&pool, ClassName::throwable(), COMPRESSED_ID_THROWABLE);
-        Self::add_builtin_name(&pool, ClassName::method_type(), COMPRESSED_ID_METHOD_TYPE);
-        Self::add_builtin_name(&pool, ClassName::string(), COMPRESSED_ID_STRING);
-        Self::add_builtin_name(&pool, ClassName::serializable(), COMPRESSED_ID_SERIALIZABLE);
-        Self::add_builtin_name(&pool, ClassName::cloneable(), COMPRESSED_ID_CLONEABLE);
+        Self::add_builtin_name(&pool, ClassName::object(), JAVA_LANG_OBJECT);
+        Self::add_builtin_name(&pool, ClassName::class(), JAVA_LANG_CLASS);
+        Self::add_builtin_name(&pool, ClassName::string(), JAVA_LANG_STRING);
+        Self::add_builtin_name(&pool, ClassName::throwable(), JAVA_LANG_THROWABLE);
+        Self::add_builtin_name(&pool, ClassName::float(), JAVA_LANG_FLOAT);
+        Self::add_builtin_name(&pool, ClassName::double(), JAVA_LANG_DOUBLE);
+        Self::add_builtin_name(&pool, ClassName::int(), JAVA_LANG_INTEGER);
+        Self::add_builtin_name(&pool, ClassName::long(), JAVA_LANG_LONG);
+        Self::add_builtin_name(&pool, ClassName::character(), JAVA_LANG_CHARACTER);
+        Self::add_builtin_name(&pool, ClassName::boolean(), JAVA_LANG_BOOLEAN);
+        Self::add_builtin_name(&pool, ClassName::byte(), JAVA_LANG_BYTE);
+        Self::add_builtin_name(&pool, ClassName::short(), JAVA_LANG_SHORT);
+        Self::add_builtin_name(&pool, ClassName::void(), JAVA_LANG_VOID);
+        Self::add_builtin_name(&pool, ClassName::method_type(), JAVA_LANG_INVOKE_METHODTYPE);
+        Self::add_builtin_name(&pool, ClassName::method_type_form(), JAVA_LANG_INVOKE_METHODTYPEFORM);
+        Self::add_builtin_name(&pool, ClassName::method_handle(), JAVA_LANG_INVOKE_METHODHANDLE);
+        Self::add_builtin_name(&pool, ClassName::method_handles(), JAVA_LANG_INVOKE_METHODHANDLES);
+        Self::add_builtin_name(&pool, ClassName::lookup(), JAVA_LANG_INVOKE_METHODHANDLES_LOOKUP);
+        Self::add_builtin_name(&pool, ClassName::direct_method_handle(), JAVA_LANG_INVOKE_DIRECTMETHODHANDLE);
+        Self::add_builtin_name(&pool, ClassName::member_name(), JAVA_LANG_INVOKE_MEMBERNAME);
+        Self::add_builtin_name(&pool, ClassName::method(), JAVA_LANG_REFLECT_METHOD);
+        Self::add_builtin_name(&pool, ClassName::system(), JAVA_LANG_SYSTEM);
+        Self::add_builtin_name(&pool, ClassName::serializable(), JAVA_IO_SERIALIZABLE);
+        Self::add_builtin_name(&pool, ClassName::cloneable(), JAVA_LANG_CLONEABLE);
+        Self::add_builtin_name(&pool, ClassName::unsafe_(), SUN_MISC_UNSAFE);
+        Self::add_builtin_name(&pool, ClassName::field(), JAVA_LANG_REFLECT_FIELD);
+        Self::add_builtin_name(&pool, ClassName::properties(), JAVA_UTIL_PROPERTIES);
+        Self::add_builtin_name(&pool, ClassName::thread(), JAVA_LANG_THREAD);
+        Self::add_builtin_name(&pool, ClassName::thread_group(), JAVA_LANG_THREADGROUP);
+        Self::add_builtin_name(&pool, ClassName::constructor(), JAVA_LANG_REFLECT_CONSTRUCTOR);
+        Self::add_builtin_name(&pool, ClassName::classloader(), JAVA_LANG_CLASSLOADER);
         Self { pool }
     }
 
@@ -71,18 +91,6 @@ impl CompressedClassfileString {
     }
 }
 
-pub const COMPRESSED_ID_OBJECT: AddOnlyVecIDType = 0;
-pub const COMPRESSED_ID_CLASS: AddOnlyVecIDType = 1;
-pub const COMPRESSED_ID_METHOD_HANDLE: AddOnlyVecIDType = 2;
-pub const COMPRESSED_ID_THROWABLE: AddOnlyVecIDType = 3;
-pub const COMPRESSED_ID_METHOD_TYPE: AddOnlyVecIDType = 4;
-pub const COMPRESSED_ID_STRING: AddOnlyVecIDType = 5;
-pub const COMPRESSED_ID_CLONEABLE: AddOnlyVecIDType = 6;
-pub const COMPRESSED_ID_SERIALIZABLE: AddOnlyVecIDType = 7;
-// pub const COMPRESSED_ID_OBJECT: AddOnlyVecIDType = 0;
-// pub const COMPRESSED_ID_OBJECT: AddOnlyVecIDType = 0;
-// pub const COMPRESSED_ID_OBJECT: AddOnlyVecIDType = 0;
-
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct CompressedClassName(pub CompressedClassfileString);
 
@@ -95,35 +103,162 @@ impl CompressedClassName {
         }
     }
 
+
     pub fn object() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_OBJECT)
+        Self::from_raw_id(JAVA_LANG_OBJECT)
     }
 
     pub fn class() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_CLASS)
+        Self::from_raw_id(JAVA_LANG_CLASS)
+    }
+
+    pub fn string() -> Self {
+        Self::from_raw_id(JAVA_LANG_STRING)
+    }
+
+    pub fn throwable() -> Self {
+        Self::from_raw_id(JAVA_LANG_THROWABLE)
+    }
+
+    pub fn float() -> Self {
+        Self::from_raw_id(JAVA_LANG_FLOAT)
+    }
+
+    pub fn double() -> Self {
+        Self::from_raw_id(JAVA_LANG_DOUBLE)
+    }
+    pub fn int() -> Self {
+        Self::from_raw_id(JAVA_LANG_INTEGER)
+    }
+    pub fn long() -> Self {
+        Self::from_raw_id(JAVA_LANG_LONG)
+    }
+
+    pub fn character() -> Self {
+        Self::from_raw_id(JAVA_LANG_CHARACTER)
+    }
+
+    pub fn boolean() -> Self {
+        Self::from_raw_id(JAVA_LANG_BOOLEAN)
+    }
+
+    pub fn byte() -> Self {
+        Self::from_raw_id(JAVA_LANG_BYTE)
+    }
+
+    pub fn short() -> Self {
+        Self::from_raw_id(JAVA_LANG_SHORT)
+    }
+
+    pub fn void() -> Self {
+        Self::from_raw_id(JAVA_LANG_VOID)
+    }
+
+    pub fn method_type() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHODTYPE)
+    }
+
+    pub fn method_type_form() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHODTYPEFORM)
     }
 
     pub fn method_handle() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_METHOD_HANDLE)
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLE)
     }
-    pub fn throwable() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_THROWABLE)
+
+    pub fn method_handles() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLES)
     }
-    pub fn method_type() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_METHOD_TYPE)
+
+    pub fn lookup() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLES_LOOKUP)
     }
-    pub fn string() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_STRING)
+
+    pub fn direct_method_handle() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_DIRECTMETHODHANDLE)
+    }
+
+    pub fn member_name() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_MEMBERNAME)
+    }
+
+    pub fn method() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_METHOD)
+    }
+
+    pub fn system() -> Self {
+        Self::from_raw_id(JAVA_LANG_SYSTEM)
     }
 
     pub fn serializable() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_STRING)
+        Self::from_raw_id(JAVA_IO_SERIALIZABLE)
     }
 
     pub fn cloneable() -> Self {
-        Self::from_raw_id(COMPRESSED_ID_STRING)
+        Self::from_raw_id(JAVA_LANG_CLONEABLE)
+    }
+
+    pub fn unsafe_() -> Self {
+        Self::from_raw_id(SUN_MISC_UNSAFE)
+    }
+
+    pub fn field() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_FIELD)
+    }
+
+    pub fn properties() -> Self {
+        Self::from_raw_id(JAVA_UTIL_PROPERTIES)
+    }
+
+    pub fn thread() -> Self {
+        Self::from_raw_id(JAVA_LANG_THREAD)
+    }
+
+    pub fn thread_group() -> Self {
+        Self::from_raw_id(JAVA_LANG_THREADGROUP)
+    }
+
+    pub fn constructor() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_CONSTRUCTOR)
+    }
+
+    pub fn classloader() -> Self {
+        Self::from_raw_id(JAVA_LANG_CLASSLOADER)
     }
 }
+
+
+pub const JAVA_LANG_OBJECT: AddOnlyVecIDType = 0;
+pub const JAVA_LANG_CLASS: AddOnlyVecIDType = 1;
+pub const JAVA_LANG_STRING: AddOnlyVecIDType = 2;
+pub const JAVA_LANG_THROWABLE: AddOnlyVecIDType = 3;
+pub const JAVA_LANG_FLOAT: AddOnlyVecIDType = 4;
+pub const JAVA_LANG_DOUBLE: AddOnlyVecIDType = 5;
+pub const JAVA_LANG_INTEGER: AddOnlyVecIDType = 6;
+pub const JAVA_LANG_LONG: AddOnlyVecIDType = 7;
+pub const JAVA_LANG_CHARACTER: AddOnlyVecIDType = 8;
+pub const JAVA_LANG_BOOLEAN: AddOnlyVecIDType = 9;
+pub const JAVA_LANG_BYTE: AddOnlyVecIDType = 10;
+pub const JAVA_LANG_SHORT: AddOnlyVecIDType = 11;
+pub const JAVA_LANG_VOID: AddOnlyVecIDType = 12;
+pub const JAVA_LANG_INVOKE_METHODTYPE: AddOnlyVecIDType = 13;
+pub const JAVA_LANG_INVOKE_METHODTYPEFORM: AddOnlyVecIDType = 14;
+pub const JAVA_LANG_INVOKE_METHODHANDLE: AddOnlyVecIDType = 15;
+pub const JAVA_LANG_INVOKE_METHODHANDLES: AddOnlyVecIDType = 16;
+pub const JAVA_LANG_INVOKE_METHODHANDLES_LOOKUP: AddOnlyVecIDType = 17;
+pub const JAVA_LANG_INVOKE_DIRECTMETHODHANDLE: AddOnlyVecIDType = 18;
+pub const JAVA_LANG_INVOKE_MEMBERNAME: AddOnlyVecIDType = 19;
+pub const JAVA_LANG_REFLECT_METHOD: AddOnlyVecIDType = 20;
+pub const JAVA_LANG_SYSTEM: AddOnlyVecIDType = 21;
+pub const JAVA_IO_SERIALIZABLE: AddOnlyVecIDType = 22;
+pub const JAVA_LANG_CLONEABLE: AddOnlyVecIDType = 23;
+pub const SUN_MISC_UNSAFE: AddOnlyVecIDType = 24;
+pub const JAVA_LANG_REFLECT_FIELD: AddOnlyVecIDType = 25;
+pub const JAVA_UTIL_PROPERTIES: AddOnlyVecIDType = 26;
+pub const JAVA_LANG_THREAD: AddOnlyVecIDType = 27;
+pub const JAVA_LANG_THREADGROUP: AddOnlyVecIDType = 28;
+pub const JAVA_LANG_REFLECT_CONSTRUCTOR: AddOnlyVecIDType = 29;
+pub const JAVA_LANG_CLASSLOADER: AddOnlyVecIDType = 30;
 
 impl From<CompressedClassName> for CompressedParsedRefType {
     fn from(ccn: CompressedClassName) -> Self {

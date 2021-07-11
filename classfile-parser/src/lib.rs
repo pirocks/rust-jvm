@@ -1,14 +1,10 @@
 #![feature(exclusive_range_pattern)]
 
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-use std::fmt;
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
 use rust_jvm_common::loading::ClassfileParsingError;
 use rust_jvm_common::loading::ClassfileParsingError::WrongMagic;
-use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::attribute_infos::parse_attributes;
 use crate::constant_infos::parse_constant_infos;

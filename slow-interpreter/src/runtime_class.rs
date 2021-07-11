@@ -3,7 +3,6 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -11,7 +10,6 @@ use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::{default_value, JavaValue};
 use crate::jvm_state::ClassStatus;
-use crate::runtime_type::RuntimeType;
 
 #[derive(Debug)]
 pub enum RuntimeClass<'gc_life> {

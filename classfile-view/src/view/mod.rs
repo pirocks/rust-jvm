@@ -3,8 +3,7 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
-use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, Classfile, ConstantKind};
 use rust_jvm_common::compressed_classfile::{CClassName, CCString, CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedClassName, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
@@ -13,7 +12,6 @@ use crate::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, Doubl
 use crate::view::field_view::{FieldIterator, FieldView};
 use crate::view::interface_view::InterfaceIterator;
 use crate::view::method_view::{MethodIterator, MethodView};
-use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 pub trait HasAccessFlags {
     fn access_flags(&self) -> u16;
