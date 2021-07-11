@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 
-use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
 use classfile_view::view::method_view::MethodView;
@@ -13,6 +12,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;

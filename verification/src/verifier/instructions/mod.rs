@@ -1,12 +1,13 @@
 use std::rc::Rc;
 
-use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CPDType};
+use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
+use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
@@ -142,7 +143,7 @@ fn is_applicable_handler(offset: u16, handler: &Handler) -> bool {
 fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VType {
     let class_view = get_class(vf, class);
     let class_name = class_view.name();
-    class_name.to_verification_type(&class.loader)
+    class_name.to_verification_type(class.loader)
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
@@ -192,7 +193,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }),
-                              &VType::Class(ClassWithLoader { class_name: ClassName::throwable(), loader: LoaderName::BootstrapLoader }))?;
+                              &VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }))?;
                 init_handler_is_legal(env, h)
             } else {
                 Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
@@ -563,7 +564,7 @@ pub fn instruction_is_type_safe_i2l(env: &Environment, stack_frame: Frame) -> Re
 pub fn type_transition(env: &Environment, stack_frame: Frame, expected_types: Vec<VType>, res_type: VType) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
-    let next_frame = valid_type_transition(env, expected_types, &res_type, stack_frame)?;
+    let next_frame = valid_type_transition(env, expected_types, res_type, stack_frame)?;
     standard_exception_frame(locals, flag, next_frame)
 }
 
@@ -622,21 +623,19 @@ pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
         ConstantInfoView::Long(_) => VType::LongType,
         ConstantInfoView::Double(_) => VType::DoubleType,
         ConstantInfoView::Class(_c) => {
-            let class_name = ClassName::class();
+            let class_name = CClassName::class();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
         ConstantInfoView::String(_) => {
-            let class_name = ClassName::string();
+            let class_name = CClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
-        ConstantInfoView::MethodHandle(_mh) => VType::Class(ClassWithLoader { class_name: ClassName::method_handle(), loader: vf.current_loader.clone() }),
-        ConstantInfoView::MethodType(_mt) => VType::Class(ClassWithLoader { class_name: ClassName::method_type(), loader: vf.current_loader.clone() }),
+        ConstantInfoView::MethodHandle(_mh) => VType::Class(ClassWithLoader { class_name: CClassName::method_handle(), loader: vf.current_loader.clone() }),
+        ConstantInfoView::MethodType(_mt) => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: vf.current_loader.clone() }),
         ConstantInfoView::LiveObject(idx) => {
-            let type_ = vf.live_pool_getter.elem_type(*idx);
-            PTypeView::Ref(type_).to_verification_type(&vf.current_loader.clone())
+            vf.live_pool_getter.elem_type(*idx).to_verification_type(vf.current_loader)
         }
         _ => {
-            dbg!(c);
             panic!()
         }
     }
@@ -660,9 +659,9 @@ pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_fram
     let type_ = match const_ {
         ConstantInfoView::Integer(_) => VType::IntType,
         ConstantInfoView::Float(_) => VType::FloatType,
-        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: ClassName::class(), loader: env.vf.current_loader.clone() }),
-        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: ClassName::string(), loader: env.vf.current_loader.clone() }),
-        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: ClassName::new("java/lang/invoke/MethodType"), loader: env.vf.current_loader.clone() }),
+        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: CClassName::class(), loader: env.vf.current_loader.clone() }),
+        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: CClassName::string(), loader: env.vf.current_loader.clone() }),
+        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: env.vf.current_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)

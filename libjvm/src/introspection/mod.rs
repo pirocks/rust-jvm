@@ -8,7 +8,6 @@ use std::ptr::null_mut;
 use by_address::ByAddress;
 use num_cpus::get;
 
-use classfile_view::loading::{ClassLoadingError, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
@@ -16,6 +15,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::class_loading::check_initing_or_inited_class;

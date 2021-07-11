@@ -1,12 +1,13 @@
 use std::ops::Deref;
 
-use classfile_view::loading::*;
-use classfile_view::loading::LoaderName::BootstrapLoader;
+use itertools::Itertools;
+
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CCString, CPDType};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
+use rust_jvm_common::loading::*;
+use rust_jvm_common::loading::LoaderName::BootstrapLoader;
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::{ClassWithLoaderMethod, get_class};
 use crate::verifier::TypeSafetyError;
@@ -17,9 +18,9 @@ pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader,
         different_package_name(vf, class1, class2)
 }
 
-fn different_package_name(_vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    let name1 = class1.class_name.get_referred_name();
-    let name2 = class2.class_name.get_referred_name();
+fn different_package_name(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
+    let name1 = vf.pool.lookup(class1.class_name.0);
+    let name2 = vf.pool.lookup(class2.class_name.0);
     let split1: Vec<&str> = name1.split('/').collect();
     let split2: Vec<&str> = name2.split('/').collect();
     assert!(!split1.is_empty());
@@ -49,7 +50,7 @@ pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
 }
 
 
-pub fn loaded_class(_vf: &VerifierContext, class_name: ClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
+pub fn loaded_class(_vf: &VerifierContext, class_name: CClassName, loader: LoaderName) -> Result<ClassWithLoader, TypeSafetyError> {
     Result::Ok(ClassWithLoader { class_name, loader })
     // if vf.classes.class_loaded_by(&class_name, &loader) {
     //     Result::Ok(ClassWithLoader { class_name, loader })
@@ -67,7 +68,7 @@ pub fn class_is_interface(vf: &VerifierContext, class: &ClassWithLoader) -> bool
 }
 
 pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    if from.class_name.get_referred_name() == to.class_name.get_referred_name() {
+    if from.class_name == to.class_name {
         return Result::Ok(());
     }
     let mut chain = vec![];
@@ -138,7 +139,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                     return Result::Ok(());
                 }
                 if is_assignable(vf, &VType::Reference, to).is_err() {
-                    if c.class_name == ClassName::object() &&
+                    if c.class_name == CClassName::object() &&
                         c.loader == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
@@ -173,7 +174,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             VType::NullType => Result::Ok(()),
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: ClassName::object(), loader: vf.current_loader.clone() }), to),
+            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
@@ -206,25 +207,20 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
     }
 }
 
-fn atom(t: &PTypeView) -> bool {
+fn atom(t: &CPDType) -> bool {
     match t {
-        PTypeView::ByteType |
-        PTypeView::CharType |
-        PTypeView::DoubleType |
-        PTypeView::FloatType |
-        PTypeView::IntType |
-        PTypeView::LongType |
-        PTypeView::ShortType |
-        PTypeView::VoidType |
-        PTypeView::TopType |
-        PTypeView::NullType |
-        PTypeView::UninitializedThis |
-        PTypeView::BooleanType => {
+        CPDType::ByteType |
+        CPDType::CharType |
+        CPDType::DoubleType |
+        CPDType::FloatType |
+        CPDType::IntType |
+        CPDType::LongType |
+        CPDType::ShortType |
+        CPDType::VoidType |
+        CPDType::BooleanType => {
             true
         }
-        PTypeView::Ref(_) |
-        PTypeView::Uninitialized(_) |
-        PTypeView::UninitializedThisOrClass(_) => {
+        CPDType::Ref(_) => {
             false
         }
     }
@@ -246,13 +242,13 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
         VType::ArrayReferenceType(a1) => {
             match right {
                 VType::Class(c) => {
-                    if c.class_name == ClassName::object() && vf.current_loader == c.loader {
+                    if c.class_name == CClassName::object() && vf.current_loader == c.loader {
                         return Result::Ok(());
                     }
                     unimplemented!()
                 }
                 VType::ArrayReferenceType(a2) => {
-                    is_java_assignable_array_types(vf, a1, a2)
+                    is_java_assignable_array_types(vf, a1.clone(), a2.clone())
                 }
                 _ => unimplemented!()
             }
@@ -261,14 +257,14 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
     }
 }
 
-fn is_java_assignable_array_types(vf: &VerifierContext, left: &PTypeView, right: &PTypeView) -> Result<(), TypeSafetyError> {
+fn is_java_assignable_array_types(vf: &VerifierContext, left: CPDType, right: CPDType) -> Result<(), TypeSafetyError> {
     if atom(&left) && atom(&right) && left == right {
         return Result::Ok(());
     }
     if !atom(&left) && !atom(&right) {
         //todo is this bootstrap loader thing ok?
         //todo in general there needs to be a better way of handling this
-        return is_java_assignable(vf, &left.to_verification_type(&vf.current_loader), &right.to_verification_type(&vf.current_loader));//todo so is this correct or does the spec handle this in full generality?
+        return is_java_assignable(vf, &left.to_verification_type(vf.current_loader), &right.to_verification_type(vf.current_loader));//todo so is this correct or does the spec handle this in full generality?
     }
     Result::Err(unknown_error_verifying!())
 }
@@ -282,22 +278,22 @@ fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &C
 }
 
 pub fn is_array_interface(_vf: &VerifierContext, class: ClassWithLoader) -> bool {
-    class.class_name.get_referred_name() == "java/lang/Cloneable" ||
-        class.class_name.get_referred_name() == "java/io/Serializable"
+    class.class_name == CClassName::cloneable() ||
+        class.class_name == CClassName::serializable()
 }
 
 pub fn is_java_subclass_of(_vf: &VerifierContext, _sub: &ClassWithLoader, _super: &ClassWithLoader) {
     unimplemented!()
 }
 
-pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> ClassName {
+pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> CClassName {
     //todo dup, this must exist elsewhere
     let classfile = get_class(vf, class);
     classfile.super_name().unwrap()
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderName, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
-    if chain_start.class_name == ClassName::object() {
+    if chain_start.class_name == CClassName::object() {
         //todo magic constant
         return Ok(());
         //todo need to still sorta do this check
@@ -334,7 +330,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: 
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    if class.class_name == ClassName::object() {
+    if class.class_name == CClassName::object() {
         return Ok(());
         // if is_bootstrap_loader(&class.loader) {
         //     Result::Ok(())
@@ -356,15 +352,13 @@ pub fn final_method_not_overridden(
 ) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &method.class);
     let method_info = &method_class.method_view_i(method.method_index as u16);
-    let method_name__ = method_info.name();
-    let method_name_ = method_name__.deref();
+    let method_name_ = method_info.name();
     let descriptor_string = method_info.desc_str();
     //todo this stuff needs indexing. The below is guilty of 3% total init time.
     let matching_method = super_method_list.iter().find(|x| {
         let x_method_class = get_class(vf, &x.class);
         let x_method_info = &x_method_class.method_view_i(x.method_index as u16);
-        let x_method_name_ = x_method_info.name();
-        let x_method_name = x_method_name_.deref();
+        let x_method_name = x_method_info.name();
         let x_descriptor_string = x_method_info.desc_str();
         x_descriptor_string == descriptor_string && x_method_name == method_name_
     });
@@ -402,18 +396,17 @@ pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: 
 }
 
 //todo ClassName v. Name
-pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor) -> bool {
+pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: CCString, member_descriptor: &Descriptor) -> bool {
     let class = get_class(vf, super_);
     for method in class.methods() {
-        let method_name_ = method.name();
-        let method_name = method_name_.deref();
+        let method_name = method.name();
         if member_name == method_name {
             let parsed_member_types = method.desc();
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }
             };
-            if parsed_member_types.parameter_types == member_types.parameter_types && parsed_member_types.return_type == member_types.return_type {
+            if parsed_member_types.arg_types == member_types.parameter_types.iter().map(|ptype| CPDType::from_ptype(ptype, vf.pool)).collect_vec() && parsed_member_types.return_type == CPDType::from_ptype(&member_types.return_type, vf.pool) {
                 return method.is_protected();
             }
         }

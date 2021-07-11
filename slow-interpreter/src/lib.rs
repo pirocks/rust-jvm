@@ -25,6 +25,7 @@ use std::time::Duration;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::ptype::PType;
 
 use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
@@ -68,6 +69,7 @@ pub mod native_allocation;
 pub mod threading;
 mod resolvers;
 pub mod class_loading;
+pub mod runtime_type;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
@@ -77,7 +79,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.ptypeview()).expect("failed to init main class");
     let main_view = main.view();
-    let main_i = locate_main_method(&main_view);
+    let main_i = locate_main_method(&jvm.string_pool, &main_view);
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
@@ -109,7 +111,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
         jvm,
         int_state,
         arg_strings,
-        PTypeView::Ref(ReferenceTypeView::Class(ClassName::string())),
+        CPDType::Ref(CPRefType::Class(CClassName::string())),
         jvm.thread_state.new_monitor("arg array monitor".to_string()),
     ).expect("todo")))));
     let mut current_frame_mut = int_state.current_frame_mut();
@@ -135,18 +137,19 @@ fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
 }
 
 
-fn locate_main_method(main: &Arc<dyn ClassView>) -> u16 {
-    let string_name = ClassName::string();
-    let string_class = PTypeView::Ref(ReferenceTypeView::Class(string_name));
-    let string_array = PTypeView::Ref(ReferenceTypeView::Array(string_class.into()));
-    let psvms = main.lookup_method_name(&"main".to_string());
+fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn ClassView>) -> u16 {
+    let string_name = CClassName::string();
+    let string_class = CPDType::Ref(CPRefType::Class(string_name));
+    let string_array = CPDType::Ref(CPRefType::Array(string_class.into()));
+    let psvms = main.lookup_method_name(pool.add_name(&"main".to_string()));
     for m in psvms {
         let desc = m.desc();
-        if m.is_static() && desc.parameter_types == vec![string_array.to_ptype()] && desc.return_type == PType::VoidType {
+        if m.is_static() && desc.arg_types == vec![string_array] && desc.return_type == CPDType::VoidType {
             return m.method_i();
         }
     }
     //todo validate that main class isn't an array class
-    panic!("No psvms found in class: {}", main.name().unwrap_name().get_referred_name());
+    let main_class_name = pool.lookup(main.name().unwrap_object_name().0);
+    panic!("No psvms found in class: {}", main_class_name);
 }
 

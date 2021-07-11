@@ -109,7 +109,7 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name_func(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JString<'gc_life>>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, ClassName::member_name().into());
+            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(ClassName::string().into())).cast_string())
@@ -349,8 +349,8 @@ pub mod class {
 pub mod class_loader {
     use by_address::ByAddress;
 
-    use classfile_view::loading::LoaderName;
     use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::loading::LoaderName;
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;

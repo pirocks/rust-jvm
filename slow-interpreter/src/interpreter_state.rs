@@ -7,13 +7,13 @@ use std::sync::{Arc, RwLockWriteGuard};
 
 use itertools::{Either, Itertools};
 
-use classfile_view::loading::{ClassWithLoader, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::vtype::VType;
 use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout, StackframeMemoryLayout};
 use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
+use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};

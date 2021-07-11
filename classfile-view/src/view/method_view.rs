@@ -1,5 +1,6 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CCString, CMethodDescriptor, CPDType};
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -35,28 +36,21 @@ impl MethodView<'_> {
     }
 
     fn method_info(&self) -> &MethodInfo {
-        &self.class_view.backing_class.methods[self.method_i as usize]
+        todo!()
+        /*&self.class_view.backing_class.methods[self.method_i as usize]*/
     }
 
-    pub fn name(&self) -> String {
-        self.method_info().method_name(&self.class_view.backing_class)
+    pub fn name(&self) -> CCString {
+        self.class_view.backing_class.methods[self.method_i as usize].name
     }
 
-    pub fn desc_str(&self) -> String {
-        self.method_info().descriptor_str(&self.class_view.backing_class)
+    pub fn desc_str(&self) -> CCString {
+        todo!()
+        // self.method_info().descriptor_str(&self.class_view.backing_class)
     }
 
-    pub fn desc(&self) -> MethodDescriptor {
-        let guard = self.class_view.descriptor_index.read().unwrap();
-        match &guard[self.method_i as usize] {
-            None => {
-                let parsed = parse_method_descriptor(self.desc_str().as_str()).unwrap();
-                std::mem::drop(guard);
-                self.class_view.descriptor_index.write().unwrap()[self.method_i as usize] = Some(parsed.clone());
-                parsed
-            }
-            Some(res) => res.clone(),
-        }
+    pub fn desc(&self) -> &CMethodDescriptor {
+        &self.class_view.backing_class.methods[self.method_i as usize].descriptor
     }
 
     pub fn code_attribute(&self) -> Option<&Code> {
@@ -85,10 +79,10 @@ impl MethodView<'_> {
         // •  It has a single formal parameter of type Object[].
         // •  It has a return type of Object.
         // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
-        self.class_view.name() == ClassName::method_handle().into() &&
-            self.desc().parameter_types.len() == 1 &&
-            self.desc().parameter_types[0] == PTypeView::array(PTypeView::object()).to_ptype() &&
-            self.desc().return_type == PTypeView::object().to_ptype() &&
+        self.class_view.name() == CClassName::method_handle().into() &&
+            self.desc().arg_types.len() == 1 &&
+            self.desc().arg_types[0] == CPDType::array(CPDType::object()) &&
+            self.desc().return_type == CPDType::object() &&
             self.is_varargs() &&
             self.is_native()
     }
@@ -99,7 +93,7 @@ impl MethodView<'_> {
     }
 
     pub fn num_args(&self) -> usize {
-        self.desc().parameter_types.len()
+        self.desc().arg_types.len()
     }
 
     pub fn line_number_table(&self) -> Option<&LineNumberTable> {
@@ -155,7 +149,7 @@ impl LocalVariableView<'_> {
     pub fn name(&self) -> String {
         let cv = self.method_view.class_view;
         let name_i = self.local_variable_entry.name_index;
-        cv.backing_class.constant_pool[name_i as usize].extract_string_from_utf8()
+        cv.underlying_class.constant_pool[name_i as usize].extract_string_from_utf8()
     }
 
     pub fn variable_length(&self) -> usize {
@@ -165,7 +159,7 @@ impl LocalVariableView<'_> {
     pub fn desc_str(&self) -> String {
         let cv = self.method_view.class_view;
         let desc_i = self.local_variable_entry.descriptor_index;
-        cv.backing_class.constant_pool[desc_i as usize].extract_string_from_utf8()
+        cv.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8()
     }
 
     pub fn desc(&self) -> FieldDescriptor {

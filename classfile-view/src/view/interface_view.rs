@@ -32,7 +32,7 @@ impl<'l> InterfaceView<'l> {
     pub fn interface_name(&self) -> ClassName {
         match self {
             InterfaceView::ClassBacked { view, i } => {
-                PType::Ref(view.backing_class.extract_class_from_constant_pool_name(view.backing_class.interfaces[*i])).unwrap_class_type()
+                PType::Ref(view.underlying_class.extract_class_from_constant_pool_name(view.underlying_class.interfaces[*i])).unwrap_class_type()
             }
             InterfaceView::Cloneable => {
                 ClassName::cloneable()

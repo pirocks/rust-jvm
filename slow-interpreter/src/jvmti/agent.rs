@@ -2,8 +2,8 @@ use std::os::raw::c_void;
 
 use thread_priority::*;
 
-use classfile_view::loading::LoaderName;
 use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
+use rust_jvm_common::loading::LoaderName;
 
 use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;

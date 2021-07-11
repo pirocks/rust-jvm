@@ -6,9 +6,9 @@ use std::mem::size_of;
 
 use itertools::{Either, Itertools};
 
-use classfile_view::loading::LoaderName;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jlong, jobject};
+use rust_jvm_common::loading::LoaderName;
 use verification::verifier::Frame;
 
 pub struct GCState {

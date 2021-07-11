@@ -1,4 +1,5 @@
 use rust_jvm_common::classfile::FieldInfo;
+use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -11,17 +12,17 @@ pub struct FieldView<'l> {
 }
 
 impl FieldView<'_> {
-    fn field_info(&self) -> &FieldInfo {
+    fn field_info(&self) -> &CompressedFieldInfo {
         &self.view.backing_class.fields[self.i]
     }
-    pub fn field_name(&self) -> String {
-        self.field_info().name(&self.view.backing_class)
+    pub fn field_name(&self) -> CCString {
+        self.field_info().name
     }
     pub fn field_desc(&self) -> String {
-        self.view.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
+        self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i].descriptor_index as usize].extract_string_from_utf8()
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
-        self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
+        self.view.underlying_class.fields[self.i].constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
     }
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i }

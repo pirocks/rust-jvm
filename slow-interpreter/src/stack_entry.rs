@@ -13,13 +13,13 @@ use bimap::BiMap;
 use by_address::ByAddress;
 use itertools::Itertools;
 
-use classfile_view::loading::LoaderName;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, JVM_Available};
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;

@@ -1,7 +1,7 @@
 use std::ptr::null_mut;
 
-use classfile_view::loading::{ClassLoadingError, LoaderName};
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
+use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;

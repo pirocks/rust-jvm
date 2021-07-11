@@ -1,12 +1,13 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use classfile_view::loading::*;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CCString};
 use rust_jvm_common::descriptor_parser::Descriptor;
+use rust_jvm_common::loading::*;
+use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
@@ -37,7 +38,7 @@ pub struct InternalFrame {
 
 //todo impl on VerifierContext
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<dyn ClassView> {
-    Arc::new(ClassBackedView::from(verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())))
+    Arc::new(ClassBackedView::from(verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone()), verifier_context.pool))
     // Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
 
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
@@ -89,7 +90,7 @@ pub enum TypeSafetyError {
 }
 
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    if class.class_name == ClassName::object() {
+    if class.class_name == CClassName::object() {
         if !is_bootstrap_loader(&class.loader) {
             return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
         }
@@ -113,7 +114,7 @@ pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> 
     Ok(())
 }
 
-pub fn passes_protected_check(_env: &Environment, _member_class_name: &ClassName, _member_name: String, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+pub fn passes_protected_check(_env: &Environment, _member_class_name: CClassName, _member_name: String, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
 // todo waiting on stackoverflow / further clarification
     Result::Ok(())
 //    let mut chain = vec![];
@@ -144,7 +145,7 @@ pub fn passes_protected_check(_env: &Environment, _member_class_name: &ClassName
 }
 
 
-pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: String, member_descriptor: &Descriptor, member_class_name: ClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>, TypeSafetyError> {
+pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: CCString, member_descriptor: &Descriptor, member_class_name: CClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>, TypeSafetyError> {
     let mut res = vec![];
     classes_in_other_pkg_with_protected_member_impl(vf, class, member_name, member_descriptor, member_class_name, chain.as_slice(), &mut res)?;
     Result::Ok(res)
@@ -154,9 +155,9 @@ pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &
 fn classes_in_other_pkg_with_protected_member_impl(
     vf: &VerifierContext,
     class: &ClassWithLoader,
-    member_name: String,
+    member_name: CCString,
     member_descriptor: &Descriptor,
-    member_class_name: ClassName,
+    member_class_name: CClassName,
     chain: &[ClassWithLoader],
     res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
     if !chain.is_empty() {
@@ -171,7 +172,6 @@ fn classes_in_other_pkg_with_protected_member_impl(
         if different_runtime_package(vf, class, first) {
             let super_ = loaded_class(vf, member_class_name.clone(), l)?;
             if is_protected(vf, &super_, member_name.clone(), member_descriptor) {
-                dbg!(&res);
                 res.push(first.clone())
             }
         }

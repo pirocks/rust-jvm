@@ -10,10 +10,10 @@ use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 

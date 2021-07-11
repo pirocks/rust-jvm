@@ -4,11 +4,11 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use classfile_parser::parse_class_file;
-use classfile_view::loading::ClassLoadingError;
-use classfile_view::loading::ClassLoadingError::ClassNotFoundException;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::loading::ClassLoadingError;
+use rust_jvm_common::loading::ClassLoadingError::ClassNotFoundException;
 
 #[derive(Debug)]
 pub struct Classpath {

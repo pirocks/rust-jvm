@@ -5,14 +5,47 @@ use std::fmt::Error;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 
-use classfile_parser::ClassfileParsingError;
-use rust_jvm_common::classnames::ClassName;
+use sketch_jvm_version_of_utf8::ValidationError;
 
-use crate::view::ptype_view::ReferenceTypeView;
+use crate::classnames::ClassName;
+use crate::compressed_classfile::{CClassName, CPRefType};
 
 pub trait LivePoolGetter {
-    fn elem_type(&self, idx: usize) -> ReferenceTypeView;
+    fn elem_type(&self, idx: usize) -> CPRefType;
 }
+
+#[derive(Debug)]
+pub enum ClassfileParsingError {
+    EOF,
+    WrongMagic,
+    NoAttributeName,
+    EndOfInstructions,
+    WrongInstructionType,
+    ATypeWrong,
+    WrongPtype,
+    UsedReservedStackMapEntry,
+    WrongStackMapFrameType,
+    WrongTag,
+    WromngCPEntry,
+    UTFValidationError(ValidationError),
+    WrongDescriptor,
+}
+
+impl From<ValidationError> for ClassfileParsingError {
+    fn from(err: ValidationError) -> Self {
+        Self::UTFValidationError(err)
+    }
+}
+
+impl std::error::Error for ClassfileParsingError {}
+
+
+impl Display for ClassfileParsingError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 
 #[derive(Debug)]
 pub enum ClassLoadingError {
@@ -78,8 +111,9 @@ impl Display for LoaderName {
 }
 
 
+#[derive(Debug)]
 pub struct ClassWithLoader {
-    pub class_name: ClassName,
+    pub class_name: CClassName,
     pub loader: LoaderName,
 }
 
@@ -105,8 +139,8 @@ impl Clone for ClassWithLoader {
 impl Eq for ClassWithLoader {}
 
 
-impl Debug for ClassWithLoader {
+/*impl Debug for ClassWithLoader {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "<{},{}>", &self.class_name.get_referred_name(), self.loader)
     }
-}
+}*/

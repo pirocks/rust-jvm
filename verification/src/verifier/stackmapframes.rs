@@ -1,10 +1,13 @@
 use std::rc::Rc;
 
-use classfile_view::loading::*;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{AppendFrame, AttributeType, ChopFrame, Code, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::loading::*;
+use rust_jvm_common::vtype::VType;
 
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
@@ -31,9 +34,9 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     let this_pointer = if method_info.is_static() {
         None
     } else {
-        Some(PTypeView::Ref(ReferenceTypeView::Class(class.class_name.clone())))
+        Some(PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(vf.pool.lookup(class.class_name.0).to_string()))))
     };
-    let mut frame = init_frame(parsed_descriptor.parameter_types.iter().map(|x| PTypeView::from_ptype(x)).collect(), this_pointer, code.max_locals);
+    let mut frame = init_frame(parsed_descriptor.arg_types.iter().map(|x| PTypeView::from_compressed(x, vf.pool)).collect(), this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;
     for (_, entry) in stack_map.entries.iter().enumerate() {
@@ -56,10 +59,10 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
             map_frame: Frame {
                 locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()
-                    .map(|x| x.to_verification_type(&vf.current_loader))
+                    .map(|x| x.to_verification_type(&vf.current_loader, vf.pool))
                     .collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
-                    .map(|x| x.to_verification_type(&vf.current_loader))
+                    .map(|x| x.to_verification_type(&vf.current_loader, vf.pool))
                     .collect::<Vec<_>>()),
                 flag_this_uninit: false,
             },

@@ -1,5 +1,5 @@
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
+use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 

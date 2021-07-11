@@ -13,3 +13,5 @@ path = "src/lib.rs"
 num-traits = "0.2"
 num-derive = "0.2"
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
+add-only-static-vec = { path = "../add-only-static-vec" }
+itertools = "0.10.0"

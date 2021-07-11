@@ -2,10 +2,10 @@ use std::ptr::null_mut;
 use std::sync::Arc;
 
 use classfile_parser::parse_class_file;
-use classfile_view::loading::LoaderName;
 use classfile_view::view::ClassBackedView;
 use jvmti_jni_bindings::{jbyteArray, jclass, jint, jio_fprintf, JNIEnv, jobject, jstring};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;

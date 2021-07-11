@@ -1,7 +1,6 @@
-use rust_jvm_common::classfile::UninitializedVariableInfo;
-
+use crate::classfile::UninitializedVariableInfo;
+use crate::compressed_classfile::CPDType;
 use crate::loading::ClassWithLoader;
-use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
@@ -13,7 +12,7 @@ pub enum VType {
     IntType,
     LongType,
     Class(ClassWithLoader),
-    ArrayReferenceType(PTypeView),
+    ArrayReferenceType(CPDType),
     VoidType,
     TopType,
     NullType,
@@ -30,11 +29,8 @@ pub enum VType {
     UninitializedEmpty,
 }
 
-pub static mut VCLONE_COUNT: usize = 0;
-
 impl Clone for VType {
     fn clone(&self) -> Self {
-        unsafe { VCLONE_COUNT += 1; }
         match self {
             VType::DoubleType => VType::DoubleType,
             VType::FloatType => VType::FloatType,
@@ -55,3 +51,4 @@ impl Clone for VType {
         }
     }
 }
+

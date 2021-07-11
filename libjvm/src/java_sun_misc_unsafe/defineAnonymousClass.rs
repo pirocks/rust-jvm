@@ -11,12 +11,12 @@ use std::sync::atomic::Ordering::AcqRel;
 use by_address::ByAddress;
 
 use classfile_parser::parse_class_file;
-use classfile_view::loading::LoaderName;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;

@@ -17,13 +17,14 @@ use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
-use classfile_view::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use classfile_view::view::ClassBackedView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::string_pool::StringPool;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::Frame;
@@ -53,7 +54,7 @@ pub struct JVMState<'gc_life> {
     pub libjava_path: OsString,
     pub(crate) properties: Vec<String>,
     pub system_domain_loader: bool,
-    pub string_pool: StringPool,
+    pub string_pool: CompressedClassfileStringPool,
     pub string_internment: RwLock<StringInternment<'gc_life>>,
     pub start_instant: Instant,
     pub libjava: LibJavaLoading<'gc_life>,
@@ -62,7 +63,7 @@ pub struct JVMState<'gc_life> {
     pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<GcManagedObject<'gc_life>>>>,
     pub gc: &'gc_life GC<'gc_life>,
     pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddress<GcManagedObject<'gc_life>>>>,
-    pub main_class_name: ClassName,
+    pub main_class_name: CClassName,
 
     pub classpath: Arc<Classpath>,
     pub(crate) invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
@@ -92,8 +93,8 @@ pub struct JVMState<'gc_life> {
 
 pub struct Classes<'gc_life> {
     //todo needs to be used for all instances of getClass
-    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<PTypeView, Arc<RuntimeClass<'gc_life>>>>,
-    pub initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass<'gc_life>>)>,
+    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass<'gc_life>>>>,
+    pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>)>,
     pub class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass<'gc_life>>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc_life>>>>,
@@ -367,7 +368,7 @@ impl From<libloading::Error> for LookupError {
 }
 
 impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
-    fn elem_type(&self, idx: usize) -> ReferenceTypeView {
+    fn elem_type(&self, idx: usize) -> CPRefType {
         let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
         JavaValue::Object(todo!()/*object.clone().into()*/).to_type().unwrap_ref_type().clone()
     }
@@ -376,7 +377,7 @@ impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
 pub struct NoopLivePoolGetter {}
 
 impl LivePoolGetter for NoopLivePoolGetter {
-    fn elem_type(&self, _idx: usize) -> ReferenceTypeView {
+    fn elem_type(&self, _idx: usize) -> CPRefType {
         panic!()
     }
 }
@@ -404,7 +405,10 @@ pub struct BootstrapLoaderClassGetter<'vm_life, 'l> {
 }
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
-    fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile> {
+    fn get_classfile(&self,
+                     loader: LoaderName,
+                     class: CClassName,
+    ) -> Arc<Classfile> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         self.jvm.classpath.lookup(&class).unwrap()
     }

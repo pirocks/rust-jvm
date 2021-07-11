@@ -1,4 +1,4 @@
-use classfile_view::vtype::VType;
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;

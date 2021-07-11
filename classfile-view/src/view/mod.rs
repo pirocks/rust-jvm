@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::{CClassName, CCString, CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedClassName, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, SourceFileView};
@@ -49,9 +51,9 @@ pub trait HasAccessFlags {
 
 
 pub trait ClassView: HasAccessFlags {
-    fn name(&self) -> ReferenceTypeView;
-    fn type_(&self) -> PTypeView;
-    fn super_name(&self) -> Option<ClassName>;
+    fn name(&self) -> CompressedParsedRefType;
+    fn type_(&self) -> CPDType;
+    fn super_name(&self) -> Option<CompressedClassName>;
     fn methods(&self) -> MethodIterator;
     fn method_view_i(&self, i: u16) -> MethodView;
     fn num_methods(&self) -> usize;
@@ -67,21 +69,23 @@ pub trait ClassView: HasAccessFlags {
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
 
-    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView>;
-    fn lookup_method_name(&self, name: &str) -> Vec<MethodView>;
+    fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView>;
+    fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView>;
 }
 
-#[derive(Debug)]
 pub struct ClassBackedView {
-    backing_class: Arc<Classfile>,
+    underlying_class: Arc<Classfile>,
+    backing_class: CompressedClassfile,
     method_index: RwLock<Option<Arc<MethodIndex>>>,
     descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
 }
 
 
 impl ClassBackedView {
-    pub fn from(c: Arc<Classfile>) -> ClassBackedView {
-        ClassBackedView { backing_class: c.clone(), method_index: RwLock::new(None), descriptor_index: RwLock::new(vec![None; c.methods.len()]) }
+    pub fn from(c: Arc<Classfile>, pool: &CompressedClassfileStringPool) -> ClassBackedView {
+        let backing_class = CompressedClassfile::new(pool, c.deref());
+        let descriptor_index = RwLock::new(vec![None; c.methods.len()]);
+        ClassBackedView { underlying_class: c, backing_class, method_index: RwLock::new(None), descriptor_index }
     }
 
     fn method_index(&self) -> Arc<MethodIndex> {
@@ -99,16 +103,16 @@ impl ClassBackedView {
 }
 
 impl ClassView for ClassBackedView {
-    fn name(&self) -> ReferenceTypeView {
-        ReferenceTypeView::Class(class_name(&self.backing_class))
+    fn name(&self) -> CompressedParsedRefType {
+        CompressedParsedRefType::Class(self.backing_class.this_class)
     }
 
-    fn type_(&self) -> PTypeView {
-        PTypeView::Ref(self.name())
+    fn type_(&self) -> CompressedParsedDescriptorType {
+        CompressedParsedDescriptorType::Ref(self.name())
     }
 
-    fn super_name(&self) -> Option<ClassName> {
-        self.backing_class.super_class_name()
+    fn super_name(&self) -> Option<CompressedClassName> {
+        self.backing_class.super_class
     }
     fn methods(&self) -> MethodIterator {
         MethodIterator::ClassBacked { class_view: self, i: 0 }
@@ -120,11 +124,11 @@ impl ClassView for ClassBackedView {
         self.backing_class.methods.len()
     }
     fn constant_pool_size(&self) -> usize {
-        self.backing_class.constant_pool.len()
+        self.underlying_class.constant_pool.len()
     }
     fn constant_pool_view(&self, i: usize) -> ConstantInfoView {
-        let backing_class = self.backing_class.clone();
-        match &self.backing_class.constant_pool[i].kind {
+        let underlying_class = self.underlying_class.deref();
+        match &self.underlying_class.constant_pool[i].kind {
             ConstantKind::Utf8(utf8) => ConstantInfoView::Utf8(Utf8View { str: utf8.string.clone() }),
             ConstantKind::Integer(i) => ConstantInfoView::Integer(IntegerView { int: i.bytes as i32 }),
             ConstantKind::Float(f) => ConstantInfoView::Float(FloatView {
@@ -136,7 +140,7 @@ impl ClassView for ClassBackedView {
             ConstantKind::Double(d) => ConstantInfoView::Double(DoubleView {
                 double: f64::from_bits((d.high_bytes as u64) << 32 | d.low_bytes as u64)
             }),
-            ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { backing_class, name_index: c.name_index as usize }),
+            ConstantKind::Class(c) => ConstantInfoView::Class(ClassPoolElemView { underlying_class, name_index: c.name_index as usize }),
             ConstantKind::String(s) => ConstantInfoView::String(StringView { class_view: self, string_index: s.string_index as usize }),
             ConstantKind::Fieldref(_) => ConstantInfoView::Fieldref(FieldrefView { class_view: self, i }),
             ConstantKind::Methodref(_) => ConstantInfoView::Methodref(MethodrefView { class_view: self, i }),
@@ -169,48 +173,52 @@ impl ClassView for ClassBackedView {
         self.backing_class.interfaces.len()
     }
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
-        let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
+        /*let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
             match &x.attribute_type {
                 AttributeType::BootstrapMethods(_) => true,
                 _ => false
             }
         })?;
-        BootstrapMethodsView { backing_class: self, attr_i: i }.into()
+        BootstrapMethodsView { backing_class: self, attr_i: i }.into()*/
+        todo!()
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
-        let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
+        /*let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::SourceFile(_) => Some(i),
                 _ => None
             }
         }).next()?;
-        Some(SourceFileView { backing_class: self, i })
+        Some(SourceFileView { backing_class: self, i })*/
+        todo!()
     }
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
-        self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+        /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))
-        }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })
+        }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
+        todo!()
     }
 
     fn inner_classes_view(&self) -> Option<InnerClassesView> {
-        self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+        /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::InnerClasses(_))
-        }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })
+        }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
+        todo!()
     }
 
-    fn lookup_method(&self, name: &str, desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
         self.method_index().lookup(self, name, desc)
     }
-    fn lookup_method_name(&self, name: &str) -> Vec<MethodView> {
+    fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView> {
         self.method_index().lookup_method_name(self, name)
     }
 }
 
-type MethodName = String;
+type MethodName = CCString;
 
-#[derive(Debug)]
+//todo deprecate this method index in favor of compressed-classfile indexing on creation
 pub struct MethodIndex {
-    index: HashMap<MethodName, HashMap<MethodDescriptor, u16>>,
+    index: HashMap<MethodName, HashMap<CMethodDescriptor, u16>>,
 }
 
 impl MethodIndex {
@@ -222,18 +230,18 @@ impl MethodIndex {
             let method_i = method_view.method_i;
             match res.index.get_mut(&name) {
                 None => {
-                    let new_hashmap = HashMap::from_iter(vec![(parsed_desc, method_i)].into_iter());
+                    let new_hashmap = HashMap::from_iter(vec![(parsed_desc.clone(), method_i)].into_iter());
                     res.index.insert(name, new_hashmap);
                 }
                 Some(method_descriptors) => {
-                    method_descriptors.insert(parsed_desc, method_i);
+                    method_descriptors.insert(parsed_desc.clone(), method_i);
                 }
             }
         }
         res
     }
-    fn lookup<'cl>(&self, c: &'cl ClassBackedView, name: &str, desc: &MethodDescriptor) -> Option<MethodView<'cl>> {
-        self.index.get(name)
+    fn lookup<'cl>(&self, c: &'cl ClassBackedView, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView<'cl>> {
+        self.index.get(&name)
             .and_then(|x| x.get(desc))
             .map(
                 |method_i|
@@ -243,8 +251,8 @@ impl MethodIndex {
                     }
             )
     }
-    fn lookup_method_name<'cl>(&self, c: &'cl ClassBackedView, name: &str) -> Vec<MethodView<'cl>> {
-        self.index.get(name)
+    fn lookup_method_name<'cl>(&self, c: &'cl ClassBackedView, name: MethodName) -> Vec<MethodView<'cl>> {
+        self.index.get(&name)
             .map(
                 |methods|
                     methods.values().map(|method_i| {
@@ -287,8 +295,8 @@ impl HasAccessFlags for PrimitiveView {
 //todo perhaps devirtualize this and go for sum types instead
 
 impl ClassView for PrimitiveView {
-    fn name(&self) -> ReferenceTypeView {
-        ReferenceTypeView::Class(match self {
+    fn name(&self) -> CompressedParsedRefType {
+        CompressedParsedRefType::Class(todo!("should have constants defined as integer ids and register in order on startup")/*match self {
             PrimitiveView::Byte => ClassName::raw_byte(),
             PrimitiveView::Boolean => ClassName::raw_boolean(),
             PrimitiveView::Short => ClassName::raw_short(),
@@ -298,24 +306,24 @@ impl ClassView for PrimitiveView {
             PrimitiveView::Float => ClassName::raw_float(),
             PrimitiveView::Double => ClassName::raw_double(),
             PrimitiveView::Void => ClassName::raw_void()
-        })
+        }*/)
     }
 
-    fn type_(&self) -> PTypeView {
+    fn type_(&self) -> CompressedParsedDescriptorType {
         match self {
-            PrimitiveView::Byte => PTypeView::ByteType,
-            PrimitiveView::Boolean => PTypeView::BooleanType,
-            PrimitiveView::Short => PTypeView::ShortType,
-            PrimitiveView::Char => PTypeView::CharType,
-            PrimitiveView::Int => PTypeView::IntType,
-            PrimitiveView::Long => PTypeView::LongType,
-            PrimitiveView::Float => PTypeView::FloatType,
-            PrimitiveView::Double => PTypeView::DoubleType,
-            PrimitiveView::Void => PTypeView::VoidType
+            PrimitiveView::Byte => CompressedParsedDescriptorType::ByteType,
+            PrimitiveView::Boolean => CompressedParsedDescriptorType::BooleanType,
+            PrimitiveView::Short => CompressedParsedDescriptorType::ShortType,
+            PrimitiveView::Char => CompressedParsedDescriptorType::CharType,
+            PrimitiveView::Int => CompressedParsedDescriptorType::IntType,
+            PrimitiveView::Long => CompressedParsedDescriptorType::LongType,
+            PrimitiveView::Float => CompressedParsedDescriptorType::FloatType,
+            PrimitiveView::Double => CompressedParsedDescriptorType::DoubleType,
+            PrimitiveView::Void => CompressedParsedDescriptorType::VoidType
         }
     }
 
-    fn super_name(&self) -> Option<ClassName> {
+    fn super_name(&self) -> Option<CompressedClassName> {
         None
     }
 
@@ -376,11 +384,11 @@ impl ClassView for PrimitiveView {
         None
     }
 
-    fn lookup_method(&self, _name: &str, _desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup_method(&self, _name: MethodName, _desc: &CMethodDescriptor) -> Option<MethodView> {
         None
     }
 
-    fn lookup_method_name(&self, _name: &str) -> Vec<MethodView> {
+    fn lookup_method_name(&self, _name: MethodName) -> Vec<MethodView> {
         vec![]
     }
 }
@@ -401,18 +409,18 @@ impl HasAccessFlags for ArrayView {
 }
 
 impl ClassView for ArrayView {
-    fn name(&self) -> ReferenceTypeView {
+    fn name(&self) -> CPRefType {
         self.type_().unwrap_ref_type().clone()
     }
 
-    fn type_(&self) -> PTypeView {
-        PTypeView::Ref(ReferenceTypeView::Array(box self.sub.type_()))
+    fn type_(&self) -> CPDType {
+        CompressedParsedDescriptorType::Ref(CPRefType::Array(box self.sub.type_()))
     }
 
     /// this is doing the heavy lifting to get all the desired methods here
     /// there is still the question of clone/serializable
-    fn super_name(&self) -> Option<ClassName> {
-        Some(ClassName::object())
+    fn super_name(&self) -> Option<CompressedClassName> {
+        Some(CClassName::object())
     }
 
     fn methods(&self) -> MethodIterator {
@@ -472,11 +480,11 @@ impl ClassView for ArrayView {
         None
     }
 
-    fn lookup_method(&self, _name: &str, _desc: &MethodDescriptor) -> Option<MethodView> {
+    fn lookup_method(&self, _name: MethodName, _desc: &CMethodDescriptor) -> Option<MethodView> {
         panic!()
     }
 
-    fn lookup_method_name(&self, _name: &str) -> Vec<MethodView> {
+    fn lookup_method_name(&self, _name: MethodName) -> Vec<MethodView> {
         panic!()
     }
 }

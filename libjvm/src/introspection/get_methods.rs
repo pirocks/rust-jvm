@@ -2,13 +2,13 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::ptr::null_mut;
 
-use classfile_view::loading::{LoaderIndex, LoaderName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::loading::{LoaderIndex, LoaderName};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;

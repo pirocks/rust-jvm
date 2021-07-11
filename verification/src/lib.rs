@@ -4,11 +4,12 @@ use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::sync::Arc;
 
-use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use classfile_view::view::{ClassBackedView, ClassView};
-use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassfileStringPool};
+use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
@@ -18,7 +19,7 @@ pub mod verifier;
 
 pub fn verify(vf: &mut VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
     class_is_type_safe(vf, &ClassWithLoader {
-        class_name: to_verify.name().unwrap_name(),
+        class_name: to_verify.name().unwrap_object_name(),
         loader,
     })
 }
@@ -32,6 +33,7 @@ pub struct StackMap {
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
+    pool: &'l CompressedClassfileStringPool,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<u16, Frame>>,
@@ -40,7 +42,7 @@ pub struct VerifierContext<'l> {
 
 
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile>;
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<Classfile>;
 }
 
 #[derive(Eq, Debug)]

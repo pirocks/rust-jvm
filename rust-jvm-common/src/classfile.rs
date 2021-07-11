@@ -32,6 +32,7 @@ pub struct SourceDebugExtension {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct BootstrapMethods {
     pub bootstrap_methods: Vec<BootstrapMethod>,
 }
@@ -406,6 +407,7 @@ pub enum AttributeType {
 
 #[derive(Debug)]
 #[derive(Eq, PartialEq)]
+#[derive(Clone)]
 pub struct BootstrapMethod {
     pub bootstrap_method_ref: u16,
     pub bootstrap_arguments: Vec<BootstrapArg>,

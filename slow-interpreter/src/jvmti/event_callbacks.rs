@@ -7,9 +7,10 @@ use std::sync::{Arc, RwLock};
 use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 
-use classfile_view::loading::LoaderName;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CClassName;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::class_objects::get_or_create_class_object;
@@ -164,7 +165,7 @@ impl SharedLibJVMTI {
     }
 
 
-    pub fn class_prepare(&self, jvm: &'gc_life JVMState<'gc_life>, class: &ClassName, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
+    pub fn class_prepare(&self, jvm: &'gc_life JVMState<'gc_life>, class: &CClassName, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]), jvm);

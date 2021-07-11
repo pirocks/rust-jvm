@@ -11,6 +11,8 @@ use static_rc::StaticRc;
 
 // pub const INITIAL_SIZE: usize = 100;
 
+pub type AddOnlyVecIDType = usize;
+
 pub struct AddOnlyVec<T> {
     //todo make this more type safe
     inner: RwLock<Vec<Box<T>>>,
@@ -23,6 +25,12 @@ impl<T> AddOnlyVec<T> {
 
     pub(crate) fn len(&self) -> usize {
         self.inner.read().unwrap().len()
+    }
+
+    pub fn new() -> Self {
+        Self {
+            inner: RwLock::new(vec![])
+        }
     }
 }
 
@@ -45,10 +53,10 @@ impl<T> std::ops::IndexMut<usize> for AddOnlyVec<T> {
 }
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
-pub struct AddOnlyId<T>(usize);
+pub struct AddOnlyId(pub AddOnlyVecIDType);
 
 struct AddOnlyIdMapInner<T> where T: PartialEq + Eq + Hash {
-    map: HashMap<StaticRc<T, 1, 2>, AddOnlyId<T>>,
+    map: HashMap<StaticRc<T, 1, 2>, AddOnlyId>,
     owner: AddOnlyVec<Option<StaticRc<T, 1, 2>>>,//todo I could put an add only vec here but the static rcs are much cooler
 }
 
@@ -67,7 +75,7 @@ impl<T> Drop for AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
 }
 
 impl<T> AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
-    pub fn push(&self, elem: T) -> AddOnlyId<T> {
+    pub fn push(&self, elem: T) -> AddOnlyId {
         let mut inner = self.inner.write().unwrap();
         let next_id = inner.map.len();
         let elem_rc = StaticRc::new(elem);
@@ -86,9 +94,15 @@ impl<T> AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
         }
     }
 
-    pub fn lookup<'l>(&'l self, id: AddOnlyId<T>) -> &'l T {
+    pub fn lookup<'l>(&'l self, id: AddOnlyId) -> &'l T {
         let inner = self.inner.read().unwrap();
         let res = inner.owner[id.0].as_ref().unwrap().deref();
         unsafe { transmute::<&T, &'l T>(res) }//this is safe b/c we never free any boxes until self goes out of scope
+    }
+
+    pub fn new() -> Self {
+        Self {
+            inner: RwLock::new(AddOnlyIdMapInner { map: Default::default(), owner: AddOnlyVec::new() })
+        }
     }
 }

@@ -4,12 +4,14 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::{default_value, JavaValue};
 use crate::jvm_state::ClassStatus;
+use crate::runtime_type::RuntimeType;
 
 #[derive(Debug)]
 pub enum RuntimeClass<'gc_life> {
@@ -28,22 +30,22 @@ pub enum RuntimeClass<'gc_life> {
 }
 
 impl<'gc_life> RuntimeClass<'gc_life> {
-    pub fn ptypeview(&self) -> PTypeView {
+    pub fn ptypeview(&self) -> CPDType {
         match self {
-            RuntimeClass::Byte => PTypeView::ByteType,
-            RuntimeClass::Boolean => PTypeView::BooleanType,
-            RuntimeClass::Short => PTypeView::ShortType,
-            RuntimeClass::Char => PTypeView::CharType,
-            RuntimeClass::Int => PTypeView::IntType,
-            RuntimeClass::Long => PTypeView::LongType,
-            RuntimeClass::Float => PTypeView::FloatType,
-            RuntimeClass::Double => PTypeView::DoubleType,
-            RuntimeClass::Void => PTypeView::VoidType,
+            RuntimeClass::Byte => CPDType::ByteType,
+            RuntimeClass::Boolean => CPDType::BooleanType,
+            RuntimeClass::Short => CPDType::ShortType,
+            RuntimeClass::Char => CPDType::CharType,
+            RuntimeClass::Int => CPDType::IntType,
+            RuntimeClass::Long => CPDType::LongType,
+            RuntimeClass::Float => CPDType::FloatType,
+            RuntimeClass::Double => CPDType::DoubleType,
+            RuntimeClass::Void => CPDType::VoidType,
             RuntimeClass::Array(arr) => {
-                PTypeView::Ref(ReferenceTypeView::Array(box arr.sub_class.ptypeview()))
+                CPDType::Ref(CPRefType::Array(box arr.sub_class.ptypeview()))
             }
             RuntimeClass::Object(o) => {
-                PTypeView::Ref(ReferenceTypeView::Class(o.class_view.name().unwrap_name()))
+                CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name()))
             }
             RuntimeClass::Top => panic!()
         }
@@ -69,7 +71,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
         }
     }
 
-    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<String, JavaValue<'gc_life>>> {
+    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<CCString, JavaValue<'gc_life>>> {
         match self {
             RuntimeClass::Byte => panic!(),
             RuntimeClass::Boolean => panic!(),
@@ -132,8 +134,8 @@ pub struct RuntimeClassArray<'gc_life> {
 
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<String, (usize, PTypeView)>,
-    pub static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
+    pub field_numbers: HashMap<CCString, (usize, CPDType)>,
+    pub static_vars: RwLock<HashMap<CCString, JavaValue<'gc_life>>>,
     pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
     //class may not be prepared
@@ -144,8 +146,8 @@ pub struct RuntimeClassClass<'gc_life> {
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
     pub fn new(class_view: Arc<dyn ClassView>,
-               field_numbers: HashMap<String, (usize, PTypeView)>,
-               static_vars: RwLock<HashMap<String, JavaValue<'gc_life>>>,
+               field_numbers: HashMap<CCString, (usize, CPDType)>,
+               static_vars: RwLock<HashMap<CCString, JavaValue<'gc_life>>>,
                parent: Option<Arc<RuntimeClass<'gc_life>>>,
                interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
                status: RwLock<ClassStatus>) -> Self {
@@ -170,10 +172,10 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     }
 }
 
-pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<String, JavaValue<'vm_life>>) {
+pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<CCString, JavaValue<'vm_life>>) {
     if let Some(jvmti) = jvm.jvmti_state.as_ref() {
-        if let PTypeView::Ref(ref_) = classfile.type_() {
-            if let ReferenceTypeView::Class(cn) = ref_ {
+        if let CPDType::Ref(ref_) = classfile.type_() {
+            if let CPRefType::Class(cn) = ref_ {
                 jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)
             }
         }
@@ -221,7 +223,7 @@ pub fn initialize_class(
     }
     //todo detecting if assertions are enabled?
     let view = &runtime_class.view();
-    let lookup_res = view.lookup_method_name(&"<clinit>".to_string());
+    let lookup_res = view.lookup_method_name(jvm.string_pool.add_name("<clinit>".to_string()));// todo constant for clinit
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
         None => return Ok(runtime_class),

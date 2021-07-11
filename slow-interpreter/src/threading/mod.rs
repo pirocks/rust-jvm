@@ -14,10 +14,10 @@ use crossbeam::thread::Scope;
 use libloading::Symbol;
 use num::Integer;
 
-use classfile_view::loading::LoaderName;
 use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, run_main, set_properties};

@@ -12,12 +12,14 @@ use itertools::{Itertools, repeat_n};
 
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
+use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
 
@@ -66,7 +68,7 @@ impl<'gc_life> GC<'gc_life> {
         visited.insert(obj);
         match unsafe { obj.as_ref() } {
             Object::Array(arr) => {
-                if let PTypeView::Ref(_) = arr.elem_type {
+                if let CPDType::Ref(_) = arr.elem_type {
                     for elem in unsafe { arr.elems.get().as_ref() }.unwrap() {
                         unsafe {
                             Self::gc_recurse(match NonNull::new(elem.object) {
@@ -84,8 +86,8 @@ impl<'gc_life> GC<'gc_life> {
     }
 
     fn gc_recurse_super(obj: &NormalObject<'gc_life>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<Object<'gc_life>>>) {
-        for (_name, (index, ptype)) in class_class.field_numbers.iter() {
-            if let PTypeView::Ref(_) = ptype {
+        for (_name, (index, rtype)) in class_class.field_numbers.iter() {
+            if let CPDType::Ref(_) = rtype {
                 Self::gc_recurse(match NonNull::new(unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }) {
                     None => continue,
                     Some(ptr) => ptr
@@ -232,7 +234,8 @@ impl Drop for GcManagedObject<'_> {
 
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: impl Into<String>) -> JavaValue<'gc_life> {
-        self.deref().lookup_field(jvm, field_name.into().as_str())
+        let id = jvm.string_pool.add_name(field_name);
+        self.deref().lookup_field(jvm, id)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
@@ -282,16 +285,16 @@ impl<'gc_life> JavaValue<'gc_life> {
                 NativeJavaValue { int: val_ }
             }
             JavaValue::Short(val_) => {
-                NativeJavaValue { short: val_ }
+                NativeJavaValue { int: val_ as i32 }
             }
             JavaValue::Byte(val_) => {
-                NativeJavaValue { byte: val_ }
+                NativeJavaValue { int: val_ as i32 }
             }
             JavaValue::Boolean(val_) => {
-                NativeJavaValue { boolean: val_ }
+                NativeJavaValue { int: val_ as i32 }
             }
             JavaValue::Char(val_) => {
-                NativeJavaValue { char: val_ }
+                NativeJavaValue { int: val_ as i32 }
             }
             JavaValue::Float(val_) => {
                 NativeJavaValue { float: val_ }
@@ -559,7 +562,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             jvm,
             int_state,
             vec![],
-            PTypeView::ByteType,
+            CPDType::ByteType,
             jvm.thread_state.new_monitor("".to_string()),
         )?)))))
     }
@@ -588,7 +591,7 @@ impl<'gc_life> JavaValue<'gc_life> {
         })).into()
     }
 
-    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: PTypeView) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
+    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -602,7 +605,7 @@ impl<'gc_life> JavaValue<'gc_life> {
         )?))))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> JavaValue<'gc_life> {
         JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject {
             elems: UnsafeCell::new(vals),
             elem_type,
@@ -643,33 +646,32 @@ impl<'gc_life> JavaValue<'gc_life> {
         // }
     }
 
-    pub fn to_type(&self) -> PTypeView {
+    pub fn to_type(&self) -> RuntimeType {
         match self {
-            JavaValue::Long(_) => PTypeView::LongType,
-            JavaValue::Int(_) => PTypeView::IntType,
-            JavaValue::Short(_) => PTypeView::ShortType,
-            JavaValue::Byte(_) => PTypeView::ByteType,
-            JavaValue::Boolean(_) => PTypeView::BooleanType,
-            JavaValue::Char(_) => PTypeView::CharType,
-            JavaValue::Float(_) => PTypeView::FloatType,
-            JavaValue::Double(_) => PTypeView::DoubleType,
+            JavaValue::Long(_) => RuntimeType::LongType,
+            JavaValue::Int(_) => RuntimeType::IntType,
+            JavaValue::Short(_) => RuntimeType::IntType,
+            JavaValue::Byte(_) => RuntimeType::IntType,
+            JavaValue::Boolean(_) => RuntimeType::IntType,
+            JavaValue::Char(_) => RuntimeType::IntType,
+            JavaValue::Float(_) => RuntimeType::FloatType,
+            JavaValue::Double(_) => RuntimeType::DoubleType,
             JavaValue::Object(obj) => {
-                match obj {
-                    None => PTypeView::NullType,
+                RuntimeType::Ref(match obj {
+                    None => RuntimeRefType::NullType,
                     Some(not_null) => {
-                        // dbg!(not_null.raw_ptr.as_ptr());
-                        PTypeView::Ref(match not_null.deref() {
+                        match not_null.deref() {
                             Object::Array(array) => {
-                                ReferenceTypeView::Array(array.elem_type.clone().into())
+                                RuntimeRefType::Array(array.elem_type.clone().into())
                             }
                             Object::Object(obj) => {
-                                ReferenceTypeView::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
+                                RuntimeRefType::Class(obj.objinfo.class_pointer.ptypeview().unwrap_class_type())
                             }
-                        })
+                        }
                     }
-                }
+                })
             }
-            JavaValue::Top => PTypeView::TopType
+            JavaValue::Top => RuntimeType::TopType
         }
     }
 
@@ -795,10 +797,10 @@ unsafe impl<'gc_life> Send for Object<'gc_life> {}
 unsafe impl<'gc_life> Sync for Object<'gc_life> {}
 
 impl<'gc_life> Object<'gc_life> {
-    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: &str) -> JavaValue<'gc_life> {
+    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: CCString) -> JavaValue<'gc_life> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let (field_number, ptype) = &class_pointer.unwrap_class_class().field_numbers[s];
-        unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(ptype.clone(), jvm)
+        let (field_number, rtype) = &class_pointer.unwrap_class_class().field_numbers[&s];
+        unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(rtype.clone(), jvm)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
@@ -851,7 +853,7 @@ impl<'gc_life> Object<'gc_life> {
         }
     }
 
-    pub fn object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, object_array: Vec<JavaValue<'gc_life>>, class_type: PTypeView) -> Result<Object<'gc_life>, WasException> {
+    pub fn object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, object_array: Vec<JavaValue<'gc_life>>, class_type: CPDType) -> Result<Object<'gc_life>, WasException> {
         Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
     }
 
@@ -874,7 +876,7 @@ impl<'gc_life> Object<'gc_life> {
 
 pub struct ArrayObject<'gc_life> {
     pub elems: UnsafeCell<Vec<NativeJavaValue<'gc_life>>>,
-    pub elem_type: PTypeView,
+    pub elem_type: CPDType,
     pub monitor: Arc<Monitor2>,
 }
 
@@ -921,8 +923,8 @@ impl<'gc_life> ArrayObject<'gc_life> {
         unsafe { self.elems.get().as_ref() }.unwrap().len() as i32
     }
 
-    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: PTypeView, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
-        check_resolved_class(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Array(box type_.clone())))?;
+    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
+        check_resolved_class(jvm, int_state, CPDType::Ref(CPRefType::Array(box type_.clone())))?;
         Ok(Self {
             elems: UnsafeCell::new(elems.into_iter().map(|jv| jv.to_native()).collect_vec()),
             elem_type: type_,
@@ -945,28 +947,28 @@ pub union NativeJavaValue<'gc_life> {
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {
-    pub fn to_java_value(&self, ptype: PTypeView, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
+    pub fn to_java_value(&self, ptype: CPDType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
         unsafe {
             match ptype {
-                PTypeView::ByteType => {
+                CPDType::ByteType => {
                     JavaValue::Byte(self.byte)
                 }
-                PTypeView::CharType => {
+                CPDType::CharType => {
                     JavaValue::Char(self.char)
                 }
-                PTypeView::DoubleType => {
+                CPDType::DoubleType => {
                     JavaValue::Double(self.double)
                 }
-                PTypeView::FloatType => {
+                CPDType::FloatType => {
                     JavaValue::Float(self.float)
                 }
-                PTypeView::IntType => {
+                CPDType::IntType => {
                     JavaValue::Int(self.int)
                 }
-                PTypeView::LongType => {
+                CPDType::LongType => {
                     JavaValue::Long(self.long)
                 }
-                PTypeView::Ref(_) => {
+                CPDType::Ref(_) => {
                     match NonNull::new(self.object) {
                         None => {
                             JavaValue::Object(None)
@@ -976,18 +978,59 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
                         }
                     }
                 }
-                PTypeView::ShortType => {
+                CPDType::ShortType => {
                     JavaValue::Short(self.short)
                 }
-                PTypeView::BooleanType => {
+                CPDType::BooleanType => {
                     JavaValue::Boolean(self.boolean)
                 }
-                PTypeView::VoidType |
-                PTypeView::TopType |
-                PTypeView::NullType |
-                PTypeView::Uninitialized(_) |
-                PTypeView::UninitializedThis |
-                PTypeView::UninitializedThisOrClass(_) => panic!()
+                CPDType::VoidType => panic!()
+            }
+        }
+    }
+}
+
+
+#[derive(Copy, Clone)]
+pub union StackNativeJavaValue<'gc_life> {
+    // byte: i8,
+    // boolean: u8,
+    // short: i16,
+    // char: u16,
+    int: i32,
+    long: i64,
+    float: f32,
+    double: f64,
+    pub(crate) object: *mut Object<'gc_life>,
+}
+
+impl<'gc_life> StackNativeJavaValue<'gc_life> {
+    pub fn to_java_value(&self, rtype: RuntimeType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
+        unsafe {
+            match rtype {
+                RuntimeType::DoubleType => {
+                    JavaValue::Double(self.double)
+                }
+                RuntimeType::FloatType => {
+                    JavaValue::Float(self.float)
+                }
+                RuntimeType::IntType => {
+                    JavaValue::Int(self.int)
+                }
+                RuntimeType::LongType => {
+                    JavaValue::Long(self.long)
+                }
+                RuntimeType::Ref(_) => {
+                    match NonNull::new(self.object) {
+                        None => {
+                            JavaValue::Object(None)
+                        }
+                        Some(nonnull) => {
+                            JavaValue::Object(Some(GcManagedObject::from_native(nonnull, &jvm.gc)))
+                        }
+                    }
+                }
+                RuntimeType::TopType => panic!()
             }
         }
     }
@@ -1006,23 +1049,19 @@ pub struct NormalObject<'gc_life> {
 }
 
 impl<'gc_life> NormalObject<'gc_life> {
-    pub fn set_var_top_level(&self, name: impl Into<String>, jv: JavaValue<'gc_life>) {
-        let name = name.into();
+    pub fn set_var_top_level(&self, name: CCString, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         *unsafe {
             self.objinfo.fields[*field_index].get().as_mut()
         }.unwrap() = jv.to_native();
     }
 
-    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: impl Into<String>, jv: JavaValue<'gc_life>, expected_type: PTypeView) {
-        let name = name.into();
-        // self.expected_type_check(class_pointer.clone(), expected_type.clone(), name.clone(), &jv);
+    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, expected_type: PTypeView) {
         jv.self_check();
         unsafe { self.set_var_impl(&self.objinfo.class_pointer.unwrap_class_class(), class_pointer, name, jv, true) }
     }
 
-    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: impl Into<String>, jv: JavaValue<'gc_life>, mut do_class_check: bool) {
-        let name = name.into();
+    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, mut do_class_check: bool) {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
             let field_index = match current_class_pointer.field_numbers.get(&name) {
                 None => {
@@ -1042,7 +1081,7 @@ impl<'gc_life> NormalObject<'gc_life> {
     }
 
 
-    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, name: impl Into<String>) -> JavaValue<'gc_life> {
+    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, name: CCString) -> JavaValue<'gc_life> {
         let name = name.into();
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         unsafe {
@@ -1078,15 +1117,14 @@ impl<'gc_life> NormalObject<'gc_life> {
     }*/
 
 
-    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: impl Into<String>, expected_type: PTypeView) -> JavaValue<'gc_life> {
-        let name = name.into();
+    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, expected_type: PTypeView) -> JavaValue<'gc_life> {
         // if !self.type_check(class_pointer.clone()) {
         //     dbg!(name);
         //     dbg!(class_pointer.view().name());
         //     dbg!(self.objinfo.class_pointer.view().name());
         //     panic!()
         // }
-        let res = unsafe { Self::get_var_impl(self, jvm, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), &name, true) };
+        let res = unsafe { Self::get_var_impl(self, jvm, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), name, true) };
         // self.expected_type_check(class_pointer, expected_type, name, &res);
         // res.self_check();
         res
@@ -1131,8 +1169,7 @@ impl<'gc_life> NormalObject<'gc_life> {
         };
     }*/
 
-    unsafe fn get_var_impl(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: impl Into<String>, mut do_class_check: bool) -> JavaValue<'gc_life> {
-        let name = name.into();
+    unsafe fn get_var_impl(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, mut do_class_check: bool) -> JavaValue<'gc_life> {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
             match current_class_pointer.field_numbers.get(&name) {
                 Some((field_number, ptype)) => {
@@ -1190,11 +1227,11 @@ impl<'gc_life> ArrayObject<'gc_life> {
         self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
     }*/
     pub fn unwrap_byte_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<jbyte> {
-        assert_eq!(self.elem_type, PTypeView::ByteType);
+        assert_eq!(self.elem_type, CPDType::ByteType);
         self.array_iterator(jvm).map(|x| { x.unwrap_byte() }).collect()
     }
     pub fn unwrap_char_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> String {
-        assert_eq!(self.elem_type, PTypeView::CharType);
+        assert_eq!(self.elem_type, CPDType::CharType);
         let mut res = String::new();
         self.array_iterator(jvm).for_each(|x| { res.push(x.unwrap_int() as u8 as char) });//todo fix this
         res

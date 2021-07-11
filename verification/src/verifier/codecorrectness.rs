@@ -2,14 +2,15 @@ use std::ops::Deref;
 use std::option::Option::Some;
 use std::rc::Rc;
 
-use classfile_view::loading::*;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
-use classfile_view::vtype::VType;
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CompressedClassName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::loading::*;
+use rust_jvm_common::vtype::VType;
 
 use crate::{StackMap, VerifierContext};
 use crate::OperandStack;
@@ -20,7 +21,7 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::verifier::stackmapframes::get_stack_map_frames;
 use crate::verifier::TypeSafetyError;
 
-pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: &VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
+pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
     let next_operand_stack = push_operand_stack(&env.vf, interim_operand_stack, &result_type);
@@ -169,7 +170,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
                 }
                 _ => panic!()
             };
-            Some(catch_type_name.unwrap_name())
+            Some(CompressedClassName(vf.pool.add_name(catch_type_name.unwrap_name().get_referred_name().to_string())))
         },
     }).collect()
 }
@@ -177,10 +178,6 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
 pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &class);
     let method_info = &method_class.method_view_i(method.method_index as u16);
-    let debug = vf.debug;
-    if method_info.name() != "equals" {
-        vf.debug = false;
-    }
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
@@ -201,7 +198,6 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let mut env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
-    vf.debug = debug;
     Result::Ok(())
 }
 
@@ -210,15 +206,15 @@ pub struct Handler {
     pub start: u16,
     pub end: u16,
     pub target: u16,
-    pub class_name: Option<ClassName>,
+    pub class_name: Option<CClassName>,
 }
 
 pub fn handler_exception_class(_vf: &VerifierContext, handler: &Handler, loader: LoaderName) -> ClassWithLoader {
     //may want to return a unifiedType instead
     match &handler.class_name {
-        None => { ClassWithLoader { class_name: ClassName::throwable(), loader: LoaderName::BootstrapLoader } }
+        None => { ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader } }
         Some(s) => {
-            ClassWithLoader { class_name: s.clone(), loader: loader.clone() }
+            ClassWithLoader { class_name: *s, loader: loader.clone() }
         }
     }
 }
@@ -292,17 +288,13 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_map
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> Result<(Frame, VType), TypeSafetyError> {
     let classfile = get_class(vf, class);
     let method_view = &classfile.method_view_i(method.method_index as u16);
-    let initial_parsed_descriptor = method_view.desc();
-    let parsed_descriptor = MethodDescriptor {
-        parameter_types: initial_parsed_descriptor.parameter_types.clone(),
-        return_type: initial_parsed_descriptor.return_type,
-    };
+    let parsed_descriptor = method_view.desc().clone();
     let this_list = method_initial_this_type(vf, class, method)?;
     let flag_this_uninit = flags(&this_list);
     //todo this long and frequently duped
-    let args = expand_type_list(vf, parsed_descriptor.parameter_types
+    let args = expand_type_list(vf, parsed_descriptor.arg_types
         .iter()
-        .map(|x| PTypeView::from_ptype(&x).to_verification_type(&vf.current_loader))
+        .map(|x| x.to_verification_type(vf.current_loader))
         .collect());//todo need to solve loader situation
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
@@ -312,7 +304,7 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
         this_args.push(x.clone())
     });
     let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
-    Ok((Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, PTypeView::from_ptype(&parsed_descriptor.return_type).to_verification_type(&vf.current_loader)))
+    Ok((Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type(vf.current_loader)))
 }
 
 
@@ -366,7 +358,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
     let method_view = method_class.method_view_i(method.method_index as u16);
     if method_view.is_static() {
         let method_name = method_view.name();
-        if method_name.as_str() != "<init>" {
+        if method_name != vf.pool.add_name("<init>") {//todo convert init to classname like string/id
             Ok(None)
         } else {
             Err(unknown_error_verifying!())
@@ -378,11 +370,10 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
     let classfile = get_class(vf, &method.class);
-    let method_name_ = classfile.method_view_i(method.method_index as u16).name();
-    let method_name = method_name_.deref();
-    if method_name == "<init>" {
-        if class.class_name == ClassName::object() {
-            Result::Ok(VType::Class(ClassWithLoader { class_name: get_class(vf, class).name().unwrap_name(), loader: class.loader.clone() }))
+    let method_name = classfile.method_view_i(method.method_index as u16).name();
+    if method_name == vf.pool.add_name("<init>") {
+        if class.class_name == CClassName::object() {
+            Result::Ok(VType::Class(ClassWithLoader { class_name: class.class_name, loader: class.loader.clone() }))
         } else {
             let mut chain = vec![];
             super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
@@ -393,6 +384,6 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
             }
         }
     } else {
-        Result::Ok(get_class(vf, class).name().to_verification_type(&class.loader.clone()))
+        Result::Ok(get_class(vf, class).name().to_verification_type(class.loader))
     }
 }

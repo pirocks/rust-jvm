@@ -6,10 +6,11 @@ use std::fmt;
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
+use rust_jvm_common::loading::ClassfileParsingError;
+use rust_jvm_common::loading::ClassfileParsingError::WrongMagic;
 use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::attribute_infos::parse_attributes;
-use crate::ClassfileParsingError::WrongMagic;
 use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::ReadParsingContext;
@@ -72,37 +73,6 @@ pub fn parse_class_file(read: &mut dyn Read) -> Result<Classfile, ClassfileParsi
     Ok(class_file)
 }
 
-#[derive(Debug)]
-pub enum ClassfileParsingError {
-    EOF,
-    WrongMagic,
-    NoAttributeName,
-    EndOfInstructions,
-    WrongInstructionType,
-    ATypeWrong,
-    WrongPtype,
-    UsedReservedStackMapEntry,
-    WrongStackMapFrameType,
-    WrongTag,
-    WromngCPEntry,
-    UTFValidationError(ValidationError),
-    WrongDescriptor,
-}
-
-impl From<ValidationError> for ClassfileParsingError {
-    fn from(err: ValidationError) -> Self {
-        Self::UTFValidationError(err)
-    }
-}
-
-impl Error for ClassfileParsingError {}
-
-
-impl Display for ClassfileParsingError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
 
 fn parse_from_context(p: &mut dyn ParsingContext) -> Result<Classfile, ClassfileParsingError> {
     let magic: u32 = p.read32()?;

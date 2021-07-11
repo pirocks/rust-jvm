@@ -1,9 +1,10 @@
 use std::rc::Rc;
 
-use classfile_view::loading::ClassWithLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use classfile_view::vtype::VType;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CClassName, CPDType};
+use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::codecorrectness::can_pop;
@@ -44,9 +45,9 @@ pub fn modify_local_variable(vf: &VerifierContext, index: u16, type_: VType, loc
 }
 
 pub fn instruction_is_type_safe_aastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let object = ClassWithLoader { class_name: ClassName::object(), loader: env.vf.current_loader.clone() };
+    let object = ClassWithLoader { class_name: CClassName::object(), loader: env.vf.current_loader.clone() };
     let object_type = VType::Class(object);
-    let object_array = VType::ArrayReferenceType(PTypeView::Ref(ReferenceTypeView::Class(ClassName::object())));
+    let object_array = VType::ArrayReferenceType(CPDType::object());
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![object_type, VType::IntType, object_array])?;
@@ -73,8 +74,8 @@ pub fn is_small_array(array_type: VType) -> Result<(), TypeSafetyError> {
     match array_type {
         VType::NullType => Result::Ok(()),
         VType::ArrayReferenceType(a) => match a {
-            PTypeView::ByteType => Result::Ok(()),
-            PTypeView::BooleanType => Result::Ok(()),
+            CPDType::ByteType => Result::Ok(()),
+            CPDType::BooleanType => Result::Ok(()),
             _ => Result::Err(unknown_error_verifying!())
         },
         _ => Result::Err(unknown_error_verifying!())
@@ -84,12 +85,12 @@ pub fn is_small_array(array_type: VType) -> Result<(), TypeSafetyError> {
 pub fn instruction_is_type_safe_castore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
-    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, VType::ArrayReferenceType(PTypeView::CharType)])?;
+    let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, VType::ArrayReferenceType(CPDType::CharType)])?;
     standard_exception_frame(locals, flag, next_frame)
 }
 
 pub fn instruction_is_type_safe_dastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PTypeView::DoubleType);
+    let array_type = VType::ArrayReferenceType(CPDType::DoubleType);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::DoubleType, VType::IntType, array_type])?;
@@ -104,7 +105,7 @@ pub fn instruction_is_type_safe_dstore(index: u16, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_fastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PTypeView::FloatType);
+    let array_type = VType::ArrayReferenceType(CPDType::FloatType);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::FloatType, VType::IntType, array_type])?;
@@ -119,7 +120,7 @@ pub fn instruction_is_type_safe_fstore(index: u16, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_iastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PTypeView::IntType);
+    let array_type = VType::ArrayReferenceType(CPDType::IntType);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, array_type])?;
@@ -134,7 +135,7 @@ pub fn instruction_is_type_safe_istore(index: u16, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_lastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PTypeView::LongType);
+    let array_type = VType::ArrayReferenceType(CPDType::LongType);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::LongType, VType::IntType, array_type])?;
@@ -150,7 +151,7 @@ pub fn instruction_is_type_safe_lstore(index: u16, env: &Environment, stack_fram
 }
 
 pub fn instruction_is_type_safe_sastore(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let array_type = VType::ArrayReferenceType(PTypeView::ShortType);
+    let array_type = VType::ArrayReferenceType(CPDType::ShortType);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType, VType::IntType, array_type])?;

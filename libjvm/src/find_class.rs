@@ -6,11 +6,11 @@ use std::ptr::null_mut;
 use by_address::ByAddress;
 use nix::sys::aio::aio_suspend;
 
-use classfile_view::loading::LoaderName;
-use classfile_view::loading::LoaderName::BootstrapLoader;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use rust_jvm_common::ptype::PType::Ref;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;

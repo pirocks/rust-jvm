@@ -1,7 +1,7 @@
 use by_address::ByAddress;
 
-use classfile_view::loading::LoaderName;
 use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_loaded_class_force_loader;

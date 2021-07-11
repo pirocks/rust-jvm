@@ -24,7 +24,8 @@ itertools = "0.10.0"
 
 
 [workspace]
-members = ["rust-jvm-common",
+members = [
+    "rust-jvm-common",
     "classfile-parser",
     "verification",
     "slow-interpreter",
@@ -40,5 +41,4 @@ members = ["rust-jvm-common",
     "jit",
     "jit-common",
     "add-only-static-vec",
-    "compressed-classfile"
 ]
