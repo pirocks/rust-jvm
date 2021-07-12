@@ -1,8 +1,7 @@
-use std::ffi::c_void;
-
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
@@ -13,14 +12,13 @@ use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
     let view = &int_state.current_frame().class_pointer(jvm).view();
     let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
-    let target_classfile = check_initing_or_inited_class(jvm,
-                                                         int_state, target_class_name.clone().into()).unwrap();
+    let target_classfile = check_initing_or_inited_class(jvm, int_state, target_class_name.clone().into()).unwrap();
     push_new_object(jvm, int_state, &target_classfile);
 }
 
 
 pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let len = match int_state.current_frame_mut().pop(Some(PTypeView::IntType)) {
+    let len = match int_state.current_frame_mut().pop(Some(RuntimeType::IntType)) {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
@@ -28,19 +26,18 @@ pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     let cp_entry = &view.constant_pool_view(cp as usize);
     match cp_entry {
         ConstantInfoView::Class(c) => {
-            let type_ = PTypeView::Ref(c.class_ref_type());
+            let type_ = CPDType::Ref(c.class_ref_type());
             if let Err(_) = a_new_array_from_name(jvm, int_state, len, type_) {
                 return;
             }
         }
         _ => {
-            dbg!(cp_entry);
             panic!()
         }
     }
 }
 
-pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: i32, t: PTypeView) -> Result<(), WasException> {
+pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: i32, t: CPDType) -> Result<(), WasException> {
     check_resolved_class(
         jvm,
         int_state,
@@ -52,31 +49,31 @@ pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ m
 
 
 pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, a_type: Atype) {
-    let count = int_state.pop_current_operand_stack(Some(PTypeView::IntType)).unwrap_int();
+    let count = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
     let type_ = match a_type {
         Atype::TChar => {
-            PTypeView::CharType
+            CPDType::CharType
         }
         Atype::TInt => {
-            PTypeView::IntType
+            CPDType::IntType
         }
         Atype::TByte => {
-            PTypeView::ByteType
+            CPDType::ByteType
         }
         Atype::TBoolean => {
-            PTypeView::BooleanType
+            CPDType::BooleanType
         }
         Atype::TShort => {
-            PTypeView::ShortType
+            CPDType::ShortType
         }
         Atype::TLong => {
-            PTypeView::LongType
+            CPDType::LongType
         }
         Atype::TDouble => {
-            PTypeView::DoubleType
+            CPDType::DoubleType
         }
         Atype::TFloat => {
-            PTypeView::FloatType
+            CPDType::FloatType
         }
     };
     if count < 0 {
@@ -96,13 +93,13 @@ pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let temp = view.constant_pool_view(cp.index as usize);
     let type_ = temp.unwrap_class().class_ref_type();
 
-    if let Err(_) = check_resolved_class(jvm, int_state, PTypeView::Ref(type_.clone())) {
+    if let Err(_) = check_resolved_class(jvm, int_state, CPDType::Ref(type_.clone())) {
         return;
     };
     let mut dimensions = vec![];
-    let mut unwrapped_type: PTypeView = PTypeView::Ref(type_);
+    let mut unwrapped_type: CPDType = CPDType::Ref(type_);
     for _ in 0..dims {
-        dimensions.push(int_state.current_frame_mut().pop(Some(PTypeView::IntType)).unwrap_int());
+        dimensions.push(int_state.current_frame_mut().pop(Some(RuntimeType::IntType)).unwrap_int());
     }
     for _ in 1..dims {
         unwrapped_type = unwrapped_type.unwrap_array_type()
@@ -110,7 +107,7 @@ pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let mut current = JavaValue::null();
     let mut current_type = unwrapped_type;
     for len in dimensions {
-        let next_type = PTypeView::Ref(ReferenceTypeView::Array(Box::new(current_type)));
+        let next_type = CPDType::Ref(CPRefType::Array(box current_type));
         let mut new_vec = vec![];
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))

@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -24,18 +25,18 @@ use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: CCString, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     lookup_method_parsed_impl(jvm, int_state, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: CCString, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| {
         if m.is_signature_polymorphic() {
             true
         } else {
-            &m.desc() == descriptor
+            m.desc() == descriptor
         }
     }).collect::<Vec<_>>();
     assert!(filtered.len() <= 1);
@@ -129,7 +130,7 @@ pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: 
 }
 
 
-pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: CCString, desc: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: MethodName, desc: &CMethodDescriptor) -> Result<(), WasException> {
     let view = class.view();
     let res_fun = view.lookup_method(method_name, desc);
     let method_view = match res_fun {

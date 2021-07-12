@@ -1,9 +1,8 @@
-use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
-use crate::runtime_type::RuntimeType;
 use crate::stack_entry::StackEntryMut;
 
 pub fn goto_(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, target: i32) {
@@ -11,7 +10,7 @@ pub fn goto_(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
 }
 
 pub fn ifnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(Some(ClassName::object().into()));
+    let val = current_frame.pop(Some(CClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
         _ => panic!()
@@ -22,7 +21,7 @@ pub fn ifnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
 }
 
 pub fn ifnonnull(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
-    let val = current_frame.pop(Some(ClassName::object().into()));
+    let val = current_frame.pop(Some(CClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
         _ => panic!()

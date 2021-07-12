@@ -114,7 +114,7 @@ pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> 
     Ok(())
 }
 
-pub fn passes_protected_check(_env: &Environment, _member_class_name: CClassName, _member_name: String, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+pub fn passes_protected_check(_env: &Environment, _member_class_name: CClassName, _member_name: CCString, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
 // todo waiting on stackoverflow / further clarification
     Result::Ok(())
 //    let mut chain = vec![];

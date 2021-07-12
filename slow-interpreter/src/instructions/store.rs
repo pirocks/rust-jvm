@@ -1,11 +1,11 @@
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jbyte;
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::runtime_type::RuntimeType;
-use crate::stack_entry::{LocalVarsMut, StackEntryMut};
+use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
 pub fn astore(mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
@@ -53,7 +53,7 @@ pub fn fstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
 
 pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let val = current_frame.pop(Some(RuntimeType::CharType)).unwrap_int();
+    let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let arrar_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
@@ -67,7 +67,7 @@ pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
 
 pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let val = current_frame.pop(Some(RuntimeType::ByteType)).unwrap_int() as jbyte;// int value is truncated
+    let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int() as jbyte;// int value is truncated
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
@@ -75,7 +75,7 @@ pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
             return throw_npe(jvm, int_state);
         }
     };
-    assert!(array_ref_o.unwrap_array().elem_type == PTypeView::ByteType || array_ref_o.unwrap_array().elem_type == PTypeView::BooleanType);
+    assert!(array_ref_o.unwrap_array().elem_type == CPDType::ByteType || array_ref_o.unwrap_array().elem_type == CPDType::BooleanType);
     let array_ref = array_ref_o.unwrap_array();
     array_ref.set_i(jvm, index, JavaValue::Byte(val));
 }
@@ -83,7 +83,7 @@ pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
 
 pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let val = current_frame.pop(Some(RuntimeType::ShortType)).unwrap_short();
+    let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_short();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
@@ -91,7 +91,7 @@ pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
             return throw_npe(jvm, int_state);
         }
     };
-    assert_eq!(array_ref_o.unwrap_array().elem_type, PTypeView::ShortType);
+    assert_eq!(array_ref_o.unwrap_array().elem_type, CPDType::ShortType);
     let array_ref = array_ref_o.unwrap_array();
     array_ref.set_i(jvm, index, JavaValue::Short(val));
 }

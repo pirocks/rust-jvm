@@ -1,6 +1,6 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, parse_field_descriptor};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -39,8 +39,8 @@ impl MethodView<'_> {
         /*&self.class_view.backing_class.methods[self.method_i as usize]*/
     }
 
-    pub fn name(&self) -> CCString {
-        self.class_view.backing_class.methods[self.method_i as usize].name
+    pub fn name(&self) -> MethodName {
+        MethodName(self.class_view.backing_class.methods[self.method_i as usize].name)
     }
 
     pub fn desc_str(&self) -> CCString {

@@ -113,14 +113,14 @@ unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, f
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
     let jvm = get_state(env);
-    let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string(); //todo handle utf8
+    let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string()); //todo handle utf8
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
     let (field_rc, field_i) = match get_all_fields(jvm, int_state, runtime_class, true) {
         Ok(res) => res,
         Err(WasException {}) => return ExceptionReturn::invalid_default()
     }.into_iter().find(|(rc, i)| {
-        name == rc.view().field(*i).field_name()
+        name == rc.view().field(*i).field_name().0
     }).unwrap();//unwrap is prob okay, spec doesn't say what to do
 
     new_field_id(jvm, field_rc, field_i)

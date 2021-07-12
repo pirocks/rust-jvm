@@ -2,10 +2,8 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -113,7 +111,7 @@ pub mod dynamic {
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
         let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone())?;
-        let name_jstring = JString::from_rust(jvm, int_state, other_name.clone())?.java_value();
+        let name_jstring = JString::from_rust(jvm, int_state, other_name.to_str(&jvm.string_pool))?.java_value();
 
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
         int_state.push_current_operand_stack(lookup_for_this.java_value());
@@ -202,15 +200,15 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, String, CMethodDescriptor)>, WasException> {
+fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, MethodName, CMethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
-    let class_name_ = match CPDType::from_ptype(&class_name_type.to_ptype(), &jvm.string_pool) {
-        PTypeView::Ref(r) => match r {
-            ReferenceTypeView::Class(c) => c,
-            ReferenceTypeView::Array(_a) => if expected_method_name == *"clone" {
+    let class_name_ = match class_name_type {
+        CPDType::Ref(r) => match r {
+            CPRefType::Class(c) => c,
+            CPRefType::Array(_a) => if expected_method_name == *"clone" {
                 //todo replace with proper native impl
-                let temp = match int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object() {
+                let temp = match int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object() {
                     Some(x) => x,
                     None => {
                         throw_npe_res(jvm, int_state)?;
@@ -245,8 +243,8 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
 pub fn find_target_method(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    expected_method_name: String,
-    parsed_descriptor: &MethodDescriptor,
+    expected_method_name: MethodName,
+    parsed_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
 ) -> (u16, Arc<RuntimeClass<'gc_life>>) {
     lookup_method_parsed(jvm, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()

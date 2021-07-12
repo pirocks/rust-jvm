@@ -1,6 +1,7 @@
 pub mod reflection {
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -8,7 +9,6 @@ pub mod reflection {
     use crate::java::lang::class::JClass;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::runtime_type::RuntimeType;
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc_life> {

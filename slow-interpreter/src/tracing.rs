@@ -3,6 +3,7 @@ use std::sync::RwLock;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
@@ -63,7 +64,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter<'l>(&self, classname: &'l PTypeView, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
+    pub fn trace_function_enter<'l>(&self, classname: &'l CPDType, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
         // unsafe {
         // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
         //     && !meth_name.contains("hashCode")

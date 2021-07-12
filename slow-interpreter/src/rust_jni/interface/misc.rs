@@ -10,6 +10,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
@@ -38,10 +39,10 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::from_ptype(&type_)) {
+    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, CPDType::from_ptype(&type_, &jvm.string_pool)) {
         return null_mut();
     };
-    let obj = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
+    let obj = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(obj, int_state)
 }
 
@@ -54,10 +55,10 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
-    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, PTypeView::Ref(ReferenceTypeView::Class(super_name))) {
+    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, CPDType::Ref(CPRefType::Class(super_name))) {
         return null_mut();
     };
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
 }
 
 
@@ -77,8 +78,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().unwrap().as_type(jvm);
 
     let loader = &int_state.current_loader();
-    let sub_vtype = sub_type.to_verification_type(&loader);
-    let sup_vtype = sup_type.to_verification_type(&loader);
+    let sub_vtype = sub_type.to_verification_type(*loader);
+    let sup_vtype = sup_type.to_verification_type(*loader);
 
 
     //todo should this be current loader?
@@ -151,7 +152,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
         let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
-        let descriptor: String = CStr::from_ptr(method.signature).to_str().unwrap().to_string().clone();
+        let descriptor: CCString = jvm.string_pool.add_name(CStr::from_ptr(method.signature).to_str().unwrap().to_string());
         let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_name = match runtime_class.cpdtype().try_unwrap_class_type() {
             None => { return JNI_ERR; }
@@ -202,7 +203,7 @@ fn get_all_methods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     });
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, int_state, ClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
             object.view().methods().for_each(|m| {
                 res.push((object.clone(), m.method_i()));
             });

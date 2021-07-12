@@ -3,6 +3,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::push_new_object;
@@ -34,9 +35,9 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     let _name = method.name();
     let parsed = method.desc();
     push_new_object(jvm, int_state, &class);
-    let obj = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let obj = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     int_state.push_current_operand_stack(obj.clone());
-    for type_ in &parsed.parameter_types {
+    for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
     if let Err(_) = invoke_special_impl(

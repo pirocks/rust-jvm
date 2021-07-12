@@ -12,13 +12,14 @@ use itertools::{Itertools, repeat_n};
 
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
-use crate::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
 
@@ -234,7 +235,7 @@ impl Drop for GcManagedObject<'_> {
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: impl Into<String>) -> JavaValue<'gc_life> {
         let id = jvm.string_pool.add_name(field_name);
-        self.deref().lookup_field(jvm, id)
+        self.deref().lookup_field(jvm, FieldName(id))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
@@ -796,7 +797,7 @@ unsafe impl<'gc_life> Send for Object<'gc_life> {}
 unsafe impl<'gc_life> Sync for Object<'gc_life> {}
 
 impl<'gc_life> Object<'gc_life> {
-    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: CCString) -> JavaValue<'gc_life> {
+    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: FieldName) -> JavaValue<'gc_life> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
         let (field_number, rtype) = &class_pointer.unwrap_class_class().field_numbers[&s];
         unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(rtype.clone(), jvm)
@@ -1048,19 +1049,19 @@ pub struct NormalObject<'gc_life> {
 }
 
 impl<'gc_life> NormalObject<'gc_life> {
-    pub fn set_var_top_level(&self, name: CCString, jv: JavaValue<'gc_life>) {
+    pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         *unsafe {
             self.objinfo.fields[*field_index].get().as_mut()
         }.unwrap() = jv.to_native();
     }
 
-    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, _expected_type: CPDType) {
+    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, jv: JavaValue<'gc_life>, _expected_type: CPDType) {
         jv.self_check();
         unsafe { self.set_var_impl(&self.objinfo.class_pointer.unwrap_class_class(), class_pointer, name, jv, true) }
     }
 
-    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, jv: JavaValue<'gc_life>, mut do_class_check: bool) {
+    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, jv: JavaValue<'gc_life>, mut do_class_check: bool) {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
             let field_index = match current_class_pointer.field_numbers.get(&name) {
                 None => {
@@ -1080,7 +1081,7 @@ impl<'gc_life> NormalObject<'gc_life> {
     }
 
 
-    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, name: CCString) -> JavaValue<'gc_life> {
+    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, name: FieldName) -> JavaValue<'gc_life> {
         let name = name.into();
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         unsafe {
@@ -1116,7 +1117,7 @@ impl<'gc_life> NormalObject<'gc_life> {
     }*/
 
 
-    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, expected_type: CPDType) -> JavaValue<'gc_life> {
+    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, expected_type: CPDType) -> JavaValue<'gc_life> {
         // if !self.type_check(class_pointer.clone()) {
         //     dbg!(name);
         //     dbg!(class_pointer.view().name());
@@ -1168,7 +1169,7 @@ impl<'gc_life> NormalObject<'gc_life> {
         };
     }*/
 
-    unsafe fn get_var_impl(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: CCString, mut do_class_check: bool) -> JavaValue<'gc_life> {
+    unsafe fn get_var_impl(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, mut do_class_check: bool) -> JavaValue<'gc_life> {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
             match current_class_pointer.field_numbers.get(&name) {
                 Some((field_number, ptype)) => {

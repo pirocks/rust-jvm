@@ -13,6 +13,7 @@ use crate::descriptor_parser::{MethodDescriptor, parse_field_descriptor, parse_m
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
+use crate::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::vtype::VType;
 
 pub struct CompressedClassfileStringPool {
@@ -110,6 +111,13 @@ impl CompressedParsedRefType {
             CompressedParsedRefType::Class(ccn) => *ccn
         }
     }
+
+    pub fn is_array(&self) -> bool {
+        match self {
+            CompressedParsedRefType::Array(_) => true,
+            CompressedParsedRefType::Class(_) => false,
+        }
+    }
 }
 
 pub type CPDType = CompressedParsedDescriptorType;
@@ -148,6 +156,18 @@ impl CompressedParsedDescriptorType {
         }
     }
 
+    pub fn unwrap_array_type(&self) -> &CPDType {
+        match self {
+            CompressedParsedDescriptorType::Ref(ref_) => {
+                match ref_ {
+                    CompressedParsedRefType::Array(arr) => arr.deref(),
+                    CompressedParsedRefType::Class(_) => panic!()
+                }
+            }
+            _ => panic!()
+        }
+    }
+
     pub fn to_verification_type(&self, loader: LoaderName) -> VType {
         match self {
             CompressedParsedDescriptorType::BooleanType => VType::IntType,
@@ -168,6 +188,30 @@ impl CompressedParsedDescriptorType {
         }
     }
 
+    pub fn to_runtime_type(&self) -> Option<RuntimeType> {
+        Some(match self {
+            CompressedParsedDescriptorType::BooleanType => RuntimeType::IntType,
+            CompressedParsedDescriptorType::ByteType => RuntimeType::IntType,
+            CompressedParsedDescriptorType::ShortType => RuntimeType::IntType,
+            CompressedParsedDescriptorType::CharType => RuntimeType::IntType,
+            CompressedParsedDescriptorType::IntType => RuntimeType::IntType,
+            CompressedParsedDescriptorType::LongType => RuntimeType::LongType,
+            CompressedParsedDescriptorType::FloatType => RuntimeType::FloatType,
+            CompressedParsedDescriptorType::DoubleType => RuntimeType::DoubleType,
+            CompressedParsedDescriptorType::VoidType => None?,
+            CompressedParsedDescriptorType::Ref(ref_) => {
+                RuntimeType::Ref(match ref_ {
+                    CompressedParsedRefType::Array(arr) => {
+                        RuntimeRefType::Array(arr.deref().clone())
+                    }
+                    CompressedParsedRefType::Class(ccn) => {
+                        RuntimeRefType::Class(*ccn)
+                    }
+                })
+            }
+        })
+    }
+
     pub fn is_primitive(&self) -> bool {
         match self {
             CompressedParsedDescriptorType::BooleanType => true,
@@ -180,6 +224,13 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::DoubleType => true,
             CompressedParsedDescriptorType::VoidType => true,
             CompressedParsedDescriptorType::Ref(_) => false
+        }
+    }
+
+    pub fn is_array(&self) -> bool {
+        match self {
+            CompressedParsedDescriptorType::Ref(ref_) => ref_.is_array(),
+            _ => false
         }
     }
 
@@ -235,6 +286,11 @@ pub struct CompressedMethodDescriptor {
     pub arg_types: Vec<CompressedParsedDescriptorType>,
     pub return_type: CompressedParsedDescriptorType,
 }
+
+pub type CFieldDescriptor = CompressedFieldDescriptor;
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct CompressedFieldDescriptor(pub CompressedParsedDescriptorType);
 
 pub struct CompressedFieldInfo {
     pub access_flags: u16,

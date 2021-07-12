@@ -7,6 +7,7 @@
 #![feature(entry_insert)]
 #![feature(in_band_lifetimes)]
 #![feature(destructuring_assignment)]
+#![feature(in_band_lifetimes)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
@@ -25,7 +26,7 @@ use std::time::Duration;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function, WasException};
@@ -41,8 +42,6 @@ use crate::threading::JavaThread;
 
 #[macro_use]
 pub mod java_values;
-#[macro_use]
-pub mod runtime_class;
 #[macro_use]
 pub mod java;
 #[macro_use]
@@ -68,7 +67,8 @@ pub mod native_allocation;
 pub mod threading;
 mod resolvers;
 pub mod class_loading;
-pub mod runtime_type;
+#[macro_use]
+pub mod runtime_class;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
@@ -140,7 +140,7 @@ fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn Class
     let string_name = CClassName::string();
     let string_class = CPDType::Ref(CPRefType::Class(string_name));
     let string_array = CPDType::Ref(CPRefType::Array(string_class.into()));
-    let psvms = main.lookup_method_name(pool.add_name(&"main".to_string()));
+    let psvms = main.lookup_method_name(MethodName(pool.add_name(&"main".to_string())));
     for m in psvms {
         let desc = m.desc();
         if m.is_static() && desc.arg_types == vec![string_array] && desc.return_type == CPDType::VoidType {

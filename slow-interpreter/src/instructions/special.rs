@@ -7,6 +7,8 @@ use rust_jvm_common::classfile::{IInc, Wide, WideAload, WideAstore, WideDload, W
 use rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
@@ -17,7 +19,6 @@ use crate::java_values;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
-use crate::runtime_type::RuntimeType;
 use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
@@ -72,11 +73,11 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
             let instance_of_class = current_frame_class
                 .constant_pool_view(cp as usize)
                 .unwrap_class().class_ref_type();
-            let expected_type_wrapped = PTypeView::Ref(instance_of_class);
+            let expected_type_wrapped = CPDType::Ref(instance_of_class);
 
             let expected_type = expected_type_wrapped.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
-                PTypeView::Ref(_) => {
+                CPDType::Ref(_) => {
                     //todo wrong for varying depth arrays?
                     let actual_runtime_class = match check_initing_or_inited_class(jvm, int_state, a.elem_type.clone()) {
                         Ok(x) => x,
@@ -92,7 +93,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
                     }
                 }
                 _ => {
-                    a.elem_type == expected_type
+                    &a.elem_type == expected_type
                 }
             };
             if cast_succeeds {
@@ -109,7 +110,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
 
 
 pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let possibly_null = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
+    let possibly_null = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let view = &int_state.current_class_view(jvm);
         let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
@@ -127,8 +128,8 @@ pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
         Array(array) => {
             match instance_of_class_type {
                 CPRefType::Class(instance_of_class_name) => {
-                    if instance_of_class_name == ClassName::serializable() ||
-                        instance_of_class_name == ClassName::cloneable() {
+                    if instance_of_class_name == CClassName::serializable() ||
+                        instance_of_class_name == CClassName::cloneable() {
                         unimplemented!()//todo need to handle serializable and the like
                     } else {
                         int_state.push_current_operand_stack(JavaValue::Int(0))
@@ -176,9 +177,9 @@ fn runtime_interface_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
 pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> Result<bool, WasException> {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
-        if parent.cpdtype() == ClassName::object().into() ||
-            parent.cpdtype() == ClassName::cloneable().into() ||
-            parent.cpdtype() == ClassName::serializable().into() {
+        if parent.cpdtype() == CClassName::object().into() ||
+            parent.cpdtype() == CClassName::cloneable().into() ||
+            parent.cpdtype() == CClassName::serializable().into() {
             return Ok(true);
         }
         if let RuntimeClass::Array(parent_arr) = parent.deref() {

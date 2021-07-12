@@ -3,7 +3,6 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;

@@ -21,12 +21,12 @@ use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
-use crate::runtime_type::RuntimeType;
 use crate::rust_jni::native_util::{from_object, to_object};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -1025,11 +1025,11 @@ impl<'gc_life> StackEntry<'gc_life> {
         self.non_native_data.take();
     }
 
-    pub fn operand_stack_types(&self) -> Vec<PTypeView> {
+    pub fn operand_stack_types(&self) -> Vec<RuntimeType> {
         self.operand_stack().iter().map(|type_| type_.to_type()).collect()
     }
 
-    pub fn local_vars_types(&self) -> Vec<PTypeView> {
+    pub fn local_vars_types(&self) -> Vec<RuntimeType> {
         self.local_vars().iter().map(|type_| type_.to_type()).collect()
     }
 

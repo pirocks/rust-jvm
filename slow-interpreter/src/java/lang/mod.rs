@@ -76,6 +76,7 @@ pub mod stack_trace_element {
 pub mod member_name {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -88,7 +89,6 @@ pub mod member_name {
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
     use crate::java_values::{GcManagedObject, JavaValue};
-    use crate::runtime_type::RuntimeType;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]

@@ -1,11 +1,10 @@
 use std::num::Wrapping;
 
-use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::runtime_type::RuntimeType;
 use crate::stack_entry::StackEntryMut;
 
 pub fn fmul(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {

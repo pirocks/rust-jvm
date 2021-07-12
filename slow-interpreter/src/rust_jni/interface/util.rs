@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::ptype_view::ReferenceTypeView;
+use rust_jvm_common::compressed_classfile::CPRefType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_loaded_class;
@@ -16,10 +17,10 @@ pub fn class_object_to_runtime_class(obj: &JClass<'gc_life>, jvm: &'gc_life JVMS
     }
     //todo needs to be reimplemented when loaded class set is fixed.
     match obj.as_type(jvm).unwrap_ref_type() {
-        ReferenceTypeView::Class(class_name) => {
+        CPRefType::Class(class_name) => {
             assert_loaded_class(jvm, class_name.clone().into()).into()//todo a better way?
         }
-        ReferenceTypeView::Array(_) => {
+        CPRefType::Array(_) => {
             None
         }
     }

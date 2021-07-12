@@ -13,6 +13,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
@@ -423,10 +424,10 @@ fn run_single_instruction(
         InstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         InstructionInfo::monitorenter => {
-            interpreter_state.current_frame_mut().pop(Some(PTypeView::object())).unwrap_object_nonnull().monitor_lock(jvm, interpreter_state);
+            interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_lock(jvm, interpreter_state);
         }
         InstructionInfo::monitorexit => {
-            interpreter_state.current_frame_mut().pop(Some(PTypeView::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
+            interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
         }
         InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, interpreter_state, cp),
         InstructionInfo::new(cp) => new(jvm, interpreter_state, cp),
@@ -449,7 +450,7 @@ fn run_single_instruction(
 }
 
 fn l2d(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame.pop(Some(PTypeView::LongType)).unwrap_long();
+    let val = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long();
     current_frame.push(JavaValue::Double(val as f64))
 }
 
@@ -460,7 +461,7 @@ fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target: i
 }
 
 fn f2l(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame.pop(Some(PTypeView::FloatType)).unwrap_float();
+    let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let res = if val.is_infinite() {
         if val.is_sign_positive() {
             i64::MAX
@@ -481,8 +482,8 @@ fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_f
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     let value2_vtype = data[1].clone();
-    let value1 = current_frame.pop(Some(PTypeView::LongType));
-    let value2 = current_frame.pop(Some(PTypeView::LongType));
+    let value1 = current_frame.pop(Some(RuntimeType::LongType));
+    let value2 = current_frame.pop(Some(RuntimeType::LongType));
     match value1_vtype {
         VType::LongType | VType::DoubleType => {
             match value2_vtype {
@@ -494,7 +495,7 @@ fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_f
                 }
                 _ => {
                     //form 2
-                    let value3 = current_frame.pop(Some(PTypeView::LongType));
+                    let value3 = current_frame.pop(Some(RuntimeType::LongType));
                     // assert!(value3.is_size_1());
                     current_frame.push(value1.clone());
                     current_frame.push(value3);
@@ -506,7 +507,7 @@ fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_f
         _ => {
             // assert!(value2.is_size_1());
             let value2_vtype = data[2].clone();
-            let value3 = current_frame.pop(Some(PTypeView::LongType));
+            let value3 = current_frame.pop(Some(RuntimeType::LongType));
             match value2_vtype {
                 VType::LongType | VType::DoubleType => {
                     //form 3
@@ -518,7 +519,7 @@ fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_f
                 }
                 _ => {
                     //form 1
-                    let value4 = current_frame.pop(Some(PTypeView::LongType));
+                    let value4 = current_frame.pop(Some(RuntimeType::LongType));
                     // assert!(value4.is_size_1());
                     current_frame.push(value2.clone());
                     current_frame.push(value1.clone());
@@ -533,20 +534,20 @@ fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_f
 }
 
 fn frem(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame.pop(Some(PTypeView::FloatType)).unwrap_float();
-    let value1 = current_frame.pop(Some(PTypeView::FloatType)).unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let res = drem_impl(value2 as f64, value1 as f64) as f32;
     current_frame.push(JavaValue::Float(res));
 }
 
 fn fneg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame.pop(Some(PTypeView::FloatType)).unwrap_float();
+    let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(-val))
 }
 
 fn drem(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame.pop(Some(PTypeView::FloatType)).unwrap_double();//divisor
-    let value1 = current_frame.pop(Some(PTypeView::FloatType)).unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_double();//divisor
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_double();
     let res = drem_impl(value2, value1);
     current_frame.push(JavaValue::Double(res))
 }
@@ -575,13 +576,13 @@ fn drem_impl(value2: f64, value1: f64) -> f64 {
 }
 
 fn dneg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame.pop(Some(PTypeView::DoubleType)).unwrap_double();
+    let val = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(-val))
 }
 
 fn swap(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let first = current_frame.pop(Some(PTypeView::LongType));
-    let second = current_frame.pop(Some(PTypeView::LongType));
+    let first = current_frame.pop(Some(RuntimeType::LongType));
+    let second = current_frame.pop(Some(RuntimeType::LongType));
     current_frame.push(first);
     current_frame.push(second);
 }
@@ -593,8 +594,8 @@ pub fn ret(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 }
 
 fn dcmpl(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val2 = current_frame.pop(Some(PTypeView::DoubleType)).unwrap_double();
-    let val1 = current_frame.pop(Some(PTypeView::DoubleType)).unwrap_double();
+    let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }
@@ -615,8 +616,8 @@ fn dcmp_common(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryM
 }
 
 fn dcmpg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val2 = current_frame.pop(Some(PTypeView::DoubleType)).unwrap_double();
-    let val1 = current_frame.pop(Some(PTypeView::DoubleType)).unwrap_double();
+    let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }

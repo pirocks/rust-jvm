@@ -1,10 +1,8 @@
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
-use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_class_name, parse_method_descriptor};
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPRefType};
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
-use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -38,10 +36,11 @@ pub struct ClassPoolElemView<'l> {
 }
 
 impl ClassPoolElemView<'_> {
-    pub fn class_ref_type(&self) -> ReferenceTypeView {
-        let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
+    pub fn class_ref_type(&self) -> CPRefType {
+        /*let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
         let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
-        type_.unwrap_ref_type().clone()
+        type_.unwrap_ref_type().clone()*/
+        todo!()
     }
 }
 
@@ -95,9 +94,10 @@ impl MethodrefView<'_> {
         }
     }
 
-    pub fn class(&self) -> ReferenceTypeView {
+    pub fn class(&self) -> CPRefType {
         let class_index = self.get_raw().class_index;
-        PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index))).unwrap_ref_type().clone()
+        // PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index))).unwrap_ref_type().clone()
+        todo!()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView {
@@ -121,8 +121,9 @@ impl InterfaceMethodrefView<'_> {
             _ => panic!(),
         }
     }
-    pub fn class(&self) -> ReferenceTypeView {
-        PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))).unwrap_ref_type().clone()
+    pub fn class(&self) -> CPRefType {
+        todo!()
+        /*PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))).unwrap_ref_type().clone()*/
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView { class_view: self.class_view, i: self.interface_method_ref().nt_index as usize }
@@ -144,16 +145,18 @@ impl NameAndTypeView<'_> {
         }
     }
 
-    pub fn name(&self) -> String {
-        self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8()
+    pub fn name(&self) -> CCString {
+        todo!()
+        // self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8()
     }
     pub fn desc_str(&self) -> String {
         self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()
     }
-    pub fn desc_method(&self) -> MethodDescriptor {
+    pub fn desc_method(&self) -> CMethodDescriptor {
         //todo this is incorrect, name and types aren't always method descirpotrs
         let desc_str = self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8();
-        parse_method_descriptor(desc_str.as_str()).unwrap()//in future parse
+        // parse_method_descriptor(desc_str.as_str()).unwrap()//in future parse
+        todo!()
     }
 }
 

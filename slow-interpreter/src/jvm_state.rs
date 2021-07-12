@@ -110,12 +110,12 @@ pub enum ClassStatus {
 }
 
 impl<'gc_life> Classes<'gc_life> {
-    pub fn get_loaded_classes(&self) -> Vec<(LoaderName, PTypeView)> {
+    pub fn get_loaded_classes(&self) -> Vec<(LoaderName, CPDType)> {
         self.loaded_classes_by_type.iter().flat_map(|(l, rc)| rc.keys().map(move |ptype| (*l, ptype.clone()))).collect_vec()
     }
 
 
-    pub fn is_loaded(&self, ptype: &PTypeView) -> Option<Arc<RuntimeClass<'gc_life>>> {
+    pub fn is_loaded(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc_life>>> {
         self.initiating_loaders.get(&ptype)?.1.clone().into()
     }
 
@@ -125,7 +125,7 @@ impl<'gc_life> Classes<'gc_life> {
         *res
     }
 
-    pub fn get_class_obj(&self, ptypeview: PTypeView) -> Option<GcManagedObject<'gc_life>> {
+    pub fn get_class_obj(&self, ptypeview: CPDType) -> Option<GcManagedObject<'gc_life>> {
         let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
         let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
         Some(obj)
@@ -249,7 +249,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, static_vars, parent, interfaces, status)));
-        let mut initiating_loaders: HashMap<PTypeView, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
+        let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
         let classes = RwLock::new(Classes {
@@ -263,7 +263,7 @@ impl<'gc_life> JVMState<'gc_life> {
         classes
     }
 
-    pub fn get_class_field_numbers() -> HashMap<String, (usize, PTypeView)> {
+    pub fn get_class_field_numbers() -> HashMap<String, (usize, CPDType)> {
         let class_class_fields = vec![
             ("cachedConstructor", ClassName::constructor().into()),
             ("newInstanceCallerCache", ClassName::class().into()),
@@ -370,7 +370,8 @@ impl From<libloading::Error> for LookupError {
 impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
     fn elem_type(&self, idx: usize) -> CPRefType {
         let object = &self.anon_class_live_object_ldc_pool.read().unwrap()[idx];
-        JavaValue::Object(todo!()/*object.clone().into()*/).to_type().unwrap_ref_type().clone()
+        // JavaValue::Object(todo!()/*object.clone().into()*/).to_type().unwrap_ref_type().clone()
+        todo!()
     }
 }
 

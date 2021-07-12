@@ -12,5 +12,6 @@ pub mod descriptor_parser;
 pub mod vtype;
 pub mod loading;
 pub mod compressed_classfile;
+pub mod runtime_type;
 
 pub const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;

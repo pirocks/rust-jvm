@@ -121,7 +121,7 @@ pub mod method {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -157,14 +157,14 @@ pub mod method {
             };
             let name = {
                 let name = method_view.name();
-                if name == "<init>" {
+                if name == MethodName::constructor_init() {
                     return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, name.to_str(&jvm.string_pool))?.intern(jvm, int_state)?
+                JString::from_rust(jvm, int_state, name.0.to_str(&jvm.string_pool))?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {
-                let cpdtype = method_view.desc().return_type;
+                let cpdtype = method_view.desc().return_type.clone();//todo this is a spurious clone
                 JClass::from_type(jvm, int_state, cpdtype)?
             };
             let exception_types = exception_types_table(jvm, int_state, &method_view)?;

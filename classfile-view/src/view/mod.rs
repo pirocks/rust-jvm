@@ -4,8 +4,8 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, Classfile, ConstantKind};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, SourceFileView};
@@ -213,7 +213,6 @@ impl ClassView for ClassBackedView {
     }
 }
 
-type MethodName = CCString;
 
 //todo deprecate this method index in favor of compressed-classfile indexing on creation
 pub struct MethodIndex {

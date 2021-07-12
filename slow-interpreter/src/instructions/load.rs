@@ -1,11 +1,10 @@
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
-use crate::runtime_type::RuntimeType;
-use crate::stack_entry::{LocalVarsRef, StackEntryMut};
+use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_array_out_of_bounds;
 
 pub fn aload<'gc_life, 'l>(/*jvm: &'gc_life JVMState<'gc_life>,*/ mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
@@ -85,7 +84,7 @@ pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterS
 
 pub fn caload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let index = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
-    let temp = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let temp = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     let unborrowed = temp.unwrap_array();
     if index < 0 || index >= unborrowed.len() as i32 {
         return throw_array_out_of_bounds(jvm, int_state, index);

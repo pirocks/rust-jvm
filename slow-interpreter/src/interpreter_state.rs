@@ -12,11 +12,11 @@ use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, Full
 use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
-use crate::runtime_type::RuntimeType;
 use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
@@ -373,7 +373,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 let type_ = stack_entry.class_pointer().view().type_();
                 let view = stack_entry.class_pointer().view();
                 let method_view = view.method_view_i(stack_entry.method_i());
-                let meth_name = method_view.name().to_str(&jvm.string_pool);
+                let meth_name = method_view.name().0.to_str(&jvm.string_pool);
                 let method_desc_str = method_view.desc_str().to_str(&jvm.string_pool);
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)

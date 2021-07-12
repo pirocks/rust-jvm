@@ -1,4 +1,5 @@
 use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo, CPDType};
+use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;
@@ -12,8 +13,8 @@ impl FieldView<'_> {
     fn field_info(&self) -> &CompressedFieldInfo {
         &self.view.backing_class.fields[self.i]
     }
-    pub fn field_name(&self) -> CCString {
-        self.field_info().name
+    pub fn field_name(&self) -> FieldName {
+        FieldName(self.field_info().name)
     }
     pub fn field_desc(&self) -> String {
         self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i].descriptor_index as usize].extract_string_from_utf8()

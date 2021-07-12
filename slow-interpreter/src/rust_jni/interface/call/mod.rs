@@ -4,6 +4,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
@@ -41,7 +42,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     }
     invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
     assert!(int_state.throw().is_none());
-    Ok(if method.desc().return_type == PType::VoidType {
+    Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
         int_state.pop_current_operand_stack(Some(CClassName::object().into())).into()
@@ -56,15 +57,13 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
-    let method_descriptor_str = method.desc_str();
-    let _name = method.name();
-    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
+    let parsed = method.desc();
     push_params_onto_frame(jvm, &mut l, int_state, &parsed);
     invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method)?;
-    Ok(if method.desc().return_type == PType::VoidType {
+    Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(PTypeView::from_ptype(&method.desc().return_type))).into()
+        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type())).into()
     })
 }
 
@@ -72,9 +71,9 @@ unsafe fn push_params_onto_frame(
     jvm: &'gc_life JVMState<'gc_life>,
     l: &mut VarargProvider,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    parsed: &MethodDescriptor,
+    parsed: &CMethodDescriptor,
 ) {
-    for type_ in &parsed.parameter_types {
+    for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }
 }

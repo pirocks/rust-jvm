@@ -1,9 +1,6 @@
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -18,7 +15,7 @@ use crate::stack_entry::StackEntryMut;
 
 fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, c: &ClassPoolElemView) -> Result<(), WasException> {
     let res_class_name = c.class_ref_type();
-    let type_ = PTypeView::Ref(res_class_name);
+    let type_ = CPDType::Ref(res_class_name);
     load_class_constant_by_type(jvm, int_state, type_)?;
     Ok(())
 }
@@ -46,7 +43,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
     push_new_object(jvm, interpreter_state, &string_class);
-    let string_object = interpreter_state.pop_current_operand_stack(Some(ClassName::string().into()));
+    let string_object = interpreter_state.pop_current_operand_stack(Some(CClassName::string().into()));
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,
@@ -56,7 +53,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
         jvm.thread_state.new_monitor("monitor for a string".to_string()),
     )?)))));
     let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
-    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: CPDType::VoidType.to_ptype() };
+    let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
@@ -130,7 +127,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'g
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            let string_value = int_state.pop_current_operand_stack(Some(ClassName::string().into()));
+            let string_value = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
             intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
         }
         _ => panic!()

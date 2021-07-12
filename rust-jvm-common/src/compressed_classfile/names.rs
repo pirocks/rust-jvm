@@ -294,15 +294,37 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("java/lang/ClassNotFoundException".to_string()), JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION);
     add_builtin_name(pool, ClassName::Str("java/lang/reflect/ConstantPool".to_string()), JAVA_LANG_REFLECT_CONSTANT_POOL);
     add_builtin_name(pool, ClassName::Str("java/security/AccessControlContext".to_string()), JAVA_SECURITY_ACCESS_CONTROL_CONTEXT);
-    add_builtin_name(pool, ClassName::Str("".to_string()), JAVA_SECURITY_PROTECTION_DOMAIN);
-    add_builtin_name(pool, ClassName::Str("".to_string()), SUN_MISC_LAUNCHER);
+    add_builtin_name(pool, ClassName::Str("java/security/ProtectionDomain".to_string()), JAVA_SECURITY_PROTECTION_DOMAIN);
+    add_builtin_name(pool, ClassName::Str("sun/misc/Launcher".to_string()), SUN_MISC_LAUNCHER);
     add_builtin_name(pool, ClassName::Str("sun/reflect/Reflection".to_string()), SUN_REFLECT_REFLECTION);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/CallSite".to_string()), JAVA_LANG_INVOKE_CALL_SITE);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()), JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION);
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
 }
 
-
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FieldName(pub CompressedClassfileString);
 
 impl FieldName {}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct MethodName(pub CompressedClassfileString);
+
+#[allow(non_snake_case)]
+impl MethodName {
+    pub fn constructor_init() -> Self {
+        todo!()
+    }
+
+    pub fn constructor_clinit() -> Self {
+        todo!()
+    }
+
+    pub fn method_linkToStatic() -> Self {
+        todo!()
+    }
+
+    pub fn method_linkToVirtual() -> Self {
+        todo!()
+    }
+}

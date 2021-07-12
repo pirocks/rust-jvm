@@ -1,7 +1,6 @@
 use std::ops::Deref;
 use std::os::raw::c_void;
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
 

@@ -31,7 +31,7 @@ macro_rules! as_object_or_java_value {
         pub fn hash_code(&self, state: &'gc_life crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'l>) -> Result<i32,crate::WasException> {
             int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));
             crate::instructions::invoke::virtual_::invoke_virtual(state,int_state,&"hashCode".to_string(), &rust_jvm_common::compressed_classfile::CMethodDescriptor {arg_types: vec![], return_type: rust_jvm_common::compressed_classfile::CPDType::IntType})?;
-            Ok(int_state.current_frame_mut().pop(Some(crate::runtime_type::RuntimeType::IntType)).unwrap_int())
+            Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::runtime_type::RuntimeType::IntType)).unwrap_int())
         }
     };
 }

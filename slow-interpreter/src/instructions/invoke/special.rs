@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -31,7 +30,7 @@ pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 pub fn invoke_special_impl(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
-    parsed_descriptor: &MethodDescriptor,
+    parsed_descriptor: &CMethodDescriptor,
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc_life>>,
 ) -> Result<(), WasException> {
@@ -46,18 +45,10 @@ pub fn invoke_special_impl(
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
-        // if jvm.vm_live(){
-        //     dbg!(parsed_descriptor);
-        // }
         setup_virtual_args(interpreter_state, &parsed_descriptor, &mut args, max_locals);
         assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         let arc = final_target_class.view();
-        if arc.method_view_i(target_m_i).name() == "<init>" && arc.name() == ClassName::Str("bed".to_string()).into() {
-            // dbg!(arc.name());
-            // interpreter_state.debug_print_stack_trace();
-            // panic!();
-        }
         let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {

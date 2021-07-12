@@ -1,6 +1,5 @@
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use crate::compressed_classfile::CPDType;
+use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 
 pub type RType = RuntimeType;
 
@@ -47,6 +46,10 @@ impl RuntimeType {
             RuntimeType::Ref(ref_) => ref_,
             _ => panic!()
         }
+    }
+
+    pub fn object() -> Self {
+        Self::Ref(RuntimeRefType::Class(CClassName::object()))
     }
 }
 

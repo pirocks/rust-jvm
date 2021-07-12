@@ -5,7 +5,7 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 
@@ -167,7 +167,7 @@ pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) 
                 }
                 _ => panic!()
             };
-            Some(CompressedClassName(vf.pool.add_name(catch_type_name.unwrap_name().get_referred_name().to_string())))
+            Some(catch_type_name.unwrap_name())
         },
     }).collect()
 }
@@ -355,7 +355,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
     let method_view = method_class.method_view_i(method.method_index as u16);
     if method_view.is_static() {
         let method_name = method_view.name();
-        if method_name != vf.pool.add_name("<init>") {//todo convert init to classname like string/id
+        if method_name != MethodName::constructor_init() {//todo convert init to classname like string/id
             Ok(None)
         } else {
             Err(unknown_error_verifying!())
@@ -368,7 +368,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
     let classfile = get_class(vf, &method.class);
     let method_name = classfile.method_view_i(method.method_index as u16).name();
-    if method_name == vf.pool.add_name("<init>") {
+    if method_name == MethodName::constructor_init() {
         if class.class_name == CClassName::object() {
             Result::Ok(VType::Class(ClassWithLoader { class_name: class.class_name, loader: class.loader.clone() }))
         } else {

@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::classfile::{Classfile, MethodInfo};
 use crate::classnames::ClassName;
+use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor};
 use crate::ptype::{PType, ReferenceType};
 
 #[derive(Debug, Eq, Clone)]
@@ -40,8 +41,8 @@ pub struct FieldDescriptor {
 
 #[derive(Debug)]
 pub enum Descriptor<'l> {
-    Method(&'l MethodDescriptor),
-    Field(&'l FieldDescriptor),
+    Method(&'l CMethodDescriptor),
+    Field(&'l CFieldDescriptor),
 }
 
 pub fn eat_one(str_: &str) -> &str {

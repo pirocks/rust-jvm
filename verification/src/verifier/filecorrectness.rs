@@ -1,11 +1,9 @@
 use std::ops::Deref;
 
-use itertools::Itertools;
-
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
+use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use rust_jvm_common::vtype::VType;
@@ -401,30 +399,26 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     let class = get_class(vf, super_);
     for method in class.methods() {
         let method_name = method.name();
-        if member_name == method_name {
+        if member_name == method_name.0 {
             let parsed_member_types = method.desc();
             let member_types = match member_descriptor {
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }
             };
-            if parsed_member_types.arg_types == member_types.parameter_types.iter().map(|ptype| CPDType::from_ptype(ptype, vf.pool)).collect_vec() && parsed_member_types.return_type == CPDType::from_ptype(&member_types.return_type, vf.pool) {
+            if &parsed_member_types.arg_types == &member_types.arg_types && parsed_member_types.return_type == member_types.return_type {
                 return method.is_protected();
             }
         }
     }
     for field in class.fields() {
         let field_name = field.field_name();
-        if member_name == field_name {
-            let field_descriptor_string = field.field_desc();
-            let parsed_member_type = match parse_field_descriptor(field_descriptor_string.as_str()) {
-                None => panic!(),
-                Some(str_) => str_,
-            };
+        if member_name == field_name.0 {
+            let parsed_member_type = field.field_type();
             let field_type = match member_descriptor {
                 Descriptor::Field(f) => f,
                 _ => panic!()
             };
-            if parsed_member_type.field_type == field_type.field_type {
+            if parsed_member_type == field_type.0 {
                 return field.is_protected();
             }
         }

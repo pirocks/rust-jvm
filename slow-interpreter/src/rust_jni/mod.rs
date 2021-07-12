@@ -18,7 +18,7 @@ use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
@@ -51,7 +51,7 @@ pub fn call<'gc_life>(
     classfile: Arc<RuntimeClass<'gc_life>>,
     method_view: MethodView,
     args: Vec<JavaValue<'gc_life>>,
-    md: MethodDescriptor,
+    md: CMethodDescriptor,
 ) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&method_view);
     let raw: unsafe extern fn() = unsafe {
@@ -80,7 +80,7 @@ pub fn call_impl<'gc_life>(
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     classfile: Arc<RuntimeClass<'gc_life>>,
     args: Vec<JavaValue<'gc_life>>,
-    md: MethodDescriptor,
+    md: CMethodDescriptor,
     raw: &unsafe extern "C" fn(),
     suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mut args_type = if suppress_runtime_class {
@@ -95,22 +95,22 @@ pub fn call_impl<'gc_life>(
         load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         let class_constant = unsafe {
             let class_popped_jv = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object()).to_ptype())
+            to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object()))
         };
         let res = vec![Arg::new(&env), class_constant];
         res
     };
 //todo inconsistent use of class and/pr arc<RuntimeClass>
 
-    let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object())).to_ptype()];
+    let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object()))];
     let args_and_type = if suppress_runtime_class {
         args
             .iter()
             .zip(temp_vec
                 .iter()
-                .chain(md.parameter_types.iter())).collect::<Vec<_>>()
+                .chain(md.arg_types.iter())).collect::<Vec<_>>()
     } else {
-        args.iter().zip(md.parameter_types.iter()).collect::<Vec<_>>()
+        args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>()
     };
     for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
@@ -121,35 +121,35 @@ pub fn call_impl<'gc_life>(
     let cif_res: *mut c_void = unsafe {
         cif.call(fn_ptr, c_args.as_slice())
     };
-    let res = match PTypeView::from_ptype(&md.return_type) {
-        PTypeView::VoidType => {
+    let res = match &md.return_type {
+        CPDType::VoidType => {
             None
         }
-        PTypeView::ByteType => {
+        CPDType::ByteType => {
             Some(JavaValue::Byte(cif_res as i8))
         }
-        PTypeView::FloatType => {
+        CPDType::FloatType => {
             Some(JavaValue::Float(unsafe { transmute(cif_res as usize as u32) }))
         }
-        PTypeView::DoubleType => {
+        CPDType::DoubleType => {
             Some(JavaValue::Double(unsafe { transmute(cif_res as u64) }))
         }
-        PTypeView::ShortType => {
+        CPDType::ShortType => {
             Some(JavaValue::Short(cif_res as jshort))
         }
-        PTypeView::CharType => {
+        CPDType::CharType => {
             Some(JavaValue::Char(cif_res as jchar))
         }
-        PTypeView::IntType => {
+        CPDType::IntType => {
             Some(JavaValue::Int(cif_res as i32))
         }
-        PTypeView::LongType => {
+        CPDType::LongType => {
             Some(JavaValue::Long(cif_res as i64))
         }
-        PTypeView::BooleanType => {
+        CPDType::BooleanType => {
             Some(JavaValue::Boolean(cif_res as u8))
         }
-        PTypeView::Ref(_) => {
+        CPDType::Ref(_) => {
             unsafe {
                 Some(JavaValue::Object(from_object(jvm, cif_res as jobject)))
             }

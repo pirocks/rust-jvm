@@ -4,12 +4,14 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::{default_value, JavaValue};
-use crate::jvm_state::ClassStatus;
+use crate::jvm_state::{ClassStatus, JVMState};
+use crate::stack_entry::StackEntry;
 
 #[derive(Debug)]
 pub enum RuntimeClass<'gc_life> {
@@ -69,7 +71,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
         }
     }
 
-    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<CCString, JavaValue<'gc_life>>> {
+    pub fn static_vars(&self) -> RwLockWriteGuard<'_, HashMap<FieldName, JavaValue<'gc_life>>> {
         match self {
             RuntimeClass::Byte => panic!(),
             RuntimeClass::Boolean => panic!(),
@@ -132,8 +134,8 @@ pub struct RuntimeClassArray<'gc_life> {
 
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<CCString, (usize, CPDType)>,
-    pub static_vars: RwLock<HashMap<CCString, JavaValue<'gc_life>>>,
+    pub field_numbers: HashMap<FieldName, (usize, CPDType)>,
+    pub static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
     pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
     //class may not be prepared
@@ -144,8 +146,8 @@ pub struct RuntimeClassClass<'gc_life> {
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
     pub fn new(class_view: Arc<dyn ClassView>,
-               field_numbers: HashMap<CCString, (usize, CPDType)>,
-               static_vars: RwLock<HashMap<CCString, JavaValue<'gc_life>>>,
+               field_numbers: HashMap<FieldName, (usize, CPDType)>,
+               static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
                parent: Option<Arc<RuntimeClass<'gc_life>>>,
                interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
                status: RwLock<ClassStatus>) -> Self {
@@ -221,7 +223,7 @@ pub fn initialize_class(
     }
     //todo detecting if assertions are enabled?
     let view = &runtime_class.view();
-    let lookup_res = view.lookup_method_name(jvm.string_pool.add_name("<clinit>".to_string()));// todo constant for clinit
+    let lookup_res = view.lookup_method_name(MethodName::constructor_clinit());// todo constant for clinit
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
         None => return Ok(runtime_class),

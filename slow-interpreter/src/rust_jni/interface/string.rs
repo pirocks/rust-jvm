@@ -5,6 +5,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::instructions::ldc::create_string_on_stack;
@@ -63,7 +64,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     if let Err(WasException {}) = create_string_on_stack(jvm, int_state, owned_str) {
         return null_mut();
     };
-    let string = int_state.pop_current_operand_stack(Some(ClassName::string().into())).unwrap_object();
+    let string = int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_object();
     assert!(!string.is_none());
     new_local_ref_public(string, int_state)
 }

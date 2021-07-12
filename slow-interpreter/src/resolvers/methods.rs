@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::interpreter::WasException;
@@ -22,8 +23,8 @@ pub fn resolve_invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>,
 fn resolve_virtual_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>, include_interfaces: bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
-    let parameter_types = method_type.get_ptypes_as_types(jvm);
-    let method_descriptor = MethodDescriptor { parameter_types, return_type };
+    let arg_types = method_type.get_ptypes_as_types(jvm);
+    let method_descriptor = CMethodDescriptor { arg_types, return_type };
     let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
     let temp = get_all_methods(jvm, int_state, runtime_class.clone(), include_interfaces)?;
     let res = temp.iter().find(|(candidate_rc, candidate_i)| {
@@ -32,7 +33,7 @@ fn resolve_virtual_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
         if candidate_view.is_signature_polymorphic() {
             true
         } else {
-            candidate_view.desc() == method_descriptor
+            candidate_view.desc() == &method_descriptor
         }
     });
     let (res_rc, res_i) = match res {
@@ -52,12 +53,14 @@ pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
     let method_descriptor = CMethodDescriptor { arg_types, return_type };
     let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
-    let temp = runtime_class_view.lookup_method_name(&member_name.get_name(jvm).to_rust_string(jvm));
+    let method_name_string = member_name.get_name(jvm).to_rust_string(jvm);
+    let method_name = MethodName(jvm.string_pool.add_name(method_name_string));
+    let temp = runtime_class_view.lookup_method_name(method_name);
     let res = temp.iter().find(|candidate| {
         if candidate.is_signature_polymorphic() {
             true
         } else {
-            candidate.desc() == method_descriptor
+            candidate.desc() == &method_descriptor
         }
     });
     let method_view = match res {
@@ -82,7 +85,7 @@ pub fn resolve_invoke_static<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, in
             //todo more comprehensive polymorphism sanity checks.
             true
         } else {
-            m.desc() == method_descriptor
+            m.desc() == &method_descriptor
         }
     }).cloned();//todo assert only one match
     match res {

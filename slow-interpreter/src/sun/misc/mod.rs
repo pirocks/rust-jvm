@@ -5,7 +5,7 @@ pub mod unsafe_ {
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::java::lang::reflect::field::Field;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
 
     pub struct Unsafe<'gc_life> {
@@ -45,7 +45,7 @@ pub mod launcher {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
-    use crate::java_values::{GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
 
@@ -82,7 +82,7 @@ pub mod launcher {
         use crate::class_loading::check_initing_or_inited_class;
         use crate::interpreter::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
-        use crate::java_values::{GcManagedObject, JavaValue, Object};
+        use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 

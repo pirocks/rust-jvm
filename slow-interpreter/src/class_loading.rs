@@ -8,9 +8,8 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use classfile_view::view::ptype_view::ReferenceTypeView;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{LivePoolGetter, LoaderName};
@@ -221,6 +220,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     classfile_getter: Arc::new(DefaultClassfileGetter {
                         jvm
                     }) as Arc<dyn ClassFileGetter>,
+                    pool: &jvm.string_pool,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
@@ -298,7 +298,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         None => {}
         Some(name) => {
             if jvm.include_name_field.load(Ordering::SeqCst) {
-                class_object.set_name_(JString::from_rust(jvm, int_state, name.get_referred_name().replace("/", ".").to_string())?)
+                class_object.set_name_(JString::from_rust(jvm, int_state, name.0.to_str(*jvm.string_pool).replace("/", ".").to_string())?)
             }
         }
     }

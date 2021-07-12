@@ -5,7 +5,7 @@ use libffi::middle::Arg;
 use libffi::middle::Type;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
@@ -26,51 +26,51 @@ pub unsafe fn native_to_runtime_class<'gc_life>(clazz: jclass) -> Arc<RuntimeCla
 }
 
 
-pub fn to_native_type(t: &PType) -> Type {
+pub fn to_native_type(t: &CPDType) -> Type {
     match t {
-        PType::ByteType => Type::i8(),
-        PType::CharType => Type::u16(),
-        PType::DoubleType => Type::f64(),
-        PType::FloatType => Type::f32(),
-        PType::IntType => Type::i32(),
-        PType::LongType => Type::i64(),
-        PType::ShortType => Type::i16(),
-        PType::BooleanType => Type::u8(),
-        PType::Ref(_) => Type::pointer(),
+        CPDType::ByteType => Type::i8(),
+        CPDType::CharType => Type::u16(),
+        CPDType::DoubleType => Type::f64(),
+        CPDType::FloatType => Type::f32(),
+        CPDType::IntType => Type::i32(),
+        CPDType::LongType => Type::i64(),
+        CPDType::ShortType => Type::i16(),
+        CPDType::BooleanType => Type::u8(),
+        CPDType::Ref(_) => Type::pointer(),
         _ => panic!(),
     }
 }
 
 
-pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &PType) -> Arg {
+pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &CPDType) -> Arg {
     match t {
-        PType::ByteType => {
+        CPDType::ByteType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte)
         }
-        PType::CharType => {
+        CPDType::CharType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar)
         }
-        PType::DoubleType => {
+        CPDType::DoubleType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble)
         }
-        PType::FloatType => {
+        CPDType::FloatType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat)
         }
-        PType::IntType => {
+        CPDType::IntType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint)
         }
-        PType::LongType => {
+        CPDType::LongType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong)
         }
-        PType::Ref(_) => {
+        CPDType::Ref(_) => {
             let object_ptr = new_local_ref(env, to_object(j.unwrap_object()));
             drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
-        PType::ShortType => {
+        CPDType::ShortType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort)
         }
-        PType::BooleanType => {
+        CPDType::BooleanType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u8)).as_ref().unwrap() as &jboolean)
         }
         _ => panic!(),
@@ -78,33 +78,33 @@ pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &
 }
 
 
-pub unsafe fn free_native<'gc_life>(_j: JavaValue<'gc_life>, t: &PType, to_free: &mut Arg) {
+pub unsafe fn free_native<'gc_life>(_j: JavaValue<'gc_life>, t: &CPDType, to_free: &mut Arg) {
     match t {
-        PType::ByteType => {
+        CPDType::ByteType => {
             Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);
         }
-        PType::CharType => {
+        CPDType::CharType => {
             Box::<jchar>::from_raw(to_free.0 as *mut jchar);
         }
-        PType::DoubleType => {
+        CPDType::DoubleType => {
             Box::<jdouble>::from_raw(to_free.0 as *mut jdouble);
         }
-        PType::FloatType => {
+        CPDType::FloatType => {
             Box::<jfloat>::from_raw(to_free.0 as *mut jfloat);
         }
-        PType::IntType => {
+        CPDType::IntType => {
             Box::<jint>::from_raw(to_free.0 as *mut jint);
         }
-        PType::LongType => {
+        CPDType::LongType => {
             Box::<jlong>::from_raw(to_free.0 as *mut jlong);
         }
-        PType::Ref(_) => {
+        CPDType::Ref(_) => {
             Box::<jobject>::from_raw(to_free.0 as *mut jobject);
         }
-        PType::ShortType => {
+        CPDType::ShortType => {
             Box::<jshort>::from_raw(to_free.0 as *mut jshort);
         }
-        PType::BooleanType => {
+        CPDType::BooleanType => {
             Box::<jshort>::from_raw(to_free.0 as *mut jshort);
         }
         _ => panic!(),
