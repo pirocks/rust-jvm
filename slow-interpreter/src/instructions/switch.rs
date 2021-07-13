@@ -1,11 +1,11 @@
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 
 pub fn invoke_lookupswitch(ls: &LookupSwitch, jvm: &'gc_life JVMState<'gc_life>, mut frame: StackEntryMut<'gc_life, 'l>) {
-    let key = frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let key = frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     for (candidate_key, o) in &ls.pairs {
         if *candidate_key == key {
             *frame.pc_offset_mut() = *o as i32;
@@ -16,7 +16,7 @@ pub fn invoke_lookupswitch(ls: &LookupSwitch, jvm: &'gc_life JVMState<'gc_life>,
 }
 
 pub fn tableswitch(ls: TableSwitch, jvm: &'gc_life JVMState<'gc_life>, mut frame: StackEntryMut<'gc_life, 'l>) {
-    let index = frame.pop(Some(PTypeView::IntType)).unwrap_int();
+    let index = frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     if index < ls.low || index > ls.high {
         *frame.pc_offset_mut() = ls.default as i32;
     } else {

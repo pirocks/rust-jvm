@@ -5,14 +5,12 @@ use std::ptr::null_mut;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_state::InterpreterState;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::method_table::from_jmethod_id;
-use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::StackEntry;
 
 /// Get Frame Count

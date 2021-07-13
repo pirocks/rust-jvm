@@ -3,7 +3,6 @@ use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_E
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
-use crate::rust_jni::native_util::from_object;
 
 ///Get Object Hash Code
 ///

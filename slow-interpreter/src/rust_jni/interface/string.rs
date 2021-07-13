@@ -4,7 +4,6 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use sketch_jvm_version_of_utf8::JVMString;
 

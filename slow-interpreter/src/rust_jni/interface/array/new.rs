@@ -1,7 +1,7 @@
 use std::ptr::null_mut;
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
+use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
@@ -25,38 +25,38 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
 }
 
 pub unsafe extern "C" fn new_boolean_array(env: *mut JNIEnv, len: jsize) -> jbooleanArray {
-    new_array(env, len, PTypeView::BooleanType)
+    new_array(env, len, CPDType::BooleanType)
 }
 
 pub unsafe extern "C" fn new_byte_array(env: *mut JNIEnv, len: jsize) -> jbyteArray {
-    new_array(env, len, PTypeView::ByteType)
+    new_array(env, len, CPDType::ByteType)
 }
 
 pub unsafe extern "C" fn new_short_array(env: *mut JNIEnv, len: jsize) -> jshortArray {
-    new_array(env, len, PTypeView::ShortType)
+    new_array(env, len, CPDType::ShortType)
 }
 
 pub unsafe extern "C" fn new_char_array(env: *mut JNIEnv, len: jsize) -> jcharArray {
-    new_array(env, len, PTypeView::CharType)
+    new_array(env, len, CPDType::CharType)
 }
 
 pub unsafe extern "C" fn new_int_array(env: *mut JNIEnv, len: jsize) -> jintArray {
-    new_array(env, len, PTypeView::IntType)
+    new_array(env, len, CPDType::IntType)
 }
 
 pub unsafe extern "C" fn new_long_array(env: *mut JNIEnv, len: jsize) -> jlongArray {
-    new_array(env, len, PTypeView::LongType)
+    new_array(env, len, CPDType::LongType)
 }
 
 pub unsafe extern "C" fn new_float_array(env: *mut JNIEnv, len: jsize) -> jfloatArray {
-    new_array(env, len, PTypeView::FloatType)
+    new_array(env, len, CPDType::FloatType)
 }
 
 pub unsafe extern "C" fn new_double_array(env: *mut JNIEnv, len: jsize) -> jdoubleArray {
-    new_array(env, len, PTypeView::DoubleType)
+    new_array(env, len, CPDType::DoubleType)
 }
 
-unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: PTypeView) -> jarray {
+unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut the_vec = vec![];

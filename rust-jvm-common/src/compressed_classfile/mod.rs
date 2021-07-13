@@ -50,7 +50,7 @@ impl CompressedClassfileStringPool {
 
 pub type CCString = CompressedClassfileString;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd)]
 pub struct CompressedClassfileString {
     id: AddOnlyId,
 }

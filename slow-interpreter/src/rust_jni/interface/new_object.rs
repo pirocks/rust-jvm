@@ -2,7 +2,6 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;

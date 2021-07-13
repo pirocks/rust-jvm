@@ -19,8 +19,8 @@ pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID,
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
     let class_view = class.view();
     let mv = class_view.method_view_i(method_i);
-    let name = mv.name().to_str(&jvm.string_pool);
-    let desc_str = mv.desc_str();
+    let name = mv.name().0.to_str(&jvm.string_pool);
+    let desc_str = mv.desc_str().to_str(&jvm.string_pool);
     if !generic_ptr.is_null() {
         // unimplemented!()//todo figure out what this is
     }

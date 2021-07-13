@@ -125,12 +125,12 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                         CPDType::LongType => Arc::new(RuntimeClass::Long),
                         CPDType::Ref(ref_) => {
                             match ref_ {
-                                ReferenceTypeView::Class(class_name) => {
+                                CPRefType::Class(class_name) => {
                                     drop(guard);
                                     let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone())?;
                                     class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                                 }
-                                ReferenceTypeView::Array(sub_type) => {
+                                CPRefType::Array(sub_type) => {
                                     drop(guard);
                                     let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                     let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
@@ -214,7 +214,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                         return Err(WasException);
                     }
                 };
-                let class_view = Arc::new(ClassBackedView::from(classfile.clone()));
+                let class_view = Arc::new(ClassBackedView::from(classfile.clone(), &jvm.string_pool));
                 let mut verifier_context = VerifierContext {
                     live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
                     classfile_getter: Arc::new(DefaultClassfileGetter {
@@ -237,7 +237,14 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-                let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.to_string()).enumerate().map(|(index, (name, ptype))| (name, (index + start_field_number, ptype))).collect::<HashMap<_, _>>();
+                let field_numbers = class_view
+                    .fields()
+                    .filter(|field| !field.is_static())
+                    .map(|name| (name.field_name(), name.field_type()))
+                    .sorted_by_key(|(name, _ptype)| name)
+                    .enumerate()
+                    .map(|(index, (name, ptype))| (name, (index + start_field_number, ptype)))
+                    .collect::<HashMap<_, _>>();
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     field_numbers,
@@ -298,7 +305,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         None => {}
         Some(name) => {
             if jvm.include_name_field.load(Ordering::SeqCst) {
-                class_object.set_name_(JString::from_rust(jvm, int_state, name.0.to_str(*jvm.string_pool).replace("/", ".").to_string())?)
+                class_object.set_name_(JString::from_rust(jvm, int_state, name.0.to_str(&jvm.string_pool).replace("/", ".").to_string())?)
             }
         }
     }

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use classfile_view::view::ptype_view::ReferenceTypeView;
 use rust_jvm_common::compressed_classfile::CPRefType;
 
 use crate::{InterpreterStateGuard, JVMState};

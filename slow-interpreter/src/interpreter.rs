@@ -3,7 +3,6 @@ use std::mem::transmute;
 use std::ops::Rem;
 use std::sync::Arc;
 
-use itertools::Itertools;
 use num::Zero;
 
 use classfile_parser::code::{CodeParserContext, parse_instruction};
@@ -13,6 +12,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -59,10 +59,10 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     let method = view.method_view_i(method_i);
     let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
-    let meth_name = method.name();
+    let meth_name = method.name().0.to_str(&jvm.string_pool);
     let class_name__ = view.type_();
 
-    let method_desc = method.desc_str();
+    let method_desc = method.desc_str().to_str(&jvm.string_pool);
     let current_depth = interpreter_state.call_stack_depth();
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
     let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
@@ -626,7 +626,7 @@ fn dcmpg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc
 
 fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let exception_obj = {
-        let value = interpreter_state.pop_current_operand_stack(Some(ClassName::throwable().into()));
+        let value = interpreter_state.pop_current_operand_stack(Some(CClassName::throwable().into()));
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     };

@@ -24,7 +24,7 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::Frame;
@@ -250,7 +250,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let status = ClassStatus::UNPREPARED.into();
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, static_vars, parent, interfaces, status)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
-        initiating_loaders.insert(ClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
+        initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
@@ -263,7 +263,7 @@ impl<'gc_life> JVMState<'gc_life> {
         classes
     }
 
-    pub fn get_class_field_numbers() -> HashMap<String, (usize, CPDType)> {
+    pub fn get_class_field_numbers() -> HashMap<FieldName, (usize, CPDType)> {
         let class_class_fields = vec![
             ("cachedConstructor", ClassName::constructor().into()),
             ("newInstanceCallerCache", ClassName::class().into()),

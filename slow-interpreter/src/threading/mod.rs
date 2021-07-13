@@ -16,7 +16,7 @@ use num::Integer;
 
 use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
@@ -33,7 +33,6 @@ use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
-use crate::threading::monitors::Monitor;
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct ThreadState<'gc_life> {
@@ -108,7 +107,7 @@ impl<'gc_life> ThreadState<'gc_life> {
     fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        let system_class = assert_inited_or_initing_class(jvm, ClassName::system().into());
+        let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
 
         let system = &system_class;
         let system_view = system.view();
@@ -185,16 +184,16 @@ impl<'gc_life> ThreadState<'gc_life> {
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
         let frame_for_bootstrapping = new_int_state.push_frame(frame, jvm);
 
-        let object_rc = check_loaded_class(jvm, &mut new_int_state, ClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
-        // let class_rc = check_loaded_class(jvm,&mut new_int_state, ClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
+        let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
+        // let class_rc = check_loaded_class(jvm,&mut new_int_state, CClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
-        let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::thread().into()).expect("couldn't load thread class");
+        let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);
-        let thread_object = new_int_state.pop_current_operand_stack(Some(ClassName::thread().into())).cast_thread();
+        let thread_object = new_int_state.pop_current_operand_stack(Some(CClassName::thread().into())).cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, ClassName::Str("java/lang/ThreadGroup".to_string()).into()).expect("couldn't load thread group class");
+        let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread_group().into()).expect("couldn't load thread group class");
         let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class).expect("todo");
         *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");

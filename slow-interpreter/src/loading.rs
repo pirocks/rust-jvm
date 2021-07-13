@@ -7,6 +7,7 @@ use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::loading::ClassLoadingError::ClassNotFoundException;
@@ -34,7 +35,7 @@ impl Classpath {
         }
     }
 
-    pub fn lookup_cache_miss(&self, class_name: &ClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    pub fn lookup_cache_miss(&self, class_name: &CClassName, pool: &CompressedClassfileStringPool) -> Result<Arc<Classfile>, ClassLoadingError> {
         for x in &self.classpath_base {
             for dir_member in match x.read_dir() {
                 Ok(dir) => dir,
@@ -62,7 +63,7 @@ impl Classpath {
         };
         for path in &self.classpath_base {
             let mut new_path = path.clone().into_path_buf();
-            new_path.push(format!("{}.class", class_name.get_referred_name()));
+            new_path.push(format!("{}.class", class_name.0.to_str(pool)));
             if new_path.is_file() {
                 let file_read = &mut File::open(new_path).unwrap();
                 let classfile = parse_class_file(file_read)?;

@@ -6,7 +6,6 @@ use jvmti_jni_bindings::*;
 use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
 use crate::jvmti::get_state;
-use crate::rust_jni::native_util::from_object;
 use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {

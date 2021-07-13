@@ -1,6 +1,6 @@
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -54,7 +54,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     )?)))));
     let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
-    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
+    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
     let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
     match run_function(jvm, interpreter_state) {

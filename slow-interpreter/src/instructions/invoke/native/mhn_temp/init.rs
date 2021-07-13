@@ -5,6 +5,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
@@ -44,13 +45,13 @@ pub enum InitAssertionCase {
 
 
 pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, mname: MemberName<'gc_life>, target: JavaValue<'gc_life>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
-    if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::method().into() {
+    if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::method().into() {
         let target = target.cast_method();
         method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::constructor().into() {
+    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::constructor().into() {
         let target = target.cast_constructor();
         constructor_init(jvm, mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == ClassName::field().into() {
+    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::field().into() {
         todo!()
     } else {
         todo!()

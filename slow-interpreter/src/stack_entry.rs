@@ -1,11 +1,8 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::intrinsics::size_of;
-use std::io;
-use std::io::Write;
 use std::marker::PhantomData;
 use std::mem::transmute;
-use std::ops::{DerefMut, Index, IndexMut};
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
@@ -14,12 +11,11 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
+use classfile_view::view::ptype_view::PTypeView;
+use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use jit_common::java_stack::JavaStack;
-use jvmti_jni_bindings::{_jobject, jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, JVM_Available};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -27,7 +23,6 @@ use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::native_util::{from_object, to_object};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);
@@ -198,33 +193,25 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
-    fn read_target(jvm: &'gc_life JVMState<'gc_life>, target: *const c_void, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    fn read_target(jvm: &'gc_life JVMState<'gc_life>, target: *const c_void, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         // dbg!("read",target,&expected_type);
         unsafe {
             match expected_type {
-                PTypeView::ByteType => {
-                    assert_eq!((target as *const u64).read() >> 32, 0);
-                    JavaValue::Byte((target as *const jbyte).read())//todo dpn't think this conversion is correct in many cases
-                }
-                PTypeView::CharType => {
-                    assert_eq!((target as *const u64).read() >> 21, 0);
-                    JavaValue::Char((target as *const jchar).read())
-                }
-                PTypeView::DoubleType => {
+                RuntimeType::DoubleType => {
                     JavaValue::Double((target as *const jdouble).read())
                 }
-                PTypeView::FloatType => {
+                RuntimeType::FloatType => {
                     assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Float((target as *const jfloat).read())
                 }
-                PTypeView::IntType => {
+                RuntimeType::IntType => {
                     assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Int((target as *const jint).read())
                 }
-                PTypeView::LongType => {
+                RuntimeType::LongType => {
                     JavaValue::Long((target as *const jlong).read())
                 }
-                PTypeView::Ref(ref_) => {
+                RuntimeType::Ref(ref_) => {
                     let obj = (target as *const jobject).read();
                     // eprintln!("Read:{:?}", obj);
                     match NonNull::new(obj as *mut Object<'gc_life>) {
@@ -238,24 +225,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                         }
                     }
                 }
-                PTypeView::ShortType => {
-                    assert_eq!((target as *const u64).read() >> 32, 0);
-                    JavaValue::Short((target as *const jshort).read())
-                }
-                PTypeView::BooleanType => {
-                    assert_eq!((target as *const u64).read() >> 32, 0);
-                    JavaValue::Boolean((target as *const jboolean).read())
-                }
-                PTypeView::NullType => {
-                    let obj = (target as *const jobject).read();
-                    assert_eq!(obj, null_mut());
-                    JavaValue::Object(None)
-                }
-                PTypeView::VoidType |
-                PTypeView::TopType |
-                PTypeView::Uninitialized(_) |
-                PTypeView::UninitializedThis |
-                PTypeView::UninitializedThisOrClass(_) => {
+                RuntimeType::TopType => {
                     dbg!(&expected_type);
                     todo!()
                 }
@@ -323,12 +293,12 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Self::write_target(target, jv)
     }
 
-    pub fn get_local_var(&self, jvm: &'gc_life JVMState<'gc_life>, i: u16, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn get_local_var(&self, jvm: &'gc_life JVMState<'gc_life>, i: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::read_target(jvm, target, expected_type)
     }
 
-    pub fn get_operand_stack(&self, jvm: &'gc_life JVMState<'gc_life>, from_start: u16, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn get_operand_stack(&self, jvm: &'gc_life JVMState<'gc_life>, from_start: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         let target = unsafe { self.get_operand_stack_base().offset((from_start as isize) * size_of::<jlong>() as isize) };
         Self::read_target(jvm, target, expected_type)
     }
@@ -367,7 +337,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                 let (class_pointer, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let local_vars = locals_types.iter().enumerate().map(|(i, ptype)| {
                     match ptype {
-                        PTypeView::TopType => JavaValue::Top,
+                        RuntimeType::TopType => JavaValue::Top,
                         _ => self.get_local_var(jvm, i as u16, ptype.clone()),
                     }
                 }).collect_vec();
@@ -714,7 +684,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         todo!()
     }
 
-    pub fn get(&'_ self, from_start: u16, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
             OperandStackRef::Jit { frame_view, jvm } => {
@@ -723,7 +693,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         }
     }
 
-    pub fn types(&self) -> Vec<PTypeView> {
+    pub fn types(&self) -> Vec<RuntimeType> {
         match self {
             OperandStackRef::Jit { frame_view, .. } => {
                 match frame_view.get_frame_info() {

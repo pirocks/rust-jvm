@@ -1,13 +1,12 @@
 use by_address::ByAddress;
 
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_loaded_class_force_loader;
 use crate::interpreter::WasException;
-use crate::java_values::{GcManagedObject, Object};
+use crate::java_values::GcManagedObject;
 
 pub fn get_or_create_class_object(jvm: &'gc_life JVMState<'gc_life>,
                                   type_: CPDType,

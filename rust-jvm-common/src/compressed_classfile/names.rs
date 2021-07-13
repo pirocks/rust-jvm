@@ -302,7 +302,7 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd)]
 pub struct FieldName(pub CompressedClassfileString);
 
 impl FieldName {}

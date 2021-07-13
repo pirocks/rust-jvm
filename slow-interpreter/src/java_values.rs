@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 

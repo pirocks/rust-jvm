@@ -31,7 +31,7 @@ use crate::jvmti::threads::suspend_resume::*;
 use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_jclass, from_object};
+use crate::rust_jni::native_util::from_jclass;
 
 pub mod event_callbacks;
 

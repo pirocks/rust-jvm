@@ -4,9 +4,8 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -38,18 +37,18 @@ pub fn run_native_method(
     let parsed = method.desc();
     let mut args = vec![];
     if method.is_static() {
-        for parameter_type in parsed.parameter_types.iter().rev() {
-            let p_type_view = PTypeView::from_ptype(&parameter_type);
-            args.push(int_state.pop_current_operand_stack(Some(p_type_view)));
+        for parameter_type in parsed.arg_types.iter().rev() {
+            let rtpye = parameter_type.to_runtime_type().unwrap();
+            args.push(int_state.pop_current_operand_stack(Some(rtpye)));
         }
         args.reverse();
     } else if method.is_native() {
-        for parameter_type in parsed.parameter_types.iter().rev() {
-            let p_type_view = PTypeView::from_ptype(&parameter_type);
-            args.push(int_state.pop_current_operand_stack(Some(p_type_view)));
+        for parameter_type in parsed.arg_types.iter().rev() {
+            let rtype = parameter_type.to_runtime_type().unwrap();
+            args.push(int_state.pop_current_operand_stack(Some(rtype)));
         }
         args.reverse();
-        args.insert(0, int_state.pop_current_operand_stack(Some(ClassName::object().into())));
+        args.insert(0, int_state.pop_current_operand_stack(Some(CClassName::object().into())));
     } else {
         panic!();
     }
@@ -70,7 +69,7 @@ pub fn run_native_method(
             let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
             *reg_natives_for_class.get(&(method_i as u16)).unwrap()
         };
-        match call_impl(jvm, int_state, class.clone(), args, parsed, &res_fn, !method.is_static()) {
+        match call_impl(jvm, int_state, class.clone(), args, parsed.clone(), &res_fn, !method.is_static()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);
@@ -78,7 +77,7 @@ pub fn run_native_method(
             }
         }
     } else {
-        match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed) {
+        match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed.clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);

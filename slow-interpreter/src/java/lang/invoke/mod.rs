@@ -641,10 +641,8 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-    use rust_jvm_common::classnames::ClassName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
-    use rust_jvm_common::descriptor_parser::MethodDescriptor;
-    use rust_jvm_common::ptype::{PType, ReferenceType};
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::virtual_::invoke_virtual;
@@ -669,7 +667,7 @@ pub mod call_site {
         pub fn get_target(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodHandle<'gc_life>, WasException> {
             let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            invoke_virtual(jvm, int_state, "getTarget", &MethodDescriptor { parameter_types: vec![], return_type: PType::Ref(ReferenceType::Class(ClassName::method_handle())) })?;
+            invoke_virtual(jvm, int_state, "getTarget", &CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) })?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 

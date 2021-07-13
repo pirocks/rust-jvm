@@ -4,6 +4,7 @@ use itertools::Either;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
@@ -231,9 +232,9 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 }
 
 fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let linkage_error = check_initing_or_inited_class(jvm, int_state, ClassName::Str("java/lang/LinkageError".to_string()).into())?;
+    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::Str("java/lang/LinkageError".to_string()).into())?;
     push_new_object(jvm, int_state, &linkage_error);
-    let object = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
+    let object = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     int_state.set_throw(object);
     return Err(WasException);
 }

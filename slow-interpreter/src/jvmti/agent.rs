@@ -10,7 +10,6 @@ use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::native_util::from_object;
 use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;
 

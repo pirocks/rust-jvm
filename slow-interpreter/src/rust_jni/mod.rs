@@ -15,12 +15,9 @@ use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jchar, jobject, jshort};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
@@ -53,7 +50,7 @@ pub fn call<'gc_life>(
     args: Vec<JavaValue<'gc_life>>,
     md: CMethodDescriptor,
 ) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
-    let mangled = mangling::mangle(&method_view);
+    let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     let raw: unsafe extern fn() = unsafe {
         let libraries_guard = jvm.libjava.native_libs.read().unwrap();
         let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());

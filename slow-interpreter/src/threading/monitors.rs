@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use parking_lot::{const_fair_mutex, FairMutex};
 
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::JVMState;
 
 #[derive(Debug)]

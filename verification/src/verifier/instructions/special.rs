@@ -5,7 +5,7 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CCString, CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::ClassWithLoader;

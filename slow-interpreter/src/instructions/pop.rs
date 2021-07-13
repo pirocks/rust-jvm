@@ -1,4 +1,4 @@
-use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
@@ -13,15 +13,15 @@ pub fn pop2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
-    let value1 = current_frame.pop(Some(PTypeView::LongType));
+    let value1 = current_frame.pop(Some(RuntimeType::LongType));
     match value1_vtype {
         VType::LongType | VType::DoubleType => {}
         _ => {
-            if let JavaValue::Long(_) | JavaValue::Double(_) = current_frame.pop(Some(PTypeView::IntType)) {
+            if let JavaValue::Long(_) | JavaValue::Double(_) = current_frame.pop(Some(RuntimeType::IntType)) {
                 panic!()
             };
         }
     };
 }
 
-pub fn pop(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) { current_frame.pop(Some(PTypeView::LongType)); }
+pub fn pop(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) { current_frame.pop(Some(RuntimeType::LongType)); }

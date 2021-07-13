@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
+use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -57,7 +58,7 @@ pub fn run_constructor<'gc_life>(
     descriptor: String,
 ) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
-    let method_view = target_classfile_view.lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
+    let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
     let md = method_view.desc();
     let this_ptr = full_args[0].clone();
     let actual_args = &full_args[1..];

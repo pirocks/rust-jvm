@@ -1,13 +1,9 @@
 use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
-use rust_jvm_common::ptype::PType;
 
 use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
@@ -63,7 +59,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type())).into()
+        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
     })
 }
 

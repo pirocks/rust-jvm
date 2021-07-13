@@ -5,7 +5,6 @@ use jvmti_jni_bindings::*;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::from_object;
 
 #[macro_export]
 macro_rules! get_thread_or_error {

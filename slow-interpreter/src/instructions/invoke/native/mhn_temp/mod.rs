@@ -8,7 +8,9 @@ use std::sync::Arc;
 use itertools::Either;
 
 use classfile_view::view::ClassView;
-use rust_jvm_common::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
+use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::interpreter::WasException;
@@ -57,7 +59,11 @@ pub mod init;
 /// so this is completely undocumented
 /// supported match flags IS_METHOD | IS_CONSTRUCTOR |  IS_FIELD | SEARCH_SUPERCLASSES | SEARCH_INTERFACES
 ///
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    args: Vec<JavaValue<'gc_life>>,
+) -> Result<JavaValue<'gc_life>, WasException> {
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
@@ -130,7 +136,16 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMSt
     Ok(JavaValue::Int(len as i32))
 }
 
-fn get_matching_fields(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, match_name: &Option<String>, rc: Arc<RuntimeClass<'gc_life>>, view: Arc<dyn ClassView>, search_super: bool, search_interface: bool, fd: Option<FieldDescriptor>) -> Result<Vec<MemberName<'gc_life>>, WasException> {
+fn get_matching_fields(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    match_name: &Option<String>,
+    rc: Arc<RuntimeClass<'gc_life>>,
+    view: Arc<dyn ClassView>,
+    search_super: bool,
+    search_interface: bool,
+    fd: Option<CFieldDescriptor>,
+) -> Result<Vec<MemberName<'gc_life>>, WasException> {
     let filtered = get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
         let current_view = current_rc.view();
         if !search_super {
@@ -141,10 +156,10 @@ fn get_matching_fields(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Int
         let field = current_view.field(*method_i);
         (match &match_name {
             None => true,
-            Some(match_name) => &field.field_name() == match_name
+            Some(match_name) => field.field_name() == match_name
         }) && (match &fd {
             None => true,
-            Some(FieldDescriptor { field_type }) => field_type == &field.field_type().to_ptype()
+            Some(CompressedFieldDescriptor(field_type)) => field_type == &field.field_type()
         })
     });
     let mut res = vec![];
@@ -166,7 +181,7 @@ fn get_matching_methods(
     search_super: bool,
     search_interface: bool,
     is_constructor: bool,
-    md: Option<MethodDescriptor>,
+    md: Option<CMethodDescriptor>,
 ) -> Result<Vec<MemberName<'gc_life>>, WasException> {
     let filtered = get_all_methods(jvm, int_state, rc.clone(), search_interface)?.into_iter().filter(|(current_rc, method_i)| {
         let current_view = current_rc.view();
@@ -183,7 +198,7 @@ fn get_matching_methods(
             None => true,
             Some(md) => md == &method.desc()
         }) && if is_constructor {
-            method.name().as_str() == "<init>"
+            method.name() == MethodName::constructor_init()
         } else {
             true
         }
@@ -192,7 +207,7 @@ fn get_matching_methods(
     for (method_class, i) in filtered {
         let view = method_class.view();
         let method_view = view.method_view_i(i);
-        if method_view.name().as_str() == "<init>" {
+        if method_view.name().as_str() == MethodName::constructor_init() {
             let constructor_obj = Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
             res.push(MemberName::new_from_constructor(jvm, int_state, constructor_obj)?)
         } else {

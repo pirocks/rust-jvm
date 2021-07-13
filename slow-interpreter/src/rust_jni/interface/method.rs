@@ -4,6 +4,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::interpreter::WasException;
 use crate::rust_jni::interface::misc::get_all_methods;
@@ -20,11 +21,15 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let method_name = match CStr::from_ptr(name).to_str() {
-        Ok(method_name) => method_name,
+        Ok(method_name) => {
+            MethodName(jvm.string_pool.add_name(method_name))
+        }
         Err(_) => return null_mut()
     };
     let method_descriptor_str = match CStr::from_ptr(sig).to_str() {
-        Ok(method_descriptor_str) => method_descriptor_str,
+        Ok(method_descriptor_str) => {
+            jvm.string_pool.add_name(method_descriptor_str)
+        },
         Err(_) => return null_mut()
     };
 

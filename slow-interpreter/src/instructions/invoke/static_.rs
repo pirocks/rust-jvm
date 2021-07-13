@@ -37,7 +37,7 @@ pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let _ = invoke_static_impl(
         jvm,
         int_state,
-        expected_descriptor,
+        &expected_descriptor,
         final_target_method.clone(),
         target_method_i,
         &final_target_method.view().method_view_i(target_method_i),
@@ -61,7 +61,6 @@ pub fn invoke_static_impl(
         if name == "linkToStatic" {
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack(jvm);
-            // dbg!(interpreter_state.current_frame().operand_stack_types());
             let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), CClassName::member_name().into());
             interpreter_state.pop_current_operand_stack(Some(CClassName::object().into()));//todo am I sure this is an object

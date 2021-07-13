@@ -102,7 +102,7 @@ pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         dimensions.push(int_state.current_frame_mut().pop(Some(RuntimeType::IntType)).unwrap_int());
     }
     for _ in 1..dims {
-        unwrapped_type = unwrapped_type.unwrap_array_type()
+        unwrapped_type = unwrapped_type.unwrap_array_type().clone()
     }
     let mut current = JavaValue::null();
     let mut current_type = unwrapped_type;

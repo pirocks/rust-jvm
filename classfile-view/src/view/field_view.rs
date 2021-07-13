@@ -1,4 +1,4 @@
-use rust_jvm_common::compressed_classfile::{CCString, CompressedFieldInfo, CPDType};
+use rust_jvm_common::compressed_classfile::{CompressedFieldInfo, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};

@@ -6,10 +6,8 @@ use std::sync::{Arc, RwLock};
 
 use by_address::ByAddress;
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::parse_field_type;
@@ -83,7 +81,14 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
 
 
     //todo should this be current loader?
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader: loader.clone(), verification_types: Default::default(), debug: false };
+    let vf = VerifierContext {
+        live_pool_getter: jvm.get_live_object_pool_getter(),
+        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
+        pool: &jvm.string_pool,
+        current_loader: loader.clone(),
+        verification_types: Default::default(),
+        debug: false,
+    };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
 }

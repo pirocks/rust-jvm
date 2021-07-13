@@ -1,4 +1,4 @@
-use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::CompressedFieldDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::instructions::special::extract_field_descriptor;

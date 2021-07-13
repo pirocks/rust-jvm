@@ -1,9 +1,9 @@
 use std::sync::RwLock;
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
@@ -64,7 +64,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter<'l>(&self, classname: &'l CPDType, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
+    pub fn trace_function_enter<'l>(&self, pool: &'l CompressedClassfileStringPool, classname: &'l CPDType, meth_name: &'l MethodName, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
         // unsafe {
         // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
         //     && !meth_name.contains("hashCode")
@@ -77,6 +77,7 @@ impl TracingSettings {
         // if *self.trace_function_start.read().unwrap() {
         // }
         FunctionEnterExitTraceGuard {
+            string_pool: pool,
             classname,
             meth_name,
             method_desc,
@@ -219,8 +220,9 @@ impl Drop for JVMTIEnterExitTraceGuard {
 }
 
 pub struct FunctionEnterExitTraceGuard<'l> {
-    classname: &'l PTypeView,
-    meth_name: &'l str,
+    string_pool: &'l CompressedClassfileStringPool,
+    classname: &'l CPDType,
+    meth_name: &'l MethodName,
     method_desc: &'l str,
     current_depth: usize,
     threadtid: JavaThreadId,
@@ -230,7 +232,7 @@ pub struct FunctionEnterExitTraceGuard<'l> {
 impl Drop for FunctionEnterExitTraceGuard<'_> {
     fn drop(&mut self) {
         if self.trace_function_end {
-            println!("CALL END:{:?} {} {} {} {}", self.classname, self.meth_name, self.method_desc, self.current_depth, self.threadtid);
+            println!("CALL END:{:?} {} {} {} {}", self.classname, self.meth_name.0.to_str(self.string_pool), self.method_desc, self.current_depth, self.threadtid);
         }
     }
 }

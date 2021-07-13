@@ -8,9 +8,9 @@ use std::mem::size_of;
 
 use itertools::{Either, Itertools};
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jlong, jobject};
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::Frame;
 
 pub struct GCState {
@@ -204,14 +204,14 @@ pub enum FrameInfo {
     FullyOpaque {
         loader: LoaderName,
         operand_stack_depth: u16,
-        operand_stack_types: Vec<PTypeView>,
+        operand_stack_types: Vec<RuntimeType>,
     },
     Native {
         method_id: usize,
         loader: LoaderName,
         operand_stack_depth: u16,
         native_local_refs: Vec<HashSet<jobject>>,
-        operand_stack_types: Vec<PTypeView>,
+        operand_stack_types: Vec<RuntimeType>,
     },
     JavaFrame {
         method_id: usize,
@@ -220,8 +220,8 @@ pub enum FrameInfo {
         java_pc: u16,
         pc_offset: i32,
         operand_stack_depth: u16,
-        operand_stack_types: Vec<PTypeView>,
-        locals_types: Vec<PTypeView>,
+        operand_stack_types: Vec<RuntimeType>,
+        locals_types: Vec<RuntimeType>,
     },
 }
 
@@ -234,24 +234,7 @@ impl FrameInfo {
         }
     }
 
-    pub fn push_operand_stack(&mut self, ptype: PTypeView) {
-        match &ptype {
-            PTypeView::ByteType => {}
-            PTypeView::CharType => {}
-            PTypeView::DoubleType => {}
-            PTypeView::FloatType => {}
-            PTypeView::IntType => {}
-            PTypeView::LongType => {}
-            PTypeView::Ref(_) => {}
-            PTypeView::ShortType => {}
-            PTypeView::BooleanType => {}
-            PTypeView::VoidType => {}
-            PTypeView::TopType => panic!(),
-            PTypeView::NullType => {}
-            PTypeView::Uninitialized(_) => {}
-            PTypeView::UninitializedThis => {}
-            PTypeView::UninitializedThisOrClass(_) => {}
-        }
+    pub fn push_operand_stack(&mut self, ptype: RuntimeType) {
         match self {
             FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
             FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
@@ -259,7 +242,7 @@ impl FrameInfo {
         }.push(ptype);
     }
 
-    pub fn pop_operand_stack(&mut self) -> Option<PTypeView> {
+    pub fn pop_operand_stack(&mut self) -> Option<RuntimeType> {
         match self {
             FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
             FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
@@ -267,7 +250,7 @@ impl FrameInfo {
         }.pop()
     }
 
-    pub fn set_local_var_type(&mut self, ptype: PTypeView, i: usize) {
+    pub fn set_local_var_type(&mut self, ptype: RuntimeType, i: usize) {
         match self {
             FrameInfo::FullyOpaque { .. } => panic!(),
             FrameInfo::Native { .. } => panic!(),
