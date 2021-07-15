@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use verification::verifier::instructions::branches::get_method_descriptor;
@@ -80,7 +79,7 @@ pub fn invoke_static_impl(
         }
         let mut i = 0;
         for ptype in expected_descriptor.arg_types.iter().rev() {
-            let popped = current_frame.pop(Some(PTypeView::from_ptype(&ptype)));
+            let popped = current_frame.pop(Some(ptype.to_runtime_type().unwrap()));
             match &popped {
                 JavaValue::Long(_) | JavaValue::Double(_) => { i += 1 }
                 _ => {}

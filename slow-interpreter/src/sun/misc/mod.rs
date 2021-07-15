@@ -1,5 +1,5 @@
 pub mod unsafe_ {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -22,7 +22,7 @@ pub mod unsafe_ {
         pub fn the_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Unsafe<'gc_life> {
             let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
             let static_vars = unsafe_class.static_vars();
-            static_vars.get("theUnsafe").unwrap().clone().cast_unsafe()
+            static_vars.get(&FieldName::field_theUnsafe()).unwrap().clone().cast_unsafe()
         }
 
         pub fn object_field_offset(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field: Field<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
@@ -39,7 +39,7 @@ pub mod unsafe_ {
 }
 
 pub mod launcher {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -62,14 +62,14 @@ pub mod launcher {
     impl<'gc_life> Launcher<'gc_life> {
         pub fn get_launcher(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Launcher<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
-            run_static_or_virtual(jvm, int_state, &launcher, "getLauncher".to_string(), "()Lsun/misc/Launcher;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getLauncher(), "()Lsun/misc/Launcher;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_launcher())
         }
 
         pub fn get_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<ClassLoader<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &launcher, "getClassLoader".to_string(), "()Ljava/lang/ClassLoader;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getClassLoader(), "()Ljava/lang/ClassLoader;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_class_loader())
         }
 
@@ -77,7 +77,7 @@ pub mod launcher {
     }
 
     pub mod ext_class_loader {
-        use rust_jvm_common::compressed_classfile::names::CClassName;
+        use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
         use crate::class_loading::check_initing_or_inited_class;
         use crate::interpreter::WasException;
@@ -99,7 +99,7 @@ pub mod launcher {
         impl<'gc_life> ExtClassLoader<'gc_life> {
             pub fn get_ext_class_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<ExtClassLoader<'gc_life>, WasException> {
                 let ext_class_loader = check_initing_or_inited_class(jvm, int_state, CClassName::ext_class_loader().into())?;
-                run_static_or_virtual(jvm, int_state, &ext_class_loader, "getExtClassLoader".to_string(), "()Lsun/misc/Launcher;".to_string())?;
+                run_static_or_virtual(jvm, int_state, &ext_class_loader, MethodName::method_getExtClassLoader(), "()Lsun/misc/Launcher;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_ext_class_launcher())
             }
 

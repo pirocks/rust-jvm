@@ -213,11 +213,11 @@ impl<'gc_life> JVMState<'gc_life> {
             verification_types: HashMap::new(),
             debug: false,
         };
-        let lookup = self.classpath.lookup(&CClassName::object()).expect("Can not find Object class");
+        let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
         verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Object doesn't verify");
         self.sink_function_verification_date(&context.verification_types, object_runtime_class);
         context.verification_types.clear();
-        let lookup = self.classpath.lookup(&CClassName::class()).expect("Can not find Class class");
+        let lookup = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
         verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Class doesn't verify");
         self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
@@ -243,7 +243,7 @@ impl<'gc_life> JVMState<'gc_life> {
     fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_field_numbers();
-        let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class()).unwrap(), pool));
+        let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
         let static_vars = Default::default();
         let parent = None;
         let interfaces = vec![];
@@ -411,7 +411,7 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
                      class: CClassName,
     ) -> Arc<Classfile> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
-        self.jvm.classpath.lookup(&class).unwrap()
+        self.jvm.classpath.lookup(&class, &self.jvm.string_pool).unwrap()
     }
 }
 

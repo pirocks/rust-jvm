@@ -6,7 +6,6 @@ use std::sync::{Arc, RwLock};
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::ClassLoadingError;
@@ -21,11 +20,11 @@ pub struct Classpath {
 }
 
 impl Classpath {
-    pub fn lookup(&self, class_name: &CClassName) -> Result<Arc<Classfile>, ClassLoadingError> {
+    pub fn lookup(&self, class_name: &CClassName, pool: &CompressedClassfileStringPool) -> Result<Arc<Classfile>, ClassLoadingError> {
         let mut guard = self.class_cache.write().unwrap();
         match guard.get(class_name) {
             None => {
-                let res = self.lookup_cache_miss(class_name);
+                let res = self.lookup_cache_miss(class_name, pool);
                 if let Ok(classfile) = res.as_ref() {
                     guard.insert(class_name.clone(), classfile.clone());
                 }
@@ -57,7 +56,7 @@ impl Classpath {
         }
         let mut cache_read_guard = self.jar_cache.write().unwrap();
         for jar in cache_read_guard.values_mut() {
-            if let Ok(c) = jar.lookup(class_name) {
+            if let Ok(c) = jar.lookup(pool, class_name) {
                 return Result::Ok(c);
             }
         };

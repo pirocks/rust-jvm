@@ -11,7 +11,6 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
@@ -627,7 +626,7 @@ pub enum LocalVarsRef<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
-    pub fn get(&self, i: u16, expected_type: PTypeView) -> JavaValue<'gc_life> {
+    pub fn get(&self, i: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         match self {
             /*LocalVarsRef::LegacyInterpreter { .. } => todo!(),*/
             LocalVarsRef::Jit { frame_view, jvm } => {

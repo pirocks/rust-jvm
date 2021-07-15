@@ -3,7 +3,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
-use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 
 use crate::instructions::ldc::from_constant_pool_entry;

@@ -2,7 +2,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::interface_view::InterfaceView;
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::{IInc, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -244,7 +243,7 @@ pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars().get(index, PTypeView::IntType).unwrap_int();
+            let mut val = current_frame.local_vars().get(index, RuntimeType::IntType).unwrap_int();
             val += const_ as i32;
             current_frame.local_vars_mut().set(index, JavaValue::Int(val));
         }

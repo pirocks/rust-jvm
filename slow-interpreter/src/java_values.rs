@@ -233,9 +233,8 @@ impl Drop for GcManagedObject<'_> {
 
 
 impl<'gc_life> GcManagedObject<'gc_life> {
-    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: impl Into<String>) -> JavaValue<'gc_life> {
-        let id = jvm.string_pool.add_name(field_name);
-        self.deref().lookup_field(jvm, FieldName(id))
+    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName) -> JavaValue<'gc_life> {
+        self.deref().lookup_field(jvm, field_name)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {

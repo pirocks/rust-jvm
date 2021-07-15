@@ -52,7 +52,7 @@ impl<T> std::ops::IndexMut<usize> for AddOnlyVec<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct AddOnlyId(pub AddOnlyVecIDType);
 
 struct AddOnlyIdMapInner<T> where T: PartialEq + Eq + Hash {

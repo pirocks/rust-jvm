@@ -324,7 +324,7 @@ pub fn instruction_is_type_safe_invokestatic(cp: usize, env: &Environment, stack
         .cloned()
         .collect();
     let return_type = parsed_descriptor.return_type.to_verification_type(env.class_loader);
-    if method_name == MethodName::method_linkToStatic() || method_name == MethodName::method_linkToVirtual() {
+    if method_name == todo!()/*MethodName::method_linkToStatic()*/ || method_name == todo!()/*MethodName::method_linkToVirtual()*/ {
         //todo should handle polymorphism better
         let mut next_stack_frame = stack_frame.stack_map.clone();
         stack_arg_list.iter().for_each(|_| {

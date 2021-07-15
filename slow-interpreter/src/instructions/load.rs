@@ -1,4 +1,3 @@
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -8,7 +7,7 @@ use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_array_out_of_bounds;
 
 pub fn aload<'gc_life, 'l>(/*jvm: &'gc_life JVMState<'gc_life>,*/ mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let ref_: JavaValue<'gc_life> = current_frame.local_vars().get(n, PTypeView::object());
+    let ref_: JavaValue<'gc_life> = current_frame.local_vars().get(n, RuntimeType::object());
     match ref_ {
         JavaValue::Object(_) => {}
         _ => {
@@ -22,13 +21,13 @@ pub fn aload<'gc_life, 'l>(/*jvm: &'gc_life JVMState<'gc_life>,*/ mut current_fr
 }
 
 pub fn iload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, PTypeView::IntType);
+    let java_val = current_frame.local_vars().get(n, RuntimeType::IntType);
     java_val.unwrap_int();
     current_frame.push(java_val)
 }
 
 pub fn lload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, PTypeView::LongType);
+    let java_val = current_frame.local_vars().get(n, RuntimeType::LongType);
     match java_val {
         JavaValue::Long(_) => {}
         _ => {
@@ -42,7 +41,7 @@ pub fn lload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
 }
 
 pub fn fload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, PTypeView::FloatType);
+    let java_val = current_frame.local_vars().get(n, RuntimeType::FloatType);
     match java_val {
         JavaValue::Float(_) => {}
         _ => {
@@ -54,7 +53,7 @@ pub fn fload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
 }
 
 pub fn dload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, PTypeView::DoubleType);
+    let java_val = current_frame.local_vars().get(n, RuntimeType::DoubleType);
     match java_val {
         JavaValue::Double(_) => {}
         _ => {

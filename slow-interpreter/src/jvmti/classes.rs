@@ -2,8 +2,8 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::sync::RwLockReadGuard;
 
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
@@ -75,10 +75,10 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
         status |= JVMTI_CLASS_STATUS_INITIALIZED as i32;//todo so technically this isn't correct, b/c we don't check static intializer completeness
         match type_ {
-            PTypeView::Ref(ref_) => {
+            CPDType::Ref(ref_) => {
                 match ref_ {
-                    ReferenceTypeView::Class(_) => {}
-                    ReferenceTypeView::Array(_array) => {
+                    CPRefType::Class(_) => {}
+                    CPRefType::Array(_array) => {
                         status |= JVMTI_CLASS_STATUS_ARRAY as i32;
                     }
                 }

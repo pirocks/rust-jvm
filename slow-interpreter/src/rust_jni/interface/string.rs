@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::instructions::ldc::create_string_on_stack;
@@ -78,7 +78,7 @@ pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &
 }
 
 pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
-    let char_array_ptr = match str_obj.clone().lookup_field(jvm, "value").unwrap_object() {
+    let char_array_ptr = match str_obj.clone().lookup_field(jvm, FieldName::field_value()).unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
             return JavaValue::Object(todo!()/*str_obj.into()*/).cast_string().unwrap();//fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?

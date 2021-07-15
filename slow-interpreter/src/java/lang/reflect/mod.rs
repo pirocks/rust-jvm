@@ -121,7 +121,7 @@ pub mod method {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -213,23 +213,23 @@ pub mod method {
         }
 
         pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
-            self.normal_object.lookup_field(jvm, "clazz").cast_class().unwrap()//todo this unwrap
+            self.normal_object.lookup_field(jvm, FieldName::field_clazz()).cast_class().unwrap()//todo this unwrap
         }
 
         pub fn get_modifiers(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
-            self.normal_object.lookup_field(jvm, "modifiers").unwrap_int()
+            self.normal_object.lookup_field(jvm, FieldName::field_modifiers()).unwrap_int()
         }
 
         pub fn get_name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.lookup_field(jvm, "name").cast_string().expect("methods must have names")
+            self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("methods must have names")
         }
 
         pub fn parameter_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
-            self.normal_object.lookup_field(jvm, "parameterTypes").unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
+            self.normal_object.lookup_field(jvm, FieldName::field_parameterTypes()).unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
         pub fn get_slot_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "slot");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_slot());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.unwrap_int().into()
@@ -244,7 +244,7 @@ pub mod method {
             self.get_slot_or_null(jvm).unwrap()
         }
         pub fn get_return_type_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "returnType");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_returnType());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_class().into()
@@ -267,7 +267,7 @@ pub mod constructor {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -333,23 +333,23 @@ pub mod constructor {
         }
 
         pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
-            self.normal_object.lookup_field(jvm, "clazz").cast_class().unwrap()//todo this unwrap
+            self.normal_object.lookup_field(jvm, FieldName::field_clazz()).cast_class().unwrap()//todo this unwrap
         }
 
         pub fn get_modifiers(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
-            self.normal_object.lookup_field(jvm, "modifiers").unwrap_int()
+            self.normal_object.lookup_field(jvm, FieldName::field_modifiers()).unwrap_int()
         }
 
         pub fn get_name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.lookup_field(jvm, "name").cast_string().expect("methods must have names")
+            self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("methods must have names")
         }
 
         pub fn parameter_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JClass<'gc_life>> {
-            self.normal_object.lookup_field(jvm, "parameterTypes").unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
+            self.normal_object.lookup_field(jvm, FieldName::field_parameterTypes()).unwrap_array().array_iterator(jvm).map(|value| value.cast_class().unwrap()).collect()//todo unwrap
         }
 
         pub fn get_slot_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "slot");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_slot());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.unwrap_int().into()
@@ -364,7 +364,7 @@ pub mod constructor {
             self.get_slot_or_null(jvm).unwrap()
         }
         pub fn get_return_type_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "returnType");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_returnType());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_class().into()
@@ -386,7 +386,8 @@ pub mod constructor {
 pub mod field {
     use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
@@ -431,7 +432,7 @@ pub mod field {
                 jvm,
                 int_state,
                 annotations,
-                PTypeView::ByteType,
+                CPDType::ByteType,
                 jvm.thread_state.new_monitor("monitor for annotations array".to_string()),
             )?))));
 
@@ -446,11 +447,11 @@ pub mod field {
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.lookup_field(jvm, "name").cast_string().expect("fields must have names")
+            self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("fields must have names")
         }
 
         pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
-            self.normal_object.lookup_field(jvm, "clazz").cast_class().expect("todo")
+            self.normal_object.lookup_field(jvm, FieldName::field_clazz()).cast_class().expect("todo")
         }
 
         as_object_or_java_value!();

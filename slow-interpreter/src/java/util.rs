@@ -1,5 +1,5 @@
 pub mod properties {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -26,7 +26,7 @@ pub mod properties {
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
-            run_static_or_virtual(jvm, int_state, &properties_class, "setProperty".to_string(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;
             int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             Ok(())
         }

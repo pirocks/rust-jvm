@@ -7,6 +7,7 @@ use itertools::Itertools;
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
 use crate::classfile::{AttributeType, BootstrapMethods, Classfile, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
+use crate::classfile::StackMapFrame::SameFrameExtended;
 use crate::classnames::class_name;
 use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 use crate::descriptor_parser::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
@@ -50,7 +51,7 @@ impl CompressedClassfileStringPool {
 
 pub type CCString = CompressedClassfileString;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub struct CompressedClassfileString {
     id: AddOnlyId,
 }
@@ -285,6 +286,12 @@ pub type CMethodDescriptor = CompressedMethodDescriptor;
 pub struct CompressedMethodDescriptor {
     pub arg_types: Vec<CompressedParsedDescriptorType>,
     pub return_type: CompressedParsedDescriptorType,
+}
+
+impl CompressedMethodDescriptor {
+    pub fn empty_args(return_type: CPDType) -> Self {
+        Self { arg_types: vec![], return_type }
+    }
 }
 
 pub type CFieldDescriptor = CompressedFieldDescriptor;

@@ -7,7 +7,6 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
@@ -56,11 +55,11 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         let current_frame = interpreter_state.current_frame();
 
         let op_stack = current_frame.operand_stack(jvm);
-        let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16, ClassName::method_handle().into());
+        let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16, CClassName::method_handle().into());
         let method_handle = temp_value.cast_method_handle();
         let form: LambdaForm = method_handle.get_form(jvm);
         let vmentry: MemberName = form.get_vmentry(jvm);
-        if target_method.name() == "invoke" || target_method.name() == "invokeBasic" || target_method.name() == "invokeExact" {
+        if target_method.name() == MethodName::method_invoke() || target_method.name() == MethodName::method_invokeBasic() || target_method.name() == MethodName::method_invokeExact() {
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, CPDType::VoidType);

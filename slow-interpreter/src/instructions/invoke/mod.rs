@@ -23,9 +23,8 @@ pub mod dynamic {
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::ClassView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
-    use classfile_view::view::ptype_view::PTypeView;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -122,14 +121,14 @@ pub mod dynamic {
         }
         let method_handle_clone = method_handle_class.clone();
         let method_handle_view = method_handle_clone.view();
-        let lookup_res = method_handle_view.lookup_method_name("invoke");
+        let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invoke());
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
         invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
         let call_site = int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
-        let lookup_res = method_handle_view.lookup_method_name("invokeExact");//todo need safe java wrapper way of doing this
+        let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact());//todo need safe java wrapper way of doing this
         let invoke = lookup_res.iter().next().unwrap();
         let (num_args, args) = if int_state.current_frame().operand_stack(jvm).is_empty() {
             (0u16, vec![])
@@ -171,10 +170,10 @@ pub mod dynamic {
                     InvokeStatic::Method(mr) => {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
-                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
+                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                        let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
+                        let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
                 }
@@ -186,10 +185,10 @@ pub mod dynamic {
                         {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
-                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name())?;
+                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                            let target_class = JClass::from_type(jvm, int_state, PTypeView::Ref(mr.class()))?;
+                            let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();
                             let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?

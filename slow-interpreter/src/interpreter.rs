@@ -8,11 +8,9 @@ use num::Zero;
 use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -45,7 +43,6 @@ use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
-use crate::threading::monitors::Monitor;
 use crate::threading::safepoints::Monitor2;
 
 #[derive(Debug)]
@@ -59,13 +56,13 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     let method = view.method_view_i(method_i);
     let synchronized = method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0;
     let code = method.code_attribute().unwrap();
-    let meth_name = method.name().0.to_str(&jvm.string_pool);
+    let meth_name = method.name();
     let class_name__ = view.type_();
 
     let method_desc = method.desc_str().to_str(&jvm.string_pool);
     let current_depth = interpreter_state.call_stack_depth();
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
-    let function_enter_guard = jvm.tracing.trace_function_enter(&class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
+    let function_enter_guard = jvm.tracing.trace_function_enter(&jvm.string_pool, &class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!interpreter_state.function_return());
     let current_frame = interpreter_state.current_frame();
     let class_pointer = current_frame.class_pointer(jvm);
@@ -195,7 +192,7 @@ pub fn monitor_for_function(
             ).unwrap();
             class_object.unwrap_normal_object().monitor.clone()
         } else {
-            int_state.current_frame_mut().local_vars().get(0, PTypeView::object()).unwrap_normal_object().monitor.clone()
+            int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()
         };
         monitor.lock(jvm, int_state).unwrap();
         monitor.into()
@@ -354,7 +351,7 @@ fn run_single_instruction(
         InstructionInfo::ifnull(offset) => ifnull(jvm, interpreter_state.current_frame_mut(), offset),
         InstructionInfo::iinc(iinc) => {
             let mut current_frame = interpreter_state.current_frame_mut();
-            let val = current_frame.local_vars().get(iinc.index, PTypeView::IntType).unwrap_int();
+            let val = current_frame.local_vars().get(iinc.index, RuntimeType::IntType).unwrap_int();
             let res = val + iinc.const_ as i32;
             current_frame.local_vars_mut().set(iinc.index, JavaValue::Int(res));
         }
@@ -588,7 +585,7 @@ fn swap(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 pub fn ret(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, local_var_index: u16) {
-    let ret = current_frame.local_vars().get(local_var_index, PTypeView::LongType).unwrap_long();
+    let ret = current_frame.local_vars().get(local_var_index, RuntimeType::LongType).unwrap_long();
     current_frame.set_pc(ret as u16);
     *current_frame.pc_offset_mut() = 0;
 }
@@ -632,7 +629,7 @@ fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut Interpre
     };
     if jvm.debug_print_exceptions {
         println!("EXCEPTION:");
-        dbg!(exception_obj.lookup_field(jvm, "detailMessage"));
+        dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));
         interpreter_state.debug_print_stack_trace(jvm);
     }
 

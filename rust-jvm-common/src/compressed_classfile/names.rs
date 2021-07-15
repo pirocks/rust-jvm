@@ -302,10 +302,186 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct FieldName(pub CompressedClassfileString);
 
-impl FieldName {}
+#[allow(non_snake_case)]
+impl FieldName {
+    pub fn field_annotationData() -> Self {
+        todo!()
+    }
+    pub fn field_annotationType() -> Self {
+        todo!()
+    }
+    pub fn field_argCounts() -> Self {
+        todo!()
+    }
+    pub fn field_argToSlotTable() -> Self {
+        todo!()
+    }
+    pub fn field_arguments() -> Self {
+        todo!()
+    }
+    pub fn field_basicType() -> Self {
+        todo!()
+    }
+    pub fn field_btChar() -> Self {
+        todo!()
+    }
+    pub fn field_btClass() -> Self {
+        todo!()
+    }
+    pub fn field_cachedConstructor() -> Self {
+        todo!()
+    }
+    pub fn field_classLoader() -> Self {
+        todo!()
+    }
+    pub fn field_classRedefinedCount() -> Self {
+        todo!()
+    }
+    pub fn field_classValueMap() -> Self {
+        todo!()
+    }
+    pub fn field_clazz() -> Self {
+        todo!()
+    }
+    pub fn field_constantPoolOop() -> Self {
+        todo!()
+    }
+    pub fn field_daemon() -> Self {
+        todo!()
+    }
+    pub fn field_detailMessage() -> Self {
+        todo!()
+    }
+    pub fn field_enumConstantDirectory() -> Self {
+        todo!()
+    }
+    pub fn field_enumConstants() -> Self {
+        todo!()
+    }
+    pub fn field_erasedType() -> Self {
+        todo!()
+    }
+    pub fn field_exit() -> Self {
+        todo!()
+    }
+    pub fn field_flags() -> Self {
+        todo!()
+    }
+    pub fn field_form() -> Self {
+        todo!()
+    }
+    pub fn field_function() -> Self {
+        todo!()
+    }
+    pub fn field_genericInfo() -> Self {
+        todo!()
+    }
+    pub fn field_getContextClassLoader() -> Self {
+        todo!()
+    }
+    pub fn field_index() -> Self {
+        todo!()
+    }
+    pub fn field_invokers() -> Self {
+        todo!()
+    }
+    pub fn field_isAlive() -> Self {
+        todo!()
+    }
+    pub fn field_maxPriority() -> Self {
+        todo!()
+    }
+    pub fn field_methodDescriptor() -> Self {
+        todo!()
+    }
+    pub fn field_methodHandles() -> Self {
+        todo!()
+    }
+    pub fn field_methodType() -> Self {
+        todo!()
+    }
+    pub fn field_modifiers() -> Self {
+        todo!()
+    }
+    pub fn field_name() -> Self {
+        todo!()
+    }
+    pub fn field_names() -> Self {
+        todo!()
+    }
+    pub fn field_newInstanceCallerCache() -> Self {
+        todo!()
+    }
+    pub fn field_ordinal() -> Self {
+        todo!()
+    }
+    pub fn field_parameterType() -> Self {
+        todo!()
+    }
+    pub fn field_parameterTypes() -> Self {
+        todo!()
+    }
+    pub fn field_parent() -> Self {
+        todo!()
+    }
+    pub fn field_primCounts() -> Self {
+        todo!()
+    }
+    pub fn field_priority() -> Self {
+        todo!()
+    }
+    pub fn field_props() -> Self {
+        todo!()
+    }
+    pub fn field_ptypes() -> Self {
+        todo!()
+    }
+    pub fn field_reflectionData() -> Self {
+        todo!()
+    }
+    pub fn field_resolution() -> Self {
+        todo!()
+    }
+    pub fn field_returnType() -> Self {
+        todo!()
+    }
+    pub fn field_rtype() -> Self {
+        todo!()
+    }
+    pub fn field_run() -> Self {
+        todo!()
+    }
+    pub fn field_signature() -> Self {
+        todo!()
+    }
+    pub fn field_slot() -> Self {
+        todo!()
+    }
+    pub fn field_theUnsafe() -> Self {
+        todo!()
+    }
+    pub fn field_threadStatus() -> Self {
+        todo!()
+    }
+    pub fn field_threads() -> Self {
+        todo!()
+    }
+    pub fn field_tid() -> Self {
+        todo!()
+    }
+    pub fn field_type() -> Self {
+        todo!()
+    }
+    pub fn field_value() -> Self {
+        todo!()
+    }
+    pub fn field_vmentry() -> Self {
+        todo!()
+    }
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct MethodName(pub CompressedClassfileString);
@@ -320,11 +496,113 @@ impl MethodName {
         todo!()
     }
 
+    pub fn method_clone() -> Self {
+        todo!()
+    }
+    pub fn method_findSpecial() -> Self {
+        todo!()
+    }
+    pub fn method_findStatic() -> Self {
+        todo!()
+    }
+    pub fn method_findVirtual() -> Self {
+        todo!()
+    }
+    pub fn method_fromMethodDescriptorString() -> Self {
+        todo!()
+    }
+    pub fn method_getClass() -> Self {
+        todo!()
+    }
+    pub fn method_getClassLoader() -> Self {
+        todo!()
+    }
+    pub fn method_getExtClassLoader() -> Self {
+        todo!()
+    }
+    pub fn method_getFieldType() -> Self {
+        todo!()
+    }
+    pub fn method_getLauncher() -> Self {
+        todo!()
+    }
+    pub fn method_getMethodType() -> Self {
+        todo!()
+    }
+    pub fn method_getName() -> Self {
+        todo!()
+    }
+    pub fn method_getTarget() -> Self {
+        todo!()
+    }
+    pub fn method_hashCode() -> Self {
+        todo!()
+    }
+    pub fn method_inheritedAccessControlContext() -> Self {
+        todo!()
+    }
+    pub fn method_intern() -> Self {
+        todo!()
+    }
+    pub fn method_internalMemberName() -> Self {
+        todo!()
+    }
+    pub fn method_invoke() -> Self {
+        todo!()
+    }
+    pub fn method_invokeBasic() -> Self {
+        todo!()
+    }
+    pub fn method_invokeExact() -> Self {
+        todo!()
+    }
+    pub fn method_isSameClassPackage() -> Self {
+        todo!()
+    }
+    pub fn method_isStatic() -> Self {
+        todo!()
+    }
+    pub fn method_length() -> Self {
+        todo!()
+    }
     pub fn method_linkToStatic() -> Self {
         todo!()
     }
+    pub fn method_loadClass() -> Self {
+        todo!()
+    }
+    pub fn method_lookup() -> Self {
+        todo!()
+    }
+    pub fn method_objectFieldOffset() -> Self {
+        todo!()
+    }
+    pub fn method_printStackTrace() -> Self {
+        todo!()
+    }
+    pub fn method_publicLookup() -> Self {
+        todo!()
+    }
+    pub fn method_run() -> Self {
+        todo!()
+    }
+    pub fn method_setProperty() -> Self {
+        todo!()
+    }
+    pub fn method_start() -> Self {
+        todo!()
+    }
+    pub fn method_toString() -> Self {
+        todo!()
+    }
+    pub fn method_type() -> Self {
+        todo!()
+    }
+    pub fn method_value() -> Self {
+        todo!()
+    }
 
-    pub fn method_linkToVirtual() -> Self {
+    pub fn method_exit() -> Self {
         todo!()
     }
 }

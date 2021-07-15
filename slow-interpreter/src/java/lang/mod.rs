@@ -2,7 +2,8 @@ pub mod invoke;
 
 
 pub mod throwable {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -26,7 +27,7 @@ pub mod throwable {
         pub fn print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &throwable_class, "printStackTrace".to_string(), "()V".to_string())?;
+            run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType))?;
             Ok(())
         }
         as_object_or_java_value!();
@@ -75,7 +76,8 @@ pub mod stack_trace_element {
 
 pub mod member_name {
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -110,19 +112,19 @@ pub mod member_name {
         pub fn get_name_func(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JString<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &member_name_class, "getName".to_string(), "()Ljava/lang/String;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), "()Ljava/lang/String;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())
         }
 
         pub fn is_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<bool, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &member_name_class, "isStatic".to_string(), "()Z".to_string())?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType))?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)
         }
 
         pub fn get_name_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JString<'gc_life>> {
-            let str_jvalue = self.normal_object.lookup_field(jvm, "name");
+            let str_jvalue = self.normal_object.lookup_field(jvm, FieldName::field_name());
             if str_jvalue.unwrap_object().is_none() {
                 None
             } else {
@@ -136,11 +138,11 @@ pub mod member_name {
 
 
         pub fn set_name(&self, new_val: JString<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("name", new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_name(), new_val.java_value());
         }
 
         pub fn get_clazz_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "clazz").clone();
+            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).clone();
             if possibly_null.unwrap_object().is_none() {
                 None
             } else {
@@ -153,25 +155,25 @@ pub mod member_name {
         }
 
         pub fn set_clazz(&self, new_val: JClass<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("clazz".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_clazz(), new_val.java_value());
         }
 
         pub fn set_type(&self, new_val: MethodType<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("type".to_string(), new_val.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_type(), new_val.java_value());
         }
 
 
         pub fn get_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "type").clone()
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_type()).clone()
         }
 
         pub fn set_flags(&self, new_val: jint) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("flags".to_string(), JavaValue::Int(new_val));
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_flags(), JavaValue::Int(new_val));
         }
 
 
         pub fn get_flags_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "flags");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_flags());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.unwrap_int().into()
@@ -187,28 +189,28 @@ pub mod member_name {
         }
 
         pub fn set_resolution(&self, new_val: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("resolution".to_string(), new_val);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_resolution(), new_val);
         }
 
         pub fn get_resolution(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "resolution").clone()
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_resolution()).clone()
         }
 
         pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "clazz").cast_class()
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).cast_class()
         }
 
         pub fn get_method_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &member_name_class, "getMethodType".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
         pub fn get_field_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JClass<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &member_name_class, "getFieldType".to_string(), "()Ljava/lang/Class;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class())
         }
 
@@ -247,8 +249,8 @@ pub mod class {
     use by_address::ByAddress;
 
     use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-    use rust_jvm_common::compressed_classfile::CPDType;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
@@ -287,8 +289,8 @@ pub mod class {
                 jvm,
                 int_state,
                 &self.normal_object.unwrap_normal_object().objinfo.class_pointer,
-                "getClassLoader".to_string(),
-                "()Ljava/lang/ClassLoader;".to_string(),
+                MethodName::method_getClassLoader(),
+                &CMethodDescriptor::empty_args(CClassName::classloader().into()),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into()))
                 .unwrap_object()
@@ -330,7 +332,7 @@ pub mod class {
                 jvm,
                 int_state,
                 &class_class,
-                "getName".to_string(),
+                MethodName::method_getName(),
                 "()Ljava/lang/String;".to_string(),
             )?;
             let result_popped_from_operand_stack: JavaValue<'gc_life> = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
@@ -339,7 +341,7 @@ pub mod class {
 
         pub fn set_name_(&self, name: JString<'gc_life>) {
             let normal_object = self.normal_object.unwrap_normal_object();
-            normal_object.set_var_top_level("name".to_string(), name.java_value());
+            normal_object.set_var_top_level(FieldName::field_name(), name.java_value());
         }
 
         as_object_or_java_value!();
@@ -349,7 +351,7 @@ pub mod class {
 pub mod class_loader {
     use by_address::ByAddress;
 
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::loading::LoaderName;
 
     use crate::class_loading::assert_inited_or_initing_class;
@@ -396,7 +398,7 @@ pub mod class_loader {
                 jvm,
                 int_state,
                 &class_loader,
-                "loadClass".to_string(),
+                MethodName::method_loadClass(),
                 "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
             )?;
             assert!(int_state.throw().is_none());
@@ -414,7 +416,7 @@ pub mod string {
 
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::compressed_classfile::CPDType;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
@@ -465,7 +467,7 @@ pub mod string {
                 jvm,
                 int_state,
                 &string_class,
-                "intern".to_string(),
+                MethodName::method_intern(),
                 "()Ljava/lang/String;".to_string(),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string().expect("error interning strinng"))
@@ -473,7 +475,7 @@ pub mod string {
 
         pub fn value(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<jchar> {
             let mut res = vec![];
-            for elem in self.normal_object.lookup_field(jvm, "value").unwrap_array().array_iterator(jvm) {
+            for elem in self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_array().array_iterator(jvm) {
                 res.push(elem.unwrap_char())
             }
             res
@@ -486,7 +488,7 @@ pub mod string {
                 jvm,
                 int_state,
                 &string_class,
-                "length".to_string(),
+                MethodName::method_length(),
                 "()I".to_string(),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_int())
@@ -498,6 +500,7 @@ pub mod string {
 
 pub mod integer {
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::names::FieldName;
 
     use crate::{JVMState, StackEntry};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -518,7 +521,7 @@ pub mod integer {
         }
 
         pub fn value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "value").unwrap_int()
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_value()).unwrap_int()
         }
 
         as_object_or_java_value!();
@@ -550,9 +553,10 @@ pub mod thread {
 
     use itertools::Itertools;
 
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::{jboolean, jint};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -607,43 +611,43 @@ pub mod thread {
 
         pub fn tid(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "tid", PTypeView::LongType).unwrap_long()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid(), CPDType::LongType).unwrap_long()
         }
 
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, "run".to_string(), "()V".to_string())
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), "()V".to_string())
         }
 
         pub fn exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, "exit".to_string(), "()V".to_string())
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), "()V".to_string())
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "name", CClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_name(), CClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
         }
 
         pub fn priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> i32 {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "priority", PTypeView::IntType).unwrap_int()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority(), CPDType::IntType).unwrap_int()
         }
 
         pub fn set_priority(&self, priority: i32) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("priority".to_string(), JavaValue::Int(priority));
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_priority(), JavaValue::Int(priority));
         }
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "daemon", PTypeView::BooleanType).unwrap_int() != 0
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "daemon", CPDType::BooleanType).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &'gc_life JVMState<'gc_life>, thread_status: jint) {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().set_var(thread_class, "threadStatus".to_string(), JavaValue::Int(thread_status), PTypeView::IntType);
+            self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status), CPDType::IntType);
         }
 
 
@@ -676,7 +680,7 @@ pub mod thread {
                 "isAlive".to_string(),
                 "()Z".to_string(),
             )?;
-            Ok(int_state.pop_current_operand_stack(Some(PTypeView::BooleanType))
+            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType))
                 .unwrap_boolean())
         }
 
@@ -710,7 +714,7 @@ pub mod thread_group {
     use std::sync::Arc;
 
     use jvmti_jni_bindings::{jboolean, jint};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter::WasException;
@@ -754,7 +758,7 @@ pub mod thread_group {
         }
 
         pub fn threads(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Option<JThread>> {
-            self.normal_object.lookup_field(jvm, "threads").unwrap_array().array_iterator(jvm).map(|thread|
+            self.normal_object.lookup_field(jvm, FieldName::field_threads()).unwrap_array().array_iterator(jvm).map(|thread|
                 {
                     match thread.unwrap_object() {
                         None => None,
@@ -769,19 +773,19 @@ pub mod thread_group {
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.lookup_field(jvm, "name").cast_string().expect("thread group null name")
+            self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("thread group null name")
         }
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> jboolean {
-            self.normal_object.lookup_field(jvm, "daemon").unwrap_boolean()
+            self.normal_object.lookup_field(jvm, FieldName::field_daemon()).unwrap_boolean()
         }
 
         pub fn max_priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
-            self.normal_object.lookup_field(jvm, "maxPriority").unwrap_int()
+            self.normal_object.lookup_field(jvm, FieldName::field_maxPriority()).unwrap_int()
         }
 
         pub fn parent(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JThreadGroup<'gc_life>> {
-            self.normal_object.lookup_field(jvm, "parent").try_cast_thread_group()
+            self.normal_object.lookup_field(jvm, FieldName::field_parent()).try_cast_thread_group()
         }
 
         as_object_or_java_value!();

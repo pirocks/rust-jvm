@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -55,7 +55,7 @@ pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &
 
 
 pub fn string_obj_to_string<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> String {
-    let temp = str_obj.lookup_field(jvm, "value");
+    let temp = str_obj.lookup_field(jvm, FieldName::field_value());
     let chars = temp.unwrap_array();
     let borrowed_elems = chars.array_iterator(jvm);
     char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")//todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes

@@ -7,7 +7,6 @@ use std::sync::{Arc, RwLockWriteGuard};
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
@@ -259,7 +258,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                                 pc_offset,
                                 operand_stack_depth: 0,
                                 operand_stack_types: vec![],
-                                locals_types: vec![PTypeView::TopType; code.max_locals as usize],
+                                locals_types: vec![RuntimeType::TopType; code.max_locals as usize],
                             });
                         }
                         // dbg!(&local_vars);

@@ -8,7 +8,6 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use classfile_view::view::ptype_view::ReferenceTypeView;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -167,7 +166,7 @@ pub struct DefaultClassfileGetter<'l, 'k> {
 impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
     fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Arc<Classfile> {
         //todo verification needs to be better hooked in
-        match self.jvm.classpath.lookup(&class) {
+        match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
             Ok(x) => x,
             Err(err) => {
                 dbg!(err);
@@ -205,7 +204,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
         CPDType::LongType => (create_class_object(jvm, int_state, todo!()/*CClassName::new("long").into()*/, BootstrapLoader)?, Arc::new(RuntimeClass::Long)),
         CPDType::Ref(ref_) => match ref_ {
             CPRefType::Class(class_name) => {
-                let classfile = match jvm.classpath.lookup(&class_name) {
+                let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                     Ok(x) => x,
                     Err(_) => {
                         let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone())?;

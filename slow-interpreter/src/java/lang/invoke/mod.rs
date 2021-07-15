@@ -3,7 +3,7 @@ pub mod method_type {
 
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::CPDType;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -33,16 +33,16 @@ pub mod method_type {
             int_state.push_current_operand_stack(str.java_value());
             int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(todo!()/*None*/)));
             let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            run_static_or_virtual(jvm, int_state, &method_type, "fromMethodDescriptorString".to_string(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &method_type, MethodName::method_fromMethodDescriptorString(), "(Ljava/lang/String;Ljava/lang/ClassLoader;)Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
         pub fn set_rtype(&self, rtype: JClass<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("rtype".to_string(), rtype.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_rtype(), rtype.java_value());
         }
 
         pub fn get_rtype_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "rtype");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_rtype());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_class().into()
@@ -62,11 +62,11 @@ pub mod method_type {
         }
 
         pub fn set_ptypes(&self, ptypes: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("ptypes".to_string(), ptypes);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_ptypes(), ptypes);
         }
 
         pub fn get_ptypes_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JavaValue<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "ptypes");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_ptypes());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.clone().into()
@@ -87,23 +87,23 @@ pub mod method_type {
         }
 
         pub fn set_form(&self, jvm: &'gc_life JVMState<'gc_life>, form: MethodTypeForm<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("form".to_string(), form.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_form(), form.java_value());
         }
 
         pub fn get_form(&self, jvm: &'gc_life JVMState<'gc_life>) -> MethodTypeForm<'gc_life> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "form").cast_method_type_form()
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_form()).cast_method_type_form()
         }
 
         pub fn set_wrap_alt(&self, jvm: &'gc_life JVMState<'gc_life>, val: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("ptypes".to_string(), val);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_ptypes(), val);
         }
 
         pub fn set_invokers(&self, jvm: &'gc_life JVMState<'gc_life>, invokers: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("invokers".to_string(), invokers);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_invokers(), invokers);
         }
 
         pub fn set_method_descriptors(&self, jvm: &'gc_life JVMState<'gc_life>, method_descriptor: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("methodDescriptor".to_string(), method_descriptor);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_methodDescriptor(), method_descriptor);
         }
 
         pub fn parameter_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, int: jint) -> Result<JClass<'gc_life>, WasException> {
@@ -149,7 +149,7 @@ pub mod method_type {
 
 pub mod method_type_form {
     use jvmti_jni_bindings::jlong;
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_state::InterpreterStateGuard;
@@ -171,35 +171,35 @@ pub mod method_type_form {
 
     impl<'gc_life> MethodTypeForm<'gc_life> {
         pub fn set_arg_to_slot_table(&self, int_arr: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("argToSlotTable".to_string(), int_arr);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_argToSlotTable(), int_arr);
         }
 
         pub fn set_slot_to_arg_table(&self, int_arr: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("slotToArgTable".to_string(), int_arr);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_slotToArgTable(), int_arr);
         }
 
         pub fn set_arg_counts(&self, counts: jlong) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("argCounts".to_string(), JavaValue::Long(counts));
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_argCounts(), JavaValue::Long(counts));
         }
 
         pub fn set_prim_counts(&self, counts: jlong) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("primCounts".to_string(), JavaValue::Long(counts));
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_primCounts(), JavaValue::Long(counts));
         }
 
         pub fn set_erased_type(&self, type_: MethodType<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("erasedType".to_string(), type_.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_erasedType(), type_.java_value());
         }
 
         pub fn set_basic_type(&self, type_: MethodType<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("basicType".to_string(), type_.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_basicType(), type_.java_value());
         }
 
         pub fn set_method_handles(&self, method_handle: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("methodHandles".to_string(), method_handle);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_methodHandles(), method_handle);
         }
 
         pub fn set_lambda_forms(&self, lambda_forms: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("methodHandles".to_string(), lambda_forms);
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_methodHandles(), lambda_forms);
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>,
@@ -235,7 +235,7 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -261,36 +261,36 @@ pub mod method_handle {
     impl<'gc_life> MethodHandle<'gc_life> {
         pub fn lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Lookup<'gc_life>, WasException> {
             let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
-            run_static_or_virtual(jvm, int_state, &method_handles_class, "lookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &method_handles_class, MethodName::method_lookup(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup())
         }
         pub fn public_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Lookup<'gc_life>, WasException> {
             let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
-            run_static_or_virtual(jvm, int_state, &method_handles_class, "publicLookup".to_string(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &method_handles_class, MethodName::method_publicLookup(), "()Ljava/lang/invoke/MethodHandles$Lookup;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup())
         }
 
         pub fn internal_member_name(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MemberName<'gc_life>, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, "internalMemberName".to_string(), "()Ljava/lang/invoke/MemberName;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_internalMemberName(), "()Ljava/lang/invoke/MemberName;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_handle().into())).cast_member_name())
         }
 
         pub fn type__(&self, jvm: &'gc_life JVMState<'gc_life>) -> MethodType<'gc_life> {
-            self.normal_object.lookup_field(jvm, "type").cast_method_type()
+            self.normal_object.lookup_field(jvm, FieldName::field_type()).cast_method_type()
         }
 
         pub fn type_(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, "type".to_string(), "()Ljava/lang/invoke/MethodType;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_type(), "()Ljava/lang/invoke/MethodType;".to_string())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
 
         pub fn get_form_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<LambdaForm<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "form");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_form());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_lambda_form().into()
@@ -312,7 +312,7 @@ pub mod method_handle {
 
 pub mod method_handles {
     pub mod lookup {
-        use rust_jvm_common::compressed_classfile::names::CClassName;
+        use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::interpreter::WasException;
@@ -349,7 +349,7 @@ pub mod method_handles {
                 int_state.push_current_operand_stack(obj.java_value());
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
-                run_static_or_virtual(jvm, int_state, &lookup_class, "findVirtual".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findVirtual(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
@@ -360,7 +360,7 @@ pub mod method_handles {
                 int_state.push_current_operand_stack(obj.java_value());
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
-                run_static_or_virtual(jvm, int_state, &lookup_class, "findStatic".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findStatic(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
@@ -371,7 +371,7 @@ pub mod method_handles {
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
                 int_state.push_current_operand_stack(special_caller.java_value());
-                run_static_or_virtual(jvm, int_state, &lookup_class, "findSpecial".to_string(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
+                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findSpecial(), "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/Class;)Ljava/lang/invoke/MethodHandle;".to_string())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
@@ -381,6 +381,8 @@ pub mod method_handles {
 }
 
 pub mod lambda_form {
+    use rust_jvm_common::compressed_classfile::names::FieldName;
+
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -441,6 +443,7 @@ pub mod lambda_form {
         use itertools::Itertools;
 
         use jvmti_jni_bindings::jint;
+        use rust_jvm_common::compressed_classfile::names::FieldName;
 
         use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
         use crate::java::lang::invoke::lambda_form::named_function::NamedFunction;
@@ -461,13 +464,13 @@ pub mod lambda_form {
         impl<'gc_life> Name<'gc_life> {
             as_object_or_java_value!();
             pub fn arguments(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JavaValue<'gc_life>> {
-                self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "arguments")
+                self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_arguments())
                     .unwrap_array().array_iterator(jvm).collect_vec()
             }
 
 
             pub fn get_index_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "index");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_index());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_int().into()
@@ -482,7 +485,7 @@ pub mod lambda_form {
                 self.get_index_or_null(jvm).unwrap()
             }
             pub fn get_type_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<BasicType<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "type");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_type());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_lambda_form_basic_type().into()
@@ -497,7 +500,7 @@ pub mod lambda_form {
                 self.get_type_or_null(jvm).unwrap()
             }
             pub fn get_function_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<NamedFunction<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "function");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_function());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_lambda_form_named_function().into()
@@ -517,6 +520,7 @@ pub mod lambda_form {
     pub mod basic_type {
         use jvmti_jni_bindings::jchar;
         use jvmti_jni_bindings::jint;
+        use rust_jvm_common::compressed_classfile::names::FieldName;
 
         use crate::java::lang::class::JClass;
         use crate::java_values::{GcManagedObject, JavaValue};
@@ -538,7 +542,7 @@ pub mod lambda_form {
             as_object_or_java_value!();
 
             pub fn get_ordinal_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "ordinal");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_ordinal());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_int().into()
@@ -553,7 +557,7 @@ pub mod lambda_form {
                 self.get_ordinal_or_null(jvm).unwrap()
             }
             pub fn get_bt_char_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jchar> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "btChar");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btChar());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.unwrap_char().into()
@@ -568,7 +572,7 @@ pub mod lambda_form {
                 self.get_bt_char_or_null(jvm).unwrap()
             }
             pub fn get_bt_class_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "btClass");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btClass());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_class().into()
@@ -583,7 +587,7 @@ pub mod lambda_form {
                 self.get_bt_class_or_null(jvm).unwrap()
             }
             pub fn get_name_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JString<'gc_life>> {
-                let maybe_null = self.normal_object.lookup_field(jvm, "name");
+                let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_name());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
                         maybe_null.cast_string().into()
@@ -614,14 +618,14 @@ pub mod lambda_form {
 
     impl<'gc_life> LambdaForm<'gc_life> {
         pub fn names(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Name<'gc_life>> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, "names")
+            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_names())
                 .unwrap_array()
                 .unwrap_object_array(jvm)
                 .iter().map(|name| JavaValue::Object(todo!()/*name.clone()*/).cast_lambda_form_name()).collect()
         }
 
         pub fn get_vmentry_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<MemberName<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, "vmentry");
+            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_vmentry());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_member_name().into()
@@ -642,7 +646,7 @@ pub mod lambda_form {
 
 pub mod call_site {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::virtual_::invoke_virtual;
@@ -667,7 +671,7 @@ pub mod call_site {
         pub fn get_target(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodHandle<'gc_life>, WasException> {
             let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            invoke_virtual(jvm, int_state, "getTarget", &CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) })?;
+            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) })?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 

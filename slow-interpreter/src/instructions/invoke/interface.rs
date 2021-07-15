@@ -1,5 +1,5 @@
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::classfile::InvokeInterface;
+use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -19,7 +19,7 @@ pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     let current_frame = int_state.current_frame();
     let operand_stack_ref = current_frame.operand_stack(jvm);
     let operand_stack_len = operand_stack_ref.len();
-    let this_pointer_jv: JavaValue<'gc_life> = operand_stack_ref.get(operand_stack_len - invoke_interface.count as u16, PTypeView::object());
+    let this_pointer_jv: JavaValue<'gc_life> = operand_stack_ref.get(operand_stack_len - invoke_interface.count as u16, RuntimeType::object());
     let this_pointer_o = this_pointer_jv.unwrap_object().unwrap();//todo handle npe
     let this_pointer = this_pointer_o.unwrap_normal_object();
     let target_class = this_pointer.objinfo.class_pointer.clone();

@@ -4,7 +4,6 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -32,7 +31,7 @@ pub fn MHN_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
                 assert_eq!(mname.get_flags(jvm), 100728840);
-                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), ClassName::new("java/lang/invoke/Invokers"));
+                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), CClassName::new("java/lang/invoke/Invokers"));
             }
         }
     }

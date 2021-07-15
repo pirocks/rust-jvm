@@ -3,8 +3,7 @@ use itertools::Either;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
@@ -84,7 +83,7 @@ enum ResolveAssertionCase {
 
 fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
     let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" &&
-        member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == ClassName::class() &&
+        member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == CClassName::class() &&
         member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual"
     {
         None
@@ -123,7 +122,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         IS_FIELD => {
             let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).as_runtime_class(jvm), true)?;
 
-            let name = member_name.get_name(jvm).to_rust_string(jvm);
+            let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm)));
 
             let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type(jvm).cast_class())?;
             let target_ptype = typejclass.as_type(jvm);
