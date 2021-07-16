@@ -1,5 +1,3 @@
-#![feature(assoc_char_funcs)]
-
 use std::char::from_u32;
 use std::string::FromUtf8Error;
 
