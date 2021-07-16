@@ -193,6 +193,13 @@ impl CompressedClassName {
     pub fn ext_class_loader() -> Self {
         Self::from_raw_id(SUN_MISC_LAUNCHER_EXT_CLASS_LOADER)
     }
+    pub fn method_handles_lookup() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP)
+    }
+
+    pub fn linkage_error() -> Self {
+        Self::from_raw_id(JAVA_LANG_LINKAGE_ERROR)
+    }
 }
 
 
@@ -248,6 +255,8 @@ pub const JAVA_LANG_INVOKE_CALL_SITE: AddOnlyVecIDType = 41;
 pub const JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION: AddOnlyVecIDType = 42;
 pub const JAVA_NIO_HEAP_BYTE_BUFFER: AddOnlyVecIDType = 43;
 pub const SUN_MISC_LAUNCHER_EXT_CLASS_LOADER: AddOnlyVecIDType = 44;
+pub const JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP: AddOnlyVecIDType = 45;
+pub const JAVA_LANG_LINKAGE_ERROR: AddOnlyVecIDType = 45;
 
 
 fn add_builtin_name(pool: &AddOnlyIdMap<String>, cname: ClassName, id: AddOnlyVecIDType) {
@@ -300,6 +309,8 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/CallSite".to_string()), JAVA_LANG_INVOKE_CALL_SITE);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()), JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION);
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
+    add_builtin_name(pool, ClassName::Str("java/lang/invoke/MethodHandles$Lookup".to_string()), JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP);
+    add_builtin_name(pool, ClassName::Str("java/lang/LinkageError".to_string()), JAVA_LANG_LINKAGE_ERROR);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]

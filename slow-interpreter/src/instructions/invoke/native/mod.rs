@@ -107,7 +107,7 @@ pub fn run_native_method(
 }
 
 fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
-    let mangled = mangling::mangle(method_view);
+    let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
         //todo

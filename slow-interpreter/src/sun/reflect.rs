@@ -1,5 +1,6 @@
 pub mod reflection {
     use jvmti_jni_bindings::jboolean;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
     use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -26,7 +27,8 @@ pub mod reflection {
             let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value());//I hope these are in the right order, but it shouldn't matter
-            run_static_or_virtual(jvm, int_state, &reflection, "isSameClassPackage".to_string(), "(Ljava/lang/Class;Ljava/lang/Class;)Z".to_string())?;
+            let desc = CMethodDescriptor { arg_types: vec![CClassName::class().into(), CClassName::class().into()], return_type: CPDType::BooleanType };
+            run_static_or_virtual(jvm, int_state, &reflection, "isSameClassPackage".to_string(), &desc)?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean())
         }
 

@@ -5,10 +5,10 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -172,7 +172,7 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let this_pointer = {
         let current_frame = int_state.current_frame();
         let operand_stack = &current_frame.operand_stack(jvm);
-        &operand_stack.get((operand_stack.len() as usize - md.arg_types.len() - 1) as u16, PTypeView::object())
+        &operand_stack.get((operand_stack.len() as usize - md.arg_types.len() - 1) as u16, RuntimeType::object())
     };
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,

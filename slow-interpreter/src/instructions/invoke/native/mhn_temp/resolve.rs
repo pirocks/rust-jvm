@@ -231,7 +231,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 }
 
 fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::Str("java/lang/LinkageError".to_string()).into())?;
+    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
     push_new_object(jvm, int_state, &linkage_error);
     let object = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     int_state.set_throw(object);

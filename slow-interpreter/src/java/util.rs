@@ -1,4 +1,5 @@
 pub mod properties {
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -26,7 +27,8 @@ pub mod properties {
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
-            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;".to_string())?;
+            let desc = CMethodDescriptor { arg_types: vec![CClassName::string().into(), CClassName::string().into()], return_type: CPDType::object() };
+            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), &desc)?;
             int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             Ok(())
         }

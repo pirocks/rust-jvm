@@ -1,6 +1,6 @@
 pub mod heap_byte_buffer {
     use jvmti_jni_bindings::{jbyte, jint};
-    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
@@ -30,7 +30,7 @@ pub mod heap_byte_buffer {
             let array_object = ArrayObject::new_array(jvm, int_state, elems, CPDType::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;
             let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
             run_constructor(jvm, int_state, heap_byte_buffer_class, vec![object.clone(), array, JavaValue::Int(off), JavaValue::Int(len)],
-                            "([BII)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
             Ok(object.cast_heap_byte_buffer())
         }
 

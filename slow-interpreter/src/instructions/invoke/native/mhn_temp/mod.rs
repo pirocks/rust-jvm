@@ -9,7 +9,7 @@ use itertools::Either;
 
 use classfile_view::view::ClassView;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -139,7 +139,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
 fn get_matching_fields(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    match_name: &Option<String>,
+    match_name: &Option<FieldName>,
     rc: Arc<RuntimeClass<'gc_life>>,
     view: Arc<dyn ClassView>,
     search_super: bool,
@@ -175,7 +175,7 @@ fn get_matching_fields(
 fn get_matching_methods(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    match_name: &Option<String>,
+    match_name: &Option<MethodName>,
     rc: &Arc<RuntimeClass<'gc_life>>,
     view: &Arc<dyn ClassView>,
     search_super: bool,
@@ -196,7 +196,7 @@ fn get_matching_methods(
             Some(match_name) => match_name == &method.name()
         }) && (match &md {
             None => true,
-            Some(md) => md == &method.desc()
+            Some(md) => md == method.desc()
         }) && if is_constructor {
             method.name() == MethodName::constructor_init()
         } else {

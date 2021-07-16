@@ -265,20 +265,20 @@ impl<'gc_life> JVMState<'gc_life> {
 
     pub fn get_class_field_numbers() -> HashMap<FieldName, (usize, CPDType)> {
         let class_class_fields = vec![
-            ("cachedConstructor", ClassName::constructor().into()),
-            ("newInstanceCallerCache", ClassName::class().into()),
-            ("name", ClassName::string().into()),
-            ("classLoader", ClassName::classloader().into()),
-            ("reflectionData", PTypeView::object()),
-            ("classRedefinedCount", PTypeView::IntType),
-            ("genericInfo", PTypeView::object()),
-            ("enumConstants", PTypeView::array(PTypeView::object())),
-            ("enumConstantDirectory", PTypeView::object()),
-            ("annotationData", PTypeView::object()),
-            ("annotationType", PTypeView::object()),
-            ("classValueMap", PTypeView::object()),
+            (FieldName::field_cachedConstructor(), ClassName::constructor().into()),
+            (FieldName::field_newInstanceCallerCache(), ClassName::class().into()),
+            (FieldName::field_name(), ClassName::string().into()),
+            (FieldName::field_classLoader(), ClassName::classloader().into()),
+            (FieldName::field_reflectionData(), PTypeView::object()),
+            (FieldName::field_classRedefinedCount(), PTypeView::IntType),
+            (FieldName::field_genericInfo(), PTypeView::object()),
+            (FieldName::field_enumConstants(), PTypeView::array(PTypeView::object())),
+            (FieldName::field_enumConstantDirectory(), PTypeView::object()),
+            (FieldName::field_annotationData(), PTypeView::object()),
+            (FieldName::field_annotationType(), PTypeView::object()),
+            (FieldName::field_classValueMap(), PTypeView::object()),
         ];
-        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.to_string()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.to_string()), (_1, _2_type))).collect_vec().into_iter());
+        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (_1, _2_type.clone()))).collect_vec().into_iter());
         field_numbers
     }
 

@@ -121,6 +121,7 @@ pub mod method {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -136,6 +137,17 @@ pub mod method {
     use crate::jvm_state::JVMState;
 
     const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
+    const METHOD_DESC: CMethodDescriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(),
+                                                                               CClassName::string().into(),
+                                                                               CPDType::array(CClassName::class().into()),
+                                                                               CPDType::array(CClassName::class().into()),
+                                                                               CPDType::array(CClassName::class().into()),
+                                                                               CPDType::IntType,
+                                                                               CPDType::IntType,
+                                                                               CClassName::string().into(),
+                                                                               CPDType::array(CPDType::ByteType),
+                                                                               CPDType::array(CPDType::ByteType),
+                                                                               CPDType::array(CPDType::ByteType)]);
 
     pub struct Method<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -208,7 +220,7 @@ pub mod method {
                                  parameter_annotations,
                                  annotation_default];
             //todo replace with wrapper object
-            run_constructor(jvm, int_state, method_class, full_args, METHOD_SIGNATURE.to_string())?;
+            run_constructor(jvm, int_state, method_class, full_args, &METHOD_DESC)?;
             Ok(method_object.cast_method())
         }
 
@@ -267,6 +279,7 @@ pub mod constructor {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -281,6 +294,7 @@ pub mod constructor {
     use crate::jvm_state::JVMState;
 
     const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
+    const CONSTRUCTOR_DESC: CMethodDescriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
 
     pub struct Constructor<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -328,7 +342,7 @@ pub mod constructor {
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            run_constructor(jvm, int_state, constructor_class, full_args, CONSTRUCTOR_SIGNATURE.to_string())?;
+            run_constructor(jvm, int_state, constructor_class, full_args, &CONSTRUCTOR_DESC)?;
             Ok(constructor_object.cast_constructor())
         }
 
@@ -384,9 +398,8 @@ pub mod constructor {
 }
 
 pub mod field {
-    use classfile_view::view::ptype_view::PTypeView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -441,7 +454,7 @@ pub mod field {
                 int_state,
                 field_classfile,
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
-                "(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Class;IILjava/lang/String;[B)V".to_string(),
+                &CMethodDescriptor::void_return(vec![CClassName::class().into(), CClassName::string().into(), CClassName::class(), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType)]),
             )?;
             Ok(field_object.cast_field())
         }

@@ -2,7 +2,7 @@ pub mod invoke;
 
 
 pub mod throwable {
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -37,6 +37,7 @@ pub mod throwable {
 
 pub mod stack_trace_element {
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -66,7 +67,8 @@ pub mod stack_trace_element {
             let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(
                 line_number
             )];
-            run_constructor(jvm, int_state, class_, full_args, "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V".to_string())?;
+            let desc = CMethodDescriptor::void_return(vec![CClassName::string().into(), CClassName::string().into(), CClassName::string().into(), CPDType::IntType]);
+            run_constructor(jvm, int_state, class_, full_args, &desc)?;
             Ok(res.cast_stack_trace_element())
         }
 
@@ -112,7 +114,7 @@ pub mod member_name {
         pub fn get_name_func(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JString<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), "()Ljava/lang/String;".to_string())?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())
         }
 
@@ -218,7 +220,7 @@ pub mod member_name {
             let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            run_constructor(jvm, int_state, member_class, vec![res.clone(), field.java_value()], "(Ljava/lang/reflect/Field;)V".to_string())?;
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), field.java_value()], &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;
             Ok(res.cast_member_name())
         }
 
@@ -226,7 +228,7 @@ pub mod member_name {
             let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            run_constructor(jvm, int_state, member_class, vec![res.clone(), method.java_value()], "(Ljava/lang/reflect/Method;)V".to_string())?;
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), method.java_value()], &CMethodDescriptor::void_return(vec![CClassName::method().into()]))?;
             Ok(res.cast_member_name())
         }
 
@@ -235,7 +237,7 @@ pub mod member_name {
             let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             push_new_object(jvm, int_state, &member_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            run_constructor(jvm, int_state, member_class, vec![res.clone(), constructor.java_value()], "(Ljava/lang/reflect/Constructor;)V".to_string())?;
+            run_constructor(jvm, int_state, member_class, vec![res.clone(), constructor.java_value()], &CMethodDescriptor::void_return(vec![CClassName::constructor().into()]))?;
             Ok(res.cast_member_name())
         }
 
@@ -248,8 +250,7 @@ pub mod class {
 
     use by_address::ByAddress;
 
-    use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -301,7 +302,7 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::class().into()));
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::null()], "(Ljava/lang/ClassLoader;)V".to_string())?;
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::null()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(res.cast_class().unwrap())
         }
 
@@ -310,12 +311,12 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::class().into()));
-            run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], "(Ljava/lang/ClassLoader;)V".to_string())?;
+            run_constructor(jvm, int_state, class_class, vec![res.clone(), loader.java_value()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(res.cast_class().unwrap())
         }
 
         pub fn from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: CClassName) -> JClass<'gc_life> {
-            let type_ = PTypeView::Ref(ReferenceTypeView::Class(name));
+            let type_ = CPDType::Ref(CPRefType::Class(name));
             JavaValue::Object(todo!()/*get_or_create_class_object(jvm, type_, int_state).unwrap().into()*/).cast_class().unwrap()
         }
 
@@ -333,7 +334,7 @@ pub mod class {
                 int_state,
                 &class_class,
                 MethodName::method_getName(),
-                "()Ljava/lang/String;".to_string(),
+                &CMethodDescriptor::empty_args(CClassName::string().into()),
             )?;
             let result_popped_from_operand_stack: JavaValue<'gc_life> = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
             Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))
@@ -351,6 +352,7 @@ pub mod class {
 pub mod class_loader {
     use by_address::ByAddress;
 
+    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::loading::LoaderName;
 
@@ -399,7 +401,7 @@ pub mod class_loader {
                 int_state,
                 &class_loader,
                 MethodName::method_loadClass(),
-                "(Ljava/lang/String;)Ljava/lang/Class;".to_string(),
+                &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() },
             )?;
             assert!(int_state.throw().is_none());
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap())
@@ -415,7 +417,7 @@ pub mod string {
     use itertools::Itertools;
 
     use jvmti_jni_bindings::{jchar, jint};
-    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -456,7 +458,7 @@ pub mod string {
             //todo what about check_inited_class for this array type
             let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array],
-                            "([C)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(string_object.cast_string().expect("error creating string"))
         }
 
@@ -468,7 +470,7 @@ pub mod string {
                 int_state,
                 &string_class,
                 MethodName::method_intern(),
-                "()Ljava/lang/String;".to_string(),
+                &CMethodDescriptor::empty_args(CClassName::string().into()),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string().expect("error interning strinng"))
         }
@@ -489,7 +491,7 @@ pub mod string {
                 int_state,
                 &string_class,
                 MethodName::method_length(),
-                "()I".to_string(),
+                &CMethodDescriptor::empty_args(CPDType::IntType)
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_int())
         }
@@ -554,7 +556,7 @@ pub mod thread {
     use itertools::Itertools;
 
     use jvmti_jni_bindings::{jboolean, jint};
-    use rust_jvm_common::compressed_classfile::CPDType;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -617,13 +619,13 @@ pub mod thread {
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), "()V".to_string())
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType))
         }
 
         pub fn exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), "()V".to_string())
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType))
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
@@ -642,7 +644,7 @@ pub mod thread {
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, "daemon", CPDType::BooleanType).unwrap_int() != 0
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon(), CPDType::BooleanType).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &'gc_life JVMState<'gc_life>, thread_status: jint) {
@@ -657,7 +659,7 @@ pub mod thread {
             let thread_object = int_state.pop_current_operand_stack(Some(CClassName::thread().into()));
             let thread_name = JString::from_rust(jvm, int_state, thread_name)?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()],
-                            "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
         }
 
@@ -678,7 +680,7 @@ pub mod thread {
                 int_state,
                 &thread_class,
                 "isAlive".to_string(),
-                "()Z".to_string(),
+                &CompressedMethodDescriptor::empty_args(CPDType::BooleanType),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType))
                 .unwrap_boolean())
@@ -693,7 +695,7 @@ pub mod thread {
                 int_state,
                 &thread_class,
                 "getContextClassLoader".to_string(),
-                "()Ljava/lang/ClassLoader;".to_string(),
+                &CompressedMethodDescriptor::empty_args(CClassName::classloader().into()),
             )?;
             let res = int_state.pop_current_operand_stack(Some(CClassName::classloader().into()));
             if res.unwrap_object().is_none() {
@@ -714,6 +716,7 @@ pub mod thread_group {
     use std::sync::Arc;
 
     use jvmti_jni_bindings::{jboolean, jint};
+    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -753,7 +756,7 @@ pub mod thread_group {
             push_new_object(jvm, int_state, &thread_group_class);
             let thread_group_object = int_state.pop_current_operand_stack(Some(CClassName::thread().into()));
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.clone()],
-                            "()V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![]))?;
             Ok(thread_group_object.cast_thread_group())
         }
 
@@ -794,6 +797,7 @@ pub mod thread_group {
 
 
 pub mod class_not_found_exception {
+    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -822,13 +826,14 @@ pub mod class_not_found_exception {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), class.java_value()],
-                            "(Ljava/lang/String;)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_class_not_found_exception())
         }
     }
 }
 
 pub mod null_pointer_exception {
+    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -858,7 +863,7 @@ pub mod null_pointer_exception {
             let this = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             let message = JString::from_rust(jvm, int_state, "This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string())?;
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), message.java_value()],
-                            "(Ljava/lang/String;)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_null_pointer_exception())
         }
     }
@@ -867,6 +872,7 @@ pub mod null_pointer_exception {
 
 pub mod array_out_of_bounds_exception {
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -894,7 +900,7 @@ pub mod array_out_of_bounds_exception {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(index)],
-                            "(I)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
             Ok(this.cast_array_out_of_bounds_exception())
         }
     }
@@ -902,6 +908,7 @@ pub mod array_out_of_bounds_exception {
 
 
 pub mod illegal_argument_exception {
+    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -929,7 +936,7 @@ pub mod illegal_argument_exception {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone()],
-                            "()V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![]))?;
             Ok(this.cast_illegal_argument_exception())
         }
     }
@@ -937,6 +944,7 @@ pub mod illegal_argument_exception {
 
 pub mod long {
     use jvmti_jni_bindings::jlong;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -964,7 +972,7 @@ pub mod long {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::long().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Long(param)],
-                            "(J)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::LongType]))?;
             Ok(this.cast_long())
         }
     }
@@ -972,6 +980,7 @@ pub mod long {
 
 pub mod int {
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -999,7 +1008,7 @@ pub mod int {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::int().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Int(param)],
-                            "(I)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
             Ok(this.cast_int())
         }
     }
@@ -1007,6 +1016,7 @@ pub mod int {
 
 pub mod short {
     use jvmti_jni_bindings::jshort;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1034,7 +1044,7 @@ pub mod short {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::short().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Short(param)],
-                            "(S)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::ShortType]))?;
             Ok(this.cast_short())
         }
     }
@@ -1042,6 +1052,7 @@ pub mod short {
 
 pub mod byte {
     use jvmti_jni_bindings::jbyte;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1069,7 +1080,7 @@ pub mod byte {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::byte().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Byte(param)],
-                            "(B)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::ByteType]))?;
             Ok(this.cast_byte())
         }
     }
@@ -1077,6 +1088,7 @@ pub mod byte {
 
 pub mod boolean {
     use jvmti_jni_bindings::jboolean;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1104,7 +1116,7 @@ pub mod boolean {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::boolean().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Boolean(param)],
-                            "(Z)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::BooleanType]))?;
             Ok(this.cast_boolean())
         }
     }
@@ -1112,6 +1124,7 @@ pub mod boolean {
 
 pub mod char {
     use jvmti_jni_bindings::jchar;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1139,7 +1152,7 @@ pub mod char {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::character().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Char(param)],
-                            "(C)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::CharType]))?;
             Ok(this.cast_char())
         }
     }
@@ -1147,6 +1160,7 @@ pub mod char {
 
 pub mod float {
     use jvmti_jni_bindings::jfloat;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1174,7 +1188,7 @@ pub mod float {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::float().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Float(param)],
-                            "(F)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::FloatType]))?;
             Ok(this.cast_float())
         }
     }
@@ -1182,6 +1196,7 @@ pub mod float {
 
 pub mod double {
     use jvmti_jni_bindings::jdouble;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
@@ -1209,7 +1224,7 @@ pub mod double {
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::double().into()));
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Double(param)],
-                            "(D)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::DoubleType]))?;
             Ok(this.cast_double())
         }
     }

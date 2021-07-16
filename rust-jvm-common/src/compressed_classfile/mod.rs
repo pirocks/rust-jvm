@@ -7,7 +7,6 @@ use itertools::Itertools;
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
 use crate::classfile::{AttributeType, BootstrapMethods, Classfile, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
-use crate::classfile::StackMapFrame::SameFrameExtended;
 use crate::classnames::class_name;
 use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 use crate::descriptor_parser::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
@@ -291,6 +290,9 @@ pub struct CompressedMethodDescriptor {
 impl CompressedMethodDescriptor {
     pub fn empty_args(return_type: CPDType) -> Self {
         Self { arg_types: vec![], return_type }
+    }
+    pub fn void_return(arg_types: Vec<CPDType>) -> Self {
+        Self { arg_types, return_type: CPDType::VoidType }
     }
 }
 
