@@ -1,6 +1,6 @@
 pub mod unsafe_ {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -31,7 +31,7 @@ pub mod unsafe_ {
             int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             let desc = CMethodDescriptor { arg_types: vec![CClassName::field().into()], return_type: CPDType::LongType };
-            run_static_or_virtual(jvm, int_state, &rc, "objectFieldOffset".to_string(), &desc)?;
+            run_static_or_virtual(jvm, int_state, &rc, MethodName::method_objectFieldOffset(), &desc)?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())))
         }
 

@@ -2,6 +2,7 @@ use std::ffi::CString;
 use std::mem::{size_of, transmute};
 use std::sync::RwLockReadGuard;
 
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
@@ -160,14 +161,14 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let class_object_ptype = JavaValue::Object(todo!()/*notnull_class.into()*/).cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
-        let jvm_repr = CString::new(type_.jvm_representation()).unwrap();
+        let jvm_repr = CString::new(PTypeView::from_compressed(&type_, &jvm.string_pool).jvm_representation()).unwrap();
         let jvm_repr_ptr = jvm_repr.into_raw();
         let allocated_jvm_repr = libc::malloc(libc::strlen(jvm_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
         signature_ptr.write(allocated_jvm_repr);
         libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
     }
     if !generic_ptr.is_null() {
-        let java_repr = CString::new(type_.java_source_representation()).unwrap();
+        let java_repr = CString::new(PTypeView::from_compressed(&type_, &jvm.string_pool).java_source_representation()).unwrap();
         let java_repr_ptr = java_repr.into_raw();
         let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
         generic_ptr.write(allocated_java_repr);

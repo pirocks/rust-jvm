@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -57,7 +57,7 @@ pub fn invoke_static_impl(
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();
-        if name == "linkToStatic" {
+        if name == MethodName::method_linkToStatic() {
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack(jvm);
             let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();

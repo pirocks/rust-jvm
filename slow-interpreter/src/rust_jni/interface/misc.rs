@@ -8,8 +8,9 @@ use by_address::ByAddress;
 
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
@@ -156,7 +157,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
     let jvm = get_state(env);
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
-        let expected_name: String = CStr::from_ptr(method.name).to_str().unwrap().to_string().clone();
+        let expected_name = MethodName(jvm.string_pool.add_name(CStr::from_ptr(method.name).to_str().unwrap().to_string().clone()));
         let descriptor: CCString = jvm.string_pool.add_name(CStr::from_ptr(method.signature).to_str().unwrap().to_string());
         let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_name = match runtime_class.cpdtype().try_unwrap_class_type() {
@@ -169,7 +170,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
             let descriptor_str = method_info.desc_str();
             let current_name = method_info.name();
             if current_name == expected_name && descriptor == descriptor_str {
-                jvm.tracing.trace_jni_register(&class_name, expected_name.as_str());
+                jvm.tracing.trace_jni_register(&ClassName::Str(class_name.0.to_str(&jvm.string_pool).to_string()), expected_name.0.to_str(&jvm.string_pool).as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });

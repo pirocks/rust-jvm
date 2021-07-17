@@ -454,7 +454,7 @@ pub mod field {
                 int_state,
                 field_classfile,
                 vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
-                &CMethodDescriptor::void_return(vec![CClassName::class().into(), CClassName::string().into(), CClassName::class(), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType)]),
+                &CMethodDescriptor::void_return(vec![CClassName::class().into(), CClassName::string().into(), CClassName::class().into(), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType)]),
             )?;
             Ok(field_object.cast_field())
         }
@@ -472,7 +472,7 @@ pub mod field {
 }
 
 pub mod constant_pool {
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -503,12 +503,12 @@ pub mod constant_pool {
         }
 
         pub fn get_constant_pool_oop(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
-            self.normal_object.lookup_field(jvm, "constantPoolOop").cast_class().unwrap()
+            self.normal_object.lookup_field(jvm, FieldName::field_constantPoolOop()).cast_class().unwrap()
         }
 
 
         pub fn set_constant_pool_oop(&self, jclass: JClass<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level("constantPoolOop".to_string(), jclass.java_value());
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_constantPoolOop(), jclass.java_value());
         }
 
         as_object_or_java_value!();

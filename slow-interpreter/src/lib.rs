@@ -143,7 +143,7 @@ fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn Class
     let psvms = main.lookup_method_name(MethodName(pool.add_name(&"main".to_string())));
     for m in psvms {
         let desc = m.desc();
-        if m.is_static() && desc.arg_types == vec![string_array] && desc.return_type == CPDType::VoidType {
+        if m.is_static() && desc.arg_types == vec![string_array.clone()] && desc.return_type == CPDType::VoidType {
             return m.method_i();
         }
     }

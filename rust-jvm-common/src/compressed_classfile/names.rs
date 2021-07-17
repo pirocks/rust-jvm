@@ -200,6 +200,10 @@ impl CompressedClassName {
     pub fn linkage_error() -> Self {
         Self::from_raw_id(JAVA_LANG_LINKAGE_ERROR)
     }
+
+    pub fn invokers() -> Self {
+        Self::from_raw_id(JAVA_LANG_INVOKE_INVOKERS)
+    }
 }
 
 
@@ -256,7 +260,8 @@ pub const JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION: AddOnlyVecIDType = 42;
 pub const JAVA_NIO_HEAP_BYTE_BUFFER: AddOnlyVecIDType = 43;
 pub const SUN_MISC_LAUNCHER_EXT_CLASS_LOADER: AddOnlyVecIDType = 44;
 pub const JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP: AddOnlyVecIDType = 45;
-pub const JAVA_LANG_LINKAGE_ERROR: AddOnlyVecIDType = 45;
+pub const JAVA_LANG_LINKAGE_ERROR: AddOnlyVecIDType = 46;
+pub const JAVA_LANG_INVOKE_INVOKERS: AddOnlyVecIDType = 47;
 
 
 fn add_builtin_name(pool: &AddOnlyIdMap<String>, cname: ClassName, id: AddOnlyVecIDType) {
@@ -311,6 +316,7 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/MethodHandles$Lookup".to_string()), JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP);
     add_builtin_name(pool, ClassName::Str("java/lang/LinkageError".to_string()), JAVA_LANG_LINKAGE_ERROR);
+    add_builtin_name(pool, ClassName::Str("java/lang/invoke/Invokers".to_string()), JAVA_LANG_INVOKE_INVOKERS);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -492,6 +498,18 @@ impl FieldName {
     pub fn field_vmentry() -> Self {
         todo!()
     }
+    pub fn field_inheritedAccessControlContext() -> Self {
+        todo!()
+    }
+    pub fn field_IMPL_LOOKUP() -> Self {
+        todo!()
+    }
+    pub fn field_member() -> Self {
+        todo!()
+    }
+    pub fn field_slotToArgTable() -> Self {
+        todo!()
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -612,8 +630,20 @@ impl MethodName {
     pub fn method_value() -> Self {
         todo!()
     }
-
     pub fn method_exit() -> Self {
+        todo!()
+    }
+    pub fn method_isAlive() -> Self { todo!() }
+    pub fn method_getContextClassLoader() -> Self {
+        todo!()
+    }
+    pub fn method_initializeSystemClass() -> Self {
+        todo!()
+    }
+    pub fn method_parameterType() -> Self {
+        todo!()
+    }
+    pub fn method_methodType() -> Self {
         todo!()
     }
 }

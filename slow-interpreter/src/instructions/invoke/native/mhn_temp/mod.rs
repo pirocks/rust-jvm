@@ -67,9 +67,9 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
-    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm));
+    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str));
     //signature to lookup on
-    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm));
+    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str));
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks
@@ -91,34 +91,34 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
     let member_names = match matchSig {
         None => {
             let methods = if is_method {
-                Either::Left(get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, None)?.into_iter())
+                Either::Left(get_matching_methods(jvm, int_state, &match_name.map(|ccstr| MethodName(ccstr)), &rc, &view, search_super, search_interface, is_constructor, None)?.into_iter())
             } else {
                 Either::Right(std::iter::empty())
             };
             let fields = if is_field {
-                Either::Left(get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, None)?.into_iter())
+                Either::Left(get_matching_fields(jvm, int_state, &match_name.map(|ccstr| FieldName(ccstr)), rc, view, search_super, search_interface, None)?.into_iter())
             } else {
                 Either::Right(std::iter::empty())
             };
             methods.chain(fields).collect()
         }
         Some(matchSig) => {
-            match parse_field_descriptor(matchSig.as_str()) {
+            match parse_field_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
                 None => {
-                    match parse_method_descriptor(matchSig.as_str()) {
+                    match parse_method_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
                         None => {
                             throw_illegal_arg_res(jvm, int_state)?;
                             unreachable!()
                         }
                         Some(md) => {
                             assert!(is_method);
-                            get_matching_methods(jvm, int_state, &match_name, &rc, &view, search_super, search_interface, is_constructor, Some(md))
+                            get_matching_methods(jvm, int_state, &match_name.map(|ccstr| MethodName(ccstr)), &rc, &view, search_super, search_interface, is_constructor, Some(CMethodDescriptor::from_legacy(md, &jvm.string_pool)))
                         }
                     }
                 }
                 Some(fd) => {
                     assert!(is_field);
-                    get_matching_fields(jvm, int_state, &match_name, rc, view, search_super, search_interface, Some(fd))
+                    get_matching_fields(jvm, int_state, &match_name.map(|ccstr| FieldName(ccstr)), rc, view, search_super, search_interface, Some(CFieldDescriptor::from_legacy(fd, &jvm.string_pool)))
                 }
             }?
         }
@@ -156,7 +156,7 @@ fn get_matching_fields(
         let field = current_view.field(*method_i);
         (match &match_name {
             None => true,
-            Some(match_name) => field.field_name() == match_name
+            Some(match_name) => field.field_name() == *match_name
         }) && (match &fd {
             None => true,
             Some(CompressedFieldDescriptor(field_type)) => field_type == &field.field_type()
@@ -207,7 +207,7 @@ fn get_matching_methods(
     for (method_class, i) in filtered {
         let view = method_class.view();
         let method_view = view.method_view_i(i);
-        if method_view.name().as_str() == MethodName::constructor_init() {
+        if method_view.name() == MethodName::constructor_init() {
             let constructor_obj = Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
             res.push(MemberName::new_from_constructor(jvm, int_state, constructor_obj)?)
         } else {

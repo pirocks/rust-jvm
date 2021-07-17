@@ -126,7 +126,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                             match ref_ {
                                 CPRefType::Class(class_name) => {
                                     drop(guard);
-                                    let java_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().replace("/", ".").clone())?;
+                                    let java_string = JString::from_rust(jvm, int_state, class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone())?;
                                     class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                                 }
                                 CPRefType::Array(sub_type) => {
@@ -142,7 +142,6 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                         CPDType::ShortType => Arc::new(RuntimeClass::Short),
                         CPDType::BooleanType => Arc::new(RuntimeClass::Boolean),
                         CPDType::VoidType => Arc::new(RuntimeClass::Void),
-                        _ => panic!(),
                     }
                 }
                 LoaderName::BootstrapLoader => {
@@ -207,7 +206,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                     Ok(x) => x,
                     Err(_) => {
-                        let class_name_string = JString::from_rust(jvm, int_state, class_name.get_referred_name().clone())?;
+                        let class_name_string = JString::from_rust(jvm, int_state, class_name.0.to_str(&jvm.string_pool).to_string())?;
                         let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
                         int_state.set_throw(exception.into());
                         return Err(WasException);

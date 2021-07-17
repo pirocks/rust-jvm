@@ -555,6 +555,7 @@ pub mod thread {
 
     use itertools::Itertools;
 
+    use classfile_parser::parse_validation::AttributeEnclosingType::Field;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -679,7 +680,7 @@ pub mod thread {
                 jvm,
                 int_state,
                 &thread_class,
-                "isAlive".to_string(),
+                MethodName::method_isAlive(),
                 &CompressedMethodDescriptor::empty_args(CPDType::BooleanType),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType))
@@ -694,7 +695,7 @@ pub mod thread {
                 jvm,
                 int_state,
                 &thread_class,
-                "getContextClassLoader".to_string(),
+                MethodName::method_getContextClassLoader(),
                 &CompressedMethodDescriptor::empty_args(CClassName::classloader().into()),
             )?;
             let res = int_state.pop_current_operand_stack(Some(CClassName::classloader().into()));
@@ -705,7 +706,7 @@ pub mod thread {
         }
 
         pub fn get_inherited_access_control_context(&self, jvm: &'gc_life JVMState<'gc_life>) -> JThread<'gc_life> {
-            self.normal_object.lookup_field(jvm, "inheritedAccessControlContext").cast_thread()
+            self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()
         }
 
         as_object_or_java_value!();

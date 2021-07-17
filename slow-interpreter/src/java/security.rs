@@ -17,6 +17,7 @@ pub mod protection_domain {
 }
 
 pub mod access_control_context {
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
@@ -44,7 +45,7 @@ pub mod access_control_context {
             let access_control_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.into_iter().map(|pd| pd.java_value()).collect(), CClassName::protection_domain().into());
             run_constructor(jvm, int_state, access_control_context_class, vec![access_control_object.clone(), pds_jv],
-                            "([Ljava/security/ProtectionDomain;)V".to_string())?;
+                            &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
             Ok(access_control_object.cast_access_control_context())
         }
 

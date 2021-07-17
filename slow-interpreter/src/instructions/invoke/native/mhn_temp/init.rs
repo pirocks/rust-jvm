@@ -31,7 +31,7 @@ pub fn MHN_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
                 assert_eq!(mname.get_flags(jvm), 100728840);
-                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), CClassName::new("java/lang/invoke/Invokers"));
+                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), CClassName::invokers());
             }
         }
     }

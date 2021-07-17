@@ -9,7 +9,7 @@ use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 use crate::classfile::{AttributeType, BootstrapMethods, Classfile, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
 use crate::classnames::class_name;
 use crate::compressed_classfile::names::{CClassName, CompressedClassName};
-use crate::descriptor_parser::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
+use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
@@ -23,7 +23,6 @@ pub struct CompressedClassfileStringPool {
 static mut ONLY_ONE: bool = false;
 
 impl CompressedClassfileStringPool {
-
     pub fn new() -> Self {
         unsafe {
             if ONLY_ONE {
@@ -105,10 +104,21 @@ impl CompressedParsedRefType {
         }
     }
 
-    pub fn unwrap_name(&self) -> CClassName {
+    pub fn try_unwrap_name(&self) -> Option<CClassName> {
         match self {
-            CompressedParsedRefType::Array(_) => panic!(),
-            CompressedParsedRefType::Class(ccn) => *ccn
+            CompressedParsedRefType::Array(_) => None,
+            CompressedParsedRefType::Class(ccn) => Some(*ccn)
+        }
+    }
+
+    pub fn unwrap_name(&self) -> CClassName {
+        self.try_unwrap_name().unwrap()
+    }
+
+    pub fn try_unwrap_ref_type(&self) -> Option<&CompressedParsedDescriptorType> {
+        match self {
+            CompressedParsedRefType::Array(arr) => Some(arr.deref()),
+            CompressedParsedRefType::Class(_) => None
         }
     }
 
@@ -138,23 +148,29 @@ pub enum CompressedParsedDescriptorType {
 
 impl CompressedParsedDescriptorType {
     pub fn unwrap_ref_type(&self) -> &CompressedParsedRefType {
+        self.try_unwrap_ref_type().unwrap()
+    }
+
+    pub fn try_unwrap_ref_type(&self) -> Option<&CPRefType> {
         match self {
-            CompressedParsedDescriptorType::Ref(ref_) => ref_,
-            _ => panic!()
+            CompressedParsedDescriptorType::Ref(ref_) => Some(ref_),
+            _ => None
         }
     }
 
     pub fn unwrap_class_type(&self) -> CClassName {
+        self.try_unwrap_class_type().unwrap()
+    }
+
+    pub fn try_unwrap_class_type(&self) -> Option<CClassName> {
         match self {
             CompressedParsedDescriptorType::Ref(ref_) => {
-                match ref_ {
-                    CompressedParsedRefType::Array(_arr) => panic!(),
-                    CompressedParsedRefType::Class(obj) => *obj
-                }
+                ref_.try_unwrap_name()
             }
-            _ => panic!()
+            _ => None
         }
     }
+
 
     pub fn unwrap_array_type(&self) -> &CPDType {
         match self {
@@ -184,7 +200,7 @@ impl CompressedParsedDescriptorType {
                     CompressedParsedRefType::Array(a) => VType::ArrayReferenceType(a.deref().clone()),
                     CompressedParsedRefType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader })
                 }
-            },
+            }
         }
     }
 
@@ -294,12 +310,28 @@ impl CompressedMethodDescriptor {
     pub fn void_return(arg_types: Vec<CPDType>) -> Self {
         Self { arg_types, return_type: CPDType::VoidType }
     }
+    pub fn from_legacy(md: MethodDescriptor, pool: &CompressedClassfileStringPool) -> Self {
+        let MethodDescriptor { parameter_types, return_type } = md;
+        Self {
+            arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, pool)).collect_vec(),
+            return_type: CPDType::from_ptype(&return_type, pool),
+        }
+    }
 }
 
 pub type CFieldDescriptor = CompressedFieldDescriptor;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CompressedFieldDescriptor(pub CompressedParsedDescriptorType);
+
+impl CompressedFieldDescriptor {
+    pub fn from_legacy(fd: FieldDescriptor, pool: &CompressedClassfileStringPool) -> Self {
+        let FieldDescriptor { field_type } = fd;
+        Self {
+            0: CPDType::from_ptype(&field_type, pool)
+        }
+    }
+}
 
 pub struct CompressedFieldInfo {
     pub access_flags: u16,

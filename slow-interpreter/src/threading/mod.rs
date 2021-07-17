@@ -16,7 +16,7 @@ use num::Integer;
 
 use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
@@ -111,7 +111,7 @@ impl<'gc_life> ThreadState<'gc_life> {
 
         let system = &system_class;
         let system_view = system.view();
-        let method_views = system_view.lookup_method_name(&"initializeSystemClass".to_string());
+        let method_views = system_view.lookup_method_name(MethodName::method_initializeSystemClass());
         let init_method_view = method_views.first().unwrap().clone();
         let mut locals = vec![];
         for _ in 0..init_method_view.code_attribute().unwrap().max_locals {

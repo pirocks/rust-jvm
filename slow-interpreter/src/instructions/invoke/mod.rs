@@ -125,7 +125,7 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
-        invoke_virtual_method_i(jvm, int_state, parse_method_descriptor(&desc_str).unwrap(), method_handle_class.clone(), invoke)?;
+        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str).unwrap(), &jvm.string_pool), method_handle_class.clone(), invoke)?;
         let call_site = int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact());//todo need safe java wrapper way of doing this
@@ -205,7 +205,7 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     let class_name_ = match class_name_type {
         CPDType::Ref(r) => match r {
             CPRefType::Class(c) => c,
-            CPRefType::Array(_a) => if expected_method_name == *"clone" {
+            CPRefType::Array(_a) => if expected_method_name == MethodName::method_clone() {
                 //todo replace with proper native impl
                 let temp = match int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object() {
                     Some(x) => x,

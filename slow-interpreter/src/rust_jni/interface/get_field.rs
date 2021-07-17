@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
@@ -153,7 +154,7 @@ pub unsafe extern "C" fn get_static_method_id(
         None => return throw_npe(jvm, int_state),
     };
     let view = &runtime_class.view();
-    let method = view.lookup_method(method_name, &parse_method_descriptor(method_descriptor_str.as_str()).unwrap()).unwrap();
+    let method = view.lookup_method(method_name, &CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool)).unwrap();
     assert!(method.is_static());
     let res = Box::into_raw(box jvm.method_table
         .write()
