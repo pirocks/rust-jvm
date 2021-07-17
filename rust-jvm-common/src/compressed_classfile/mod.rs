@@ -128,6 +128,13 @@ impl CompressedParsedRefType {
             CompressedParsedRefType::Class(_) => false,
         }
     }
+
+    pub fn unwrap_array(&self) -> &CPDType {
+        match self {
+            CompressedParsedRefType::Array(arr) => arr,
+            CompressedParsedRefType::Class(_) => panic!()
+        }
+    }
 }
 
 pub type CPDType = CompressedParsedDescriptorType;

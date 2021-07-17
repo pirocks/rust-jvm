@@ -277,7 +277,7 @@ impl<'gc_life> SafePoint<'gc_life> {
                 let monitor = &monitors_gaurd[monitor];
                 drop(guard);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
-                self.check(jvm, int_state);
+                self.check(jvm, int_state)?;
             } else {
                 drop(guard);//shouldn't need these but they are here for now b/c I'm paranoid
             }

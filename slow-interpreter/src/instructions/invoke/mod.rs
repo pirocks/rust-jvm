@@ -109,7 +109,7 @@ pub mod dynamic {
 
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
-        let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.clone())?;
+        let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.to_str(&jvm.string_pool).clone())?;
         let name_jstring = JString::from_rust(jvm, int_state, other_name.to_str(&jvm.string_pool))?.java_value();
 
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
@@ -125,7 +125,7 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
-        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str).unwrap(), &jvm.string_pool), method_handle_class.clone(), invoke)?;
+        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool), method_handle_class.clone(), invoke)?;
         let call_site = int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact());//todo need safe java wrapper way of doing this
@@ -171,7 +171,7 @@ pub mod dynamic {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
                         let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
-                        let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
+                        let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                         let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
@@ -186,7 +186,7 @@ pub mod dynamic {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
                             let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
-                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str())?;
+                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();

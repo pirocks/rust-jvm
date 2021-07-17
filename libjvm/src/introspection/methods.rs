@@ -6,6 +6,8 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::class::JClass;
@@ -26,12 +28,12 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, me
         Some(method_obj) => method_obj
     })*/).cast_method();
     let clazz = method.get_clazz(jvm).as_runtime_class(jvm);
-    let name = method.get_name(jvm).to_rust_string(jvm);
+    let name = MethodName(jvm.string_pool.add_name(method.get_name(jvm).to_rust_string(jvm)));
     let return_type_jclass: JClass<'gc_life> = method.get_return_type(jvm);
-    let return_type = return_type_jclass.as_type(jvm).to_ptype();
-    let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm).to_ptype()).collect::<Vec<_>>();
+    let return_type = return_type_jclass.as_type(jvm);
+    let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm)).collect::<Vec<_>>();
     let view = clazz.view();
-    let res_method_view = match view.lookup_method(name.as_str(), &MethodDescriptor { parameter_types, return_type }) {
+    let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -238,7 +240,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
     if index >= view.num_methods() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
-    u8::from(view.method_view_i(index as u16).name() == "<init>")
+    u8::from(view.method_view_i(index as u16).name() == MethodName::constructor_init())
 }
 
 #[no_mangle]

@@ -2,15 +2,21 @@ use std::borrow::Borrow;
 use std::ops::Deref;
 use std::ptr::null_mut;
 
+use itertools::Itertools;
+
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
+use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -44,15 +50,16 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         }
     };
     let args = args_not_null.unwrap_array();
-    let method_name = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, "name").unwrap_object() {
+    let method_name_str = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, FieldName::field_name()).unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name
     });
-    let signature = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, "signature").unwrap_object() {
+    let method_name = MethodName(jvm.string_pool.add_name(method_name_str));
+    let signature = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, FieldName::field_signature()).unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name
     });
-    let clazz_java_val = method_obj.lookup_field(jvm, "clazz");
+    let clazz_java_val = method_obj.lookup_field(jvm, FieldName::field_clazz());
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
@@ -70,15 +77,19 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     }
 
     //todo clean this up, and handle invoke special
-    let parsed_md = parse_method_descriptor(&signature).unwrap();
-    let is_virtual = !target_runtime_class.view().lookup_method(&method_name, &parsed_md).unwrap().is_static();
+    let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
+    let parsed_md = CMethodDescriptor {
+        arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
+        return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
+    };
+    let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     if is_virtual {
-        invoke_virtual(jvm, int_state, &method_name, &parsed_md);
+        invoke_virtual(jvm, int_state, method_name, &parsed_md);
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, signature);
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md);
     }
 
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object(), int_state)
+    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -116,24 +127,29 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    let signature_str_obj = constructor_obj.lookup_field(jvm, "signature");
-    let temp_4 = constructor_obj.lookup_field(jvm, "clazz");
+    let signature_str_obj = constructor_obj.lookup_field(jvm, FieldName::field_signature());
+    let temp_4 = constructor_obj.lookup_field(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let mut signature = string_obj_to_string(jvm, match signature_str_obj.unwrap_object() {
+    let mut signature_str = string_obj_to_string(jvm, match signature_str_obj.unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(signature) => signature
     });
+    let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
+    let signature = CMethodDescriptor {
+        arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
+        return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),//todo use from_leaacy instead
+    };
     push_new_object(jvm, int_state, &clazz);
-    let obj = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let obj = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
     // dbg!(&full_args);
-    run_constructor(jvm, int_state, clazz, full_args, signature);
+    run_constructor(jvm, int_state, clazz, full_args, &signature);
     new_local_ref_public(obj.unwrap_object(), int_state)
 }
 

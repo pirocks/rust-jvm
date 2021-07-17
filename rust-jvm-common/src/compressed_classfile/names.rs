@@ -9,7 +9,7 @@ pub struct CompressedClassName(pub CompressedClassfileString);
 pub type CClassName = CompressedClassName;
 
 impl CompressedClassName {
-    fn from_raw_id(raw_id: AddOnlyVecIDType) -> Self {
+    const fn from_raw_id(raw_id: AddOnlyVecIDType) -> Self {
         Self {
             0: CompressedClassfileString { id: AddOnlyId(raw_id) }
         }
@@ -20,188 +20,188 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_LANG_OBJECT)
     }
 
-    pub fn class() -> Self {
+    pub const fn class() -> Self {
         Self::from_raw_id(JAVA_LANG_CLASS)
     }
 
-    pub fn string() -> Self {
+    pub const fn string() -> Self {
         Self::from_raw_id(JAVA_LANG_STRING)
     }
 
-    pub fn throwable() -> Self {
+    pub const fn throwable() -> Self {
         Self::from_raw_id(JAVA_LANG_THROWABLE)
     }
 
-    pub fn float() -> Self {
+    pub const fn float() -> Self {
         Self::from_raw_id(JAVA_LANG_FLOAT)
     }
 
-    pub fn double() -> Self {
+    pub const fn double() -> Self {
         Self::from_raw_id(JAVA_LANG_DOUBLE)
     }
-    pub fn int() -> Self {
+    pub const fn int() -> Self {
         Self::from_raw_id(JAVA_LANG_INTEGER)
     }
-    pub fn long() -> Self {
+    pub const fn long() -> Self {
         Self::from_raw_id(JAVA_LANG_LONG)
     }
 
-    pub fn character() -> Self {
+    pub const fn character() -> Self {
         Self::from_raw_id(JAVA_LANG_CHARACTER)
     }
 
-    pub fn boolean() -> Self {
+    pub const fn boolean() -> Self {
         Self::from_raw_id(JAVA_LANG_BOOLEAN)
     }
 
-    pub fn byte() -> Self {
+    pub const fn byte() -> Self {
         Self::from_raw_id(JAVA_LANG_BYTE)
     }
 
-    pub fn short() -> Self {
+    pub const fn short() -> Self {
         Self::from_raw_id(JAVA_LANG_SHORT)
     }
 
-    pub fn void() -> Self {
+    pub const fn void() -> Self {
         Self::from_raw_id(JAVA_LANG_VOID)
     }
 
-    pub fn method_type() -> Self {
+    pub const fn method_type() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHODTYPE)
     }
 
-    pub fn method_type_form() -> Self {
+    pub const fn method_type_form() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHODTYPEFORM)
     }
 
-    pub fn method_handle() -> Self {
+    pub const fn method_handle() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLE)
     }
 
-    pub fn method_handles() -> Self {
+    pub const fn method_handles() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLES)
     }
 
-    pub fn lookup() -> Self {
+    pub const fn lookup() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHODHANDLES_LOOKUP)
     }
 
-    pub fn direct_method_handle() -> Self {
+    pub const fn direct_method_handle() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_DIRECTMETHODHANDLE)
     }
 
-    pub fn member_name() -> Self {
+    pub const fn member_name() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_MEMBERNAME)
     }
 
-    pub fn method() -> Self {
+    pub const fn method() -> Self {
         Self::from_raw_id(JAVA_LANG_REFLECT_METHOD)
     }
 
-    pub fn system() -> Self {
+    pub const fn system() -> Self {
         Self::from_raw_id(JAVA_LANG_SYSTEM)
     }
 
-    pub fn serializable() -> Self {
+    pub const fn serializable() -> Self {
         Self::from_raw_id(JAVA_IO_SERIALIZABLE)
     }
 
-    pub fn cloneable() -> Self {
+    pub const fn cloneable() -> Self {
         Self::from_raw_id(JAVA_LANG_CLONEABLE)
     }
 
-    pub fn unsafe_() -> Self {
+    pub const fn unsafe_() -> Self {
         Self::from_raw_id(SUN_MISC_UNSAFE)
     }
 
-    pub fn field() -> Self {
+    pub const fn field() -> Self {
         Self::from_raw_id(JAVA_LANG_REFLECT_FIELD)
     }
 
-    pub fn properties() -> Self {
+    pub const fn properties() -> Self {
         Self::from_raw_id(JAVA_UTIL_PROPERTIES)
     }
 
-    pub fn thread() -> Self {
+    pub const fn thread() -> Self {
         Self::from_raw_id(JAVA_LANG_THREAD)
     }
 
-    pub fn thread_group() -> Self {
+    pub const fn thread_group() -> Self {
         Self::from_raw_id(JAVA_LANG_THREADGROUP)
     }
 
-    pub fn constructor() -> Self {
+    pub const fn constructor() -> Self {
         Self::from_raw_id(JAVA_LANG_REFLECT_CONSTRUCTOR)
     }
 
-    pub fn classloader() -> Self {
+    pub const fn classloader() -> Self {
         Self::from_raw_id(JAVA_LANG_CLASSLOADER)
     }
 
-    pub fn stack_trace_element() -> Self {
+    pub const fn stack_trace_element() -> Self {
         Self::from_raw_id(JAVA_LANG_STACK_TRACE_ELEMENT)
     }
 
-    pub fn illegal_argument_exception() -> Self {
+    pub const fn illegal_argument_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION)
     }
 
-    pub fn null_pointer_exception() -> Self {
+    pub const fn null_pointer_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_NULL_POINTER_EXCEPTION)
     }
 
-    pub fn class_not_found_exception() -> Self {
+    pub const fn class_not_found_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION)
     }
 
-    pub fn array_out_of_bounds_exception() -> Self {
+    pub const fn array_out_of_bounds_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION)
     }
 
-    pub fn launcher() -> Self {
+    pub const fn launcher() -> Self {
         Self::from_raw_id(SUN_MISC_LAUNCHER)
     }
 
-    pub fn reflection() -> Self {
+    pub const fn reflection() -> Self {
         Self::from_raw_id(SUN_REFLECT_REFLECTION)
     }
 
-    pub fn constant_pool() -> Self {
+    pub const fn constant_pool() -> Self {
         Self::from_raw_id(JAVA_LANG_REFLECT_CONSTANT_POOL)
     }
 
-    pub fn call_site() -> Self {
+    pub const fn call_site() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_CALL_SITE)
     }
 
-    pub fn lambda_from_named_function() -> Self {
+    pub const fn lambda_from_named_function() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION)
     }
 
-    pub fn heap_byte_buffer() -> Self {
+    pub const fn heap_byte_buffer() -> Self {
         Self::from_raw_id(JAVA_NIO_HEAP_BYTE_BUFFER)
     }
 
-    pub fn access_control_context() -> Self {
+    pub const fn access_control_context() -> Self {
         Self::from_raw_id(JAVA_SECURITY_ACCESS_CONTROL_CONTEXT)
     }
 
-    pub fn protection_domain() -> Self {
+    pub const fn protection_domain() -> Self {
         Self::from_raw_id(JAVA_SECURITY_PROTECTION_DOMAIN)
     }
 
-    pub fn ext_class_loader() -> Self {
+    pub const fn ext_class_loader() -> Self {
         Self::from_raw_id(SUN_MISC_LAUNCHER_EXT_CLASS_LOADER)
     }
-    pub fn method_handles_lookup() -> Self {
+    pub const fn method_handles_lookup() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP)
     }
 
-    pub fn linkage_error() -> Self {
+    pub const fn linkage_error() -> Self {
         Self::from_raw_id(JAVA_LANG_LINKAGE_ERROR)
     }
 
-    pub fn invokers() -> Self {
+    pub const fn invokers() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_INVOKERS)
     }
 }
@@ -312,6 +312,7 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher".to_string()), SUN_MISC_LAUNCHER);
     add_builtin_name(pool, ClassName::Str("sun/reflect/Reflection".to_string()), SUN_REFLECT_REFLECTION);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/CallSite".to_string()), JAVA_LANG_INVOKE_CALL_SITE);
+    add_builtin_name(pool, ClassName::Str("java/nio/HeapByteBuffer".to_string()), JAVA_NIO_HEAP_BYTE_BUFFER);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/LambdaForm$NamedFunction".to_string()), JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION);
     add_builtin_name(pool, ClassName::Str("sun/misc/Launcher$ExtClassLoader".to_string()), SUN_MISC_LAUNCHER_EXT_CLASS_LOADER);
     add_builtin_name(pool, ClassName::Str("java/lang/invoke/MethodHandles$Lookup".to_string()), JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP);

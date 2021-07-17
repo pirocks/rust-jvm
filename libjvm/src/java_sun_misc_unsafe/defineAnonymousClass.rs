@@ -16,6 +16,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
@@ -56,10 +57,17 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader();
 
-    let vf = VerifierContext { live_pool_getter: jvm.get_live_object_pool_getter(), classfile_getter: jvm.get_class_getter(int_state.current_loader()), current_loader, verification_types: Default::default(), debug: false };
-    let class_view = ClassBackedView::from(parsed.clone());
+    let vf = VerifierContext {
+        live_pool_getter: jvm.get_live_object_pool_getter(),
+        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
+        pool: &jvm.string_pool,
+        current_loader,
+        verification_types: Default::default(),
+        debug: false,
+    };
+    let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.store_generated_classes {
-        File::create(class_view.type_().class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
         Ok(res) => res,
@@ -102,7 +110,7 @@ fn patch_single(
     // Class: any java.lang.Class object
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
-    let _kind = if class_name == ClassName::string().into() {
+    let _kind = if class_name == CClassName::string().into() {
         unimplemented!()
     } else {
         let classes_guard = state.classes.write().unwrap();

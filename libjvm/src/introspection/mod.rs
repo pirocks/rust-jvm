@@ -15,6 +15,8 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
@@ -55,7 +57,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             return null_mut();
         }
     };
-    let res = Some(jvm.allocate_object(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, ClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
+    let res = Some(jvm.allocate_object(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, CClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
         Ok(arr) => arr,
         Err(WasException {}) => return null_mut()
     })));
@@ -89,7 +91,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let object = from_object(jvm, cls);
     let temp = JavaValue::Object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public(match JClass::from_type(jvm, int_state, object_class.unwrap_array()) {
+    new_local_ref_public(match JClass::from_type(jvm, int_state, object_class.unwrap_array().clone()) {
         Ok(jclass) => jclass,
         Err(WasException {}) => return null_mut()
     }.java_value().unwrap_object(), int_state)
@@ -117,7 +119,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     let res_jv = JavaValue::new_vec_from_vec(jvm, match res_array {
         Ok(obj_array) => obj_array,
         Err(WasException {}) => return null_mut(),
-    }, ClassName::class().into());
+    }, CClassName::class().into());
     new_local_ref_public(res_jv.unwrap_object(), int_state)
 }
 
@@ -133,7 +135,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
 
     let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
-    match JString::from_rust(jvm, int_state, ptype.jvm_representation()) {
+    match JString::from_rust(jvm, int_state, PTypeView::from_compressed(&ptype, &jvm.string_pool).jvm_representation()) {
         Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
         Err(WasException) => null_mut()
     }
@@ -176,7 +178,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut()
     };
-    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jclasses, ClassName::class().into()).unwrap_object(), int_state)
+    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
@@ -213,7 +215,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
             return None;
         }
         if let Some(name) = view.name().try_unwrap_name() {
-            if name == ClassName::method() && view.method_view_i(entry.method_i()).name() == "invoke" {
+            if name == CClassName::method() && view.method_view_i(entry.method_i()).name() == MethodName::method_invoke() {
                 return None;
             }
         }
@@ -225,7 +227,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     load_class_constant_by_type(jvm, int_state, type_);
-    let jclass = int_state.pop_current_operand_stack(Some(ClassName::object().into())).unwrap_object();
+    let jclass = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
 
@@ -252,7 +254,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let p_type = PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(name.clone())));
+    let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name))));
 
     let loader_name = from_object(jvm, loader)
         .map(|loader_obj| JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
@@ -284,7 +286,7 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
-    let full_name = &obj.cpdtype().class_name_representation();
+    let full_name = PTypeView::from_compressed(&obj.cpdtype(), &jvm.string_pool).class_name_representation();
     new_string_with_string(env, full_name.to_string())
 }
 

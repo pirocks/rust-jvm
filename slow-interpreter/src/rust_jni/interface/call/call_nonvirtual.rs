@@ -274,7 +274,7 @@ unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jcl
     let (rc, i, method_desc) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => todo!(),
         Some((rc, i)) => {
-            (rc.clone(), i, rc.clone().view().method_view_i(i).desc())
+            (rc.clone(), i, rc.clone().view().method_view_i(i).desc().clone())
         }
     };
     int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_jclass(jvm,obj)*/));

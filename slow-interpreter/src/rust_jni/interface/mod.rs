@@ -8,6 +8,7 @@ use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 
 use by_address::ByAddress;
+use itertools::Itertools;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -636,11 +637,11 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
     let jvm = get_state(env);
     let method_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_method();
     let runtime_class = method_obj.get_clazz(jvm).as_runtime_class(jvm);
-    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).cpdtype()).collect::<Vec<_>>();
+    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).cpdtype()).collect_vec();
     let name_str = method_obj.get_name(jvm).to_rust_string(jvm);
     let name = MethodName(jvm.string_pool.add_name(name_str));
     runtime_class.clone().view().lookup_method_name(name).iter().find(|candiate_method| {
-        candiate_method.desc().arg_types == param_types.into_iter().map(|from| from).collect::<Vec<_>>()
+        candiate_method.desc().arg_types == param_types.iter().map(|from| from.clone()).collect_vec()
     }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
         .unwrap_or(transmute(-1isize))
 }

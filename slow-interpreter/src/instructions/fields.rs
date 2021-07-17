@@ -35,7 +35,7 @@ pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
                     None => {
                         return throw_npe(jvm, int_state);
                     }
-                }.unwrap_normal_object().set_var(target_class, field_name, val, field_type);
+                }.unwrap_normal_object().set_var(target_class, field_name, val);
             }
         }
         _ => {
@@ -94,7 +94,7 @@ pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     let object_ref = int_state.current_frame_mut().pop(Some(RuntimeType::object()));
     match object_ref {
         JavaValue::Object(o) => {
-            let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name, field_type);
+            let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name);
             int_state.current_frame_mut().push(res);
         }
         _ => panic!(),

@@ -6,6 +6,8 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
@@ -50,7 +52,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             jvm,
             int_state,
             object_array,
-            PTypeView::Ref(ReferenceTypeView::Class(ClassName::field())),
+            CPDType::Ref(CPRefType::Class(CClassName::field())),
             jvm.thread_state.new_monitor("".to_string()),
         ) {
             Ok(arr) => arr,

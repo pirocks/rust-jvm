@@ -614,7 +614,7 @@ pub mod thread {
 
         pub fn tid(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid(), CPDType::LongType).unwrap_long()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid()).unwrap_long()
         }
 
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
@@ -631,12 +631,12 @@ pub mod thread {
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_name(), CClassName::string().into()).cast_string().expect("threads are known to have nonnull names")
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_name()).cast_string().expect("threads are known to have nonnull names")
         }
 
         pub fn priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> i32 {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority(), CPDType::IntType).unwrap_int()
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority()).unwrap_int()
         }
 
         pub fn set_priority(&self, priority: i32) {
@@ -645,12 +645,12 @@ pub mod thread {
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon(), CPDType::BooleanType).unwrap_int() != 0
+            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon()).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &'gc_life JVMState<'gc_life>, thread_status: jint) {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status), CPDType::IntType);
+            self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status));
         }
 
 

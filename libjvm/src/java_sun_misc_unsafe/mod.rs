@@ -6,6 +6,8 @@ use std::ptr::{null, null_mut};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, JVM_CALLER_DEPTH};
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::FieldName;
 use slow_interpreter::field_table::FieldId;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
@@ -78,7 +80,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(
         None => return throw_npe(get_state(env), get_interpreter_state(env)),
     };
     let as_array = nonnull.unwrap_array();//not defined for non-byte-array objects
-    assert_eq!(as_array.elem_type, PTypeView::ByteType);
+    assert_eq!(as_array.elem_type, CPDType::ByteType);
     let array_mut = as_array;
     let src_slice_indices = offset..(offset + len);
     let mut src_buffer: Vec<i8> = vec![];
@@ -113,7 +115,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
 ) -> jlong {
     let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
-    let name = jfield.name(jvm).to_rust_string(jvm);
+    let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm)));
     let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
@@ -134,7 +136,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
     //todo major duplication
     let jvm = get_state(env);
     let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
-    let name = jfield.name(jvm).to_rust_string(jvm);
+    let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm)));
     let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;

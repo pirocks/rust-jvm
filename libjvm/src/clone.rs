@@ -3,7 +3,6 @@ use std::ops::Deref;
 
 use itertools::Itertools;
 
-use classfile_view::vtype::VType::Uninitialized;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;

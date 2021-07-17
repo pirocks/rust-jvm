@@ -15,6 +15,7 @@ use parking_lot::Mutex;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::interpreter::{run_function, WasException};
 use slow_interpreter::interpreter_util::push_new_object;
@@ -153,7 +154,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jobjects = jvm.thread_state.get_all_alive_threads().into_iter().map(|java_thread| JavaValue::Object(todo!()/*java_thread.try_thread_object().map(|jthread| jthread.object())*/)).collect::<Vec<_>>();
-    let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, ClassName::thread().into()).unwrap_object();
+    let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object();
     new_local_ref_public(object_array, int_state)
 }
 
@@ -230,7 +231,7 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
         }
         _ => return Ok(null_mut())
     }.into_iter().map(|jstring| jstring.java_value()).collect::<Vec<_>>();
-    let res = JavaValue::new_vec_from_vec(jvm, names, ClassName::string().into()).unwrap_object();
+    let res = JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object();
     Ok(new_local_ref_public(res, int_state))
 }
 

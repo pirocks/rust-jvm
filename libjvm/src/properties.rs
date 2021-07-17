@@ -3,6 +3,7 @@ use std::ptr::null_mut;
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::interpreter::WasException;
@@ -30,23 +31,23 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     create_string_on_stack(jvm, int_state, key);
-    let key = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let key = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     create_string_on_stack(jvm, int_state, val);
-    let val = int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    let val = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     let prop_obj = match from_object(jvm, p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
     let runtime_class = &prop_obj.unwrap_normal_object().objinfo.class_pointer;
     let class_view = &runtime_class.view();
-    let candidate_meth = class_view.lookup_method_name(&"setProperty".to_string());
+    let candidate_meth = class_view.lookup_method_name(MethodName::method_setProperty());
     let meth = candidate_meth.get(0).unwrap();
     let md = meth.desc();
     int_state.push_current_operand_stack(JavaValue::Object(prop_obj.clone().into()));
     int_state.push_current_operand_stack(key);
     int_state.push_current_operand_stack(val);
     invoke_virtual_method_i(jvm, int_state, md, runtime_class.clone(), meth);
-    int_state.pop_current_operand_stack(Some(ClassName::object().into()));
+    int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     Ok(p)
 }
 

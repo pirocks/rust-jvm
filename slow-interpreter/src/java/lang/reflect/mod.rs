@@ -103,8 +103,8 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
     let class_type: CPDType = CClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
-    for param_type in parsed.arg_types {
-        res.push(JClass::from_type(jvm, int_state, param_type)?.java_value());
+    for param_type in &parsed.arg_types {
+        res.push(JClass::from_type(jvm, int_state, param_type.clone())?.java_value());
     }
 
     Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
@@ -137,17 +137,6 @@ pub mod method {
     use crate::jvm_state::JVMState;
 
     const METHOD_SIGNATURE: &str = "(Ljava/lang/Class;Ljava/lang/String;[Ljava/lang/Class;Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B[B)V";
-    const METHOD_DESC: CMethodDescriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(),
-                                                                               CClassName::string().into(),
-                                                                               CPDType::array(CClassName::class().into()),
-                                                                               CPDType::array(CClassName::class().into()),
-                                                                               CPDType::array(CClassName::class().into()),
-                                                                               CPDType::IntType,
-                                                                               CPDType::IntType,
-                                                                               CClassName::string().into(),
-                                                                               CPDType::array(CPDType::ByteType),
-                                                                               CPDType::array(CPDType::ByteType),
-                                                                               CPDType::array(CPDType::ByteType)]);
 
     pub struct Method<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -220,7 +209,18 @@ pub mod method {
                                  parameter_annotations,
                                  annotation_default];
             //todo replace with wrapper object
-            run_constructor(jvm, int_state, method_class, full_args, &METHOD_DESC)?;
+            let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(),
+                                                                          CClassName::string().into(),
+                                                                          CPDType::array(CClassName::class().into()),
+                                                                          CPDType::array(CClassName::class().into()),
+                                                                          CPDType::array(CClassName::class().into()),
+                                                                          CPDType::IntType,
+                                                                          CPDType::IntType,
+                                                                          CClassName::string().into(),
+                                                                          CPDType::array(CPDType::ByteType),
+                                                                          CPDType::array(CPDType::ByteType),
+                                                                          CPDType::array(CPDType::ByteType)]);
+            run_constructor(jvm, int_state, method_class, full_args, &c_method_descriptor)?;
             Ok(method_object.cast_method())
         }
 
@@ -294,7 +294,6 @@ pub mod constructor {
     use crate::jvm_state::JVMState;
 
     const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
-    const CONSTRUCTOR_DESC: CMethodDescriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
 
     pub struct Constructor<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -342,7 +341,8 @@ pub mod constructor {
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            run_constructor(jvm, int_state, constructor_class, full_args, &CONSTRUCTOR_DESC)?;
+            let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
+            run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
             Ok(constructor_object.cast_constructor())
         }
 

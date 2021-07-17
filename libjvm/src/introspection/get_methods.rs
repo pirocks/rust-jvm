@@ -8,6 +8,8 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::{LoaderIndex, LoaderName};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
@@ -47,7 +49,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
     let runtime_class = of_class_obj.as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
-    let method_class = check_initing_or_inited_class(jvm, int_state, ClassName::method().into())?;
+    let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
     let mut object_array = vec![];
     methods.filter(|(c, i)| {
         let c_view = c.view();
@@ -56,7 +58,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
             method_view.is_public()
         } else {
             let name = method_view.name();
-            name != "<clinit>" && name != "<init>"
+            name != MethodName::constructor_clinit() && name != MethodName::constructor_init()
         }
     }).for_each(|(c, i)| {
         let c_view = c.view();
@@ -83,13 +85,13 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: &RuntimeClass, publicOnly: bool, class_type: PTypeView) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()
     }
     let target_classview = &class_obj.view();
-    let constructors = target_classview.lookup_method_name(&"<init>".to_string());
+    let constructors = target_classview.lookup_method_name(MethodName::constructor_init());
     let loader = int_state.current_loader().clone();
     let mut object_array = vec![];
 
@@ -103,6 +105,6 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.java_value())
     });
-    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, ClassName::constructor().into())?).into();
+    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, CClassName::constructor().into())?).into();
     Ok(unsafe { new_local_ref_public(res, int_state) })
 }

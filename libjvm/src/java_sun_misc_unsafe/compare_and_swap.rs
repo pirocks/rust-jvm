@@ -5,6 +5,8 @@ use std::sync::Arc;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
+use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
@@ -12,7 +14,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-unsafe fn get_obj_and_name<'gc_life>(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass<'gc_life>>, GcManagedObject<'gc_life>, String), WasException> {
+unsafe fn get_obj_and_name<'gc_life>(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass<'gc_life>>, GcManagedObject<'gc_life>, FieldName), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
@@ -42,9 +44,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let curval = normal_obj.get_var(jvm, rc.clone(), field_name.as_str(), PTypeView::TopType);
+    let curval = normal_obj.get_var(jvm, rc.clone(), field_name);
     (if curval.unwrap_int() == old {
-        normal_obj.set_var(rc, field_name, JavaValue::Int(new), PTypeView::TopType);
+        normal_obj.set_var(rc, field_name, JavaValue::Int(new));
         1
     } else {
         0
@@ -64,7 +66,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
         Err(WasException {}) => return jboolean::MAX
     };
     let normal_obj = notnull.unwrap_normal_object();
-    let curval = normal_obj.get_var_top_level(jvm, field_name.as_str());
+    let curval = normal_obj.get_var_top_level(jvm, field_name);
     (if curval.unwrap_long() == old {
         normal_obj.set_var_top_level(field_name, JavaValue::Long(new));
         1
@@ -105,7 +107,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
                 Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
                 Err(WasException {}) => return jboolean::MAX
             };
-            let mut curval = normal_obj.get_var_top_level(jvm, field_name.as_str());
+            let mut curval = normal_obj.get_var_top_level(jvm, field_name);
             let old = from_object(jvm, old);
             let (should_replace, new) = do_swap(curval, old, new);
             normal_obj.set_var_top_level(field_name, new);

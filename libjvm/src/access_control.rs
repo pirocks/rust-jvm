@@ -7,7 +7,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
@@ -34,7 +34,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
         return_type: CPDType::Ref(CPRefType::Class(CClassName::object())),
     };
     int_state.push_current_operand_stack(JavaValue::Object(action));
-    invoke_virtual(jvm, int_state, "run", &expected_descriptor);
+    invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor);
     if int_state.throw().is_some() {
         return null_mut();
     }

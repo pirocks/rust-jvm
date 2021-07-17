@@ -239,7 +239,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     .fields()
                     .filter(|field| !field.is_static())
                     .map(|name| (name.field_name(), name.field_type()))
-                    .sorted_by_key(|(name, _ptype)| name)
+                    .sorted_by_key(|(name, _ptype)| name.0)
                     .enumerate()
                     .map(|(index, (name, ptype))| (name, (index + start_field_number, ptype)))
                     .collect::<HashMap<_, _>>();

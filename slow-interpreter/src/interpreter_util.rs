@@ -42,7 +42,7 @@ fn default_init_fields<'gc_life>(
             let type_ = field.field_type();
             let val = default_value(type_.clone());
 
-            object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val, type_);
+            object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val);
             // unsafe {
             // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
             // }

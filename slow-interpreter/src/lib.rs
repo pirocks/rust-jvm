@@ -7,7 +7,6 @@
 #![feature(entry_insert)]
 #![feature(in_band_lifetimes)]
 #![feature(destructuring_assignment)]
-#![feature(in_band_lifetimes)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
