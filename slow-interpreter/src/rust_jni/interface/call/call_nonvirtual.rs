@@ -266,7 +266,7 @@ pub unsafe extern "C" fn call_nonvirtual_void_method_a(env: *mut JNIEnv, obj: jo
 }
 
 
-unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, method_id: jmethodID, mut vararg_provider: &mut VarargProvider, is_void: bool) -> Result<JavaValue<'gc_life>, WasException> {
+unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, method_id: jmethodID, vararg_provider: &mut VarargProvider, is_void: bool) -> Result<JavaValue<'gc_life>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_id: MethodId = transmute(method_id);
@@ -278,7 +278,7 @@ unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jcl
         }
     };
     int_state.push_current_operand_stack(JavaValue::Object(todo!()/*from_jclass(jvm,obj)*/));
-    push_params_onto_frame(jvm, &mut vararg_provider, int_state, &method_desc);
+    push_params_onto_frame(jvm, vararg_provider, int_state, &method_desc);
     invoke_special_impl(jvm, int_state, &method_desc, i, rc)?;
     if !is_void {
         int_state.pop_current_operand_stack(Some(CClassName::object().into()));

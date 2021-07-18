@@ -53,7 +53,7 @@ impl MethodView<'_> {
     }
 
     pub fn code_attribute(&self) -> Option<&Code> {
-        self.method_info().code_attribute()//don't thing code view is needed.
+        self.class_view.backing_class.methods[self.method_i as usize].code.as_ref()
     }
 
     pub fn local_variable_attribute(&self) -> Option<Vec<LocalVariableView>> {

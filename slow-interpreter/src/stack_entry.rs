@@ -44,8 +44,9 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
 
     fn get_header(&self) -> &FrameHeader {
         let res = unsafe { (self.frame_ptr as *const FrameHeader).as_ref() }.unwrap();
-        assert_eq!((*res).magic_part_1, MAGIC_1_EXPECTED);
-        assert_eq!((*res).magic_part_2, MAGIC_2_EXPECTED);
+        let FrameHeader { magic_part_1, magic_part_2, .. } = *res;
+        assert_eq!(magic_part_1, MAGIC_1_EXPECTED);
+        assert_eq!(magic_part_2, MAGIC_2_EXPECTED);
         res
     }
 

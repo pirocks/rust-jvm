@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
-use crate::classfile::{AttributeType, BootstrapMethods, Classfile, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
+use crate::classfile::{AttributeInfo, AttributeType, BootstrapMethods, Classfile, Code, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
 use crate::classnames::class_name;
 use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
@@ -351,6 +351,7 @@ pub struct CompressedMethodInfo {
     pub access_flags: u16,
     pub name: CompressedClassfileString,
     pub descriptor: CompressedMethodDescriptor,
+    pub code: Option<Code>
 }
 
 pub struct CompressedClassfile {
@@ -421,15 +422,22 @@ impl CompressedClassfile {
                 access_flags,
                 name_index,
                 descriptor_index,
-                attributes: _
+                attributes
             } = method_info;
             let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(constant_pool[*descriptor_index as usize].extract_string_from_utf8().as_str()).unwrap();
             let return_type = CompressedParsedDescriptorType::from_ptype(&return_type, pool);
             let arg_types = parameter_types.iter().map(|ptype| CompressedParsedDescriptorType::from_ptype(ptype, pool)).collect_vec();
+            let mut code_attr = None;
+            for attribute in attributes.iter() {
+                if let AttributeType::Code(code) = &attribute.attribute_type {
+                    code_attr = Some(code.clone())
+                }
+            }
             CompressedMethodInfo {
                 access_flags: *access_flags,
                 name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string()),
                 descriptor: CompressedMethodDescriptor { arg_types, return_type },
+                code: code_attr,
             }
         }).collect_vec();
         let bootstrap_methods = classfile.attributes.iter().find_map(|x| {
