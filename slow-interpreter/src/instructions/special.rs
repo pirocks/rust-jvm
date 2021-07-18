@@ -206,46 +206,46 @@ pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inter
     }) || interfaces_match)
 }
 
-pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, w: Wide) {
+pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, w: &Wide) {
     match w {
         Wide::Iload(WideIload { index }) => {
-            iload(jvm, current_frame, index)
+            iload(jvm, current_frame, *index)
         }
         Wide::Fload(WideFload { index }) => {
-            fload(jvm, current_frame, index)
+            fload(jvm, current_frame, *index)
         }
         Wide::Aload(WideAload { index }) => {
-            aload(current_frame, index)
+            aload(current_frame, *index)
         }
         Wide::Lload(WideLload { index }) => {
-            lload(jvm, current_frame, index)
+            lload(jvm, current_frame, *index)
         }
         Wide::Dload(WideDload { index }) => {
-            dload(jvm, current_frame, index)
+            dload(jvm, current_frame, *index)
         }
         Wide::Istore(WideIstore { index }) => {
-            istore(jvm, current_frame, index)
+            istore(jvm, current_frame, *index)
         }
         Wide::Fstore(WideFstore { index }) => {
-            fstore(jvm, current_frame, index)
+            fstore(jvm, current_frame, *index)
         }
         Wide::Astore(WideAstore { index }) => {
-            astore(current_frame, index)
+            astore(current_frame, *index)
         }
         Wide::Lstore(WideLstore { index }) => {
-            lstore(jvm, current_frame, index)
+            lstore(jvm, current_frame, *index)
         }
         Wide::Ret(WideRet { index }) => {
-            ret(jvm, current_frame, index)
+            ret(jvm, current_frame, *index)
         }
         Wide::Dstore(WideDstore { index }) => {
-            dstore(jvm, current_frame, index)
+            dstore(jvm, current_frame, *index)
         }
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars().get(index, RuntimeType::IntType).unwrap_int();
+            let mut val = current_frame.local_vars().get(*index, RuntimeType::IntType).unwrap_int();
             val += const_ as i32;
-            current_frame.local_vars_mut().set(index, JavaValue::Int(val));
+            current_frame.local_vars_mut().set(*index, JavaValue::Int(val));
         }
     }
 }

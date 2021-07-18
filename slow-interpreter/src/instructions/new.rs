@@ -1,6 +1,7 @@
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::classfile::{Atype, MultiNewArray};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -9,10 +10,8 @@ use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
-pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let view = &int_state.current_frame().class_pointer(jvm).view();
-    let target_class_name = &view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, target_class_name.clone().into()).unwrap();
+pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classname: CClassName) {
+    let target_classfile = check_initing_or_inited_class(jvm, int_state, classname.into()).unwrap();
     push_new_object(jvm, int_state, &target_classfile);
 }
 
@@ -87,17 +86,12 @@ pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 }
 
 
-pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: MultiNewArray) {
-    let dims = cp.dims;
-    let view = int_state.current_frame().class_pointer(jvm).view();
-    let temp = view.constant_pool_view(cp.index as usize);
-    let type_ = temp.unwrap_class().class_ref_type();
-
-    if let Err(_) = check_resolved_class(jvm, int_state, CPDType::Ref(type_.clone())) {
+pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, dims: u8, type_: &CPDType) {
+    if let Err(_) = check_resolved_class(jvm, int_state, type_.clone()) {
         return;
     };
     let mut dimensions = vec![];
-    let mut unwrapped_type: CPDType = CPDType::Ref(type_);
+    let mut unwrapped_type: CPDType = type_.clone();
     for _ in 0..dims {
         dimensions.push(int_state.current_frame_mut().pop(Some(RuntimeType::IntType)).unwrap_int());
     }

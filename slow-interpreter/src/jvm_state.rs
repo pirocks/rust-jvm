@@ -24,6 +24,7 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::loading::{LivePoolGetter, LoaderIndex, LoaderName};
 use verification::{ClassFileGetter, VerifierContext, verify};
@@ -55,6 +56,7 @@ pub struct JVMState<'gc_life> {
     pub(crate) properties: Vec<String>,
     pub system_domain_loader: bool,
     pub string_pool: CompressedClassfileStringPool,
+    pub method_descriptor_pool: CompressedMethodDescriptorsPool,
     pub string_internment: RwLock<StringInternment<'gc_life>>,
     pub start_instant: Instant,
     pub libjava: LibJavaLoading<'gc_life>,
@@ -163,6 +165,7 @@ impl<'gc_life> JVMState<'gc_life> {
             system_domain_loader: true,
             libjava: LibJavaLoading::new(),
             string_pool,
+            method_descriptor_pool: CompressedMethodDescriptorsPool::new(),
             string_internment: RwLock::new(StringInternment { strings: HashMap::new() }),
             start_instant: Instant::now(),
             classes,
@@ -208,7 +211,8 @@ impl<'gc_life> JVMState<'gc_life> {
             classfile_getter: Arc::new(DefaultClassfileGetter {
                 jvm: self
             }) as Arc<dyn ClassFileGetter>,
-            pool: &self.string_pool,
+            string_pool: &self.string_pool,
+            method_descriptor_pool: &self.method_descriptor_pool,
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,

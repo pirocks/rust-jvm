@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool};
+use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
@@ -33,7 +34,8 @@ pub struct StackMap {
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
-    pub pool: &'l CompressedClassfileStringPool,
+    pub string_pool: &'l CompressedClassfileStringPool,
+    pub method_descriptor_pool: &'l CompressedMethodDescriptorsPool,
     // pub classes: &'l ,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<u16, Frame>>,

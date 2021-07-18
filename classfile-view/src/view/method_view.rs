@@ -1,5 +1,6 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, parse_field_descriptor};
 
@@ -52,8 +53,12 @@ impl MethodView<'_> {
         &self.class_view.backing_class.methods[self.method_i as usize].descriptor
     }
 
-    pub fn code_attribute(&self) -> Option<&Code> {
+    pub fn code_attribute(&self) -> Option<&CompressedCode> {
         self.class_view.backing_class.methods[self.method_i as usize].code.as_ref()
+    }
+
+    pub fn real_code_attribute(&self) -> Option<&Code> {
+        self.class_view.underlying_class.methods[self.method_i as usize].code_attribute()
     }
 
     pub fn local_variable_attribute(&self) -> Option<Vec<LocalVariableView>> {

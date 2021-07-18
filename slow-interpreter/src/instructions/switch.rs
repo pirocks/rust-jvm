@@ -15,7 +15,7 @@ pub fn invoke_lookupswitch(ls: &LookupSwitch, jvm: &'gc_life JVMState<'gc_life>,
     *frame.pc_offset_mut() = ls.default as i32;
 }
 
-pub fn tableswitch(ls: TableSwitch, jvm: &'gc_life JVMState<'gc_life>, mut frame: StackEntryMut<'gc_life, 'l>) {
+pub fn tableswitch(ls: &TableSwitch, jvm: &'gc_life JVMState<'gc_life>, mut frame: StackEntryMut<'gc_life, 'l>) {
     let index = frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     if index < ls.low || index > ls.high {
         *frame.pc_offset_mut() = ls.default as i32;

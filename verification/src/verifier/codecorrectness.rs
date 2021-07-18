@@ -4,7 +4,8 @@ use std::rc::Rc;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
+use rust_jvm_common::classfile::Instruction;
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
@@ -154,21 +155,12 @@ pub struct ParsedCodeAttribute {
     pub method: ClassWithLoaderMethod,
 }
 
-pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &Code) -> Vec<Handler> {
+pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &CompressedCode) -> Vec<Handler> {
     code.exception_table.iter().map(|f| Handler {
         start: f.start_pc as u16,
         end: f.end_pc as u16,
         target: f.handler_pc as u16,
-        class_name: if f.catch_type == 0 { None } else {
-            let classfile = get_class(vf, class);
-            let catch_type_name = match &classfile.constant_pool_view(f.catch_type as usize) {
-                ConstantInfoView::Class(c) => {
-                    c.class_ref_type()
-                }
-                _ => panic!()
-            };
-            Some(catch_type_name.unwrap_name())
-        },
+        class_name: f.catch_type,
     }).collect()
 }
 
@@ -179,14 +171,14 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let mut final_offset = 0;
-    let mut instructs: Vec<&Instruction> = code.code
+    let mut instructs: Vec<&CInstruction> = code.instructions
         .iter()
-        .map(|x| {
-            final_offset = x.offset;
+        .map(|(offset, x)| {
+            final_offset = *offset;
             x
         })
         .collect();
-    let end_of_code = Instruction { offset: final_offset, instruction: InstructionInfo::EndOfCode };
+    let end_of_code = CInstruction { offset: final_offset, instruction_size: 0, info: CompressedInstructionInfo::EndOfCode };
     instructs.push(&end_of_code);
     let handlers = get_handlers(vf, &class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, &class, method_info);
@@ -250,11 +242,11 @@ pub struct Environment<'l, 'k> {
 
 #[derive(Debug)]
 pub enum MergedCodeInstruction<'l> {
-    Instruction(&'l Instruction),
+    Instruction(&'l CInstruction),
     StackMap(&'l StackMap),
 }
 
-fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_maps: &[&'l StackMap], res: &mut Vec<MergedCodeInstruction<'l>>) {
+fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l CInstruction], stack_maps: &[&'l StackMap], res: &mut Vec<MergedCodeInstruction<'l>>) {
     if stack_maps.is_empty() {
         res.append(&mut instructions.iter().map(|x| MergedCodeInstruction::Instruction(x)).collect());
         return;
@@ -276,7 +268,7 @@ fn merge_stack_map_and_code_impl<'l>(instructions: &[&'l Instruction], stack_map
 /**
 assumes that stackmaps and instructions are ordered
  */
-pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l Instruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
+pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l CInstruction>, stack_maps: Vec<&'l StackMap>) -> Vec<MergedCodeInstruction<'l>> {
     let mut res = vec![];
     merge_stack_map_and_code_impl(instruction.as_slice(), stack_maps.as_slice(), &mut res);
     res

@@ -68,7 +68,7 @@ pub unsafe extern "C" fn get_method_location(env: *mut jvmtiEnv, method: jmethod
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetMethodLocation");
     let method_id = from_jmethod_id(method);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo handle error
-    match class.view().method_view_i(method_i).code_attribute() {
+    match class.view().method_view_i(method_i).real_code_attribute() {
         None => {
             start_location_ptr.write(-1);
             end_location_ptr.write(-1);

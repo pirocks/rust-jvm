@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -219,6 +217,7 @@ impl From<CompressedClassName> for CompressedParsedRefType {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, EnumIter)]
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]

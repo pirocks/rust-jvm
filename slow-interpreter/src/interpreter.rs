@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::mem::transmute;
-use std::ops::Rem;
+use std::ops::{Deref, Rem};
 use std::sync::Arc;
 
 use num::Zero;
@@ -10,7 +10,8 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -72,7 +73,9 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
 
 
     while !interpreter_state.function_return() && interpreter_state.throw().is_none() {
-        let (instruct, instruction_size) = current_instruction(interpreter_state.current_frame(), &code);
+        let current_frame = interpreter_state.current_frame();
+        let current = code.instructions.get(&(current_frame.pc() as u16)).unwrap();
+        let (instruct, instruction_size) = (current, current.instruction_size as usize);
         interpreter_state.set_current_pc_offset(instruction_size as i32);
         breakpoint_check(jvm, interpreter_state, method_id);
         unsafe {
@@ -87,25 +90,27 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
             for excep_table in &code.exception_table {
                 let pc = interpreter_state.current_pc();
                 if excep_table.start_pc <= pc && pc < (excep_table.end_pc) {//todo exclusive
-                    if excep_table.catch_type == 0 {
-                        //todo dup
-                        interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
-                        interpreter_state.set_throw(None);
-                        interpreter_state.set_current_pc(excep_table.handler_pc);
-                        // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
-                        break;
-                    } else {
-                        let catch_runtime_name = interpreter_state.current_class_view(jvm).constant_pool_view(excep_table.catch_type as usize).unwrap_class().class_ref_type().unwrap_name();
-                        let saved_throw = interpreter_state.throw().clone();
-                        interpreter_state.set_throw(None);
-                        let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
-                        interpreter_state.set_throw(saved_throw);
-                        if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
+                    match excep_table.catch_type {
+                        None => {
+                            //todo dup
                             interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
                             interpreter_state.set_throw(None);
                             interpreter_state.set_current_pc(excep_table.handler_pc);
-                            // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
+                            // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
                             break;
+                        }
+                        Some(catch_runtime_name) => {
+                            let saved_throw = interpreter_state.throw().clone();
+                            interpreter_state.set_throw(None);
+                            let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
+                            interpreter_state.set_throw(saved_throw);
+                            if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
+                                interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
+                                interpreter_state.set_throw(None);
+                                interpreter_state.set_current_pc(excep_table.handler_pc);
+                                // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
+                                break;
+                            }
                         }
                     }
                 }
@@ -170,13 +175,6 @@ fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     }
 }
 
-fn current_instruction(current_frame: StackEntryRef, code: &Code) -> (InstructionInfo, usize) {
-    let current = &code.code_raw[current_frame.pc() as usize..];
-    let mut context = CodeParserContext { offset: current_frame.pc(), iter: current.iter() };
-    let parsedq = parse_instruction(&mut context).expect("but this parsed the first time round");
-    (parsedq, (context.offset as i32 - current_frame.pc() as i32) as usize)
-}
-
 pub fn monitor_for_function(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
@@ -206,7 +204,7 @@ pub static mut TIMES: usize = 0;
 fn run_single_instruction(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    instruct: InstructionInfo,
+    instruct: &CInstructionInfo,
     method_id: MethodId,
 ) {
     unsafe {
@@ -229,220 +227,220 @@ fn run_single_instruction(
         }
     };
     match instruct {
-        InstructionInfo::aaload => aaload(jvm, interpreter_state),
-        InstructionInfo::aastore => aastore(jvm, interpreter_state),
-        InstructionInfo::aconst_null => aconst_null(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::aload_2 => aload(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::aload_3 => aload(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
-        InstructionInfo::areturn => areturn(jvm, interpreter_state),
-        InstructionInfo::arraylength => arraylength(jvm, interpreter_state),
-        InstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::astore_2 => astore(interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::astore_3 => astore(interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::athrow => athrow(jvm, interpreter_state),
-        InstructionInfo::baload => baload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::bastore => bastore(jvm, interpreter_state),
-        InstructionInfo::bipush(b) => bipush(jvm, interpreter_state.current_frame_mut(), b),
-        InstructionInfo::caload => caload(jvm, interpreter_state),
-        InstructionInfo::castore => castore(jvm, interpreter_state),
-        InstructionInfo::checkcast(cp) => invoke_checkcast(jvm, interpreter_state, cp),
-        InstructionInfo::d2f => d2f(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::d2i => d2i(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::d2l => d2l(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dadd => dadd(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::daload => daload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dastore => dastore(jvm, interpreter_state),
-        InstructionInfo::dcmpg => dcmpg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dcmpl => dcmpl(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dconst_0 => dconst_0(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dconst_1 => dconst_1(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::ddiv => ddiv(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dload(i) => dload(jvm, interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::dload_0 => dload(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::dload_1 => dload(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::dload_2 => dload(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::dload_3 => dload(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::dmul => dmul(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dneg => dneg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::drem => drem(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dreturn => dreturn(jvm, interpreter_state),
-        InstructionInfo::dstore(i) => dstore(jvm, interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::dstore_0 => dstore(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::dstore_1 => dstore(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::dstore_2 => dstore(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::dstore_3 => dstore(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::dsub => dsub(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup => dup(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2 => dup2(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2_x1 => dup2_x1(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fadd => fadd(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::faload => faload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fastore => fastore(jvm, interpreter_state),
-        InstructionInfo::fcmpg => fcmpg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fcmpl => fcmpl(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_0 => fconst_0(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_1 => fconst_1(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fconst_2 => fconst_2(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fdiv => fdiv(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fload(n) => fload(jvm, interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::fload_0 => fload(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::fload_1 => fload(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::fload_2 => fload(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::fload_3 => fload(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::fmul => fmul(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::fneg => fneg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::frem => frem(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::freturn => freturn(jvm, interpreter_state),
-        InstructionInfo::fstore(i) => fstore(jvm, interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::fstore_0 => fstore(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::fstore_1 => fstore(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::fstore_2 => fstore(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::getfield(cp) => get_field(jvm, interpreter_state, cp, false),
-        InstructionInfo::getstatic(cp) => get_static(jvm, interpreter_state, cp),
-        InstructionInfo::goto_(target) => goto_(jvm, interpreter_state.current_frame_mut(), target as i32),
-        InstructionInfo::goto_w(target) => goto_(jvm, interpreter_state.current_frame_mut(), target),
-        InstructionInfo::i2b => i2b(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::i2c => i2c(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::i2d => i2d(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::i2f => i2f(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::i2l => i2l(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::i2s => i2s(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iadd => iadd(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iaload => iaload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iand => iand(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iastore => iastore(jvm, interpreter_state),
-        InstructionInfo::iconst_m1 => iconst_m1(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_0 => iconst_0(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_1 => iconst_1(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_2 => iconst_2(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_3 => iconst_3(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_4 => iconst_4(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iconst_5 => iconst_5(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::idiv => idiv(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::if_acmpeq(offset) => if_acmpeq(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_acmpne(offset) => if_acmpne(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpeq(offset) => if_icmpeq(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpne(offset) => if_icmpne(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmplt(offset) => if_icmplt(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpge(offset) => if_icmpge(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmpgt(offset) => if_icmpgt(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::if_icmple(offset) => if_icmple(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifeq(offset) => ifeq(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifne(offset) => ifne(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::iflt(offset) => iflt(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifge(offset) => ifge(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifgt(offset) => ifgt(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifle(offset) => ifle(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifnonnull(offset) => ifnonnull(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::ifnull(offset) => ifnull(jvm, interpreter_state.current_frame_mut(), offset),
-        InstructionInfo::iinc(iinc) => {
+        CInstructionInfo::aaload => aaload(jvm, interpreter_state),
+        CInstructionInfo::aastore => aastore(jvm, interpreter_state),
+        CInstructionInfo::aconst_null => aconst_null(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::aload_2 => aload(interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::aload_3 => aload(interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::anewarray(cp) => anewarray(jvm, interpreter_state, cp),
+        CInstructionInfo::areturn => areturn(jvm, interpreter_state),
+        CInstructionInfo::arraylength => arraylength(jvm, interpreter_state),
+        CInstructionInfo::astore(n) => astore(interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::astore_0 => astore(interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::astore_1 => astore(interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::astore_2 => astore(interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::astore_3 => astore(interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::athrow => athrow(jvm, interpreter_state),
+        CInstructionInfo::baload => baload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::bastore => bastore(jvm, interpreter_state),
+        CInstructionInfo::bipush(b) => bipush(jvm, interpreter_state.current_frame_mut(), b),
+        CInstructionInfo::caload => caload(jvm, interpreter_state),
+        CInstructionInfo::castore => castore(jvm, interpreter_state),
+        CInstructionInfo::checkcast(cp) => invoke_checkcast(jvm, interpreter_state, cp),
+        CInstructionInfo::d2f => d2f(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::d2i => d2i(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::d2l => d2l(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dadd => dadd(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::daload => daload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dastore => dastore(jvm, interpreter_state),
+        CInstructionInfo::dcmpg => dcmpg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dcmpl => dcmpl(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dconst_0 => dconst_0(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dconst_1 => dconst_1(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::ddiv => ddiv(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dload(i) => dload(jvm, interpreter_state.current_frame_mut(), i as u16),
+        CInstructionInfo::dload_0 => dload(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::dload_1 => dload(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::dload_2 => dload(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::dload_3 => dload(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::dmul => dmul(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dneg => dneg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::drem => drem(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dreturn => dreturn(jvm, interpreter_state),
+        CInstructionInfo::dstore(i) => dstore(jvm, interpreter_state.current_frame_mut(), i as u16),
+        CInstructionInfo::dstore_0 => dstore(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::dstore_1 => dstore(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::dstore_2 => dstore(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::dstore_3 => dstore(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::dsub => dsub(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup => dup(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup2 => dup2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup2_x1 => dup2_x1(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fadd => fadd(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::faload => faload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fastore => fastore(jvm, interpreter_state),
+        CInstructionInfo::fcmpg => fcmpg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fcmpl => fcmpl(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fconst_0 => fconst_0(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fconst_1 => fconst_1(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fconst_2 => fconst_2(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fdiv => fdiv(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fload(n) => fload(jvm, interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::fload_0 => fload(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::fload_1 => fload(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::fload_2 => fload(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::fload_3 => fload(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::fmul => fmul(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::fneg => fneg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::frem => frem(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::freturn => freturn(jvm, interpreter_state),
+        CInstructionInfo::fstore(i) => fstore(jvm, interpreter_state.current_frame_mut(), i as u16),
+        CInstructionInfo::fstore_0 => fstore(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::fstore_1 => fstore(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::fstore_2 => fstore(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::getfield { desc, target_class, name } => get_field(jvm, interpreter_state, *target_class, *name, desc, false),
+        CInstructionInfo::getstatic { name, target_class, desc } => get_static(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::goto_(target) => goto_(jvm, interpreter_state.current_frame_mut(), *target as i32),
+        CInstructionInfo::goto_w(target) => goto_(jvm, interpreter_state.current_frame_mut(), *target),
+        CInstructionInfo::i2b => i2b(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::i2c => i2c(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::i2d => i2d(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::i2f => i2f(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::i2l => i2l(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::i2s => i2s(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iadd => iadd(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iaload => iaload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iand => iand(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iastore => iastore(jvm, interpreter_state),
+        CInstructionInfo::iconst_m1 => iconst_m1(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_0 => iconst_0(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_1 => iconst_1(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_2 => iconst_2(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_3 => iconst_3(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_4 => iconst_4(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iconst_5 => iconst_5(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::idiv => idiv(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::if_acmpeq(offset) => if_acmpeq(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_acmpne(offset) => if_acmpne(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpeq(offset) => if_icmpeq(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpne(offset) => if_icmpne(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmplt(offset) => if_icmplt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpge(offset) => if_icmpge(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpgt(offset) => if_icmpgt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmple(offset) => if_icmple(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifeq(offset) => ifeq(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifne(offset) => ifne(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::iflt(offset) => iflt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifge(offset) => ifge(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifgt(offset) => ifgt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifle(offset) => ifle(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifnonnull(offset) => ifnonnull(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifnull(offset) => ifnull(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::iinc(iinc) => {
             let mut current_frame = interpreter_state.current_frame_mut();
             let val = current_frame.local_vars().get(iinc.index, RuntimeType::IntType).unwrap_int();
             let res = val + iinc.const_ as i32;
             current_frame.local_vars_mut().set(iinc.index, JavaValue::Int(res));
         }
-        InstructionInfo::iload(n) => iload(jvm, interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::iload_0 => iload(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::iload_1 => iload(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::iload_2 => iload(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::iload_3 => iload(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::imul => imul(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
-        InstructionInfo::invokedynamic(cp) => {
-            invoke_dynamic(jvm, interpreter_state, cp)
+        CInstructionInfo::iload(n) => iload(jvm, interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::iload_0 => iload(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::iload_1 => iload(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::iload_2 => iload(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::iload_3 => iload(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::imul => imul(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
+        CInstructionInfo::invokedynamic(cp) => {
+            invoke_dynamic(jvm, interpreter_state, *cp)
         }
-        InstructionInfo::invokeinterface(invoke_i) => invoke_interface(jvm, interpreter_state, invoke_i),
-        InstructionInfo::invokespecial(cp) => invoke_special(jvm, interpreter_state, cp),
-        InstructionInfo::invokestatic(cp) => run_invoke_static(jvm, interpreter_state, cp),
-        InstructionInfo::invokevirtual(cp) => invoke_virtual_instruction(jvm, interpreter_state, cp),
-        InstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::ireturn => ireturn(jvm, interpreter_state),
-        InstructionInfo::ishl => ishl(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::ishr => ishr(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::istore(n) => istore(jvm, interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::istore_0 => istore(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::istore_1 => istore(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::istore_2 => istore(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::istore_3 => istore(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::isub => isub(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::iushr => iushr(interpreter_state),
-        InstructionInfo::ixor => ixor(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::jsr(target) => jsr(interpreter_state, target as i32),
-        InstructionInfo::jsr_w(target) => jsr(interpreter_state, target),
-        InstructionInfo::l2d => l2d(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::l2f => l2f(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::l2i => l2i(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::ladd => ladd(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::laload => laload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::land => land(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lastore => lastore(jvm, interpreter_state),
-        InstructionInfo::lcmp => lcmp(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lconst_0 => lconst(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lconst_1 => lconst(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::ldc(cp) => ldc_w(jvm, interpreter_state, cp as u16),
-        InstructionInfo::ldc_w(cp) => ldc_w(jvm, interpreter_state, cp),
-        InstructionInfo::ldc2_w(cp) => ldc2_w(jvm, interpreter_state.current_frame_mut(), cp),
-        InstructionInfo::ldiv => ldiv(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lload(i) => lload(jvm, interpreter_state.current_frame_mut(), i as u16),
-        InstructionInfo::lload_0 => lload(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lload_1 => lload(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::lload_2 => lload(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::lload_3 => lload(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::lmul => lmul(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lneg => lneg(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lor => lor(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lrem => lrem(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lreturn => lreturn(jvm, interpreter_state),
-        InstructionInfo::lshl => lshl(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lshr => lshr(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lstore(n) => lstore(jvm, interpreter_state.current_frame_mut(), n as u16),
-        InstructionInfo::lstore_0 => lstore(jvm, interpreter_state.current_frame_mut(), 0),
-        InstructionInfo::lstore_1 => lstore(jvm, interpreter_state.current_frame_mut(), 1),
-        InstructionInfo::lstore_2 => lstore(jvm, interpreter_state.current_frame_mut(), 2),
-        InstructionInfo::lstore_3 => lstore(jvm, interpreter_state.current_frame_mut(), 3),
-        InstructionInfo::lsub => lsub(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::monitorenter => {
+        CInstructionInfo::invokeinterface { classname, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, *classname, *method_name, *descriptor, *count),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname } => invoke_special(jvm, interpreter_state, *classname, *method_name, *descriptor),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname } => run_invoke_static(jvm, interpreter_state, *classname, *method_name, *descriptor),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname: _ } => invoke_virtual_instruction(jvm, interpreter_state, *method_name, *descriptor),
+        CInstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::ireturn => ireturn(jvm, interpreter_state),
+        CInstructionInfo::ishl => ishl(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::ishr => ishr(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::istore(n) => istore(jvm, interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::istore_0 => istore(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::istore_1 => istore(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::istore_2 => istore(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::istore_3 => istore(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::isub => isub(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::iushr => iushr(interpreter_state),
+        CInstructionInfo::ixor => ixor(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::jsr(target) => jsr(interpreter_state, target as i32),
+        CInstructionInfo::jsr_w(target) => jsr(interpreter_state, target),
+        CInstructionInfo::l2d => l2d(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::l2f => l2f(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::l2i => l2i(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::ladd => ladd(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::laload => laload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::land => land(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lastore => lastore(jvm, interpreter_state),
+        CInstructionInfo::lcmp => lcmp(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lconst_0 => lconst(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::lconst_1 => lconst(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::ldc(cp) => ldc_w(jvm, interpreter_state, cp as u16),
+        CInstructionInfo::ldc_w(cp) => ldc_w(jvm, interpreter_state, cp),
+        CInstructionInfo::ldc2_w(cp) => ldc2_w(jvm, interpreter_state.current_frame_mut(), cp),
+        CInstructionInfo::ldiv => ldiv(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lload(i) => lload(jvm, interpreter_state.current_frame_mut(), i as u16),
+        CInstructionInfo::lload_0 => lload(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::lload_1 => lload(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::lload_2 => lload(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::lload_3 => lload(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::lmul => lmul(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lneg => lneg(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lor => lor(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lrem => lrem(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lreturn => lreturn(jvm, interpreter_state),
+        CInstructionInfo::lshl => lshl(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lshr => lshr(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lstore(n) => lstore(jvm, interpreter_state.current_frame_mut(), n as u16),
+        CInstructionInfo::lstore_0 => lstore(jvm, interpreter_state.current_frame_mut(), 0),
+        CInstructionInfo::lstore_1 => lstore(jvm, interpreter_state.current_frame_mut(), 1),
+        CInstructionInfo::lstore_2 => lstore(jvm, interpreter_state.current_frame_mut(), 2),
+        CInstructionInfo::lstore_3 => lstore(jvm, interpreter_state.current_frame_mut(), 3),
+        CInstructionInfo::lsub => lsub(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::monitorenter => {
             interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_lock(jvm, interpreter_state);
         }
-        InstructionInfo::monitorexit => {
+        CInstructionInfo::monitorexit => {
             interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
         }
-        InstructionInfo::multianewarray(cp) => multi_a_new_array(jvm, interpreter_state, cp),
-        InstructionInfo::new(cp) => new(jvm, interpreter_state, cp),
-        InstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, a_type),
-        InstructionInfo::nop => {}
-        InstructionInfo::pop => pop(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
-        InstructionInfo::putfield(cp) => putfield(jvm, interpreter_state, cp),
-        InstructionInfo::putstatic(cp) => putstatic(jvm, interpreter_state, cp),
-        InstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), local_var_index as u16),
-        InstructionInfo::return_ => return_(interpreter_state),
-        InstructionInfo::saload => saload(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::sastore => sastore(jvm, interpreter_state),
-        InstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), val),
-        InstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::tableswitch(switch) => tableswitch(switch, jvm, interpreter_state.current_frame_mut()),
-        InstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
-        InstructionInfo::EndOfCode => panic!(),
+        CInstructionInfo::multianewarray { type_, dimensions } => multi_a_new_array(jvm, interpreter_state, dimensions.get(), type_),
+        CInstructionInfo::new(cn) => new(jvm, interpreter_state, *cn),
+        CInstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, *a_type),
+        CInstructionInfo::nop => {}
+        CInstructionInfo::pop => pop(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), local_var_index as u16),
+        CInstructionInfo::return_ => return_(interpreter_state),
+        CInstructionInfo::saload => saload(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::sastore => sastore(jvm, interpreter_state),
+        CInstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), *val),
+        CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
+        CInstructionInfo::EndOfCode => panic!(),
     }
 }
 

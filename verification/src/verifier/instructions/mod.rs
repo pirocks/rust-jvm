@@ -1,8 +1,7 @@
 use std::rc::Rc;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classfile::InstructionInfo;
+use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
@@ -56,8 +55,8 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
             let f = match after_frame {
                 FrameResult::Regular(f) => f,
                 FrameResult::AfterGoto => {
-                    match i.instruction {
-                        InstructionInfo::EndOfCode => return Result::Ok(()),
+                    match i.info {
+                        CInstructionInfo::EndOfCode => return Result::Ok(()),
                         _ => return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()))
                     }
                 }
@@ -614,35 +613,41 @@ fn instruction_is_type_safe_lcmp(env: &Environment, stack_frame: Frame) -> Resul
     type_transition(env, stack_frame, vec![VType::LongType, VType::LongType], VType::IntType)
 }
 
-pub fn loadable_constant(vf: &VerifierContext, c: &ConstantInfoView) -> VType {
+
+pub fn loadable_constant(vf: &VerifierContext, c: &CompressedLdcW) -> VType {
     match c {
-        ConstantInfoView::Integer(_) => VType::IntType,
-        ConstantInfoView::Float(_) => VType::FloatType,
-        ConstantInfoView::Long(_) => VType::LongType,
-        ConstantInfoView::Double(_) => VType::DoubleType,
-        ConstantInfoView::Class(_c) => {
+        CompressedLdcW::Integer { .. } => VType::IntType,
+        CompressedLdcW::Float { .. } => VType::FloatType,
+        CompressedLdcW::Class { .. } => {
             let class_name = CClassName::class();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
-        ConstantInfoView::String(_) => {
+        CompressedLdcW::String { .. } => {
             let class_name = CClassName::string();
             VType::Class(ClassWithLoader { class_name, loader: vf.current_loader.clone() })
         }
-        ConstantInfoView::MethodHandle(_mh) => VType::Class(ClassWithLoader { class_name: CClassName::method_handle(), loader: vf.current_loader.clone() }),
-        ConstantInfoView::MethodType(_mt) => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: vf.current_loader.clone() }),
-        ConstantInfoView::LiveObject(idx) => {
+        CompressedLdcW::MethodHandle {} => VType::Class(ClassWithLoader { class_name: CClassName::method_handle(), loader: vf.current_loader.clone() }),
+        CompressedLdcW::MethodType {} => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: vf.current_loader.clone() }),
+        CompressedLdcW::LiveObject(idx) => {
             vf.live_pool_getter.elem_type(*idx).to_verification_type(vf.current_loader)
         }
+    }
+}
+
+pub fn loadable_constant_w(vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
+    match c {
+        CompressedLdc2W::Long(_) => VType::LongType,
+        CompressedLdc2W::Double(_) => VType::DoubleType,
+
         _ => {
             panic!()
         }
     }
 }
 
-pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc(const_: &CompressedLdc2W, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let view = get_class(&env.vf, &env.method.class);
-    let const_ = &view.constant_pool_view(cp as usize);
-    let type_: VType = loadable_constant(&env.vf, const_);
+    let type_: VType = loadable_constant_w(&env.vf, const_);
     match type_ {
         VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
         VType::LongType => { return Result::Err(unknown_error_verifying!()); }
@@ -651,24 +656,21 @@ pub fn instruction_is_type_safe_ldc(cp: u8, env: &Environment, stack_frame: Fram
     type_transition(env, stack_frame, vec![], type_)
 }
 
-pub fn instruction_is_type_safe_ldc_w(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ldc_w(const_: &CompressedLdcW, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let view = get_class(&env.vf, &env.method.class);
-    let const_ = &view.constant_pool_view(cp as usize);
     let type_ = match const_ {
-        ConstantInfoView::Integer(_) => VType::IntType,
-        ConstantInfoView::Float(_) => VType::FloatType,
-        ConstantInfoView::Class(_) => VType::Class(ClassWithLoader { class_name: CClassName::class(), loader: env.vf.current_loader.clone() }),
-        ConstantInfoView::String(_) => VType::Class(ClassWithLoader { class_name: CClassName::string(), loader: env.vf.current_loader.clone() }),
-        ConstantInfoView::MethodType(_) => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: env.vf.current_loader.clone() }),
+        CompressedLdcW::Integer { .. } => VType::IntType,
+        CompressedLdcW::Float { .. } => VType::FloatType,
+        CompressedLdcW::Class { .. } => VType::Class(ClassWithLoader { class_name: CClassName::class(), loader: env.vf.current_loader.clone() }),
+        CompressedLdcW::String { .. } => VType::Class(ClassWithLoader { class_name: CClassName::string(), loader: env.vf.current_loader.clone() }),
+        CompressedLdcW::MethodType {} => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: env.vf.current_loader.clone() }),
         _ => panic!()
     };
     type_transition(env, stack_frame, vec![], type_)
 }
 
-pub fn instruction_is_type_safe_ldc2_w(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, &env.method.class);
-    let const_ = &view.constant_pool_view(cp as usize);
-    let type_: VType = loadable_constant(&env.vf, const_);
+pub fn instruction_is_type_safe_ldc2_w(const_: &CompressedLdc2W, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let type_: VType = loadable_constant_w(&env.vf, const_);
     match type_ {
         VType::DoubleType => {}
         VType::LongType => {}

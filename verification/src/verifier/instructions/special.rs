@@ -23,7 +23,7 @@ use crate::verifier::instructions::type_transition;
 use crate::verifier::passes_protected_check;
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_instanceof(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo verify that cp is valid
     let bl = &env.vf.current_loader.clone();
     let object = VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: bl.clone() });
@@ -31,8 +31,7 @@ pub fn instruction_is_type_safe_instanceof(_cp: CPIndex, env: &Environment, stac
 }
 
 
-pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
+pub fn instruction_is_type_safe_getfield(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     passes_protected_check(env, field_class_name, field_name.0, Descriptor::Field(&field_descriptor), &stack_frame)?;
     let current_loader = env.class_loader.clone();
@@ -40,8 +39,7 @@ pub fn instruction_is_type_safe_getfield(cp: CPIndex, env: &Environment, stack_f
     type_transition(env, stack_frame, expected_types_on_stack, field_type)
 }
 
-pub fn instruction_is_type_safe_getstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
+pub fn instruction_is_type_safe_getstatic(_field_class_name: CClassName, _field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     type_transition(env, stack_frame, vec![], field_type)
 }
@@ -59,8 +57,8 @@ pub fn instruction_is_type_safe_tableswitch(targets: Vec<u16>, env: &Environment
 }
 
 
-pub fn instruction_is_type_safe_anewarray(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let sub_type = extract_constant_pool_entry_as_type(cp, &env);
+pub fn instruction_is_type_safe_anewarray(cpdtype: &CPDType, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let sub_type = cpdtype.clone();
     let expected_types_on_stack = vec![VType::IntType];
     let res_type = VType::ArrayReferenceType(sub_type);
     type_transition(env, stack_frame, expected_types_on_stack, res_type)
@@ -109,37 +107,29 @@ pub fn instruction_is_type_safe_athrow(env: &Environment, stack_frame: Frame) ->
 }
 
 //todo duplication with class name parsing and array logic
-pub fn instruction_is_type_safe_checkcast(index: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_checkcast(cpd_type: &CPDType, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let object_class = ClassWithLoader { class_name: CClassName::object(), loader: env.vf.current_loader.clone() };
-    let class = get_class(&env.vf, &env.method.class);
-    let result_type = match &class.constant_pool_view(index) {
-        ConstantInfoView::Class(c) => {
-            let name = c.class_ref_type();
-            CPDType::Ref(name).to_verification_type(env.class_loader)
-        }
-        _ => panic!()
-    };
+    let result_type = cpd_type.to_verification_type(env.class_loader);
     let expected_types_on_stack = vec![VType::Class(object_class)];
     type_transition(env, stack_frame, expected_types_on_stack, result_type)
 }
 
 
-pub fn instruction_is_type_safe_putfield(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_putfield(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_classfile = get_class(&env.vf, &env.method.class);
     if method_classfile.method_view_i(env.method.method_index as u16).name() == MethodName::constructor_init() {
-        if let Ok(res) = instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame) {
+        if let Ok(res) = instruction_is_type_safe_putfield_second_case(field_class_name, field_name, field_descriptor, env, &stack_frame) {
             return Result::Ok(res);
         };
     }
-    match instruction_is_type_safe_putfield_first_case(cp, env, &stack_frame) {
+    match instruction_is_type_safe_putfield_first_case(field_class_name, field_name, field_descriptor, env, &stack_frame) {
         Ok(res) => Result::Ok(res),
-        Err(_) => instruction_is_type_safe_putfield_second_case(cp, env, &stack_frame),
+        Err(_) => instruction_is_type_safe_putfield_second_case(field_class_name, field_name, field_descriptor, env, &stack_frame),
     }
 }
 
-fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_second_case(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
-    let (field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     if env.method.class.class_name != field_class_name {
         return Result::Err(unknown_error_verifying!());
@@ -155,8 +145,7 @@ fn instruction_is_type_safe_putfield_second_case(cp: CPIndex, env: &Environment,
     standard_exception_frame(locals, flag, next_frame)
 }
 
-fn instruction_is_type_safe_putfield_first_case(cp: CPIndex, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
+fn instruction_is_type_safe_putfield_first_case(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -186,8 +175,7 @@ pub fn extract_field_descriptor(pool: &CompressedClassfileStringPool, cp: CPInde
     (CompressedClassName(pool.add_name(field_class_name.get_referred_name().to_string())), FieldName(field_name), CompressedFieldDescriptor(CPDType::from_ptype(&field_descriptor.field_type, pool)))
 }
 
-pub fn instruction_is_type_safe_putstatic(cp: CPIndex, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let (_field_class_name, _field_name, field_descriptor) = extract_field_descriptor(env.vf.pool, cp, &*get_class(&env.vf, &env.method.class));
+pub fn instruction_is_type_safe_putstatic(field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -203,9 +191,8 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_multianewarray(cp: usize, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let classfile = get_class(&env.vf, &env.method.class);
-    let expected_type = CPDType::Ref(classfile.constant_pool_view(cp).unwrap_class().class_ref_type());//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
+pub fn instruction_is_type_safe_multianewarray(cpdtype: &CPDType, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    let expected_type = cpdtype.clone();//parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
     if class_dimension(env, &expected_type.to_verification_type(env.class_loader)) != dim {
         return Result::Err(unknown_error_verifying!());
     }
@@ -231,14 +218,10 @@ fn class_dimension(env: &Environment, v: &VType) -> usize {
     }
 }
 
-pub fn instruction_is_type_safe_new(cp: usize, offset: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_new(offset: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    match &get_class(&env.vf, &env.method.class).constant_pool_view(cp) {
-        ConstantInfoView::Class(_) => {}
-        _ => panic!()
-    };
     let new_item = VType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
     match operand_stack.iter().find(|x| {
         x == &&new_item

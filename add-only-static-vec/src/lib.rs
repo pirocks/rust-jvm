@@ -1,6 +1,7 @@
 #![feature(box_syntax)]
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::hash::Hash;
 use std::mem;
 use std::mem::transmute;
@@ -11,7 +12,7 @@ use static_rc::StaticRc;
 
 // pub const INITIAL_SIZE: usize = 100;
 
-pub type AddOnlyVecIDType = usize;
+pub type AddOnlyVecIDType = u32;
 
 pub struct AddOnlyVec<T> {
     //todo make this more type safe
@@ -69,7 +70,7 @@ impl<T> Drop for AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
         let mut guard = self.inner.write().unwrap();
         let AddOnlyIdMapInner { map, owner } = guard.deref_mut();
         map.drain().for_each(|(key, value)| {
-            mem::drop(StaticRc::<T, 2, 2>::join(owner[value.0].take().unwrap(), key));
+            mem::drop(StaticRc::<T, 2, 2>::join(owner[value.0 as usize].take().unwrap(), key));
         })
     }
 }
@@ -84,8 +85,8 @@ impl<T> AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
             None => {
                 assert_eq!(inner.owner.len(), next_id);
                 inner.owner.push(Some(right));
-                inner.map.insert(left, AddOnlyId(next_id));
-                AddOnlyId(next_id)
+                inner.map.insert(left, AddOnlyId(next_id.try_into().unwrap()));
+                AddOnlyId(next_id.try_into().unwrap())
             }
             Some(res) => {
                 StaticRc::<T, 2, 2>::join(left, right);
@@ -96,7 +97,7 @@ impl<T> AddOnlyIdMap<T> where T: PartialEq + Eq + Hash {
 
     pub fn lookup<'l>(&'l self, id: AddOnlyId) -> &'l T {
         let inner = self.inner.read().unwrap();
-        let res = inner.owner[id.0].as_ref().unwrap().deref();
+        let res = inner.owner[id.0 as usize].as_ref().unwrap().deref();
         unsafe { transmute::<&T, &'l T>(res) }//this is safe b/c we never free any boxes until self goes out of scope
     }
 

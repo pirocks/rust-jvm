@@ -3,6 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
@@ -16,13 +17,11 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_name: CClassName, expected_method_name: MethodName, expected_descriptor: ActuallyCompressedMD) {
 //todo handle monitor enter and exit
 //handle init cases
-    let view = int_state.current_class_view(jvm);
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
-    let class_name = class_name_type.unwrap_class_type();
     //todo  spec says where check_ is allowed. need to match that
+    let expected_descriptor = jvm.method_descriptor_pool.lookup(expected_descriptor);
     let target_class = match check_initing_or_inited_class(
         jvm,
         int_state,

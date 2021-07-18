@@ -6,8 +6,9 @@ use itertools::Itertools;
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
-use crate::classfile::{AttributeInfo, AttributeType, BootstrapMethods, Classfile, Code, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
+use crate::classfile::{AttributeType, BootstrapMethods, Classfile, Code, ConstantKind, FieldInfo, MethodInfo, UninitializedVariableInfo};
 use crate::classnames::class_name;
+use crate::compressed_classfile::code::CompressedCode;
 use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use crate::EXPECTED_CLASSFILE_MAGIC;
@@ -62,6 +63,7 @@ impl CompressedClassfileString {
 }
 
 pub mod names;
+pub mod descriptors;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum CompressedParsedVerificationType {
@@ -351,7 +353,7 @@ pub struct CompressedMethodInfo {
     pub access_flags: u16,
     pub name: CompressedClassfileString,
     pub descriptor: CompressedMethodDescriptor,
-    pub code: Option<Code>
+    pub code: Option<CompressedCode>,
 }
 
 pub struct CompressedClassfile {
@@ -368,9 +370,12 @@ pub struct CompressedClassfile {
     pub bootstrap_methods: Option<CompressedBootstrapMethods>,
 }
 
+
 pub struct CompressedBootstrapMethods {
     inner: BootstrapMethods,
 }
+
+pub mod code;
 
 impl CompressedClassfile {
     pub fn new(pool: &CompressedClassfileStringPool, classfile: &Classfile) -> Self {
@@ -429,8 +434,16 @@ impl CompressedClassfile {
             let arg_types = parameter_types.iter().map(|ptype| CompressedParsedDescriptorType::from_ptype(ptype, pool)).collect_vec();
             let mut code_attr = None;
             for attribute in attributes.iter() {
-                if let AttributeType::Code(code) = &attribute.attribute_type {
-                    code_attr = Some(code.clone())
+                if let AttributeType::Code(Code {
+                                               attributes,
+                                               max_stack,
+                                               max_locals,
+                                               code_raw,
+                                               code,
+                                               exception_table
+                                           }) = &attribute.attribute_type {
+                    // code_attr = Some(code.clone())
+                    todo!()
                 }
             }
             CompressedMethodInfo {

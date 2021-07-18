@@ -2,7 +2,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -76,10 +76,9 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         .unwrap_or(&empty_vec)
         .iter()
         .map(|x| x.catch_type)
-        .map(|x| if x == 0 {
-            CPRefType::Class(CClassName::throwable())
-        } else {
-            method_view.classview().constant_pool_view(x as usize).unwrap_class().class_ref_type()
+        .map(|x| match x {
+            None => CPRefType::Class(CClassName::throwable()),
+            Some(x) => CPRefType::Class(x)
         })
         .map(|x| {
             CPDType::Ref(x)

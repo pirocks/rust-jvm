@@ -7,6 +7,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -27,26 +28,19 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let (_resolved_class, method_name, expected_descriptor) = match match resolved_class(jvm, int_state, cp) {
-        Ok(res) => res,
-        Err(WasException {}) => return
-    } {
-        None => return,
-        Some(o) => { o }
-    };
+pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, expected_descriptor: ActuallyCompressedMD) {
     //let the main instruction check intresstate inste
-    let _ = invoke_virtual(jvm, int_state, method_name, &expected_descriptor);
+    let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: ActuallyCompressedMD, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method)
 }
 
 fn invoke_virtual_method_i_impl<'gc_life>(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: &CMethodDescriptor,
+    expected_descriptor: ActuallyCompressedMD,
     target_class: Arc<RuntimeClass<'gc_life>>,
     target_method: &MethodView,
 ) -> Result<(), WasException> {
@@ -157,7 +151,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: ActuallyCompressedMD) -> Result<(), WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() ||
         method_name == MethodName::constructor_clinit() {

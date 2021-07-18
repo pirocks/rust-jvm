@@ -85,7 +85,8 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let vf = VerifierContext {
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
-        pool: &jvm.string_pool,
+        string_pool: &jvm.string_pool,
+        method_descriptor_pool: &jvm.method_descriptor_pool,
         current_loader: loader.clone(),
         verification_types: Default::default(),
         debug: false,

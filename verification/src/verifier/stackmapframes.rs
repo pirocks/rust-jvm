@@ -24,7 +24,7 @@ pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
 pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
     let mut res = vec![];
     let code = method_info
-        .code_attribute()
+        .real_code_attribute()
         .expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let parsed_descriptor = method_info.desc();
     let empty_stack_map = StackMapTable { entries: Vec::new() };
@@ -32,9 +32,9 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
     let this_pointer = if method_info.is_static() {
         None
     } else {
-        Some(PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(vf.pool.lookup(class.class_name.0).to_string()))))
+        Some(PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(vf.string_pool.lookup(class.class_name.0).to_string()))))
     };
-    let mut frame = init_frame(parsed_descriptor.arg_types.iter().map(|x| PTypeView::from_compressed(x, vf.pool)).collect(), this_pointer, code.max_locals);
+    let mut frame = init_frame(parsed_descriptor.arg_types.iter().map(|x| PTypeView::from_compressed(x, vf.string_pool)).collect(), this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;
     for (_, entry) in stack_map.entries.iter().enumerate() {
@@ -57,10 +57,10 @@ pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, metho
             map_frame: Frame {
                 locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, PTypeView::TopType)
                     .iter()
-                    .map(|x| x.to_verification_type(&vf.current_loader, vf.pool))
+                    .map(|x| x.to_verification_type(&vf.current_loader, vf.string_pool))
                     .collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter()
-                    .map(|x| x.to_verification_type(&vf.current_loader, vf.pool))
+                    .map(|x| x.to_verification_type(&vf.current_loader, vf.string_pool))
                     .collect::<Vec<_>>()),
                 flag_this_uninit: false,
             },

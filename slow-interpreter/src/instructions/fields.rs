@@ -1,4 +1,4 @@
-use rust_jvm_common::compressed_classfile::CompressedFieldDescriptor;
+use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::instructions::special::extract_field_descriptor;
@@ -9,9 +9,7 @@ use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::utils::throw_npe;
 
-pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, field_descriptor) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
+pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
@@ -19,9 +17,8 @@ pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     target_classfile.static_vars().insert(field_name, field_value);
 }
 
-pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, CompressedFieldDescriptor(field_type)) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
+pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
+    let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let stack = &mut entry_mut.operand_stack_mut();
@@ -45,11 +42,8 @@ pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     }
 }
 
-pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: CClassName, field_name: FieldName, _field_descriptor: &CFieldDescriptor) {
     //todo make sure class pointer is updated correctly
-
-    let view = int_state.current_class_view(jvm);
-    let (field_class_name, field_name, _field_descriptor) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
     let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name) {
         Ok(val) => val,
         Err(WasException {}) => return
@@ -86,10 +80,7 @@ fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
     Ok(field_value)
 }
 
-pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16, _debug: bool) {
-    let current_frame = int_state.current_frame();
-    let view = current_frame.class_pointer(jvm).view();
-    let (field_class_name, field_name, CompressedFieldDescriptor(field_type)) = extract_field_descriptor(&jvm.string_pool, cp, &*view);
+pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {
     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
     let object_ref = int_state.current_frame_mut().pop(Some(RuntimeType::object()));
     match object_ref {

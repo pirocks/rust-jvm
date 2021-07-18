@@ -218,7 +218,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     classfile_getter: Arc::new(DefaultClassfileGetter {
                         jvm
                     }) as Arc<dyn ClassFileGetter>,
-                    pool: &jvm.string_pool,
+                    string_pool: &jvm.string_pool,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),

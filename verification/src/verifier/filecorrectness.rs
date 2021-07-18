@@ -18,8 +18,8 @@ pub fn different_runtime_package(vf: &VerifierContext, class1: &ClassWithLoader,
 }
 
 fn different_package_name(vf: &VerifierContext, class1: &ClassWithLoader, class2: &ClassWithLoader) -> bool {
-    let name1 = vf.pool.lookup(class1.class_name.0);
-    let name2 = vf.pool.lookup(class2.class_name.0);
+    let name1 = vf.string_pool.lookup(class1.class_name.0);
+    let name2 = vf.string_pool.lookup(class2.class_name.0);
     let split1: Vec<&str> = name1.split('/').collect();
     let split2: Vec<&str> = name2.split('/').collect();
     assert!(!split1.is_empty());
