@@ -13,12 +13,12 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
 
-pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_name: CClassName, expected_method_name: MethodName, expected_descriptor: ActuallyCompressedMD, count: NonZeroU8) {
+pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_name: CClassName, expected_method_name: MethodName, expected_descriptor_original: ActuallyCompressedMD, count: NonZeroU8) {
     // invoke_interface.count;//todo use this?
-    let expected_descriptor = jvm.method_descriptor_pool.lookup(expected_descriptor);
+    let expected_descriptor = jvm.method_descriptor_pool.lookup(expected_descriptor_original);
     let _target_class = check_initing_or_inited_class(jvm, int_state, class_name.into());
     let desc_len = expected_descriptor.arg_types.len();
-    assert_eq!(desc_len + 1, invoke_interface.count as usize);
+    assert_eq!(desc_len + 1, count.get() as usize);
     let current_frame = int_state.current_frame();
     let operand_stack_ref = current_frame.operand_stack(jvm);
     let operand_stack_len = operand_stack_ref.len();
@@ -28,5 +28,5 @@ pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     let target_class = this_pointer.objinfo.class_pointer.clone();
     let (target_method_i, final_target_class) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
-    let _ = invoke_virtual_method_i(jvm, int_state, &expected_descriptor, final_target_class.clone(), &final_target_class.view().method_view_i(target_method_i));
+    let _ = invoke_virtual_method_i(jvm, int_state, expected_descriptor_original, final_target_class.clone(), &final_target_class.view().method_view_i(target_method_i));
 }

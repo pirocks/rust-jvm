@@ -5,7 +5,6 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::check_initing_or_inited_class;

@@ -1,5 +1,3 @@
-use std::net::ToSocketAddrs;
-
 use regex::Regex;
 
 use classfile_view::view::{ClassView, HasAccessFlags};

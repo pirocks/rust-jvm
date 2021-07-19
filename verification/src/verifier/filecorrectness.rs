@@ -405,9 +405,10 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
                 Descriptor::Method(m) => m,
                 _ => { panic!(); }
             };
-            if &parsed_member_types.arg_types == &member_types.arg_types && parsed_member_types.return_type == member_types.return_type {
+            /*if &parsed_member_types.arg_types == &member_types.arg_types && parsed_member_types.return_type == member_types.return_type {
                 return method.is_protected();
-            }
+            }*/
+            todo!()
         }
     }
     for field in class.fields() {

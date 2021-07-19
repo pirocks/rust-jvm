@@ -1,7 +1,6 @@
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
-use verification::verifier::instructions::special::extract_field_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};

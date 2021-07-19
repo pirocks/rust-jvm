@@ -75,7 +75,6 @@ pub trait ClassView: HasAccessFlags {
 pub struct ClassBackedView {
     underlying_class: Arc<Classfile>,
     backing_class: CompressedClassfile,
-    method_index: RwLock<Option<Arc<MethodIndex>>>,
     descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
 }
 
@@ -84,20 +83,7 @@ impl ClassBackedView {
     pub fn from(c: Arc<Classfile>, pool: &CompressedClassfileStringPool) -> ClassBackedView {
         let backing_class = CompressedClassfile::new(pool, c.deref());
         let descriptor_index = RwLock::new(vec![None; c.methods.len()]);
-        ClassBackedView { underlying_class: c, backing_class, method_index: RwLock::new(None), descriptor_index }
-    }
-
-    fn method_index(&self) -> Arc<MethodIndex> {
-        let read_guard = self.method_index.read().unwrap();
-        match read_guard.as_ref() {
-            None => {
-                let res = MethodIndex::new(self);
-                std::mem::drop(read_guard);
-                self.method_index.write().unwrap().replace(Arc::new(res));
-                self.method_index()
-            }
-            Some(index) => { index.clone() }
-        }
+        ClassBackedView { underlying_class: c, backing_class, descriptor_index }
     }
 }
 
@@ -206,63 +192,12 @@ impl ClassView for ClassBackedView {
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
-        self.method_index().lookup(self, name, desc)
+        todo!()
     }
     fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView> {
-        self.method_index().lookup_method_name(self, name)
+        todo!()
     }
 }
-
-
-//todo deprecate this method index in favor of compressed-classfile indexing on creation
-pub struct MethodIndex {
-    index: HashMap<MethodName, HashMap<CMethodDescriptor, u16>>,
-}
-
-impl MethodIndex {
-    fn new(c: &ClassBackedView) -> Self {
-        let mut res = Self { index: HashMap::new() };
-        for method_view in c.methods() {
-            let name = method_view.name();
-            let parsed_desc = method_view.desc();
-            let method_i = method_view.method_i;
-            match res.index.get_mut(&name) {
-                None => {
-                    let new_hashmap = HashMap::from_iter(vec![(parsed_desc.clone(), method_i)].into_iter());
-                    res.index.insert(name, new_hashmap);
-                }
-                Some(method_descriptors) => {
-                    method_descriptors.insert(parsed_desc.clone(), method_i);
-                }
-            }
-        }
-        res
-    }
-    fn lookup<'cl>(&self, c: &'cl ClassBackedView, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView<'cl>> {
-        self.index.get(&name)
-            .and_then(|x| x.get(desc))
-            .map(
-                |method_i|
-                    MethodView {
-                        class_view: c,
-                        method_i: *method_i,
-                    }
-            )
-    }
-    fn lookup_method_name<'cl>(&self, c: &'cl ClassBackedView, name: MethodName) -> Vec<MethodView<'cl>> {
-        self.index.get(&name)
-            .map(
-                |methods|
-                    methods.values().map(|method_i| {
-                        MethodView {
-                            class_view: c,
-                            method_i: *method_i,
-                        }
-                    }).collect::<Vec<MethodView>>()
-            ).unwrap_or(vec![])
-    }
-}
-
 
 impl HasAccessFlags for ClassBackedView {
     fn access_flags(&self) -> u16 {

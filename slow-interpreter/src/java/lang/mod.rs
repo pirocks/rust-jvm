@@ -555,7 +555,6 @@ pub mod thread {
 
     use itertools::Itertools;
 
-    use classfile_parser::parse_validation::AttributeEnclosingType::Field;
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};

@@ -163,6 +163,7 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 //we assume that it isn't signature polymorphic for now todo
 
 //Let C be the class of objectref.
+    let md = jvm.method_descriptor_pool.lookup(md);
     let this_pointer = {
         let current_frame = int_state.current_frame();
         let operand_stack = &current_frame.operand_stack(jvm);

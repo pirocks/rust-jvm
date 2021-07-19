@@ -677,7 +677,9 @@ pub mod call_site {
         pub fn get_target(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodHandle<'gc_life>, WasException> {
             let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) })?;
+            let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) };
+            let desc = jvm.method_descriptor_pool.add_descriptor(desc);
+            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), desc)?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 
