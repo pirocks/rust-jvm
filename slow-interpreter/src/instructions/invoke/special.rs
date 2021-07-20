@@ -14,8 +14,7 @@ use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::interpreter::{run_function, WasException};
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: ActuallyCompressedMD) {
-    let parsed_descriptor = jvm.method_descriptor_pool.lookup(parsed_descriptor);
+pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
     let target_class = match check_initing_or_inited_class(
         jvm,
         int_state,

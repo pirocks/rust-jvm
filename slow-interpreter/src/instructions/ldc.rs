@@ -1,5 +1,8 @@
+use itertools::Either;
+
 use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
@@ -13,9 +16,8 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryMut;
 
-fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, c: &ClassPoolElemView) -> Result<(), WasException> {
-    let res_class_name = c.class_ref_type();
-    let type_ = CPDType::Ref(res_class_name);
+fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ccn: CClassName) -> Result<(), WasException> {
+    let type_ = ccn.into();
     load_class_constant_by_type(jvm, int_state, type_)?;
     Ok(())
 }
@@ -73,48 +75,51 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     Ok(())
 }
 
-pub fn ldc2_w(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, cp: u16) {
-    let view = current_frame.class_pointer(jvm).view();
-    let pool_entry = &view.constant_pool_view(cp as usize);
-    match &pool_entry {
-        ConstantInfoView::Long(l) => {
-            current_frame.push(JavaValue::Long(l.long));
+pub fn ldc2_w(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, ldc2w: &CompressedLdc2W) {
+    match ldc2w {
+        CompressedLdc2W::Long(l) => {
+            current_frame.push(JavaValue::Long(*l));
         }
-        ConstantInfoView::Double(d) => {
-            current_frame.push(JavaValue::Double(d.double));
+        CompressedLdc2W::Double(d) => {
+            current_frame.push(JavaValue::Double(*d));
         }
         _ => {}
     }
 }
 
 
-pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
-    let view = int_state.current_class_view(jvm).clone();
-    let pool_entry = &view.constant_pool_view(cp as usize);
-    match &pool_entry {
-        ConstantInfoView::String(s) => {
-            let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, s.string()).expect("todo").object().into()).java_value();
-            int_state.push_current_operand_stack(string_value)
-        }
-        ConstantInfoView::Class(c) => match load_class_constant(jvm, int_state, &c) {
-            Err(WasException {}) => {
-                return;
+pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) {
+    match either {
+        Either::Left(ldcw) => {
+            match &ldcw {
+                CompressedLdcW::String { str } => {
+                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.to_str(&jvm.string_pool).to_string()).expect("todo").object().into()).java_value();
+                    int_state.push_current_operand_stack(string_value)
+                }
+                CompressedLdcW::Class { name } => match load_class_constant(jvm, int_state, *name) {
+                    Err(WasException {}) => {
+                        return;
+                    }
+                    Ok(()) => {}
+                },
+                CompressedLdcW::Float { float } => {
+                    let float: f32 = *float;
+                    int_state.push_current_operand_stack(JavaValue::Float(float));
+                }
+                CompressedLdcW::Integer { integer } => {
+                    let int: i32 = *integer;
+                    int_state.push_current_operand_stack(JavaValue::Int(int));
+                }
+                _ => {
+                    // dbg!(cp);
+                    int_state.debug_print_stack_trace(jvm);
+                    // dbg!(&pool_entry);
+                    unimplemented!()
+                }
             }
-            Ok(()) => {}
-        },
-        ConstantInfoView::Float(f) => {
-            let float: f32 = f.float;
-            int_state.push_current_operand_stack(JavaValue::Float(float));
         }
-        ConstantInfoView::Integer(i) => {
-            let int: i32 = i.int;
-            int_state.push_current_operand_stack(JavaValue::Int(int));
-        }
-        _ => {
-            // dbg!(cp);
-            int_state.debug_print_stack_trace(jvm);
-            // dbg!(&pool_entry);
-            unimplemented!()
+        Either::Right(ldc2w) => {
+            todo!()
         }
     }
 }

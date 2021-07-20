@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -7,8 +9,14 @@ use crate::classnames::ClassName;
 use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedRefType};
 use crate::compressed_classfile::names::PredefinedStrings::*;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct CompressedClassName(pub CompressedClassfileString);
+
+impl Debug for CompressedClassName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.id.0)
+    }
+}
 
 pub type CClassName = CompressedClassName;
 
@@ -357,6 +365,7 @@ enum PredefinedStrings {
     method_isStatic,
     method_length,
     method_linkToStatic,
+    method_linkToVirtual,
     method_loadClass,
     method_lookup,
     method_objectFieldOffset,
@@ -513,7 +522,8 @@ impl PredefinedStrings {
             method_toString => "toString".to_string(),
             method_initializeSystemClass => "initializeSystemClass".to_string(),
             constructor_init => "<init>".to_string(),
-            constructor_clinit => "<clinit>".to_string()
+            constructor_clinit => "<clinit>".to_string(),
+            method_linkToVirtual => "linkToVirtual".to_string()
         }
     }
 }
@@ -729,8 +739,14 @@ impl FieldName {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct MethodName(pub CompressedClassfileString);
+
+impl Debug for MethodName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.id.0)
+    }
+}
 
 #[allow(non_snake_case)]
 impl MethodName {
@@ -817,6 +833,9 @@ impl MethodName {
     }
     pub fn method_linkToStatic() -> Self {
         Self::from_raw_id(method_linkToStatic)
+    }
+    pub fn method_linkToVirtual() -> Self {
+        Self::from_raw_id(method_linkToVirtual)
     }
     pub fn method_loadClass() -> Self {
         Self::from_raw_id(method_loadClass)

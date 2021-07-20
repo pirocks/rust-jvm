@@ -61,6 +61,7 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
         string_pool: &jvm.string_pool,
+        method_descriptor_pool: &jvm.method_descriptor_pool,
         current_loader,
         verification_types: Default::default(),
         debug: false,

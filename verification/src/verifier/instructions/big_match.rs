@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use rust_jvm_common::classfile::{Atype, Instruction, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
-use rust_jvm_common::compressed_classfile::CPRefType;
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
-use crate::verifier::instructions::{instruction_is_type_safe_dup, instruction_is_type_safe_dup2, instruction_is_type_safe_dup2_x1, instruction_is_type_safe_dup2_x2, instruction_is_type_safe_dup_x1, instruction_is_type_safe_dup_x2, instruction_is_type_safe_i2d, instruction_is_type_safe_i2f, instruction_is_type_safe_i2l, instruction_is_type_safe_iadd, instruction_is_type_safe_iinc, instruction_is_type_safe_ineg, instruction_is_type_safe_l2d, instruction_is_type_safe_l2f, instruction_is_type_safe_l2i, instruction_is_type_safe_ladd, instruction_is_type_safe_lcmp, instruction_is_type_safe_ldc, instruction_is_type_safe_ldc2_w, instruction_is_type_safe_ldc_w, instruction_is_type_safe_lneg, instruction_is_type_safe_lshl, instruction_is_type_safe_nop, instruction_is_type_safe_pop, instruction_is_type_safe_pop2, instruction_is_type_safe_sipush, instruction_is_type_safe_swap, InstructionTypeSafe};
+use crate::verifier::instructions::*;
 use crate::verifier::instructions::branches::*;
 use crate::verifier::instructions::consts::*;
 use crate::verifier::instructions::float::*;
@@ -17,6 +17,9 @@ use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environment, offset: u16, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     env.vf.verification_types.entry(env.method.method_index as u16).or_insert(HashMap::new()).insert(offset, stack_frame.clone());
+    dbg!(&instruction.offset);
+    dbg!(&instruction.info);
+    dbg!(&stack_frame.locals);
     match &instruction.info {
         CInstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         CInstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
@@ -172,10 +175,10 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::ineg => instruction_is_type_safe_ineg(env, stack_frame),
         CInstructionInfo::instanceof(_) => instruction_is_type_safe_instanceof(env, stack_frame),
         CInstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame),
-        CInstructionInfo::invokeinterface { method_name, descriptor, classname, count } => instruction_is_type_safe_invokeinterface(*method_name, *descriptor, &CPRefType::Class(*classname), count.get() as usize, env, stack_frame),
-        CInstructionInfo::invokespecial { method_name, descriptor, classname } => instruction_is_type_safe_invokespecial(&(*classname).into(), *method_name, descriptor, env, stack_frame),
-        CInstructionInfo::invokestatic { method_name, descriptor, classname } => instruction_is_type_safe_invokestatic(*method_name, *descriptor, env, stack_frame),
-        CInstructionInfo::invokevirtual { method_name, descriptor, classname } => instruction_is_type_safe_invokevirtual(&(*classname).into(), *method_name, *descriptor, env, stack_frame),
+        CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => instruction_is_type_safe_invokeinterface(*method_name, descriptor, classname_ref_type, count.get() as usize, env, stack_frame),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokespecial(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokestatic(*method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokevirtual(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
         CInstructionInfo::ior => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::irem => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, stack_frame),
@@ -201,7 +204,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, stack_frame),
         CInstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, stack_frame),
         CInstructionInfo::lconst_1 => instruction_is_type_safe_lconst_0(env, stack_frame),
-        CInstructionInfo::ldc(cldc) => instruction_is_type_safe_ldc(cldc, env, stack_frame),
+        CInstructionInfo::ldc(cldc) => instruction_is_type_safe_ldc_w(&cldc.as_ref().left().unwrap(), env, stack_frame),
         CInstructionInfo::ldc_w(cp) => instruction_is_type_safe_ldc_w(cp, env, stack_frame),
         CInstructionInfo::ldc2_w(cldc2w) => instruction_is_type_safe_ldc2_w(cldc2w, env, stack_frame),
         CInstructionInfo::ldiv => instruction_is_type_safe_ladd(env, stack_frame),

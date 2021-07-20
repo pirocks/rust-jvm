@@ -137,11 +137,10 @@ pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, in
         Some(x) => x,
         None => panic!(),
     };
-    let md = jvm.method_descriptor_pool.add_descriptor(method_view.desc().clone());
     if method_view.is_static() {
-        invoke_static_impl(jvm, int_state, md, class.clone(), method_view.method_i(), &method_view)
+        invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view)
     } else {
-        invoke_virtual_method_i(jvm, int_state, md, class.clone(), &method_view)
+        invoke_virtual_method_i(jvm, int_state, desc, class.clone(), &method_view)
     }
 }
 

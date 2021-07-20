@@ -16,23 +16,14 @@ pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
 }
 
 
-pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
     let len = match int_state.current_frame_mut().pop(Some(RuntimeType::IntType)) {
         JavaValue::Int(i) => i,
         _ => panic!()
     };
-    let view = &int_state.current_frame().class_pointer(jvm).view();
-    let cp_entry = &view.constant_pool_view(cp as usize);
-    match cp_entry {
-        ConstantInfoView::Class(c) => {
-            let type_ = CPDType::Ref(c.class_ref_type());
-            if let Err(_) = a_new_array_from_name(jvm, int_state, len, type_) {
-                return;
-            }
-        }
-        _ => {
-            panic!()
-        }
+    let type_ = cpdtype.clone();
+    if let Err(_) = a_new_array_from_name(jvm, int_state, len, type_) {
+        return;
     }
 }
 

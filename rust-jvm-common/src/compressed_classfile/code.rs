@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::num::NonZeroU8;
 
+use itertools::Either;
+
 use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, TableSwitch, Wide};
-use crate::compressed_classfile::{CCString, CFieldDescriptor, CPDType};
-use crate::compressed_classfile::descriptors::ActuallyCompressedMD;
+use crate::compressed_classfile::{CCString, CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
 use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
 pub type CInstruction = CompressedInstruction;
@@ -160,24 +161,24 @@ pub enum CompressedInstructionInfo {
     invokedynamic(CPIndex),
     invokeinterface {
         method_name: MethodName,
-        descriptor: ActuallyCompressedMD,
-        classname: CClassName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
         count: NonZeroU8,
     },
     invokespecial {
         method_name: MethodName,
-        descriptor: ActuallyCompressedMD,
-        classname: CClassName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
     },
     invokestatic {
         method_name: MethodName,
-        descriptor: ActuallyCompressedMD,
-        classname: CClassName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
     },
     invokevirtual {
         method_name: MethodName,
-        descriptor: ActuallyCompressedMD,
-        classname: CClassName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
     },
     ior,
     irem,
@@ -204,7 +205,7 @@ pub enum CompressedInstructionInfo {
     lcmp,
     lconst_0,
     lconst_1,
-    ldc(CompressedLdc2W),
+    ldc(Either<CompressedLdcW, CompressedLdc2W>),
     ldc_w(CompressedLdcW),
     ldc2_w(CompressedLdc2W),
     ldiv,

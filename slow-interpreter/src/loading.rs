@@ -64,6 +64,7 @@ impl Classpath {
             let mut new_path = path.clone().into_path_buf();
             new_path.push(format!("{}.class", class_name.0.to_str(pool)));
             if new_path.is_file() {
+                dbg!(&new_path);
                 let file_read = &mut File::open(new_path).unwrap();
                 let classfile = parse_class_file(file_read)?;
                 return Result::Ok(Arc::new(classfile));

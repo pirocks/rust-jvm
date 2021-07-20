@@ -28,19 +28,19 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, expected_descriptor: ActuallyCompressedMD) {
+pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //let the main instruction check intresstate inste
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: ActuallyCompressedMD, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method)
 }
 
 fn invoke_virtual_method_i_impl<'gc_life>(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: ActuallyCompressedMD,
+    expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
     target_method: &MethodView,
 ) -> Result<(), WasException> {
@@ -151,7 +151,7 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: ActuallyCompressedMD) -> Result<(), WasException> {
+pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: &CMethodDescriptor) -> Result<(), WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() ||
         method_name == MethodName::constructor_clinit() {
@@ -163,7 +163,6 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 //we assume that it isn't signature polymorphic for now todo
 
 //Let C be the class of objectref.
-    let md = jvm.method_descriptor_pool.lookup(md);
     let this_pointer = {
         let current_frame = int_state.current_frame();
         let operand_stack = &current_frame.operand_stack(jvm);

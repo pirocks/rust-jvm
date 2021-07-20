@@ -31,7 +31,7 @@ pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
 }
 
 
-pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
     let possibly_null = int_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
@@ -45,8 +45,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     };
     match object.deref() {
         Object(o) => {
-            let view = &int_state.current_frame().class_pointer(jvm).view();
-            let instance_of_class_name = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type().unwrap_name();
+            let instance_of_class_name = cpdtype.unwrap_class_type();
             let instanceof_class = match check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()) {
                 Ok(x) => x,
                 Err(WasException {}) => return,
@@ -65,13 +64,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
             }
         }
         Array(a) => {
-            let current_frame_class = &int_state.current_frame().class_pointer(jvm).view();
-            let instance_of_class = current_frame_class
-                .constant_pool_view(cp as usize)
-                .unwrap_class().class_ref_type();
-            let expected_type_wrapped = CPDType::Ref(instance_of_class);
-
-            let expected_type = expected_type_wrapped.unwrap_array_type();
+            let expected_type = cpdtype.unwrap_array_type();
             let cast_succeeds = match &a.elem_type {
                 CPDType::Ref(_) => {
                     //todo wrong for varying depth arrays?
@@ -105,11 +98,10 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
 }
 
 
-pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) {
+pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
     let possibly_null = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     if let Some(unwrapped) = possibly_null {
-        let view = &int_state.current_class_view(jvm);
-        let instance_of_class_type = view.constant_pool_view(cp as usize).unwrap_class().class_ref_type();
+        let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
         if let Err(WasException {}) = instance_of_impl(jvm, int_state, unwrapped, instance_of_class_type) {
             return;
         }
@@ -244,7 +236,7 @@ pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
         Wide::IInc(iinc) => {
             let IInc { index, const_ } = iinc;
             let mut val = current_frame.local_vars().get(*index, RuntimeType::IntType).unwrap_int();
-            val += const_ as i32;
+            val += *const_ as i32;
             current_frame.local_vars_mut().set(*index, JavaValue::Int(val));
         }
     }

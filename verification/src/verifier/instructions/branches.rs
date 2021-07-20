@@ -114,11 +114,10 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: ActuallyCompressedMD, ref_type: &CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: &CMethodDescriptor, ref_type: &CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
     }
-    let descriptor = env.vf.method_descriptor_pool.lookup(descriptor);
     let mut operand_arg_list: Vec<_> = descriptor.arg_types.iter().rev().map(|x| { x.to_verification_type(env.class_loader) }).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
     let current_loader = env.class_loader.clone();
@@ -143,13 +142,12 @@ fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame:
     }
 }
 
-pub fn instruction_is_type_safe_invokespecial(method_class_type: &CPDType, method_name: MethodName, parsed_descriptor: &ActuallyCompressedMD, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokespecial(method_class_type: &CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class_name = match method_class_type {
         CPDType::Ref(CPRefType::Class(c)) => c,
         _ => panic!()
     };
     let method_desc_pool = env.vf.method_descriptor_pool;
-    let parsed_descriptor = method_desc_pool.lookup(*parsed_descriptor);
     if method_name == MethodName::constructor_init() {
         invoke_special_init(&env, stack_frame, *method_class_name, parsed_descriptor)
     } else {
@@ -299,8 +297,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
     Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
 
-pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_descriptor: ActuallyCompressedMD, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let parsed_descriptor = env.vf.method_descriptor_pool.lookup(parsed_descriptor);
+pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_name_str = method_name.0.to_str(env.vf.string_pool);
     if method_name_str.contains("arrayOf") || method_name_str.contains('[') || method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         unimplemented!();
@@ -313,7 +310,7 @@ pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_des
         .cloned()
         .collect();
     let return_type = parsed_descriptor.return_type.to_verification_type(env.class_loader);
-    if method_name == todo!()/*MethodName::method_linkToStatic()*/ || method_name == todo!()/*MethodName::method_linkToVirtual()*/ {
+    if method_name == MethodName::method_linkToStatic() || method_name == MethodName::method_linkToVirtual() {
         //todo should handle polymorphism better
         let mut next_stack_frame = stack_frame.stack_map.clone();
         stack_arg_list.iter().for_each(|_| {
@@ -333,8 +330,7 @@ pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_des
     }
 }
 
-pub fn instruction_is_type_safe_invokevirtual(class_type: &CPDType, method_name: MethodName, parsed_descriptor: ActuallyCompressedMD, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let parsed_descriptor = env.vf.method_descriptor_pool.lookup(parsed_descriptor);
+pub fn instruction_is_type_safe_invokevirtual(class_type: &CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_name, method_class) = match class_type {
         CPDType::Ref(r) => {
             match r {

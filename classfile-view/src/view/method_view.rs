@@ -46,13 +46,11 @@ impl MethodView<'_> {
     }
 
     pub fn desc_str(&self) -> CCString {
-        todo!()
-        // self.method_info().descriptor_str(&self.class_view.backing_class)
+        self.class_view.backing_class.methods[self.method_i as usize].descriptor_str
     }
 
     pub fn desc(&self) -> &CMethodDescriptor {
-        todo!()
-        // &self.class_view.backing_class.methods[self.method_i as usize].descriptor
+        &self.class_view.backing_class.methods[self.method_i as usize].descriptor
     }
 
     pub fn code_attribute(&self) -> Option<&CompressedCode> {

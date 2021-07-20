@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
@@ -16,15 +16,14 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_name: CClassName, expected_method_name: MethodName, expected_descriptor: ActuallyCompressedMD) {
+pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
 //todo handle monitor enter and exit
 //handle init cases
     //todo  spec says where check_ is allowed. need to match that
-    let expected_descriptor = jvm.method_descriptor_pool.lookup(expected_descriptor);
     let target_class = match check_initing_or_inited_class(
         jvm,
         int_state,
-        class_name.into(),
+        CPDType::Ref(ref_type),
     ) {
         Ok(x) => x,
         Err(WasException {}) => return,

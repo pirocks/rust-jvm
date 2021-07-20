@@ -215,7 +215,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         })
     }
 
-    pub fn new_monitor(&self, name: String) -> Arc<Monitor2> {
+    pub fn new_monitor(&self, _name: String) -> Arc<Monitor2> {
         let mut monitor_guard = self.monitors.write().unwrap();
         let index = monitor_guard.len();
         let res = Arc::new(Monitor2::new(index));

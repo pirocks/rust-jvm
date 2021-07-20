@@ -59,7 +59,9 @@ impl Classfile {
             ConstantKind::Class(c) => {
                 c.name_index
             }
-            _ => {
+            entry => {
+                dbg!(i);
+                dbg!(entry);
                 panic!();
             }
         };

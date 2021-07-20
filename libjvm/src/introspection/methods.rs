@@ -80,7 +80,7 @@ unsafe fn get_code_attr<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method
     get_method_view(env, cb, method_index, |method_view| {
         let jvm = get_state(env);
         let int_state = get_interpreter_state(env);
-        let code_attr = match method_view.code_attribute() {
+        let code_attr = match method_view.real_code_attribute() {
             Some(x) => x,
             None => {
                 return throw_illegal_arg_res(jvm, int_state);

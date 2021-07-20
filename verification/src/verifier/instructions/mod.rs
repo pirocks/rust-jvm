@@ -645,16 +645,16 @@ pub fn loadable_constant_w(vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
     }
 }
 
-pub fn instruction_is_type_safe_ldc(const_: &CompressedLdc2W, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, &env.method.class);
-    let type_: VType = loadable_constant_w(&env.vf, const_);
-    match type_ {
-        VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
-        VType::LongType => { return Result::Err(unknown_error_verifying!()); }
-        _ => {}
-    };
-    type_transition(env, stack_frame, vec![], type_)
-}
+// pub fn instruction_is_type_safe_ldc(const_: &CompressedLdc2W, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+//     let view = get_class(&env.vf, &env.method.class);
+//     let type_: VType = loadable_constant_w(&env.vf, const_);
+//     match type_ {
+//         VType::DoubleType => { return Result::Err(unknown_error_verifying!()); }
+//         VType::LongType => { return Result::Err(unknown_error_verifying!()); }
+//         _ => todo!()
+//     };
+//     type_transition(env, stack_frame, vec![], type_)
+// }
 
 pub fn instruction_is_type_safe_ldc_w(const_: &CompressedLdcW, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let view = get_class(&env.vf, &env.method.class);

@@ -8,7 +8,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
-use rust_jvm_common::loading::ClassWithLoader;
+use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;
@@ -83,7 +83,7 @@ pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: Fram
 
 pub fn array_component_type(type_: VType) -> Result<VType, TypeSafetyError> {
     Result::Ok(match type_ {
-        VType::ArrayReferenceType(a) => VType::ArrayReferenceType(a),
+        VType::ArrayReferenceType(a) => a.to_verification_type(LoaderName::BootstrapLoader),//todo fix this bootstrap loader stuff
         VType::NullType => VType::NullType,
         _ => panic!()
     })

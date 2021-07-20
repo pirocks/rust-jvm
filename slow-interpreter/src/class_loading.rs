@@ -219,6 +219,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                         jvm
                     }) as Arc<dyn ClassFileGetter>,
                     string_pool: &jvm.string_pool,
+                    method_descriptor_pool: &jvm.method_descriptor_pool,
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
