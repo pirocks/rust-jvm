@@ -65,7 +65,7 @@ pub mod dynamic {
             ConstantInfoView::InvokeDynamic(id) => id,
             _ => panic!(),
         };
-        let other_name = invoke_dynamic_view.name_and_type().name();//todo get better names
+        let other_name = invoke_dynamic_view.name_and_type().name(&jvm.string_pool);//todo get better names
         let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
 
 
@@ -170,7 +170,7 @@ pub mod dynamic {
                     InvokeStatic::Method(mr) => {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
-                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
+                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool))?;
                         let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                         let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
@@ -185,7 +185,7 @@ pub mod dynamic {
                         {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
-                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name().to_str(&jvm.string_pool))?;
+                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool))?;
                             let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
@@ -201,7 +201,7 @@ pub mod dynamic {
 
 fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, MethodName, CMethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
-    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(cp as usize, &*view);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(&jvm.string_pool, cp as usize, &*view);
     let class_name_ = match class_name_type {
         CPDType::Ref(r) => match r {
             CPRefType::Class(c) => c,

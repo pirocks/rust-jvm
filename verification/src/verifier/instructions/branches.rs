@@ -6,7 +6,7 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::{InstructionInfo, UninitializedVariableInfo};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -98,7 +98,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     let method_class = get_class(&env.vf, &env.method.class);
     let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InvokeDynamic(i) => {
-            (MethodName(i.name_and_type().name()), i.name_and_type().desc_method())
+            (MethodName(i.name_and_type().name(env.vf.string_pool)), i.name_and_type().desc_method(env.vf.string_pool))
         }
         _ => panic!()
     };
@@ -366,17 +366,17 @@ pub fn instruction_is_type_safe_invokevirtual(class_type: &CPDType, method_name:
     standard_exception_frame(locals, flag, nf)
 }
 
-pub fn get_method_descriptor(cp: usize, classfile: &dyn ClassView) -> (CPDType, MethodName, CMethodDescriptor) {
+pub fn get_method_descriptor(pool: &CompressedClassfileStringPool, cp: usize, classfile: &dyn ClassView) -> (CPDType, MethodName, CMethodDescriptor) {
     let c = &classfile.constant_pool_view(cp);
     let (ref_type, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {
             let ref_type = m.class();
-            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
+            let (method_name, descriptor) = (m.name_and_type().name(pool), m.name_and_type().desc_method(pool));
             (ref_type, MethodName(method_name), descriptor)
         }
         ConstantInfoView::InterfaceMethodref(m) => {
             let ref_type = m.class();
-            let (method_name, descriptor) = (m.name_and_type().name(), m.name_and_type().desc_method());
+            let (method_name, descriptor) = (m.name_and_type().name(pool), m.name_and_type().desc_method(pool));
             (ref_type, MethodName(method_name), descriptor)
         }
         _ => todo!()

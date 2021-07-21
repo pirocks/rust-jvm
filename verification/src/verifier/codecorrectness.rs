@@ -3,10 +3,8 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 
-use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::classfile::Instruction;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
@@ -145,8 +143,6 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &method.class);
     let method_view = method_class.method_view_i(method.method_index as u16);
-    dbg!(method_class.type_().unwrap_class_type().0.to_str(vf.string_pool));
-    dbg!(method_view.name().0.to_str(vf.string_pool));
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())
@@ -172,12 +168,6 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let method_class = get_class(vf, &class);
     let method_info = &method_class.method_view_i(method.method_index as u16);
     let code = method_info.code_attribute().unwrap();
-    let other_code = method_info.real_code_attribute().unwrap();
-    dbg!(method_info.method_i());
-    code.instructions.iter().sorted_by_key(|(offset, _)| *offset).zip(other_code.code.iter()).for_each(|(_1, _2)| {
-        dbg!(_2);
-        dbg!(_1);
-    });
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
     let mut final_offset = 0;
@@ -194,7 +184,6 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     instructs.push(&end_of_code);
     let handlers = get_handlers(vf, &class, code);
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, &class, method_info);
-    dbg!(&stack_map);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
     let (frame, return_type) = method_initial_stack_frame(vf, &class, &method, frame_size)?;
     let mut env = Environment { method, max_stack, frame_size: frame_size as u16, merged_code: Some(&merged), class_loader: class.loader.clone(), handlers, return_type, vf };

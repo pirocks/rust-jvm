@@ -51,9 +51,11 @@ impl CompressedClassName {
     pub const fn double() -> Self {
         Self::from_raw_id(JAVA_LANG_DOUBLE as AddOnlyVecIDType)
     }
+
     pub const fn int() -> Self {
         Self::from_raw_id(JAVA_LANG_INTEGER as AddOnlyVecIDType)
     }
+
     pub const fn long() -> Self {
         Self::from_raw_id(JAVA_LANG_LONG as AddOnlyVecIDType)
     }

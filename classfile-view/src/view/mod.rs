@@ -3,6 +3,8 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
+use itertools::Itertools;
+
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, Classfile, ConstantKind};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
@@ -192,10 +194,10 @@ impl ClassView for ClassBackedView {
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
-        todo!()
+        self.backing_class.methods.iter().enumerate().filter(|(_, method)| method.name == name.0 && &method.descriptor == desc).map(|(i, _)| MethodView { class_view: self, method_i: i as u16 }).next()
     }
     fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView> {
-        todo!()
+        self.backing_class.methods.iter().enumerate().filter(|(_, method)| method.name == name.0).map(|(i, _)| MethodView { class_view: self, method_i: i as u16 }).collect_vec()
     }
 }
 

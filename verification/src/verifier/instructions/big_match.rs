@@ -17,9 +17,6 @@ use crate::verifier::TypeSafetyError;
 
 pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environment, offset: u16, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     env.vf.verification_types.entry(env.method.method_index as u16).or_insert(HashMap::new()).insert(offset, stack_frame.clone());
-    dbg!(&instruction.offset);
-    dbg!(&instruction.info);
-    dbg!(&stack_frame.locals);
     match &instruction.info {
         CInstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         CInstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),

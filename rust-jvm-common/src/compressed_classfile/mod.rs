@@ -7,7 +7,7 @@ use itertools::{Either, Itertools};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
-use crate::classfile::{AttributeType, BootstrapMethods, Class, Classfile, Code, ConstantInfo, ConstantKind, ExceptionTableElem, FieldInfo, Fieldref, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, MethodInfo, Methodref, MultiNewArray, String_, UninitializedVariableInfo};
+use crate::classfile::{AttributeType, BootstrapMethods, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, String_, UninitializedVariableInfo};
 use crate::classnames::class_name;
 use crate::compressed_classfile::code::{CInstructionInfo, CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -722,7 +722,9 @@ impl CompressedClassfile {
             InstructionInfo::ldc_w(cp) => {
                 CInstructionInfo::ldc_w(CompressedClassfile::constant_value(pool, constant_pool, *cp).unwrap_left())
             }
-            InstructionInfo::ldc2_w(_) => todo!(),
+            InstructionInfo::ldc2_w(cp) => {
+                CInstructionInfo::ldc2_w(CompressedClassfile::constant_value(pool, constant_pool, *cp).unwrap_right())
+            },
             InstructionInfo::ldiv => CInstructionInfo::ldiv,
             InstructionInfo::lload(idx) => CInstructionInfo::lload(*idx),
             InstructionInfo::lload_0 => CInstructionInfo::lload_0,
@@ -793,9 +795,15 @@ impl CompressedClassfile {
             ConstantKind::Integer(Integer { bytes }) => {
                 Either::Left(CompressedLdcW::Integer { integer: bytes as i32 })
             },
-            ConstantKind::Float(_) => todo!(),
-            ConstantKind::Long(_) => todo!(),
-            ConstantKind::Double(_) => todo!(),
+            ConstantKind::Float(Float { bytes }) => {
+                Either::Left(CompressedLdcW::Float { float: f32::from_ne_bytes(bytes.to_ne_bytes()) })
+            },
+            ConstantKind::Long(Long { low_bytes, high_bytes }) => {
+                Either::Right(CompressedLdc2W::Long(((high_bytes as u64) << 32 | low_bytes as u64) as i64))
+            },
+            ConstantKind::Double(Double { low_bytes, high_bytes }) => {
+                Either::Right(CompressedLdc2W::Double(f64::from_ne_bytes((((high_bytes as u64) << 32) | low_bytes as u64).to_ne_bytes())))
+            },
             ConstantKind::Class(Class { name_index }) => {
                 let name = constant_pool[name_index as usize].extract_string_from_utf8();
                 let ccname = CompressedClassName(pool.add_name(name));

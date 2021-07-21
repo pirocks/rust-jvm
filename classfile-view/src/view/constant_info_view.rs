@@ -1,5 +1,6 @@
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPRefType};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPRefType};
+use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
@@ -145,19 +146,18 @@ impl NameAndTypeView<'_> {
         }
     }
 
-    pub fn name(&self) -> CCString {
-        todo!()
-        // self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8()
+    pub fn name(&self, pool: &CompressedClassfileStringPool) -> CCString {
+        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8())
     }
     pub fn desc_str(&self) -> CCString {
         todo!()
         /*self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()*/
     }
-    pub fn desc_method(&self) -> CMethodDescriptor {
+    pub fn desc_method(&self, pool: &CompressedClassfileStringPool) -> CMethodDescriptor {
         //todo this is incorrect, name and types aren't always method descirpotrs
         let desc_str = self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8();
-        // parse_method_descriptor(desc_str.as_str()).unwrap()//in future parse
-        todo!()
+        let md = parse_method_descriptor(desc_str.as_str()).unwrap();
+        CMethodDescriptor::from_legacy(md, pool)
     }
 }
 

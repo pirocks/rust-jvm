@@ -131,8 +131,8 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class
             };
-            let name = method_ref.name_and_type().name();
-            let method_desc = method_ref.name_and_type().desc_method();
+            let name = method_ref.name_and_type().name(&jvm.string_pool);
+            let method_desc = method_ref.name_and_type().desc_method(&jvm.string_pool);
             let view = method_ref_class.view();
             let method_view = view.lookup_method(MethodName(name), &method_desc).unwrap();
             Method::method_object_from_method_view(jvm, int_state, &method_view)?
@@ -142,8 +142,8 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class
             };
-            let name = method_ref.name_and_type().name();
-            let method_desc = method_ref.name_and_type().desc_method();
+            let name = method_ref.name_and_type().name(&jvm.string_pool);
+            let method_desc = method_ref.name_and_type().desc_method(&jvm.string_pool);
             let view = method_ref_class.view();
             let method_view = view.lookup_method(MethodName(name), &method_desc).unwrap();
             Method::method_object_from_method_view(jvm, int_state, &method_view)?
@@ -181,7 +181,7 @@ unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load
                 None => return Ok(null_mut()),
                 Some(field_rc) => field_rc
             };
-            let name = field_ref.name_and_type().name();
+            let name = field_ref.name_and_type().name(&jvm.string_pool);
             let view = field_rc.view();
             let field_view = view.fields().find(|f| f.field_name() == FieldName(name)).unwrap();
             let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
@@ -222,19 +222,19 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
     let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => {
             let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
-            let name = ref_.name_and_type().name();
+            let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str();
             (class, name, desc_str)
         }
         ConstantInfoView::InterfaceMethodref(ref_) => {
             let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
-            let name = ref_.name_and_type().name();
+            let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str();
             (class, name, desc_str)
         }
         ConstantInfoView::Fieldref(ref_) => {
             let class = ref_.class();
-            let name = ref_.name_and_type().name();
+            let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str();
             (class, name, desc_str)
         }
@@ -420,7 +420,7 @@ unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, in
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -437,8 +437,8 @@ unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, i
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -507,7 +507,7 @@ unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclas
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -524,8 +524,8 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jcla
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name().to_str(&jvm.string_pool)),
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }

@@ -31,7 +31,7 @@ impl<'l> InterfaceView<'l> {
     pub fn interface_name(&self) -> CClassName {
         match self {
             InterfaceView::ClassBacked { view, i } => {
-                todo!()/*CPDType::Ref(view.underlying_class.extract_class_from_constant_pool_name(view.underlying_class.interfaces[*i])).unwrap_class_type()*/
+                view.backing_class.interfaces[*i]
             }
             InterfaceView::Cloneable => {
                 CClassName::cloneable()
