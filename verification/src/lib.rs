@@ -2,7 +2,7 @@ extern crate elapsed;
 
 use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use rust_jvm_common::classfile::Classfile;
@@ -36,7 +36,7 @@ pub struct VerifierContext<'l> {
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     pub string_pool: &'l CompressedClassfileStringPool,
     pub method_descriptor_pool: &'l CompressedMethodDescriptorsPool,
-    // pub classes: &'l ,
+    pub class_view_cache: Mutex<HashMap<ClassWithLoader, Arc<dyn ClassView>>>,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<u16, Frame>>,
     pub debug: bool,

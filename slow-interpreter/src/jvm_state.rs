@@ -6,7 +6,7 @@ use std::iter::FromIterator;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
@@ -213,6 +213,7 @@ impl<'gc_life> JVMState<'gc_life> {
             }) as Arc<dyn ClassFileGetter>,
             string_pool: &self.string_pool,
             method_descriptor_pool: &self.method_descriptor_pool,
+            class_view_cache: Mutex::new(Default::default()),
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,

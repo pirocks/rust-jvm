@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
 
@@ -87,6 +87,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
         string_pool: &jvm.string_pool,
         method_descriptor_pool: &jvm.method_descriptor_pool,
+        class_view_cache: Mutex::new(Default::default()),
         current_loader: loader.clone(),
         verification_types: Default::default(),
         debug: false,

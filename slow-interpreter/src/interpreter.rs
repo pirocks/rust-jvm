@@ -213,13 +213,13 @@ fn run_single_instruction(
         if TIMES % 10_000_000 == 0 && jvm.vm_live() && jvm.thread_state.get_main_thread().is_this_thread() {
             interpreter_state.debug_print_stack_trace(jvm);
             //todo this thread suspension stuff is mega sketch
-            drop(interpreter_state.int_state.take());
-            jvm.gc.gc_jvm(jvm);
-            let current_thread = jvm.thread_state.get_current_thread();
-            interpreter_state.int_state = Some(transmute(current_thread.interpreter_state.write().unwrap()));
-            for thread in jvm.thread_state.get_all_threads().values() {
-                let _ = thread.gc_resume_thread();
-            }
+            // drop(interpreter_state.int_state.take());
+            // jvm.gc.gc_jvm(jvm);
+            // let current_thread = jvm.thread_state.get_current_thread();
+            // interpreter_state.int_state = Some(transmute(current_thread.interpreter_state.write().unwrap()));
+            // for thread in jvm.thread_state.get_all_threads().values() {
+            //     let _ = thread.gc_resume_thread();
+            // }
             // dbg!(interpreter_state.current_frame().local_vars(jvm).len());
             // dbg!(interpreter_state.current_frame().operand_stack(jvm).len());
             // dbg!(interpreter_state.current_frame().operand_stack(jvm).types());

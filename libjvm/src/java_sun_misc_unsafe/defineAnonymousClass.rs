@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::ops::DerefMut;
 use std::panic::resume_unwind;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::Ordering;
 use std::sync::atomic::Ordering::AcqRel;
 
@@ -62,6 +62,7 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
         string_pool: &jvm.string_pool,
         method_descriptor_pool: &jvm.method_descriptor_pool,
+        class_view_cache: Mutex::new(Default::default()),
         current_loader,
         verification_types: Default::default(),
         debug: false,

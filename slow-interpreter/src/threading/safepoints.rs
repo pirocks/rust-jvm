@@ -85,7 +85,7 @@ impl<'gc_life> SafePoint<'gc_life> {
         let mut guard = self.state.lock().unwrap();
         assert!(guard.waiting_monitor_notify.is_some());
         let waiting_monitor_notify = guard.waiting_monitor_notify.as_mut().unwrap();
-        let prev_count = &mut waiting_monitor_notify.prev_count;
+        let prev_count = &mut waiting_monitor_notify.prev_count;//todo wtf is this, we need more types for monitor wait
         *prev_count -= 1;
         if *prev_count == 0 {
             guard.waiting_monitor_notify = None
@@ -277,9 +277,10 @@ impl<'gc_life> SafePoint<'gc_life> {
                 let monitor = &monitors_gaurd[monitor];
                 drop(guard);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
-                self.check(jvm, int_state)?;
+                return self.check(jvm, int_state);
             } else {
                 drop(guard);//shouldn't need these but they are here for now b/c I'm paranoid
+                return self.check(jvm, int_state);
             }
         }
         Ok(())

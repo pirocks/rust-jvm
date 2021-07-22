@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
@@ -225,6 +225,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     }) as Arc<dyn ClassFileGetter>,
                     string_pool: &jvm.string_pool,
                     method_descriptor_pool: &jvm.method_descriptor_pool,
+                    class_view_cache: Mutex::new(Default::default()),
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
