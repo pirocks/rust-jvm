@@ -158,7 +158,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let thread_state = ThreadState::new(scope);
         let string_pool = CompressedClassfileStringPool::new();
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
-        let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone()));
+        let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
         let mut jvm = Self {
             libjava_path: libjava,
             properties,

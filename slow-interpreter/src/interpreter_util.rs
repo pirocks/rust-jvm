@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;

@@ -89,7 +89,7 @@ pub fn call_impl<'gc_life>(
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
+        load_class_constant_by_type(jvm, int_state, &classfile.view().type_())?;
         let class_constant = unsafe {
             let class_popped_jv = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object()))

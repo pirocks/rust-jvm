@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, Classfile, ConstantKind};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
@@ -170,14 +170,13 @@ impl ClassView for ClassBackedView {
         todo!()
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
-        /*let i = self.backing_class.attributes.iter().enumerate().flat_map(|(i, x)| {
+        let i = self.underlying_class.attributes.iter().enumerate().flat_map(|(i, x)| {
             match &x.attribute_type {
                 AttributeType::SourceFile(_) => Some(i),
                 _ => None
             }
         }).next()?;
-        Some(SourceFileView { backing_class: self, i })*/
-        todo!()
+        Some(SourceFileView { backing_class: self, i })
     }
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {

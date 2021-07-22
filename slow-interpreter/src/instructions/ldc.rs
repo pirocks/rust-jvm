@@ -16,14 +16,13 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryMut;
 
-fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ccn: CClassName) -> Result<(), WasException> {
-    let type_ = ccn.into();
+fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType) -> Result<(), WasException> {
     load_class_constant_by_type(jvm, int_state, type_)?;
     Ok(())
 }
 
-pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: CPDType) -> Result<(), WasException> {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
+pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: &CPDType) -> Result<(), WasException> {
+    let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
     int_state.current_frame_mut().push(JavaValue::Object(object.into()));
     Ok(())
 }
@@ -96,11 +95,10 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
                     let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.to_str(&jvm.string_pool).to_string()).expect("todo").object().into()).java_value();
                     int_state.push_current_operand_stack(string_value)
                 }
-                CompressedLdcW::Class { name } => match load_class_constant(jvm, int_state, *name) {
-                    Err(WasException {}) => {
+                CompressedLdcW::Class { type_ } => {
+                    if let Err(WasException {}) = load_class_constant(jvm, int_state, type_) {
                         return;
                     }
-                    Ok(()) => {}
                 },
                 CompressedLdcW::Float { float } => {
                     let float: f32 = *float;

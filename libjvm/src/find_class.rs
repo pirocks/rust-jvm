@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let jvm = get_state(env);
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string();//todo handle utf8 here
     //todo duplication
-    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str));
+    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
     let loader_obj = int_state.previous_frame().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
@@ -80,7 +80,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl
-    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str.replace(".", "/")));
+    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str.replace(".", "/"), true));
     let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.clone().into());
     match loaded {
         None => null_mut(),

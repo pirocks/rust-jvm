@@ -152,7 +152,7 @@ pub mod method {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, field_class_type)?;
+                load_class_constant_by_type(jvm, int_state, &field_class_type)?;
                 int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
             };
             let name = {
@@ -211,7 +211,7 @@ pub mod method {
             let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(),
                                                                           CClassName::string().into(),
                                                                           CPDType::array(CClassName::class().into()),
-                                                                          CPDType::array(CClassName::class().into()),
+                                                                          CClassName::class().into(),
                                                                           CPDType::array(CClassName::class().into()),
                                                                           CPDType::IntType,
                                                                           CPDType::IntType,
@@ -309,7 +309,7 @@ pub mod constructor {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, field_class_type)?;
+                load_class_constant_by_type(jvm, int_state, &field_class_type)?;
                 int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
             };
 
@@ -340,7 +340,7 @@ pub mod constructor {
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
-            let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
+            let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
             run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
             Ok(constructor_object.cast_constructor())
         }

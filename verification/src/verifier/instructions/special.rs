@@ -172,7 +172,7 @@ pub fn extract_field_descriptor(pool: &CompressedClassfileStringPool, cp: CPInde
     let field_class_name = ClassName::Str(class_index);
     let (field_name, descriptor_string) = (name_and_type_index.name(pool), name_and_type_index.desc_str());
     let field_descriptor = parse_field_descriptor(descriptor_string.to_str(pool).as_str()).unwrap();
-    (CompressedClassName(pool.add_name(field_class_name.get_referred_name().to_string())), FieldName(field_name), CompressedFieldDescriptor(CPDType::from_ptype(&field_descriptor.field_type, pool)))
+    (CompressedClassName(pool.add_name(field_class_name.get_referred_name().to_string(), true)), FieldName(field_name), CompressedFieldDescriptor(CPDType::from_ptype(&field_descriptor.field_type, pool)))
 }
 
 pub fn instruction_is_type_safe_putstatic(field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {

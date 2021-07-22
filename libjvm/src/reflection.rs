@@ -54,7 +54,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name
     });
-    let method_name = MethodName(jvm.string_pool.add_name(method_name_str));
+    let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
     let signature = string_obj_to_string(jvm, match method_obj.lookup_field(jvm, FieldName::field_signature()).unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name

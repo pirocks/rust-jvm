@@ -11,6 +11,8 @@ pub struct MethodDescriptor {
     pub return_type: PType,
 }
 
+pub struct MethodDescriptorCache {}
+
 impl MethodDescriptor {
     pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
         parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()//todo get rid of this unwrap and this function

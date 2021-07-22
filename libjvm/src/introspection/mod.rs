@@ -226,7 +226,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    load_class_constant_by_type(jvm, int_state, type_);
+    load_class_constant_by_type(jvm, int_state, &type_);
     let jclass = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
@@ -254,7 +254,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name))));
+    let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name, true))));
 
     let loader_name = from_object(jvm, loader)
         .map(|loader_obj| JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);

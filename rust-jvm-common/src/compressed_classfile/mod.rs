@@ -37,8 +37,12 @@ impl CompressedClassfileStringPool {
         Self { pool }
     }
 
-    pub fn add_name(&self, str: impl Into<String>) -> CompressedClassfileString {
-        let id = self.pool.push(str.into());
+    pub fn add_name(&self, str: impl Into<String>, is_class_name: bool) -> CompressedClassfileString {
+        let string = str.into();
+        if is_class_name {
+            assert!(!string.starts_with("["));
+        }
+        let id = self.pool.push(string);
         CompressedClassfileString {
             id
         }
@@ -280,7 +284,7 @@ impl CompressedParsedDescriptorType {
             PType::Ref(ref_) => {
                 Self::Ref(match ref_ {
                     ReferenceType::Class(class_name) => {
-                        CompressedParsedRefType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string())))
+                        CompressedParsedRefType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string(), true)))
                     }
                     ReferenceType::Array(arr) => {
                         CompressedParsedRefType::Array(box CompressedParsedDescriptorType::from_ptype(arr.deref(), pool))
@@ -395,15 +399,15 @@ impl CompressedClassfile {
             attributes: _
         } = classfile;
         assert_eq!(*magic, EXPECTED_CLASSFILE_MAGIC);
-        let super_class = classfile.super_class_name().map(|name| CompressedClassName(pool.add_name(name.get_referred_name().to_string())));
+        let super_class = classfile.super_class_name().map(|name| CompressedClassName(pool.add_name(name.get_referred_name().to_string(), true)));
         let this = class_name(classfile).get_referred_name().to_string();
-        let this_class = CompressedClassName(pool.add_name(this.to_string()));
+        let this_class = CompressedClassName(pool.add_name(this.to_string(), true));
 
         let interfaces = interfaces.iter().map(|interface| {
             let interface = *interface as usize;
             match &constant_pool[interface].kind {
                 ConstantKind::Class(c) => {
-                    CompressedClassName(pool.add_name(constant_pool[c.name_index as usize].extract_string_from_utf8()))
+                    CompressedClassName(pool.add_name(constant_pool[c.name_index as usize].extract_string_from_utf8(), true))
                 }
                 _ => panic!()
             }
@@ -420,7 +424,7 @@ impl CompressedClassfile {
             let parsed = parse_field_descriptor(desc_str.as_str()).unwrap();
             CompressedFieldInfo {
                 access_flags: *access_flags,
-                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string()),
+                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string(), false),
                 descriptor_type: CompressedParsedDescriptorType::from_ptype(&parsed.field_type, pool),
             }
         }).collect_vec();
@@ -433,7 +437,7 @@ impl CompressedClassfile {
             } = method_info;
             let descriptor_str = constant_pool[*descriptor_index as usize].extract_string_from_utf8();
             let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(descriptor_str.as_str()).unwrap();
-            let descriptor_str = pool.add_name(descriptor_str);
+            let descriptor_str = pool.add_name(descriptor_str, false);
             let return_type = CompressedParsedDescriptorType::from_ptype(&return_type, pool);
             let arg_types = parameter_types.iter().map(|ptype| CompressedParsedDescriptorType::from_ptype(ptype, pool)).collect_vec();
             let mut code_attr = None;
@@ -476,7 +480,7 @@ impl CompressedClassfile {
             }
             CompressedMethodInfo {
                 access_flags: *access_flags,
-                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string()),
+                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string(), false),
                 descriptor: CompressedMethodDescriptor { arg_types, return_type },
                 descriptor_str,
                 code: code_attr,
@@ -594,7 +598,7 @@ impl CompressedClassfile {
             InstructionInfo::getfield(cp) => {
                 let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
                 CInstructionInfo::getfield {
-                    name: FieldName(pool.add_name(field_name)),
+                    name: FieldName(pool.add_name(field_name, false)),
                     desc,
                     target_class,
                 }
@@ -602,7 +606,7 @@ impl CompressedClassfile {
             InstructionInfo::getstatic(cp) => {
                 let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
                 CInstructionInfo::getstatic {
-                    name: FieldName(pool.add_name(field_name)),
+                    name: FieldName(pool.add_name(field_name, false)),
                     desc,
                     target_class,
                 }
@@ -764,7 +768,7 @@ impl CompressedClassfile {
             InstructionInfo::putfield(cp) => {
                 let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
                 CInstructionInfo::putfield {
-                    name: FieldName(pool.add_name(field_name)),
+                    name: FieldName(pool.add_name(field_name, false)),
                     desc,
                     target_class,
                 }
@@ -772,7 +776,7 @@ impl CompressedClassfile {
             InstructionInfo::putstatic(cp) => {
                 let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
                 CInstructionInfo::putstatic {
-                    name: FieldName(pool.add_name(field_name)),
+                    name: FieldName(pool.add_name(field_name, false)),
                     desc,
                     target_class,
                 }
@@ -806,12 +810,12 @@ impl CompressedClassfile {
             },
             ConstantKind::Class(Class { name_index }) => {
                 let name = constant_pool[name_index as usize].extract_string_from_utf8();
-                let ccname = CompressedClassName(pool.add_name(name));
-                Either::Left(CompressedLdcW::Class { name: ccname })
+                let type_ = CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool);
+                Either::Left(CompressedLdcW::Class { type_ })
             }
             ConstantKind::String(String_ { string_index }) => {
                 let string = constant_pool[string_index as usize].extract_string_from_utf8();
-                let ccstring = pool.add_name(string);
+                let ccstring = pool.add_name(string, false);
                 Either::Left(CompressedLdcW::String { str: ccstring })
             }
             ConstantKind::MethodHandle(_) => todo!(),
@@ -842,7 +846,7 @@ impl CompressedClassfile {
         let (method_name, desc) = classfile.name_and_type_extractor(nt_index);
         let ref_type = CPDType::from_ptype(&p_type, pool).unwrap_ref_type().clone();
         let descriptor = CMethodDescriptor::from_legacy(parse_method_descriptor(desc.as_str()).unwrap(), pool);
-        let method_name = MethodName(pool.add_name(method_name));
+        let method_name = MethodName(pool.add_name(method_name, true));
         (ref_type.clone(), descriptor, method_name)
     }
 }

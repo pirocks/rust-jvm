@@ -147,7 +147,7 @@ impl NameAndTypeView<'_> {
     }
 
     pub fn name(&self, pool: &CompressedClassfileStringPool) -> CCString {
-        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8())
+        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8(), true)
     }
     pub fn desc_str(&self) -> CCString {
         todo!()

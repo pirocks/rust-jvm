@@ -309,7 +309,7 @@ impl From<ClassName> for ReferenceTypeView {
 impl ReferenceTypeView {
     pub fn to_verification_type(&self, loader: &LoaderName, pool: &CompressedClassfileStringPool) -> VType {
         match self {
-            ReferenceTypeView::Class(c) => { VType::Class(ClassWithLoader { class_name: CompressedClassName(pool.add_name(c.get_referred_name().to_string())), loader: loader.clone() }) }
+            ReferenceTypeView::Class(c) => { VType::Class(ClassWithLoader { class_name: CompressedClassName(pool.add_name(c.get_referred_name().to_string(), true)), loader: loader.clone() }) }
             ReferenceTypeView::Array(p) => { VType::ArrayReferenceType(CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool)/*p.deref().clone()*/) }
         }
     }

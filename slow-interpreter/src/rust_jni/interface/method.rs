@@ -22,13 +22,13 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv,
     let jvm = get_state(env);
     let method_name = match CStr::from_ptr(name).to_str() {
         Ok(method_name) => {
-            MethodName(jvm.string_pool.add_name(method_name))
+            MethodName(jvm.string_pool.add_name(method_name, false))
         }
         Err(_) => return null_mut()
     };
     let method_descriptor_str = match CStr::from_ptr(sig).to_str() {
         Ok(method_descriptor_str) => {
-            jvm.string_pool.add_name(method_descriptor_str)
+            jvm.string_pool.add_name(method_descriptor_str, false)
         },
         Err(_) => return null_mut()
     };

@@ -16,7 +16,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
-use crate::rust_jni::native_util::from_object;
+use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
 
@@ -167,8 +167,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     /*InterpreterState::LegacyInterpreter { throw, .. } => {
                         *throw = val;
                     }*/
-                    InterpreterState::Jit { .. } => {
-                        todo!()
+                    InterpreterState::Jit { jvm, call_stack } => {
+                        call_stack.set_throw(unsafe { to_object(val) })
                     }
                 }
             }
@@ -377,7 +377,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} pc: {} {}", type_
+                    println!("{:?}.{} {} {} pc: {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool)
                              , meth_name,
                              method_desc_str, i, stack_entry
                                  .pc(), stack_entry.loader())

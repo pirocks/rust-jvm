@@ -123,17 +123,21 @@ impl<'gc_life> GC<'gc_life> {
         }
         let interpreter_states = jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| {
             unsafe { jt.gc_suspend(); }
-            InterpreterStateGuard {
+            let guard = InterpreterStateGuard {
                 int_state: Some(jt.interpreter_state.write().unwrap()),
                 thread: jt.clone(),
                 registered: false,
-            }.cloned_stack_snapshot(jvm)
+            };
+            (guard.cloned_stack_snapshot(jvm), guard.throw())
         }).collect_vec();
         let mut roots = HashSet::new();
         unsafe {
             // dbg!(interpreter_states.len());
-            for stack in interpreter_states {
+            for (stack, throw) in interpreter_states {
                 // dbg!(stack.len());
+                if let Some(throw) = throw {
+                    roots.insert(throw.raw_ptr);
+                }
                 for stack_entry in stack {
                     // dbg!(stack_entry.operand_stack.len());
                     // dbg!(stack_entry.local_vars().len());

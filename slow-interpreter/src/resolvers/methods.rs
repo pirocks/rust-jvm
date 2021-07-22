@@ -53,7 +53,7 @@ pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
     let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let method_name_string = member_name.get_name(jvm).to_rust_string(jvm);
-    let method_name = MethodName(jvm.string_pool.add_name(method_name_string));
+    let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
     let temp = runtime_class_view.lookup_method_name(method_name);
     let res = temp.iter().find(|candidate| {
         if candidate.is_signature_polymorphic() {
@@ -79,7 +79,7 @@ pub fn resolve_invoke_static<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, in
     let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
     let method_descriptor = CMethodDescriptor { arg_types, return_type };
     let runtime_class_view = runtime_class.view();
-    let res = runtime_class_view.lookup_method_name(MethodName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm)))).iter().find(|m| {
+    let res = runtime_class_view.lookup_method_name(MethodName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false))).iter().find(|m| {
         if m.is_signature_polymorphic() {
             //todo more comprehensive polymorphism sanity checks.
             true

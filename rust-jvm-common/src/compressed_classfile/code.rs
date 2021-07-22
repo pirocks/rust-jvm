@@ -268,7 +268,7 @@ pub enum CompressedLdcW {
         str: CCString
     },
     Class {
-        name: CClassName
+        type_: CPDType
     },
     Float {
         float: f32

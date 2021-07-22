@@ -321,7 +321,7 @@ pub mod class {
         }
 
         pub fn from_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<JClass<'gc_life>, WasException> {
-            load_class_constant_by_type(jvm, int_state, ptype)?;
+            load_class_constant_by_type(jvm, int_state, &ptype)?;
             let res = int_state.pop_current_operand_stack(Some(CClassName::class().into())).unwrap_object();
             Ok(JavaValue::Object(res).cast_class().unwrap())
         }

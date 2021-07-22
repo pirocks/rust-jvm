@@ -1,7 +1,7 @@
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
@@ -11,7 +11,14 @@ use crate::interpreter_util::push_new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classname: CClassName) {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, classname.into()).unwrap();
+    let target_classfile = match check_initing_or_inited_class(jvm, int_state, classname.into()) {
+        Ok(x) => x,
+        Err(_) => {
+            int_state.debug_print_stack_trace(jvm);
+            int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
+            todo!()
+        },
+    };
     push_new_object(jvm, int_state, &target_classfile);
 }
 

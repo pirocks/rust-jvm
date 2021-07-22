@@ -211,6 +211,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     Ok(x) => x,
                     Err(_) => {
                         let class_name_string = JString::from_rust(jvm, int_state, class_name.0.to_str(&jvm.string_pool).to_string())?;
+                        dbg!(class_name.0.to_str(&jvm.string_pool));
                         let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
                         int_state.set_throw(exception.into());
                         return Err(WasException);

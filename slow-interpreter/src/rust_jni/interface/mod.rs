@@ -603,7 +603,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 //shouldn't take class as arg and should be an impl method on Field
 pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().cpdtype();
-    load_class_constant_by_type(jvm, int_state, field_class_name_)?;
+    load_class_constant_by_type(jvm, int_state, &field_class_name_)?;
     let parent_runtime_class = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
 
     let field_name = f.field_name();
@@ -614,7 +614,8 @@ pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     let modifiers = f.access_flags() as i32;
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class().expect("todo");
-    let name = JString::from_rust(jvm, int_state, field_name.0.to_str(&jvm.string_pool))?.intern(jvm, int_state)?;
+    let field_name_str = field_name.0.to_str(&jvm.string_pool);
+    let name = JString::from_rust(jvm, int_state, field_name_str)?.intern(jvm, int_state)?;
     let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
     let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
     let annotations_ = vec![];//todo impl annotations.
@@ -639,7 +640,7 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
     let runtime_class = method_obj.get_clazz(jvm).as_runtime_class(jvm);
     let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).cpdtype()).collect_vec();
     let name_str = method_obj.get_name(jvm).to_rust_string(jvm);
-    let name = MethodName(jvm.string_pool.add_name(name_str));
+    let name = MethodName(jvm.string_pool.add_name(name_str, false));
     runtime_class.clone().view().lookup_method_name(name).iter().find(|candiate_method| {
         candiate_method.desc().arg_types == param_types.iter().map(|from| from.clone()).collect_vec()
     }).map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
@@ -650,7 +651,7 @@ unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> 
     let jvm = get_state(env);
     let field_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_field();
     let runtime_class = field_obj.clazz(jvm).as_runtime_class(jvm);
-    let field_name = FieldName(jvm.string_pool.add_name(field_obj.name(jvm).to_rust_string(jvm)));
+    let field_name = FieldName(jvm.string_pool.add_name(field_obj.name(jvm).to_rust_string(jvm), false));
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
         .map(|field| field.field_i())
         .map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID)

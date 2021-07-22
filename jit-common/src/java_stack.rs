@@ -149,6 +149,10 @@ impl JavaStack {
         unsafe { self.saved_registers.unwrap().status_register.as_ref() }.unwrap().throw
     }
 
+    pub fn set_throw(&mut self, throw: jobject) {
+        unsafe { self.saved_registers.unwrap().status_register.as_mut() }.unwrap().throw = throw;
+    }
+
     pub unsafe fn call_stack_depth(&self) -> usize {
         let mut frame_header = self.frame_pointer() as *const FrameHeader;
         let mut depth = 0;

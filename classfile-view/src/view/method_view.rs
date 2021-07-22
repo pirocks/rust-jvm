@@ -37,8 +37,7 @@ impl MethodView<'_> {
     }
 
     fn method_info(&self) -> &MethodInfo {
-        todo!()
-        /*&self.class_view.backing_class.methods[self.method_i as usize]*/
+        &self.class_view.underlying_class.methods[self.method_i as usize]
     }
 
     pub fn name(&self) -> MethodName {

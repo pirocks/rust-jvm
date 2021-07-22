@@ -67,9 +67,9 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
-    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str));
+    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //signature to lookup on
-    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str));
+    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks

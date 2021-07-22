@@ -626,11 +626,11 @@ fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut Interpre
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     };
-    if jvm.debug_print_exceptions {
+    // if jvm.debug_print_exceptions {
         println!("EXCEPTION:");
         dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));
         interpreter_state.debug_print_stack_trace(jvm);
-    }
+    // }
 
     interpreter_state.set_throw(exception_obj.into());
 }

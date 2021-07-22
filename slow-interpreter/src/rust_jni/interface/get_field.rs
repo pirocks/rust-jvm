@@ -115,7 +115,7 @@ unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, f
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
     let jvm = get_state(env);
-    let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string()); //todo handle utf8
+    let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string(), false); //todo handle utf8
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
     let (field_rc, field_i) = match get_all_fields(jvm, int_state, runtime_class, true) {
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn get_static_method_id(
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_name_string = CStr::from_ptr(name).to_str().unwrap().to_string();
-    let method_name = MethodName(jvm.string_pool.add_name(method_name_string));
+    let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = match from_object(jvm, clazz) {
         None => return throw_npe(jvm, int_state),
