@@ -209,7 +209,7 @@ pub mod test {
     use classfile_view::view::field_view::{FieldIterator, FieldView};
     use classfile_view::view::interface_view::InterfaceIterator;
     use classfile_view::view::method_view::{MethodIterator, MethodView};
-    use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
+    use gc_memory_layout_common::{ArrayMemoryLayout, FrameBackedStackframeMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
     use jit_common::java_stack::{JavaStack, JavaStatus};
     use jit_common::VMExitType;
     use jit_ir::{InstructionSink, IRInstruction, Size, VariableSize};
@@ -307,7 +307,7 @@ pub mod test {
     #[test]
     pub fn test_basic_int_arithmetic() {
         let mut x86_instructions = InstructionSink::new();
-        let java_instructions = vec![CInstructionInfo::iconst_0, CInstructionInfo::iconst_1, CInstructionInfo::iadd];
+        let java_instructions = vec![CInstructionInfo::iconst_0, CInstructionInfo::iconst_1, CInstructionInfo::iadd, CInstructionInfo::return_];
         test_code(java_instructions, &CompressedClassfileStringPool::new())
     }
 
@@ -337,6 +337,7 @@ pub mod test {
                             max_locals,
                             max_stack,
                             exception_table: vec![],
+                            stack_map_table: vec![]
                         }),
                     }],
                     bootstrap_methods: None,
@@ -389,7 +390,7 @@ pub mod test {
             offset += instruction_size;
             res
         }).collect_vec();
-        let class = SingleMethodClassWrapper::new(pool, java_instructions.clone(), classname, method_name, 0, 2);
+        let class = SingleMethodClassWrapper::new(pool, java_instructions.clone(), classname, method_name, 1, 2);
         let mut verifier = VerifierContext {
             live_pool_getter: Arc::new(NoopLivePoolGetter {}),
             classfile_getter: Arc::new(SingleClassViewGetter { class: class.classfile }),
@@ -401,8 +402,8 @@ pub mod test {
         };
 
         verify(&mut verifier, classname, LoaderName::BootstrapLoader).unwrap();
-        let types = verifier.verification_types;
-        let res = code_to_ir(java_instructions, todo!()).unwrap();
+        let types = &verifier.verification_types[&0u16];
+        let res = code_to_ir(java_instructions, &FrameBackedStackframeMemoryLayout::new(2, 1, types.clone())).unwrap();
         let mut x86_instructions = InstructionSink::new();
         for ir in res.main_block.instructions {
             ir.to_x86(&mut x86_instructions);

@@ -3,9 +3,10 @@ use std::num::NonZeroU8;
 
 use itertools::Either;
 
-use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, TableSwitch, Wide};
+use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
 use crate::compressed_classfile::{CCString, CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
 use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
+use crate::vtype::VType;
 
 pub type CInstruction = CompressedInstruction;
 
@@ -527,6 +528,64 @@ pub struct CompressedCode {
     pub max_locals: u16,
     pub max_stack: u16,
     pub exception_table: Vec<CompressedExceptionTableElem>,
+    pub stack_map_table: Vec<CompressedStackMapFrame>,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub enum CompressedStackMapFrame {
+    SameFrame(SameFrame),
+    SameLocals1StackItemFrame(CompressedSameLocals1StackItemFrame),
+    SameLocals1StackItemFrameExtended(CompressedSameLocals1StackItemFrameExtended),
+    ChopFrame(CompressedChopFrame),
+    SameFrameExtended(CompressedSameFrameExtended),
+    AppendFrame(CompressedAppendFrame),
+    FullFrame(CompressedFullFrame),
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedSameLocals1StackItemFrame {
+    pub offset_delta: u16,
+    pub stack: VType,
+}
+
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedSameLocals1StackItemFrameExtended {
+    pub offset_delta: u16,
+    pub stack: VType,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedChopFrame {
+    pub offset_delta: u16,
+    pub k_frames_to_chop: u8,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedSameFrameExtended {
+    pub offset_delta: u16,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedAppendFrame {
+    pub offset_delta: u16,
+    pub locals: Vec<VType>,
+}
+
+#[derive(Debug)]
+#[derive(Eq, PartialEq, Clone)]
+pub struct CompressedFullFrame {
+    pub offset_delta: u16,
+    pub number_of_locals: u16,
+    pub locals: Vec<VType>,
+    pub number_of_stack_items: u16,
+    pub stack: Vec<VType>,
 }
 
 #[derive(Debug)]

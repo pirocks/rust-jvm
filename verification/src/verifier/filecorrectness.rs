@@ -114,7 +114,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
             _ => is_assignable(vf, &VType::OneWord, to)
         }
         VType::Class(c) => match to {
-            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.deref()),
+            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader)),//todo bootstrap loader
             VType::Class(c2) => {
                 if c == c2 {
                     Result::Ok(())
@@ -196,7 +196,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         VType::UninitializedThisOrClass(c) => {
             match to {
                 VType::UninitializedThis => Result::Ok(()),
-                _ => is_assignable(vf, c.deref(), to)
+                _ => is_assignable(vf, &c.to_verification_type(BootstrapLoader), to)//todo bootstrap loader
             }
         }
         _ => {

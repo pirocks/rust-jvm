@@ -111,7 +111,7 @@ impl PTypeView {
             PTypeView::NullType => VType::NullType,
             PTypeView::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
             PTypeView::UninitializedThis => VType::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(Box::new(c.to_verification_type(loader, pool))),
+            PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool)),
             PTypeView::Ref(r) => {
                 r.to_verification_type(loader, pool)
             }

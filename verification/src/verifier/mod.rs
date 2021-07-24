@@ -30,8 +30,8 @@ pub mod filecorrectness;
 pub mod codecorrectness;
 
 pub struct InternalFrame {
-    pub locals: Vec<PTypeView>,
-    pub stack: Vec<PTypeView>,
+    pub locals: Vec<VType>,
+    pub stack: Vec<VType>,
     pub max_locals: u16,
     pub current_offset: u16,
 }

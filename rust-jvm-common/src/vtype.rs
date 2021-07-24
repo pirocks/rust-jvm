@@ -20,7 +20,7 @@ pub enum VType {
     UninitializedThis,
     //todo hack. so b/c stackmapframes doesn't really know what type to give to UnitialziedThis, b/c invoke special could have happened or not
     // I suspect that Uninitialized might work for this, but making my own anyway
-    UninitializedThisOrClass(Box<VType>),
+    UninitializedThisOrClass(CPDType),
     //below here used internally in isAssignable
 
     TwoWord,

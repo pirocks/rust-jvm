@@ -479,6 +479,7 @@ impl CompressedClassfile {
                                 catch_type,
                             }
                         }).collect_vec(),
+                        stack_map_table: vec![]
                     });
                 }
             }

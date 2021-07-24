@@ -6,6 +6,7 @@ use itertools::Itertools;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
@@ -322,7 +323,7 @@ fn flags(this_list: &Option<VType>) -> bool {
 }
 
 
-pub fn expand_to_length(list: Vec<PTypeView>, size: usize, filler: PTypeView) -> Vec<PTypeView> {
+pub fn expand_to_length(list: Vec<VType>, size: usize, filler: VType) -> Vec<VType> {
     assert!(list.len() <= size);
     let mut res = vec![];
     for i in 0..size {
