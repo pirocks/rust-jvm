@@ -264,6 +264,7 @@ r15 is reserved for context pointer
                     VMExitType::ArrayOutOfBounds => todo!(),
                     VMExitType::DebugTestExit => {}
                     VMExitType::ExitDueToCompletion => {}
+                    VMExitType::DebugTestExitValue { .. } => todo!()
                 }
             }
             IRInstruction::Constant { output_offset, constant } => {

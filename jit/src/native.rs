@@ -153,6 +153,9 @@ impl JITedCode {
             VMExitType::ExitDueToCompletion => {
                 todo!()
             }
+            VMExitType::DebugTestExitValue { .. } => {
+                todo!()
+            }
         }
     }
 
@@ -198,6 +201,7 @@ pub mod test {
     use std::sync::{Arc, Mutex};
 
     use iced_x86::{Formatter, Instruction, InstructionBlock, IntelFormatter};
+    use itertools::Itertools;
 
     use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
     use classfile_view::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, SourceFileView};
@@ -206,8 +210,8 @@ pub mod test {
     use classfile_view::view::interface_view::InterfaceIterator;
     use classfile_view::view::method_view::{MethodIterator, MethodView};
     use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
-    use jit_common::VMExitType;
     use jit_common::java_stack::{JavaStack, JavaStatus};
+    use jit_common::VMExitType;
     use jit_ir::{InstructionSink, IRInstruction, Size, VariableSize};
     use rust_jvm_common::classfile::{ACC_PRIVATE, ACC_STATIC, Classfile, InstructionInfo};
     use rust_jvm_common::classfile::StackMapFrame::SameFrameExtended;
@@ -215,6 +219,7 @@ pub mod test {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedMethodDescriptor, CompressedMethodInfo, CompressedParsedRefType, CPDType, CPRefType};
     use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo, CompressedCode};
     use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
+    use rust_jvm_common::descriptor_parser::Descriptor::Method;
     use rust_jvm_common::loading::{LoaderName, NoopLivePoolGetter};
     use verification::{ClassFileGetter, VerifierContext, verify};
 
@@ -302,28 +307,15 @@ pub mod test {
     #[test]
     pub fn test_basic_int_arithmetic() {
         let mut x86_instructions = InstructionSink::new();
-        let java_instructions = vec![CInstructionInfo::iconst_0, CInstructionInfo::iconst_1, CInstructionInfo::iadd].into_iter().enumerate().map(|(offset, info)| CInstruction {
-            offset: offset as u16,
-            instruction_size: 1,
-            info,
-        }).collect_vec();
-        let res = code_to_ir(java_instructions, todo!()).unwrap();
-        for ir in res.main_block.instructions {
-            ir.to_x86(&mut x86_instructions);
-        }
-        IRInstruction::VMExit(VMExitType::ExitDueToCompletion).to_x86(&mut x86_instructions);
-        let mut jitted_code = JITedCode {
-            code: vec![]
-        };
-        let id = unsafe { jitted_code.add_code_region(x86_instructions) };
-        unsafe { jitted_code.run_jitted_coded(id, JavaStack::new(11, Box::into_raw(box JavaStatus::default()))); }
+        let java_instructions = vec![CInstructionInfo::iconst_0, CInstructionInfo::iconst_1, CInstructionInfo::iadd];
+        test_code(java_instructions, &CompressedClassfileStringPool::new())
     }
 
-    pub struct SingleMethodClassView {
+    pub struct SingleMethodClassWrapper {
         classfile: CompressedClassfile,
     }
 
-    impl SingleMethodClassView {
+    impl SingleMethodClassWrapper {
         pub fn new(pool: &CompressedClassfileStringPool, instructions: Vec<CInstruction>, class_name: CClassName, method_name: MethodName, max_locals: u16, max_stack: u16) -> Self {
             let instructions = instructions.into_iter().map(|instr| (instr.offset, instr)).collect();
             Self {
@@ -362,42 +354,30 @@ pub mod test {
             if class != self.class.this_class {
                 panic!()
             }
-            ClassBackedView {
-                underlying_class: Arc::new(Classfile {}),
+            let descriptor_index = Default::default();
+            Arc::new(ClassBackedView {
+                underlying_class: Arc::new(Classfile {
+                    magic: 0,
+                    minor_version: 0,
+                    major_version: 0,
+                    constant_pool: vec![],
+                    access_flags: 0,
+                    this_class: 0,
+                    super_class: 0,
+                    interfaces: vec![],
+                    fields: vec![],
+                    methods: vec![],
+                    attributes: vec![],
+                }),
                 backing_class: self.class.clone(),
-                descriptor_index: Default::default(),
-            }
-
-            /*            ::from(Arc::new(Classfile{
-                            magic: 0,
-                            minor_version: 0,
-                            major_version: 0,
-                            constant_pool: vec![],
-                            access_flags: 0,
-                            this_class: 0,
-                            super_class: 0,
-                            interfaces: vec![],
-                            fields: vec![],
-                            methods: vec![],
-                            attributes: vec![]
-                        }),)
-            */
+                descriptor_index,
+            })
         }
     }
 
     pub fn test_code(instruction_infos: Vec<CInstructionInfo>, pool: &CompressedClassfileStringPool) {
-        let classname = CompressedClassName(pool.add_name("TestClass".to_string(), true));
-        let mut verifier = VerifierContext {
-            live_pool_getter: Arc::new(NoopLivePoolGetter {}),
-            classfile_getter: Arc::new(NoopClassFileGetter {}),
-            string_pool: pool,
-            class_view_cache: Mutex::new(Default::default()),
-            current_loader: LoaderName::BootstrapLoader,
-            verification_types: Default::default(),
-            debug: false,
-        };
-
-        verify(&mut verifier, classname, LoaderName::BootstrapLoader);
+        let classname = CClassName::object();//disables superclass checks
+        let method_name = MethodName(pool.add_name("test_method".to_string(), false));
         let mut offset = 0;
         let java_instructions = instruction_infos.into_iter().map(|info| {
             let instruction_size = info.size(offset);
@@ -409,7 +389,28 @@ pub mod test {
             offset += instruction_size;
             res
         }).collect_vec();
+        let class = SingleMethodClassWrapper::new(pool, java_instructions.clone(), classname, method_name, 0, 2);
+        let mut verifier = VerifierContext {
+            live_pool_getter: Arc::new(NoopLivePoolGetter {}),
+            classfile_getter: Arc::new(SingleClassViewGetter { class: class.classfile }),
+            string_pool: pool,
+            class_view_cache: Mutex::new(Default::default()),
+            current_loader: LoaderName::BootstrapLoader,
+            verification_types: Default::default(),
+            debug: false,
+        };
+
+        verify(&mut verifier, classname, LoaderName::BootstrapLoader).unwrap();
         let types = verifier.verification_types;
-        let res = code_to_ir(java_instructions, todo!());
+        let res = code_to_ir(java_instructions, todo!()).unwrap();
+        let mut x86_instructions = InstructionSink::new();
+        for ir in res.main_block.instructions {
+            ir.to_x86(&mut x86_instructions);
+        }
+        let mut jitted_code = JITedCode {
+            code: vec![]
+        };
+        let id = unsafe { jitted_code.add_code_region(x86_instructions) };
+        unsafe { jitted_code.run_jitted_coded(id, JavaStack::new(11, Box::into_raw(box JavaStatus::default()))); }
     }
 }

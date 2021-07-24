@@ -73,9 +73,9 @@ pub trait ClassView: HasAccessFlags {
 }
 
 pub struct ClassBackedView {
-    underlying_class: Arc<Classfile>,
-    backing_class: CompressedClassfile,
-    descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
+    pub underlying_class: Arc<Classfile>,
+    pub backing_class: CompressedClassfile,
+    pub descriptor_index: RwLock<Vec<Option<MethodDescriptor>>>,
 }
 
 

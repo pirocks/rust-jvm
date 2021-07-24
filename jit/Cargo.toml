@@ -19,3 +19,4 @@ nix = "0.20.0"
 compiler_builtins = { git = "https://github.com/rust-lang/compiler-builtins" }
 memoffset = "0.6"
 jit-common = { path = "../jit-common" }
+itertools = "0.10.1"
