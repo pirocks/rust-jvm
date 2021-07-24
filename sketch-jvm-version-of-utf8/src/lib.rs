@@ -1,4 +1,5 @@
 use std::char::from_u32;
+use std::mem::transmute;
 use std::string::FromUtf8Error;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -43,7 +44,7 @@ impl JVMString {
 
     pub fn to_string(&self) -> Result<String, ValidationError> {
         let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8()?;
-        Ok(String::from_utf8(buf)?)
+        Ok(unsafe { String::from_utf8_unchecked(buf) })
     }
 }
 
@@ -61,7 +62,8 @@ pub enum ValidationError {
 
 impl From<FromUtf8Error> for ValidationError {
     fn from(err: FromUtf8Error) -> Self {
-        Self::UTfError(err)
+        panic!()
+        // Self::UTfError(err)
     }
 }
 
@@ -74,7 +76,7 @@ impl PossiblyJVMString {
     }
 
     pub fn validate(self) -> Result<JVMString, ValidationError> {
-        String::from_utf8(self.to_regular_utf8()?)?;
+        unsafe { String::from_utf8_unchecked(self.to_regular_utf8()?); }
         Ok(JVMString { buf: self.buf })
     }
 
@@ -88,9 +90,10 @@ impl PossiblyJVMString {
             };
             if (x >> 7) == 0 {
                 let codepoint = x as u32;
-                res.push(from_u32(codepoint).ok_or(ValidationError::InvalidCodePoint)?);
+                // eprintln!("{:x}",codepoint);
+                res.push(from_u32(codepoint).ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::InvalidCodePoint*/)?);
             } else if (x >> 5) == 0b110 {
-                let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (y >> 6) != 0b10 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -100,10 +103,11 @@ impl PossiblyJVMString {
                 }
                 let x_u16 = x as u16;
                 let y_u16 = y as u16;
-                let codepoint = (x_u16 & 0x1f << 6) + (y_u16 & 0x3f);
-                res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
+                let codepoint = ((x_u16 & 0x1f) << 6) + (y_u16 & 0x3f);
+                // eprintln!("{:x}",codepoint);
+                res.push(from_u32(codepoint as u32).ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::InvalidCodePoint*/)?);
             } else if x != 0b11101101 {
-                let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (y >> 6) != 0b10 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -111,7 +115,7 @@ impl PossiblyJVMString {
                     panic!();
                     // return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (z >> 6) != 0b10 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -123,10 +127,11 @@ impl PossiblyJVMString {
                 let y_u16 = y as u16;
                 let z_u16 = z as u16;
                 let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
-                res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
+                // eprintln!("{:x}",codepoint);
+                res.push(from_u32(codepoint as u32).ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::InvalidCodePoint*/)?);
             } else {
                 let u = x;
-                let v = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let v = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (v >> 4) != 0b1010 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -134,7 +139,7 @@ impl PossiblyJVMString {
                     panic!();
                     // return Err(ValidationError::UnexpectedBits);
                 }
-                let w = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let w = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (w >> 6) != 0b10 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -147,9 +152,12 @@ impl PossiblyJVMString {
                     let x_u16 = u as u16;
                     let y_u16 = v as u16;
                     let z_u16 = w as u16;
+                    // dbg!(x_u16);
+                    // dbg!(y_u16);
+                    // dbg!(z_u16);
                     let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
-                    dbg!(codepoint);
-                    res.push(from_u32(codepoint as u32).ok_or(ValidationError::InvalidCodePoint)?);
+                    // // eprintln!("{:x}",codepoint);
+                    unsafe { res.push(transmute(codepoint as u32)); }
                     if x.is_none() {
                         break;
                     } else {
@@ -157,7 +165,7 @@ impl PossiblyJVMString {
                     }
                 }
                 buf_iter.next().unwrap();
-                let y = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (y >> 4) != 0b1010 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -165,7 +173,7 @@ impl PossiblyJVMString {
                     panic!();
                     // return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter.next().cloned().ok_or(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter.next().cloned().ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::UnexpectedEndOfString*/)?;
                 if (z >> 6) != 0b10 {
                     dbg!(&buf_iter);
                     dbg!(buf_iter.collect::<Vec<_>>());
@@ -178,7 +186,8 @@ impl PossiblyJVMString {
                 let v_u32 = v as u32;
                 let w_u32 = w as u32;
                 let codepoint = 0x10000 + ((v_u32 & 0x0f) << 16) + ((w_u32 & 0x3f) << 10) + ((y_u32 & 0x0f) << 6) + (z_u32 & 0x3f);
-                res.push(from_u32(codepoint).ok_or(ValidationError::InvalidCodePoint)?);
+                // eprintln!("{:x}",codepoint);
+                res.push(from_u32(codepoint).ok_or_else::<ValidationError, _>(|| panic!()/*ValidationError::InvalidCodePoint*/)?);
             }
         }
         Ok(res.into_bytes())

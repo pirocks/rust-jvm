@@ -4,11 +4,10 @@ use std::rc::Rc;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::{InstructionInfo, UninitializedVariableInfo};
+use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
-use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::ClassWithLoader;
@@ -147,7 +146,6 @@ pub fn instruction_is_type_safe_invokespecial(method_class_type: &CPDType, metho
         CPDType::Ref(CPRefType::Class(c)) => c,
         _ => panic!()
     };
-    let method_desc_pool = env.vf.method_descriptor_pool;
     if method_name == MethodName::constructor_init() {
         invoke_special_init(&env, stack_frame, *method_class_name, parsed_descriptor)
     } else {

@@ -7,7 +7,7 @@ use itertools::{Either, Itertools};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
-use crate::classfile::{AttributeType, BootstrapMethods, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, String_, UninitializedVariableInfo};
+use crate::classfile::{AttributeType, BootstrapMethods, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, String_, UninitializedVariableInfo, Wide};
 use crate::classnames::class_name;
 use crate::compressed_classfile::code::{CInstructionInfo, CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -347,6 +347,7 @@ impl CompressedFieldDescriptor {
     }
 }
 
+#[derive(Clone)]
 pub struct CompressedFieldInfo {
     pub access_flags: u16,
     pub name: CCString,
@@ -354,6 +355,7 @@ pub struct CompressedFieldInfo {
     // attributes: Vec<AttributeInfo>,
 }
 
+#[derive(Clone)]
 pub struct CompressedMethodInfo {
     pub access_flags: u16,
     pub name: CompressedClassfileString,
@@ -362,6 +364,7 @@ pub struct CompressedMethodInfo {
     pub code: Option<CompressedCode>,
 }
 
+#[derive(Clone)]
 pub struct CompressedClassfile {
     pub minor_version: u16,
     pub major_version: u16,
@@ -377,6 +380,7 @@ pub struct CompressedClassfile {
 }
 
 
+#[derive(Clone)]
 pub struct CompressedBootstrapMethods {
     inner: BootstrapMethods,
 }
@@ -788,7 +792,7 @@ impl CompressedClassfile {
             InstructionInfo::sipush(idx) => CInstructionInfo::sipush(*idx),
             InstructionInfo::swap => CInstructionInfo::swap,
             InstructionInfo::tableswitch(ts) => CInstructionInfo::tableswitch(box ts.clone()),
-            InstructionInfo::wide(_) => todo!(),
+            InstructionInfo::wide(wide) => CInstructionInfo::wide(*wide),
             InstructionInfo::EndOfCode => CInstructionInfo::EndOfCode,
         }
     }

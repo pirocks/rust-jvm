@@ -257,6 +257,14 @@ impl FrameInfo {
             FrameInfo::JavaFrame { locals_types, .. } => { locals_types[i] = ptype }
         };
     }
+
+    pub fn operand_stack_types(&self) -> Vec<RuntimeType> {
+        match self {
+            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types.clone(),
+            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types.clone(),
+            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types.clone()
+        }
+    }
 }
 
 const MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION: usize = 256 * size_of::<jlong>();

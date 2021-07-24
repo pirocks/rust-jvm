@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use rust_jvm_common::classfile::{Atype, Instruction, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 
 use crate::verifier::codecorrectness::Environment;

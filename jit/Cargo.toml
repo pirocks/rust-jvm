@@ -12,6 +12,7 @@ rust-jvm-common = { path = "../rust-jvm-common" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 verification = { path = "../verification" }
+classfile-view = { path = "../classfile-view" }
 iced-x86 = "1.11.1"
 libc = "0.2.94"
 nix = "0.20.0"

@@ -1,7 +1,7 @@
 use gc_memory_layout_common::StackframeMemoryLayout;
 use jit_ir::{ArithmeticType, Constant, IRInstruction, Size};
 
-use crate::{JitBlock, JITError, JitState};
+use crate::{JITError, JitState};
 
 pub enum ShiftDirection {
     ArithmeticLeft,
@@ -30,7 +30,7 @@ impl ShiftDirection {
     }
 }
 
-pub fn shift(current_jit_state: &mut JitState, java_pc: usize, size: Size, shift_direction: ShiftDirection) -> Result<(), JITError> {
+pub fn shift(current_jit_state: &mut JitState, java_pc: u16, size: Size, shift_direction: ShiftDirection) -> Result<(), JITError> {
     let mask = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let value_to_shift = current_jit_state.memory_layout.operand_stack_entry(java_pc, 1);
     let amount_to_shift_by = current_jit_state.memory_layout.operand_stack_entry(java_pc, 0);
@@ -65,7 +65,7 @@ pub fn shift(current_jit_state: &mut JitState, java_pc: usize, size: Size, shift
     let instruct = IRInstruction::IntegerArithmetic {
         input_offset_a: value_to_shift,
         input_offset_b: amount_to_shift_by,
-        output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc(), 1),
+        output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc() as u16, 1),
         size,
         signed: shift_direction.signed(),
         arithmetic_type: shift_direction.to_arithmetic_type(),

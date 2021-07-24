@@ -97,7 +97,7 @@ pub fn array_load(current_jit_state: &mut JitState, size: Size) -> Result<(), JI
     let final_address = array_final_address(current_jit_state, &size, array_operand, layout, index_operand)?;
     let load = IRInstruction::LoadAbsolute {
         address_from: final_address,
-        output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc.unwrap().get(), 0),
+        output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc.unwrap().get() as u16, 0),
         size,
     };
     current_jit_state.output.main_block.add_instruction(load);

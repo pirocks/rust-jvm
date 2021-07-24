@@ -1,5 +1,5 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};

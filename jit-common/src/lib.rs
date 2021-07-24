@@ -48,5 +48,8 @@ pub enum VMExitType {
     MultiNewArray,
     ArrayOutOfBounds,
     DebugTestExit,
+    DebugTestExitValue {
+        value: FramePointerOffset
+    },
     ExitDueToCompletion,
 }

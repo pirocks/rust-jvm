@@ -86,7 +86,6 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
         string_pool: &jvm.string_pool,
-        method_descriptor_pool: &jvm.method_descriptor_pool,
         class_view_cache: Mutex::new(Default::default()),
         current_loader: loader.clone(),
         verification_types: Default::default(),

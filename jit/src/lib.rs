@@ -2,24 +2,17 @@
 #![feature(const_maybe_uninit_as_ptr)]
 #![feature(const_raw_ptr_deref)]
 #![feature(const_raw_ptr_to_usize_cast)]
+#![feature(box_syntax)]
 
 extern crate compiler_builtins;
 
 use std::collections::HashMap;
-use std::ffi::c_void;
-use std::mem::transmute;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{fence, Ordering};
 
-use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, InstructionBlock};
-use iced_x86::Mnemonic::Iret;
-use nix::sys::mman::{MapFlags, mmap, ProtFlags};
-
-use gc_memory_layout_common::{ArrayMemoryLayout, FrameBackedStackframeMemoryLayout, StackframeMemoryLayout};
+use gc_memory_layout_common::{ArrayMemoryLayout, StackframeMemoryLayout};
 use jit_common::VMExitType;
-use jit_ir::{ArithmeticType, Constant, IRInstruction, IRLabel, Size, VariableSize};
-use rust_jvm_common::classfile::{Code, Instruction, InstructionInfo};
-use verification::verifier::Frame;
+use jit_ir::{ArithmeticType, Constant, IRInstruction, IRLabel, Size};
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 
 use crate::arrays::{array_load, array_store};
 use crate::integer_arithmetic::{binary_and, binary_or, binary_xor, integer_add, integer_div, integer_mul, integer_sub, shift, ShiftDirection};
@@ -54,7 +47,7 @@ impl JitIROutput {
 
 pub struct JitState<'l> {
     memory_layout: &'l dyn StackframeMemoryLayout,
-    java_pc: usize,
+    java_pc: u16,
     next_pc: Option<NonZeroUsize>,
     output: JitIROutput,
 }
@@ -64,14 +57,14 @@ impl JitState<'_> {
         todo!()
     }
 
-    pub fn next_pc(&self) -> usize {
+    pub fn next_pc(&self) -> u16 {
         todo!()
     }
 }
 
 const MAX_INTERMEDIATE_VALUE_PADDING: usize = 3;
 
-pub fn code_to_ir(code: Vec<Instruction>, memory_layout: &dyn StackframeMemoryLayout) -> Result<JitIROutput, JITError> {
+pub fn code_to_ir(code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryLayout) -> Result<JitIROutput, JITError> {
     // let  = StackframeMemoryLayout::new((code.max_stack as usize + MAX_INTERMEDIATE_VALUE_PADDING) as usize, code.max_locals as usize, frame_vtypes);
     let mut jit_state = JitState {
         memory_layout,
@@ -79,297 +72,297 @@ pub fn code_to_ir(code: Vec<Instruction>, memory_layout: &dyn StackframeMemoryLa
         next_pc: None,
         output: JitIROutput { main_block: JitBlock { java_pc_to_ir: Default::default(), instructions: vec![] }, additional_blocks: vec![] },
     };
-    let mut current_instr: Option<&Instruction> = None;
+    let mut current_instr: Option<&CInstruction> = None;
     for future_instr in &code {
         if let Some(current_instr) = current_instr.take() {
-            jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset).unwrap());
+            jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset as usize).unwrap());
             jit_state.java_pc = current_instr.offset;
             byte_code_to_ir(current_instr, &mut jit_state)?;
         }
         jit_state.next_pc = None;
-        current_instr = Some(future_instr.clone());
+        current_instr = Some(future_instr);
     }
     byte_code_to_ir(current_instr.unwrap(), &mut jit_state)?;
     Ok(jit_state.output)
 }
 
-pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState) -> Result<(), JITError> {
-    let Instruction { offset, instruction: instruction_info } = bytecode;
+pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState) -> Result<(), JITError> {
+    let CInstruction { offset, instruction_size, info } = bytecode;
     current_jit_state.java_pc = *offset;
-    let java_pc = current_jit_state.java_pc;
-    match instruction_info {
-        InstructionInfo::aaload => {
+    let java_pc = current_jit_state.java_pc as u16;
+    match info {
+        CInstructionInfo::aaload => {
             array_load(current_jit_state, Size::Long)
         }
-        InstructionInfo::aastore => {
+        CInstructionInfo::aastore => {
             array_store(current_jit_state, Size::Long)
         }
-        InstructionInfo::aconst_null => {
+        CInstructionInfo::aconst_null => {
             constant(current_jit_state, Constant::Pointer(0))
         }
-        InstructionInfo::aload(variable_index) => {
+        CInstructionInfo::aload(variable_index) => {
             aload_n(current_jit_state, *variable_index as usize)
         }
-        InstructionInfo::aload_0 => {
+        CInstructionInfo::aload_0 => {
             aload_n(current_jit_state, 0)
         }
-        InstructionInfo::aload_1 => {
+        CInstructionInfo::aload_1 => {
             aload_n(current_jit_state, 1)
         }
-        InstructionInfo::aload_2 => {
+        CInstructionInfo::aload_2 => {
             aload_n(current_jit_state, 2)
         }
-        InstructionInfo::aload_3 => {
+        CInstructionInfo::aload_3 => {
             aload_n(current_jit_state, 3)
         }
-        InstructionInfo::anewarray(_) => Err(JITError::NotSupported),
-        InstructionInfo::areturn => {
+        CInstructionInfo::anewarray(_) => Err(JITError::NotSupported),
+        CInstructionInfo::areturn => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::Return {
-                return_value: current_jit_state.memory_layout.operand_stack_entry(java_pc, 0),
+                return_value: current_jit_state.memory_layout.operand_stack_entry(java_pc as u16, 0),
                 return_value_size: Size::Long,
             });
             Ok(())
         }
-        InstructionInfo::arraylength => {
+        CInstructionInfo::arraylength => {
             let layout: ArrayMemoryLayout = todo!();
             layout.len_entry();
             todo!();
             Ok(())
         }
-        InstructionInfo::astore(variable_index) => {
-            astore_n(current_jit_state, *variable_index as usize)
+        CInstructionInfo::astore(variable_index) => {
+            astore_n(current_jit_state, *variable_index as u16)
         }
-        InstructionInfo::astore_0 => {
+        CInstructionInfo::astore_0 => {
             astore_n(current_jit_state, 0)
         }
-        InstructionInfo::astore_1 => {
+        CInstructionInfo::astore_1 => {
             astore_n(current_jit_state, 1)
         }
-        InstructionInfo::astore_2 => {
+        CInstructionInfo::astore_2 => {
             astore_n(current_jit_state, 2)
         }
-        InstructionInfo::astore_3 => {
+        CInstructionInfo::astore_3 => {
             astore_n(current_jit_state, 3)
         }
-        InstructionInfo::athrow => {
+        CInstructionInfo::athrow => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw));
             Ok(())
         }
-        InstructionInfo::baload => {
+        CInstructionInfo::baload => {
             array_load(current_jit_state, Size::Byte)
         }
-        InstructionInfo::bastore => {
+        CInstructionInfo::bastore => {
             array_store(current_jit_state, Size::Byte)
         }
-        InstructionInfo::bipush(_) => Err(JITError::NotSupported),
-        InstructionInfo::caload => {
+        CInstructionInfo::bipush(_) => Err(JITError::NotSupported),
+        CInstructionInfo::caload => {
             array_load(current_jit_state, Size::Short)
         }
-        InstructionInfo::castore => { Err(JITError::NotSupported) }
-        InstructionInfo::checkcast(_) => {
+        CInstructionInfo::castore => { Err(JITError::NotSupported) }
+        CInstructionInfo::checkcast(_) => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast));
             Ok(())
         }
-        InstructionInfo::d2f => Err(JITError::NotSupported),
-        InstructionInfo::d2i => Err(JITError::NotSupported),
-        InstructionInfo::d2l => Err(JITError::NotSupported),
-        InstructionInfo::dadd => Err(JITError::NotSupported),
-        InstructionInfo::daload => {
+        CInstructionInfo::d2f => Err(JITError::NotSupported),
+        CInstructionInfo::d2i => Err(JITError::NotSupported),
+        CInstructionInfo::d2l => Err(JITError::NotSupported),
+        CInstructionInfo::dadd => Err(JITError::NotSupported),
+        CInstructionInfo::daload => {
             array_load(current_jit_state, Size::Long)
         }
-        InstructionInfo::dastore => {
+        CInstructionInfo::dastore => {
             array_store(current_jit_state, Size::Long)
         }
-        InstructionInfo::dcmpg => Err(JITError::NotSupported),
-        InstructionInfo::dcmpl => Err(JITError::NotSupported),
-        InstructionInfo::dconst_0 => {
+        CInstructionInfo::dcmpg => Err(JITError::NotSupported),
+        CInstructionInfo::dcmpl => Err(JITError::NotSupported),
+        CInstructionInfo::dconst_0 => {
             constant(current_jit_state, Constant::Double(0f64))
         }
-        InstructionInfo::dconst_1 => {
+        CInstructionInfo::dconst_1 => {
             constant(current_jit_state, Constant::Double(1f64))
         }
-        InstructionInfo::ddiv => Err(JITError::NotSupported),
-        InstructionInfo::dload(n) => {
-            store_n(current_jit_state, *n as usize, Size::Long)
+        CInstructionInfo::ddiv => Err(JITError::NotSupported),
+        CInstructionInfo::dload(n) => {
+            store_n(current_jit_state, *n as u16, Size::Long)
         }
-        InstructionInfo::dload_0 => {
+        CInstructionInfo::dload_0 => {
             store_n(current_jit_state, 0, Size::Long)
         }
-        InstructionInfo::dload_1 => {
+        CInstructionInfo::dload_1 => {
             store_n(current_jit_state, 1, Size::Long)
         }
-        InstructionInfo::dload_2 => {
+        CInstructionInfo::dload_2 => {
             store_n(current_jit_state, 2, Size::Long)
         }
-        InstructionInfo::dload_3 => {
+        CInstructionInfo::dload_3 => {
             store_n(current_jit_state, 3, Size::Long)
         }
-        InstructionInfo::dmul => Err(JITError::NotSupported),
-        InstructionInfo::dneg => Err(JITError::NotSupported),
-        InstructionInfo::drem => Err(JITError::NotSupported),
-        InstructionInfo::dreturn => Err(JITError::NotSupported),
-        InstructionInfo::dstore(n) => {
-            store_n(current_jit_state, *n as usize, Size::Long)
+        CInstructionInfo::dmul => Err(JITError::NotSupported),
+        CInstructionInfo::dneg => Err(JITError::NotSupported),
+        CInstructionInfo::drem => Err(JITError::NotSupported),
+        CInstructionInfo::dreturn => Err(JITError::NotSupported),
+        CInstructionInfo::dstore(n) => {
+            store_n(current_jit_state, *n as u16, Size::Long)
         }
-        InstructionInfo::dstore_0 => {
+        CInstructionInfo::dstore_0 => {
             store_n(current_jit_state, 0, Size::Long)
         }
-        InstructionInfo::dstore_1 => {
+        CInstructionInfo::dstore_1 => {
             store_n(current_jit_state, 1, Size::Long)
         }
-        InstructionInfo::dstore_2 => {
+        CInstructionInfo::dstore_2 => {
             store_n(current_jit_state, 2, Size::Long)
         }
-        InstructionInfo::dstore_3 => {
+        CInstructionInfo::dstore_3 => {
             store_n(current_jit_state, 3, Size::Long)
         }
-        InstructionInfo::dsub => Err(JITError::NotSupported),
-        InstructionInfo::dup => Err(JITError::NotSupported),
-        InstructionInfo::dup_x1 => Err(JITError::NotSupported),
-        InstructionInfo::dup_x2 => Err(JITError::NotSupported),
-        InstructionInfo::dup2 => Err(JITError::NotSupported),
-        InstructionInfo::dup2_x1 => Err(JITError::NotSupported),
-        InstructionInfo::dup2_x2 => Err(JITError::NotSupported),
-        InstructionInfo::f2d => Err(JITError::NotSupported),
-        InstructionInfo::f2i => Err(JITError::NotSupported),
-        InstructionInfo::f2l => Err(JITError::NotSupported),
-        InstructionInfo::fadd => Err(JITError::NotSupported),
-        InstructionInfo::faload => {
+        CInstructionInfo::dsub => Err(JITError::NotSupported),
+        CInstructionInfo::dup => Err(JITError::NotSupported),
+        CInstructionInfo::dup_x1 => Err(JITError::NotSupported),
+        CInstructionInfo::dup_x2 => Err(JITError::NotSupported),
+        CInstructionInfo::dup2 => Err(JITError::NotSupported),
+        CInstructionInfo::dup2_x1 => Err(JITError::NotSupported),
+        CInstructionInfo::dup2_x2 => Err(JITError::NotSupported),
+        CInstructionInfo::f2d => Err(JITError::NotSupported),
+        CInstructionInfo::f2i => Err(JITError::NotSupported),
+        CInstructionInfo::f2l => Err(JITError::NotSupported),
+        CInstructionInfo::fadd => Err(JITError::NotSupported),
+        CInstructionInfo::faload => {
             array_load(current_jit_state, Size::Int)
         }
-        InstructionInfo::fastore => {
+        CInstructionInfo::fastore => {
             array_store(current_jit_state, Size::Int)
         }
-        InstructionInfo::fcmpg => Err(JITError::NotSupported),
-        InstructionInfo::fcmpl => Err(JITError::NotSupported),
-        InstructionInfo::fconst_0 => {
+        CInstructionInfo::fcmpg => Err(JITError::NotSupported),
+        CInstructionInfo::fcmpl => Err(JITError::NotSupported),
+        CInstructionInfo::fconst_0 => {
             constant(current_jit_state, Constant::Float(0.0f32))
         }
-        InstructionInfo::fconst_1 => {
+        CInstructionInfo::fconst_1 => {
             constant(current_jit_state, Constant::Float(1.0f32))
         }
-        InstructionInfo::fconst_2 => {
+        CInstructionInfo::fconst_2 => {
             constant(current_jit_state, Constant::Float(2.0f32))
         }
-        InstructionInfo::fdiv => Err(JITError::NotSupported),
-        InstructionInfo::fload(n) => {
+        CInstructionInfo::fdiv => Err(JITError::NotSupported),
+        CInstructionInfo::fload(n) => {
             load_n(current_jit_state, *n as usize, Size::Int)
         }
-        InstructionInfo::fload_0 => {
+        CInstructionInfo::fload_0 => {
             load_n(current_jit_state, 0, Size::Int)
         }
-        InstructionInfo::fload_1 => {
+        CInstructionInfo::fload_1 => {
             load_n(current_jit_state, 1, Size::Int)
         }
-        InstructionInfo::fload_2 => {
+        CInstructionInfo::fload_2 => {
             load_n(current_jit_state, 2, Size::Int)
         }
-        InstructionInfo::fload_3 => {
+        CInstructionInfo::fload_3 => {
             load_n(current_jit_state, 3, Size::Int)
         }
-        InstructionInfo::fmul => Err(JITError::NotSupported),
-        InstructionInfo::fneg => Err(JITError::NotSupported),
-        InstructionInfo::frem => Err(JITError::NotSupported),
-        InstructionInfo::freturn => Err(JITError::NotSupported),
-        InstructionInfo::fstore(n) => {
-            store_n(current_jit_state, *n as usize, Size::Int)
+        CInstructionInfo::fmul => Err(JITError::NotSupported),
+        CInstructionInfo::fneg => Err(JITError::NotSupported),
+        CInstructionInfo::frem => Err(JITError::NotSupported),
+        CInstructionInfo::freturn => Err(JITError::NotSupported),
+        CInstructionInfo::fstore(n) => {
+            store_n(current_jit_state, *n as u16, Size::Int)
         }
-        InstructionInfo::fstore_0 => {
+        CInstructionInfo::fstore_0 => {
             store_n(current_jit_state, 0, Size::Int)
         }
-        InstructionInfo::fstore_1 => {
+        CInstructionInfo::fstore_1 => {
             store_n(current_jit_state, 1, Size::Int)
         }
-        InstructionInfo::fstore_2 => {
+        CInstructionInfo::fstore_2 => {
             store_n(current_jit_state, 2, Size::Int)
         }
-        InstructionInfo::fstore_3 => {
+        CInstructionInfo::fstore_3 => {
             store_n(current_jit_state, 3, Size::Int)
         }
-        InstructionInfo::fsub => Err(JITError::NotSupported),
-        InstructionInfo::getfield(_) => Err(JITError::NotSupported),
-        InstructionInfo::getstatic(_) => Err(JITError::NotSupported),
-        InstructionInfo::goto_(_) => Err(JITError::NotSupported),
-        InstructionInfo::goto_w(_) => Err(JITError::NotSupported),
-        InstructionInfo::i2b => Err(JITError::NotSupported),
-        InstructionInfo::i2c => Err(JITError::NotSupported),
-        InstructionInfo::i2d => Err(JITError::NotSupported),
-        InstructionInfo::i2f => Err(JITError::NotSupported),
-        InstructionInfo::i2l => Err(JITError::NotSupported),
-        InstructionInfo::i2s => Err(JITError::NotSupported),
-        InstructionInfo::iadd => {
+        CInstructionInfo::fsub => Err(JITError::NotSupported),
+        CInstructionInfo::getfield { name, desc, target_class } => Err(JITError::NotSupported),
+        CInstructionInfo::getstatic { name, desc, target_class } => Err(JITError::NotSupported),
+        CInstructionInfo::goto_(_) => Err(JITError::NotSupported),
+        CInstructionInfo::goto_w(_) => Err(JITError::NotSupported),
+        CInstructionInfo::i2b => Err(JITError::NotSupported),
+        CInstructionInfo::i2c => Err(JITError::NotSupported),
+        CInstructionInfo::i2d => Err(JITError::NotSupported),
+        CInstructionInfo::i2f => Err(JITError::NotSupported),
+        CInstructionInfo::i2l => Err(JITError::NotSupported),
+        CInstructionInfo::i2s => Err(JITError::NotSupported),
+        CInstructionInfo::iadd => {
             integer_add(current_jit_state, Size::Int)
         }
-        InstructionInfo::iaload => {
+        CInstructionInfo::iaload => {
             array_load(current_jit_state, Size::Int)
         }
-        InstructionInfo::iand => {
+        CInstructionInfo::iand => {
             binary_and(current_jit_state, Size::Int)
         }
-        InstructionInfo::iastore => {
+        CInstructionInfo::iastore => {
             array_store(current_jit_state, Size::Int)
         }
-        InstructionInfo::iconst_m1 => {
+        CInstructionInfo::iconst_m1 => {
             constant(current_jit_state, Constant::Int(-1))
         }
-        InstructionInfo::iconst_0 => {
+        CInstructionInfo::iconst_0 => {
             constant(current_jit_state, Constant::Int(0))
         }
-        InstructionInfo::iconst_1 => {
+        CInstructionInfo::iconst_1 => {
             constant(current_jit_state, Constant::Int(1))
         }
-        InstructionInfo::iconst_2 => {
+        CInstructionInfo::iconst_2 => {
             constant(current_jit_state, Constant::Int(2))
         }
-        InstructionInfo::iconst_3 => {
+        CInstructionInfo::iconst_3 => {
             constant(current_jit_state, Constant::Int(3))
         }
-        InstructionInfo::iconst_4 => {
+        CInstructionInfo::iconst_4 => {
             constant(current_jit_state, Constant::Int(4))
         }
-        InstructionInfo::iconst_5 => {
+        CInstructionInfo::iconst_5 => {
             constant(current_jit_state, Constant::Int(5))
         }
-        InstructionInfo::idiv => {
+        CInstructionInfo::idiv => {
             integer_div(current_jit_state, Size::Int)
         }
-        InstructionInfo::if_acmpeq(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_acmpne(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmpeq(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmpne(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmplt(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmpge(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmpgt(_) => Err(JITError::NotSupported),
-        InstructionInfo::if_icmple(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifeq(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifne(_) => Err(JITError::NotSupported),
-        InstructionInfo::iflt(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifge(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifgt(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifle(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifnonnull(_) => Err(JITError::NotSupported),
-        InstructionInfo::ifnull(_) => Err(JITError::NotSupported),
-        InstructionInfo::iinc(_) => Err(JITError::NotSupported),
-        InstructionInfo::iload(n) => {
+        CInstructionInfo::if_acmpeq(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_acmpne(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmpeq(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmpne(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmplt(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmpge(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmpgt(_) => Err(JITError::NotSupported),
+        CInstructionInfo::if_icmple(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifeq(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifne(_) => Err(JITError::NotSupported),
+        CInstructionInfo::iflt(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifge(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifgt(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifle(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifnonnull(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ifnull(_) => Err(JITError::NotSupported),
+        CInstructionInfo::iinc(_) => Err(JITError::NotSupported),
+        CInstructionInfo::iload(n) => {
             load_n(current_jit_state, *n as usize, Size::Int)
         }
-        InstructionInfo::iload_0 => {
+        CInstructionInfo::iload_0 => {
             load_n(current_jit_state, 0, Size::Int)
         }
-        InstructionInfo::iload_1 => {
+        CInstructionInfo::iload_1 => {
             load_n(current_jit_state, 1, Size::Int)
         }
-        InstructionInfo::iload_2 => {
+        CInstructionInfo::iload_2 => {
             load_n(current_jit_state, 2, Size::Int)
         }
-        InstructionInfo::iload_3 => {
+        CInstructionInfo::iload_3 => {
             load_n(current_jit_state, 3, Size::Int)
         }
-        InstructionInfo::imul => {
+        CInstructionInfo::imul => {
             let instruct = IRInstruction::IntegerArithmetic {
-                input_offset_a: current_jit_state.memory_layout.operand_stack_entry(java_pc, 1),
-                input_offset_b: current_jit_state.memory_layout.operand_stack_entry(java_pc, 0),
-                output_offset: current_jit_state.memory_layout.operand_stack_entry(java_pc, 1),
+                input_offset_a: current_jit_state.memory_layout.operand_stack_entry(java_pc as u16, 1),
+                input_offset_b: current_jit_state.memory_layout.operand_stack_entry(java_pc as u16, 0),
+                output_offset: current_jit_state.memory_layout.operand_stack_entry(java_pc as u16, 1),
                 size: Size::Int,
                 signed: true,
                 arithmetic_type: ArithmeticType::Mul,
@@ -377,19 +370,19 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
             current_jit_state.output.main_block.add_instruction(instruct);
             Ok(())
         }
-        InstructionInfo::ineg => {
+        CInstructionInfo::ineg => {
             todo!()
         }
-        InstructionInfo::instanceof(_) => {
+        CInstructionInfo::instanceof(_) => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf));
             Ok(())
         }
-        InstructionInfo::invokedynamic(_) => {
+        CInstructionInfo::invokedynamic(_) => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic));
             Ok(())
         }
-        InstructionInfo::invokeinterface(_) => {
-            let resolved_function_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
+        CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
+            let resolved_function_location = current_jit_state.memory_layout.safe_temp_location(java_pc as u16, 0);
             let local_var_and_operand_stack_size_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
             let exit_to_get_target = IRInstruction::VMExit(VMExitType::InvokeInterfaceResolveTarget { resolved: resolved_function_location });
             current_jit_state.output.main_block.add_instruction(exit_to_get_target);
@@ -397,188 +390,188 @@ pub fn byte_code_to_ir(bytecode: &Instruction, current_jit_state: &mut JitState)
             current_jit_state.output.main_block.add_instruction(call);
             Ok(())
         }
-        InstructionInfo::invokespecial(_) => {
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecialResolveTarget { resolved: todo!() }));
             Ok(())
         }
-        InstructionInfo::invokestatic(_) => {
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStaticResolveTarget { resolved: todo!() }));
             Ok(())
         }
-        InstructionInfo::invokevirtual(_) => {
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtualResolveTarget { resolved: todo!() }));
             Ok(())
         }
-        InstructionInfo::ior => {
+        CInstructionInfo::ior => {
             binary_or(current_jit_state, Size::Int)
         }
-        InstructionInfo::irem => Err(JITError::NotSupported),
-        InstructionInfo::ireturn => Err(JITError::NotSupported),
-        InstructionInfo::ishl => {
+        CInstructionInfo::irem => Err(JITError::NotSupported),
+        CInstructionInfo::ireturn => Err(JITError::NotSupported),
+        CInstructionInfo::ishl => {
             shift(current_jit_state, java_pc, Size::Int, ShiftDirection::ArithmeticLeft)
         }
-        InstructionInfo::ishr => {
+        CInstructionInfo::ishr => {
             shift(current_jit_state, java_pc, Size::Int, ShiftDirection::ArithmeticRight)
         }
-        InstructionInfo::istore(n) => {
-            store_n(current_jit_state, *n as usize, Size::Int)
+        CInstructionInfo::istore(n) => {
+            store_n(current_jit_state, *n as u16, Size::Int)
         }
-        InstructionInfo::istore_0 => {
+        CInstructionInfo::istore_0 => {
             store_n(current_jit_state, 0, Size::Int)
         }
-        InstructionInfo::istore_1 => {
+        CInstructionInfo::istore_1 => {
             store_n(current_jit_state, 1, Size::Int)
         }
-        InstructionInfo::istore_2 => {
+        CInstructionInfo::istore_2 => {
             store_n(current_jit_state, 2, Size::Int)
         }
-        InstructionInfo::istore_3 => {
+        CInstructionInfo::istore_3 => {
             store_n(current_jit_state, 3, Size::Int)
         }
-        InstructionInfo::isub => {
+        CInstructionInfo::isub => {
             integer_sub(current_jit_state, Size::Int)
         }
-        InstructionInfo::iushr => {
+        CInstructionInfo::iushr => {
             shift(current_jit_state, java_pc, Size::Int, ShiftDirection::LogicalRight)
         }
-        InstructionInfo::ixor => {
+        CInstructionInfo::ixor => {
             binary_xor(current_jit_state, Size::Int)
         }
-        InstructionInfo::jsr(_) => Err(JITError::NotSupported),
-        InstructionInfo::jsr_w(_) => Err(JITError::NotSupported),
-        InstructionInfo::l2d => Err(JITError::NotSupported),
-        InstructionInfo::l2f => Err(JITError::NotSupported),
-        InstructionInfo::l2i => Err(JITError::NotSupported),
-        InstructionInfo::ladd => {
+        CInstructionInfo::jsr(_) => Err(JITError::NotSupported),
+        CInstructionInfo::jsr_w(_) => Err(JITError::NotSupported),
+        CInstructionInfo::l2d => Err(JITError::NotSupported),
+        CInstructionInfo::l2f => Err(JITError::NotSupported),
+        CInstructionInfo::l2i => Err(JITError::NotSupported),
+        CInstructionInfo::ladd => {
             integer_add(current_jit_state, Size::Long)
         }
-        InstructionInfo::laload => {
+        CInstructionInfo::laload => {
             array_load(current_jit_state, Size::Long)
         }
-        InstructionInfo::land => {
+        CInstructionInfo::land => {
             binary_and(current_jit_state, Size::Long)
         }
-        InstructionInfo::lastore => {
+        CInstructionInfo::lastore => {
             array_store(current_jit_state, Size::Long)
         }
-        InstructionInfo::lcmp => Err(JITError::NotSupported),
-        InstructionInfo::lconst_0 => {
+        CInstructionInfo::lcmp => Err(JITError::NotSupported),
+        CInstructionInfo::lconst_0 => {
             constant(current_jit_state, Constant::Long(0))
         }
-        InstructionInfo::lconst_1 => {
+        CInstructionInfo::lconst_1 => {
             constant(current_jit_state, Constant::Long(1))
         }
-        InstructionInfo::ldc(_) => Err(JITError::NotSupported),
-        InstructionInfo::ldc_w(_) => Err(JITError::NotSupported),
-        InstructionInfo::ldc2_w(_) => Err(JITError::NotSupported),
-        InstructionInfo::ldiv => {
+        CInstructionInfo::ldc(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ldc_w(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ldc2_w(_) => Err(JITError::NotSupported),
+        CInstructionInfo::ldiv => {
             integer_div(current_jit_state, Size::Long)
         }
-        InstructionInfo::lload(n) => {
+        CInstructionInfo::lload(n) => {
             load_n(current_jit_state, *n as usize, Size::Long)
         }
-        InstructionInfo::lload_0 => {
+        CInstructionInfo::lload_0 => {
             load_n(current_jit_state, 0, Size::Long)
         }
-        InstructionInfo::lload_1 => {
+        CInstructionInfo::lload_1 => {
             load_n(current_jit_state, 1, Size::Long)
         }
-        InstructionInfo::lload_2 => {
+        CInstructionInfo::lload_2 => {
             load_n(current_jit_state, 2, Size::Long)
         }
-        InstructionInfo::lload_3 => {
+        CInstructionInfo::lload_3 => {
             load_n(current_jit_state, 3, Size::Long)
         }
-        InstructionInfo::lmul => {
+        CInstructionInfo::lmul => {
             integer_mul(current_jit_state, Size::Long)
         }
-        InstructionInfo::lneg => Err(JITError::NotSupported),
-        InstructionInfo::lookupswitch(_) => Err(JITError::NotSupported),
-        InstructionInfo::lor => {
+        CInstructionInfo::lneg => Err(JITError::NotSupported),
+        CInstructionInfo::lookupswitch(_) => Err(JITError::NotSupported),
+        CInstructionInfo::lor => {
             binary_or(current_jit_state, Size::Long)
         }
-        InstructionInfo::lrem => Err(JITError::NotSupported),
-        InstructionInfo::lreturn => Err(JITError::NotSupported),
-        InstructionInfo::lshl => {
+        CInstructionInfo::lrem => Err(JITError::NotSupported),
+        CInstructionInfo::lreturn => Err(JITError::NotSupported),
+        CInstructionInfo::lshl => {
             shift(current_jit_state, java_pc, Size::Long, ShiftDirection::ArithmeticLeft)
         }
-        InstructionInfo::lshr => {
+        CInstructionInfo::lshr => {
             shift(current_jit_state, java_pc, Size::Long, ShiftDirection::ArithmeticRight)
         }
-        InstructionInfo::lstore(n) => {
-            store_n(current_jit_state, *n as usize, Size::Long)
+        CInstructionInfo::lstore(n) => {
+            store_n(current_jit_state, *n as u16, Size::Long)
         }
-        InstructionInfo::lstore_0 => {
+        CInstructionInfo::lstore_0 => {
             store_n(current_jit_state, 0, Size::Long)
         }
-        InstructionInfo::lstore_1 => {
+        CInstructionInfo::lstore_1 => {
             store_n(current_jit_state, 1, Size::Long)
         }
-        InstructionInfo::lstore_2 => {
+        CInstructionInfo::lstore_2 => {
             store_n(current_jit_state, 2, Size::Long)
         }
-        InstructionInfo::lstore_3 => {
+        CInstructionInfo::lstore_3 => {
             store_n(current_jit_state, 3, Size::Long)
         }
-        InstructionInfo::lsub => {
+        CInstructionInfo::lsub => {
             integer_sub(current_jit_state, Size::Long)
         }
-        InstructionInfo::lushr => {
+        CInstructionInfo::lushr => {
             shift(current_jit_state, java_pc, Size::Long, ShiftDirection::LogicalRight)
         }
-        InstructionInfo::lxor => {
+        CInstructionInfo::lxor => {
             binary_xor(current_jit_state, Size::Long)
         }
-        InstructionInfo::monitorenter => {
+        CInstructionInfo::monitorenter => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter));
             Ok(())
         }
-        InstructionInfo::monitorexit => {
+        CInstructionInfo::monitorexit => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit));
             Ok(())
         }
-        InstructionInfo::multianewarray(_) => {
+        CInstructionInfo::multianewarray { type_, dimensions } => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray));
             Ok(())
         }
-        InstructionInfo::new(_) => Err(JITError::NotSupported),
-        InstructionInfo::newarray(_) => Err(JITError::NotSupported),
-        InstructionInfo::nop => {
+        CInstructionInfo::new(_) => Err(JITError::NotSupported),
+        CInstructionInfo::newarray(_) => Err(JITError::NotSupported),
+        CInstructionInfo::nop => {
             Ok(())
         }
-        InstructionInfo::pop => {
+        CInstructionInfo::pop => {
             Ok(())
         }
-        InstructionInfo::pop2 => {
+        CInstructionInfo::pop2 => {
             Ok(())
         }
-        InstructionInfo::putfield(_) => Err(JITError::NotSupported),
-        InstructionInfo::putstatic(_) => Err(JITError::NotSupported),
-        InstructionInfo::ret(_) => Err(JITError::NotSupported),
-        InstructionInfo::return_ => {
+        CInstructionInfo::putfield { name, desc, target_class } => Err(JITError::NotSupported),
+        CInstructionInfo::putstatic { name, desc, target_class } => Err(JITError::NotSupported),
+        CInstructionInfo::ret(_) => Err(JITError::NotSupported),
+        CInstructionInfo::return_ => {
             current_jit_state.output.main_block.add_instruction(IRInstruction::ReturnNone);
             Ok(())
         }
-        InstructionInfo::saload => {
+        CInstructionInfo::saload => {
             array_load(current_jit_state, Size::Short)
         }
-        InstructionInfo::sastore => {
+        CInstructionInfo::sastore => {
             array_store(current_jit_state, Size::Short)
         }
-        InstructionInfo::sipush(_) => Err(JITError::NotSupported),
-        InstructionInfo::swap => {
+        CInstructionInfo::sipush(_) => Err(JITError::NotSupported),
+        CInstructionInfo::swap => {
             swap(current_jit_state)
         }
-        InstructionInfo::tableswitch(_) => Err(JITError::NotSupported),
-        InstructionInfo::wide(_) => Err(JITError::NotSupported),
-        InstructionInfo::EndOfCode => Err(JITError::NotSupported),
+        CInstructionInfo::tableswitch(_) => Err(JITError::NotSupported),
+        CInstructionInfo::wide(_) => Err(JITError::NotSupported),
+        CInstructionInfo::EndOfCode => Err(JITError::NotSupported),
     }
 }
 
 fn swap(current_jit_state: &mut JitState) -> Result<(), JITError> {
-    let a = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 0);
-    let b = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc, 1);
-    let temp = current_jit_state.memory_layout.safe_temp_location(current_jit_state.java_pc, 0);
+    let a = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc as u16, 0);
+    let b = current_jit_state.memory_layout.operand_stack_entry(current_jit_state.java_pc as u16, 1);
+    let temp = current_jit_state.memory_layout.safe_temp_location(current_jit_state.java_pc as u16, 0);
     let copy_to_temp = IRInstruction::CopyRelative {
         input_offset: a,
         output_offset: temp,
@@ -611,7 +604,7 @@ pub mod integer_arithmetic;
 
 fn constant(current_jit_state: &mut JitState, constant: Constant) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, .. } = current_jit_state;
-    let null_offset = memory_layout.operand_stack_entry(*java_pc, 0);//todo this is wrong
+    let null_offset = memory_layout.operand_stack_entry(*java_pc as u16, 0);//todo this is wrong
     current_jit_state.output.main_block.add_instruction(IRInstruction::Constant {
         output_offset: null_offset,
         constant,
@@ -625,10 +618,10 @@ fn aload_n(current_jit_state: &mut JitState, variable_index: usize) -> Result<()
 
 fn load_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, next_pc } = current_jit_state;
-    let local_var_offset = memory_layout.local_var_entry(*java_pc, variable_index);
+    let local_var_offset = memory_layout.local_var_entry(*java_pc as u16, variable_index as u16);
     current_jit_state.output.main_block.add_instruction(IRInstruction::CopyRelative {
         input_offset: local_var_offset,
-        output_offset: memory_layout.operand_stack_entry(next_pc.unwrap().get(), 0),
+        output_offset: memory_layout.operand_stack_entry(next_pc.unwrap().get() as u16, 0),
         input_size: size,
         output_size: size,
         signed: false,
@@ -636,14 +629,14 @@ fn load_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -
     Ok(())
 }
 
-fn astore_n(current_jit_state: &mut JitState, variable_index: usize) -> Result<(), JITError> {
+fn astore_n(current_jit_state: &mut JitState, variable_index: u16) -> Result<(), JITError> {
     store_n(current_jit_state, variable_index, Size::Long)
 }
 
 //todo these should all return not mutate
-fn store_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -> Result<(), JITError> {
+fn store_n(current_jit_state: &mut JitState, variable_index: u16, size: Size) -> Result<(), JITError> {
     let JitState { memory_layout, output, java_pc, next_pc } = current_jit_state;
-    let local_var_offset = memory_layout.local_var_entry(*java_pc, variable_index);
+    let local_var_offset = memory_layout.local_var_entry(*java_pc as u16, variable_index);
     current_jit_state.output.main_block.add_instruction(IRInstruction::CopyRelative {
         input_offset: memory_layout.operand_stack_entry(*java_pc, 0),
         output_offset: local_var_offset,

@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};

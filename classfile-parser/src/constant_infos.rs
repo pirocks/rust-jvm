@@ -29,7 +29,7 @@ const METHOD_HANDLE_CONST_NUM: u8 = 15;
 const METHOD_TYPE_CONST_NUM: u8 = 16;
 const INVOKE_DYNAMIC_CONST_NUM: u8 = 18;
 
-pub fn parse_constant_info(p: &mut dyn ParsingContext) -> Result<ConstantInfo, ClassfileParsingError> {
+pub fn parse_constant_info(p: &mut dyn ParsingContext, debug: bool) -> Result<ConstantInfo, ClassfileParsingError> {
     let kind = p.read8()?;
     let result_kind: ConstantKind = match kind {
         UTF8_CONST_NUM => {
@@ -150,13 +150,14 @@ pub fn parse_constant_infos(p: &mut dyn ParsingContext, constant_pool_count: u16
     let mut constants = Vec::with_capacity(constant_pool_count as usize);
     let mut skip_next_iter = true;
     //skip first loop iteration b/c the first element of the constant pool isn't a thing
-    for _ in 0..constant_pool_count {
+    for i in 0..constant_pool_count {
         if skip_next_iter {
             constants.push(ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {})) });
             skip_next_iter = false;
             continue;
         }
-        let constant_info = parse_constant_info(p)?;
+        // dbg!(i);
+        let constant_info = parse_constant_info(p, i == 473)?;
         match constant_info.kind {
             ConstantKind::Long(_) | ConstantKind::Double(_) => {
                 skip_next_iter = true;

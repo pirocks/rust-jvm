@@ -3,11 +3,8 @@ extern crate memoffset;
 
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::ops::Range;
 
 use iced_x86::{Code, Instruction, MemoryOperand, Register};
-use iced_x86::CodeSize::Code16;
-use rangemap::RangeMap;
 
 use gc_memory_layout_common::FramePointerOffset;
 use jit_common::{JitCodeContext, VMExitType};
@@ -244,6 +241,14 @@ r15 is reserved for context pointer
             }
             IRInstruction::BranchUnConditional(_) => todo!(),
             IRInstruction::VMExit(exit_type) => {
+                let restore_old_stack = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RSP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64));
+                instructions.add_instruction(restore_old_stack);
+                let restore_old_frame = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64));
+                instructions.add_instruction(restore_old_frame);
+                let jmp_to_old = Instruction::with_mem(Code::Jmp_rm64, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)) as i64));
+                let registration_guard = instructions.register_exit_before(exit_type.clone());
+                instructions.add_instruction(jmp_to_old);
+                instructions.register_exit_after(registration_guard);
                 match exit_type {
                     VMExitType::CheckCast => todo!(),
                     VMExitType::InstanceOf => todo!(),
@@ -257,18 +262,8 @@ r15 is reserved for context pointer
                     VMExitType::MonitorExit => todo!(),
                     VMExitType::MultiNewArray => todo!(),
                     VMExitType::ArrayOutOfBounds => todo!(),
-                    VMExitType::DebugTestExit => {
-                        let restore_old_stack = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RSP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64));
-                        instructions.add_instruction(restore_old_stack);
-                        let restore_old_frame = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64));
-                        instructions.add_instruction(restore_old_frame);
-                        //todo should add 1 here to
-                        let jmp_to_old = Instruction::with_mem(Code::Jmp_rm64, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)) as i64));
-                        let registration_guard = instructions.register_exit_before(exit_type.clone());
-                        instructions.add_instruction(jmp_to_old);
-                        instructions.register_exit_after(registration_guard);
-                    }
-                    VMExitType::ExitDueToCompletion => todo!()
+                    VMExitType::DebugTestExit => {}
+                    VMExitType::ExitDueToCompletion => {}
                 }
             }
             IRInstruction::Constant { output_offset, constant } => {

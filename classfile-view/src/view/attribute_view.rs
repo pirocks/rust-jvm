@@ -119,8 +119,8 @@ pub enum BootstrapArgView<'cl> {
 
 
 #[allow(dead_code)]
-pub struct EnclosingMethodView {
-    pub(crate) backing_class: ClassBackedView,
+pub struct EnclosingMethodView<'l> {
+    pub(crate) backing_class: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 

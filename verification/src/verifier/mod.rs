@@ -39,7 +39,7 @@ pub struct InternalFrame {
 //todo impl on VerifierContext
 pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<dyn ClassView> {
     verifier_context.class_view_cache.lock().unwrap().entry(class.clone()).or_insert_with(|| {
-        Arc::new(ClassBackedView::from(verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone()), verifier_context.string_pool))
+        verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())
     }).clone()
     // Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
 

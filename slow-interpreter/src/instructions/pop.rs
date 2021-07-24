@@ -14,8 +14,8 @@ pub fn pop2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     let value1 = current_frame.pop(Some(RuntimeType::LongType));
-    match value1_vtype {
-        VType::LongType | VType::DoubleType => {}
+    match value1.to_type() {
+        RuntimeType::LongType | RuntimeType::DoubleType => {}
         _ => {
             if let JavaValue::Long(_) | JavaValue::Double(_) = current_frame.pop(Some(RuntimeType::IntType)) {
                 panic!()

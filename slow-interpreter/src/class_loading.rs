@@ -164,10 +164,10 @@ pub struct DefaultClassfileGetter<'l, 'k> {
 }
 
 impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
-    fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Arc<Classfile> {
+    fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Arc<dyn ClassView> {
         //todo verification needs to be better hooked in
         match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
-            Ok(x) => x,
+            Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
             Err(err) => {
                 dbg!(err);
                 dbg!(class);
@@ -224,13 +224,12 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                         jvm
                     }) as Arc<dyn ClassFileGetter>,
                     string_pool: &jvm.string_pool,
-                    method_descriptor_pool: &jvm.method_descriptor_pool,
                     class_view_cache: Mutex::new(Default::default()),
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
                 };
-                verify(&mut verifier_context, class_view.deref(), LoaderName::BootstrapLoader).unwrap();
+                verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader).unwrap();
                 let parent = match class_view.super_name() {
                     Some(super_name) => {
                         Some(check_loaded_class(jvm, int_state, super_name.into())?)

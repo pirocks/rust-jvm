@@ -106,7 +106,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                             let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
                             interpreter_state.set_throw(saved_throw);
                             if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
-                                interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
+                                interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                                 interpreter_state.set_throw(None);
                                 interpreter_state.set_current_pc(excep_table.handler_pc);
                                 // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
@@ -627,9 +627,9 @@ fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut Interpre
         value.unwrap_object_nonnull()
     };
     // if jvm.debug_print_exceptions {
-        println!("EXCEPTION:");
-        dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));
-        interpreter_state.debug_print_stack_trace(jvm);
+    println!("EXCEPTION:");
+    interpreter_state.debug_print_stack_trace(jvm);
+    dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));
     // }
 
     interpreter_state.set_throw(exception_obj.into());

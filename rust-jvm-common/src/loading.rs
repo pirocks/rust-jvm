@@ -13,6 +13,15 @@ pub trait LivePoolGetter {
     fn elem_type(&self, idx: usize) -> CPRefType;
 }
 
+pub struct NoopLivePoolGetter {}
+
+impl LivePoolGetter for NoopLivePoolGetter {
+    fn elem_type(&self, _idx: usize) -> CPRefType {
+        panic!()
+    }
+}
+
+
 #[derive(Debug)]
 pub enum ClassfileParsingError {
     EOF,
@@ -32,7 +41,8 @@ pub enum ClassfileParsingError {
 
 impl From<ValidationError> for ClassfileParsingError {
     fn from(err: ValidationError) -> Self {
-        Self::UTFValidationError(err)
+        panic!()
+        // Self::UTFValidationError(err)
     }
 }
 

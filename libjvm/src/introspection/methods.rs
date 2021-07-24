@@ -46,10 +46,13 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, me
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     if from_jclass(jvm, ofClass).as_type(jvm).is_primitive() {
         return std::ptr::null_mut();
     }
-    let em = from_jclass(jvm, ofClass).as_runtime_class(jvm).view().enclosing_method_view();
+    int_state.debug_print_stack_trace(jvm);
+    let view = from_jclass(jvm, ofClass).as_runtime_class(jvm).view();
+    let em = view.enclosing_method_view();
     match em {
         None => std::ptr::null_mut(),
         Some(_) => unimplemented!(),

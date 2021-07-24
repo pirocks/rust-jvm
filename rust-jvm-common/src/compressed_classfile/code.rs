@@ -9,17 +9,17 @@ use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
 pub type CInstruction = CompressedInstruction;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompressedInstruction {
     pub offset: u16,
-    pub instruction_size: u8,
+    pub instruction_size: u16,
     pub info: CompressedInstructionInfo,
 }
 
 pub type CInstructionInfo = CompressedInstructionInfo;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CompressedInstructionInfo {
     aaload,
     aastore,
@@ -262,7 +262,239 @@ pub enum CompressedInstructionInfo {
     EndOfCode,
 }
 
-#[derive(Debug)]
+
+impl CInstructionInfo {
+    pub fn size(&self, starting_offset: u16) -> u16 {
+        match self {
+            CompressedInstructionInfo::aaload => 1,
+            CompressedInstructionInfo::aastore => 1,
+            CompressedInstructionInfo::aconst_null => 1,
+            CompressedInstructionInfo::aload(_) => 2,
+            CompressedInstructionInfo::aload_0 => 1,
+            CompressedInstructionInfo::aload_1 => 1,
+            CompressedInstructionInfo::aload_2 => 1,
+            CompressedInstructionInfo::aload_3 => 1,
+            CompressedInstructionInfo::anewarray(_) => 3,
+            CompressedInstructionInfo::areturn => 1,
+            CompressedInstructionInfo::arraylength => 1,
+            CompressedInstructionInfo::astore(_) => 2,
+            CompressedInstructionInfo::astore_0 => 1,
+            CompressedInstructionInfo::astore_1 => 1,
+            CompressedInstructionInfo::astore_2 => 1,
+            CompressedInstructionInfo::astore_3 => 1,
+            CompressedInstructionInfo::athrow => 1,
+            CompressedInstructionInfo::baload => 1,
+            CompressedInstructionInfo::bastore => 1,
+            CompressedInstructionInfo::bipush(_) => 2,
+            CompressedInstructionInfo::caload => 1,
+            CompressedInstructionInfo::castore => 1,
+            CompressedInstructionInfo::checkcast(_) => 3,
+            CompressedInstructionInfo::d2f => 1,
+            CompressedInstructionInfo::d2i => 1,
+            CompressedInstructionInfo::d2l => 1,
+            CompressedInstructionInfo::dadd => 1,
+            CompressedInstructionInfo::daload => 1,
+            CompressedInstructionInfo::dastore => 1,
+            CompressedInstructionInfo::dcmpg => 1,
+            CompressedInstructionInfo::dcmpl => 1,
+            CompressedInstructionInfo::dconst_0 => 1,
+            CompressedInstructionInfo::dconst_1 => 1,
+            CompressedInstructionInfo::ddiv => 1,
+            CompressedInstructionInfo::dload(_) => 2,
+            CompressedInstructionInfo::dload_0 => 1,
+            CompressedInstructionInfo::dload_1 => 1,
+            CompressedInstructionInfo::dload_2 => 1,
+            CompressedInstructionInfo::dload_3 => 1,
+            CompressedInstructionInfo::dmul => 1,
+            CompressedInstructionInfo::dneg => 1,
+            CompressedInstructionInfo::drem => 1,
+            CompressedInstructionInfo::dreturn => 1,
+            CompressedInstructionInfo::dstore(_) => 2,
+            CompressedInstructionInfo::dstore_0 => 1,
+            CompressedInstructionInfo::dstore_1 => 1,
+            CompressedInstructionInfo::dstore_2 => 1,
+            CompressedInstructionInfo::dstore_3 => 1,
+            CompressedInstructionInfo::dsub => 1,
+            CompressedInstructionInfo::dup => 1,
+            CompressedInstructionInfo::dup_x1 => 1,
+            CompressedInstructionInfo::dup_x2 => 1,
+            CompressedInstructionInfo::dup2 => 1,
+            CompressedInstructionInfo::dup2_x1 => 1,
+            CompressedInstructionInfo::dup2_x2 => 1,
+            CompressedInstructionInfo::f2d => 1,
+            CompressedInstructionInfo::f2i => 1,
+            CompressedInstructionInfo::f2l => 1,
+            CompressedInstructionInfo::fadd => 1,
+            CompressedInstructionInfo::faload => 1,
+            CompressedInstructionInfo::fastore => 1,
+            CompressedInstructionInfo::fcmpg => 1,
+            CompressedInstructionInfo::fcmpl => 1,
+            CompressedInstructionInfo::fconst_0 => 1,
+            CompressedInstructionInfo::fconst_1 => 1,
+            CompressedInstructionInfo::fconst_2 => 1,
+            CompressedInstructionInfo::fdiv => 1,
+            CompressedInstructionInfo::fload(_) => 2,
+            CompressedInstructionInfo::fload_0 => 1,
+            CompressedInstructionInfo::fload_1 => 1,
+            CompressedInstructionInfo::fload_2 => 1,
+            CompressedInstructionInfo::fload_3 => 1,
+            CompressedInstructionInfo::fmul => 1,
+            CompressedInstructionInfo::fneg => 1,
+            CompressedInstructionInfo::frem => 1,
+            CompressedInstructionInfo::freturn => 1,
+            CompressedInstructionInfo::fstore(_) => 2,
+            CompressedInstructionInfo::fstore_0 => 1,
+            CompressedInstructionInfo::fstore_1 => 1,
+            CompressedInstructionInfo::fstore_2 => 1,
+            CompressedInstructionInfo::fstore_3 => 1,
+            CompressedInstructionInfo::fsub => 1,
+            CompressedInstructionInfo::getfield { .. } => 3,
+            CompressedInstructionInfo::getstatic { .. } => 3,
+            CompressedInstructionInfo::goto_(_) => 3,
+            CompressedInstructionInfo::goto_w(_) => 5,
+            CompressedInstructionInfo::i2b => 1,
+            CompressedInstructionInfo::i2c => 1,
+            CompressedInstructionInfo::i2d => 1,
+            CompressedInstructionInfo::i2f => 1,
+            CompressedInstructionInfo::i2l => 1,
+            CompressedInstructionInfo::i2s => 1,
+            CompressedInstructionInfo::iadd => 1,
+            CompressedInstructionInfo::iaload => 1,
+            CompressedInstructionInfo::iand => 1,
+            CompressedInstructionInfo::iastore => 1,
+            CompressedInstructionInfo::iconst_m1 => 1,
+            CompressedInstructionInfo::iconst_0 => 1,
+            CompressedInstructionInfo::iconst_1 => 1,
+            CompressedInstructionInfo::iconst_2 => 1,
+            CompressedInstructionInfo::iconst_3 => 1,
+            CompressedInstructionInfo::iconst_4 => 1,
+            CompressedInstructionInfo::iconst_5 => 1,
+            CompressedInstructionInfo::idiv => 1,
+            CompressedInstructionInfo::if_acmpeq(_) => 3,
+            CompressedInstructionInfo::if_acmpne(_) => 3,
+            CompressedInstructionInfo::if_icmpeq(_) => 3,
+            CompressedInstructionInfo::if_icmpne(_) => 3,
+            CompressedInstructionInfo::if_icmplt(_) => 3,
+            CompressedInstructionInfo::if_icmpge(_) => 3,
+            CompressedInstructionInfo::if_icmpgt(_) => 3,
+            CompressedInstructionInfo::if_icmple(_) => 3,
+            CompressedInstructionInfo::ifeq(_) => 3,
+            CompressedInstructionInfo::ifne(_) => 3,
+            CompressedInstructionInfo::iflt(_) => 3,
+            CompressedInstructionInfo::ifge(_) => 3,
+            CompressedInstructionInfo::ifgt(_) => 3,
+            CompressedInstructionInfo::ifle(_) => 3,
+            CompressedInstructionInfo::ifnonnull(_) => 3,
+            CompressedInstructionInfo::ifnull(_) => 3,
+            CompressedInstructionInfo::iinc(_) => 3,
+            CompressedInstructionInfo::iload(_) => 2,
+            CompressedInstructionInfo::iload_0 => 1,
+            CompressedInstructionInfo::iload_1 => 1,
+            CompressedInstructionInfo::iload_2 => 1,
+            CompressedInstructionInfo::iload_3 => 1,
+            CompressedInstructionInfo::imul => 1,
+            CompressedInstructionInfo::ineg => 1,
+            CompressedInstructionInfo::instanceof(_) => 3,
+            CompressedInstructionInfo::invokedynamic(_) => 5,
+            CompressedInstructionInfo::invokeinterface { .. } => 5,
+            CompressedInstructionInfo::invokespecial { .. } => 3,
+            CompressedInstructionInfo::invokestatic { .. } => 3,
+            CompressedInstructionInfo::invokevirtual { .. } => 3,
+            CompressedInstructionInfo::ior => 1,
+            CompressedInstructionInfo::irem => 1,
+            CompressedInstructionInfo::ireturn => 1,
+            CompressedInstructionInfo::ishl => 1,
+            CompressedInstructionInfo::ishr => 1,
+            CompressedInstructionInfo::istore(_) => 2,
+            CompressedInstructionInfo::istore_0 => 1,
+            CompressedInstructionInfo::istore_1 => 1,
+            CompressedInstructionInfo::istore_2 => 1,
+            CompressedInstructionInfo::istore_3 => 1,
+            CompressedInstructionInfo::isub => 1,
+            CompressedInstructionInfo::iushr => 1,
+            CompressedInstructionInfo::ixor => 1,
+            CompressedInstructionInfo::jsr(_) => 3,
+            CompressedInstructionInfo::jsr_w(_) => 5,
+            CompressedInstructionInfo::l2d => 1,
+            CompressedInstructionInfo::l2f => 1,
+            CompressedInstructionInfo::l2i => 1,
+            CompressedInstructionInfo::ladd => 1,
+            CompressedInstructionInfo::laload => 1,
+            CompressedInstructionInfo::land => 1,
+            CompressedInstructionInfo::lastore => 1,
+            CompressedInstructionInfo::lcmp => 1,
+            CompressedInstructionInfo::lconst_0 => 1,
+            CompressedInstructionInfo::lconst_1 => 1,
+            CompressedInstructionInfo::ldc(_) => 2,
+            CompressedInstructionInfo::ldc_w(_) => 3,
+            CompressedInstructionInfo::ldc2_w(_) => 3,
+            CompressedInstructionInfo::ldiv => 1,
+            CompressedInstructionInfo::lload(_) => 2,
+            CompressedInstructionInfo::lload_0 => 1,
+            CompressedInstructionInfo::lload_1 => 1,
+            CompressedInstructionInfo::lload_2 => 1,
+            CompressedInstructionInfo::lload_3 => 1,
+            CompressedInstructionInfo::lmul => 1,
+            CompressedInstructionInfo::lneg => 1,
+            CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default }) => {
+                let pad_and_bytecode = 4 - (starting_offset % 4);
+                pad_and_bytecode + 4 + 4 + pairs.len() as u16 * 8
+            }
+            CompressedInstructionInfo::lor => 1,
+            CompressedInstructionInfo::lrem => 1,
+            CompressedInstructionInfo::lreturn => 1,
+            CompressedInstructionInfo::lshl => 1,
+            CompressedInstructionInfo::lshr => 1,
+            CompressedInstructionInfo::lstore(_) => 2,
+            CompressedInstructionInfo::lstore_0 => 1,
+            CompressedInstructionInfo::lstore_1 => 1,
+            CompressedInstructionInfo::lstore_2 => 1,
+            CompressedInstructionInfo::lstore_3 => 1,
+            CompressedInstructionInfo::lsub => 1,
+            CompressedInstructionInfo::lushr => 1,
+            CompressedInstructionInfo::lxor => 1,
+            CompressedInstructionInfo::monitorenter => 1,
+            CompressedInstructionInfo::monitorexit => 1,
+            CompressedInstructionInfo::multianewarray { .. } => 4,
+            CompressedInstructionInfo::new(_) => 3,
+            CompressedInstructionInfo::newarray(_) => 2,
+            CompressedInstructionInfo::nop => 1,
+            CompressedInstructionInfo::pop => 1,
+            CompressedInstructionInfo::pop2 => 1,
+            CompressedInstructionInfo::putfield { .. } => 3,
+            CompressedInstructionInfo::putstatic { .. } => 3,
+            CompressedInstructionInfo::ret(_) => 2,
+            CompressedInstructionInfo::return_ => 1,
+            CompressedInstructionInfo::saload => 1,
+            CompressedInstructionInfo::sastore => 1,
+            CompressedInstructionInfo::sipush(_) => 3,
+            CompressedInstructionInfo::swap => 1,
+            CompressedInstructionInfo::tableswitch(box TableSwitch { default, low, high, offsets }) => {
+                let pad_and_bytecode = 4 - (starting_offset % 4);
+                pad_and_bytecode + 4 + 4 + 4 + offsets.len() as u16 * 4
+            }
+            CompressedInstructionInfo::wide(wide) => {
+                match wide {
+                    Wide::Iload(_) => 4,
+                    Wide::Fload(_) => 4,
+                    Wide::Aload(_) => 4,
+                    Wide::Lload(_) => 4,
+                    Wide::Dload(_) => 4,
+                    Wide::Istore(_) => 4,
+                    Wide::Fstore(_) => 4,
+                    Wide::Astore(_) => 4,
+                    Wide::Lstore(_) => 4,
+                    Wide::Dstore(_) => 4,
+                    Wide::Ret(_) => 4,
+                    Wide::IInc(_) => 6
+                }
+            }
+            CompressedInstructionInfo::EndOfCode => 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum CompressedLdcW {
     String {
         str: CCString
@@ -281,7 +513,7 @@ pub enum CompressedLdcW {
     LiveObject(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CompressedLdc2W {
     Long(i64),
     Double(f64),
@@ -289,6 +521,7 @@ pub enum CompressedLdc2W {
 
 pub struct CompressedInvokeInterface {}
 
+#[derive(Clone)]
 pub struct CompressedCode {
     pub instructions: HashMap<u16, CompressedInstruction>,
     pub max_locals: u16,

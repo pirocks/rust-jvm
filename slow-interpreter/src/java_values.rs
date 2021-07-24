@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
@@ -802,7 +802,14 @@ unsafe impl<'gc_life> Sync for Object<'gc_life> {}
 impl<'gc_life> Object<'gc_life> {
     pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: FieldName) -> JavaValue<'gc_life> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let (field_number, rtype) = &class_pointer.unwrap_class_class().field_numbers[&s];
+        let (field_number, rtype) = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
+            None => {
+                dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
+                dbg!(s.0.to_str(&jvm.string_pool));
+                panic!()
+            }
+            Some(res) => res
+        };
         unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(rtype.clone(), jvm)
     }
 

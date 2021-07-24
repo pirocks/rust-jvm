@@ -287,6 +287,10 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Some(res)
     }
 
+    pub fn get_current_operand_stack_type_state(&self) -> Vec<RuntimeType> {
+        self.get_frame_info().operand_stack_types()
+    }
+
     pub fn set_local_var(&mut self, jvm: &'gc_life JVMState<'gc_life>, i: u16, jv: JavaValue<'gc_life>) {
         self.get_frame_info_mut().set_local_var_type(jv.to_type(), i as usize);
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
@@ -554,7 +558,12 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
                 entry.pop()
             }*/
             StackEntryMut::Jit { .. } => {
-                self.operand_stack_mut().pop(expected_type).unwrap()
+                match self.operand_stack_mut().pop(expected_type) {
+                    Some(x) => x,
+                    None => {
+                        panic!()
+                    },
+                }
             }
         }
     }
@@ -578,6 +587,12 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
             StackEntryMut::Jit { frame_view, jvm } => {
                 OperandStackRef::Jit { frame_view, jvm }
             }
+        }
+    }
+
+    pub fn debug_extract_raw_frame_view(&'k mut self) -> &'k mut FrameView<'gc_life, 'l> {
+        match self {
+            StackEntryMut::Jit { frame_view, .. } => frame_view
         }
     }
 

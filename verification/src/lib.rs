@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
@@ -18,9 +19,9 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-pub fn verify(vf: &mut VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
+pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
     class_is_type_safe(vf, &ClassWithLoader {
-        class_name: to_verify.name().unwrap_object_name(),
+        class_name: to_verify,
         loader,
     })
 }
@@ -35,7 +36,6 @@ pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     pub string_pool: &'l CompressedClassfileStringPool,
-    pub method_descriptor_pool: &'l CompressedMethodDescriptorsPool,
     pub class_view_cache: Mutex<HashMap<ClassWithLoader, Arc<dyn ClassView>>>,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<u16, Frame>>,
@@ -44,7 +44,15 @@ pub struct VerifierContext<'l> {
 
 
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<Classfile>;
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<dyn ClassView>;
+}
+
+pub struct NoopClassFileGetter;
+
+impl ClassFileGetter for NoopClassFileGetter {
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<dyn ClassView> {
+        todo!()
+    }
 }
 
 #[derive(Eq, Debug)]

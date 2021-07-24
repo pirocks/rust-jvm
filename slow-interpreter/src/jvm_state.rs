@@ -17,7 +17,7 @@ use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
-use classfile_view::view::ClassBackedView;
+use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
@@ -212,18 +212,17 @@ impl<'gc_life> JVMState<'gc_life> {
                 jvm: self
             }) as Arc<dyn ClassFileGetter>,
             string_pool: &self.string_pool,
-            method_descriptor_pool: &self.method_descriptor_pool,
             class_view_cache: Mutex::new(Default::default()),
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,
         };
         let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
-        verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Object doesn't verify");
+        verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");
         self.sink_function_verification_date(&context.verification_types, object_runtime_class);
         context.verification_types.clear();
         let lookup = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
-        verify(&mut context, &ClassBackedView::from(lookup, &self.string_pool), LoaderName::BootstrapLoader).expect("Class doesn't verify");
+        verify(&mut context, CClassName::class(), LoaderName::BootstrapLoader).expect("Class doesn't verify");
         self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
 
@@ -380,13 +379,6 @@ impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
     }
 }
 
-pub struct NoopLivePoolGetter {}
-
-impl LivePoolGetter for NoopLivePoolGetter {
-    fn elem_type(&self, _idx: usize) -> CPRefType {
-        panic!()
-    }
-}
 
 
 impl<'gc_life> JVMState<'gc_life> {
@@ -414,9 +406,9 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
     fn get_classfile(&self,
                      loader: LoaderName,
                      class: CClassName,
-    ) -> Arc<Classfile> {
+    ) -> Arc<dyn ClassView> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
-        self.jvm.classpath.lookup(&class, &self.jvm.string_pool).unwrap()
+        Arc::new(ClassBackedView::from(self.jvm.classpath.lookup(&class, &self.jvm.string_pool).unwrap(), &self.jvm.string_pool))
     }
 }
 

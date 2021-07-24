@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
@@ -179,10 +177,9 @@ impl ClassView for ClassBackedView {
         Some(SourceFileView { backing_class: self, i })
     }
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
-        /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+        self.underlying_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))
-        }).map(|(i, _)| { EnclosingMethodView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
-        todo!()
+        }).map(|(i, _)| { EnclosingMethodView { backing_class: self, i } })
     }
 
     fn inner_classes_view(&self) -> Option<InnerClassesView> {
