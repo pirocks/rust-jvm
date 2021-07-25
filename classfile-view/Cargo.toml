@@ -12,3 +12,4 @@ edition = "2018"
 rust-jvm-common = { path = "../rust-jvm-common" }
 classfile-parser = { path = "../classfile-parser" }
 itertools = "0.10.1"
+wtf8 = "0.1.0"

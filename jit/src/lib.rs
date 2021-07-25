@@ -58,7 +58,7 @@ impl JitState<'_> {
     }
 
     pub fn next_pc(&self) -> u16 {
-        todo!()
+        self.next_pc.unwrap().get() as u16
     }
 }
 
@@ -603,8 +603,8 @@ pub mod arrays;
 pub mod integer_arithmetic;
 
 fn constant(current_jit_state: &mut JitState, constant: Constant) -> Result<(), JITError> {
-    let JitState { memory_layout, output, java_pc, .. } = current_jit_state;
-    let null_offset = memory_layout.operand_stack_entry(*java_pc as u16, 0);//todo this is wrong
+    let JitState { memory_layout, output, java_pc, next_pc } = current_jit_state;
+    let null_offset = memory_layout.operand_stack_entry(next_pc.unwrap().get() as u16, 0);
     current_jit_state.output.main_block.add_instruction(IRInstruction::Constant {
         output_offset: null_offset,
         constant,
@@ -648,3 +648,5 @@ fn store_n(current_jit_state: &mut JitState, variable_index: u16, size: Size) ->
 }
 
 pub mod native;
+
+pub mod compiled_methods;

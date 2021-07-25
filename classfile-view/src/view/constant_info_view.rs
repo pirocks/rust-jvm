@@ -1,3 +1,5 @@
+use wtf8::Wtf8Buf;
+
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPRefType};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
@@ -7,7 +9,7 @@ use crate::view::attribute_view::BootstrapMethodView;
 
 #[derive(Debug)]
 pub struct Utf8View {
-    pub str: String,
+    pub str: Wtf8Buf,
 }
 
 #[derive(Debug)]
@@ -51,7 +53,7 @@ pub struct StringView<'l> {
 }
 
 impl StringView<'_> {
-    pub fn string(&self) -> String {
+    pub fn string(&self) -> Wtf8Buf {
         self.class_view.underlying_class.constant_pool[self.string_index].extract_string_from_utf8()
     }
 }
@@ -71,7 +73,7 @@ impl FieldrefView<'_> {
     pub fn class(&self) -> String {
         let class_index = self.field_ref().class_index;
         let name_index = self.class_view.underlying_class.extract_class_from_constant_pool(class_index).name_index as usize;
-        self.class_view.underlying_class.constant_pool[name_index].extract_string_from_utf8()
+        self.class_view.underlying_class.constant_pool[name_index].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView { class_view: self.class_view, i: self.field_ref().name_and_type_index as usize }
@@ -147,7 +149,7 @@ impl NameAndTypeView<'_> {
     }
 
     pub fn name(&self, pool: &CompressedClassfileStringPool) -> CCString {
-        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8(), true)
+        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), true)
     }
     pub fn desc_str(&self) -> CCString {
         todo!()
@@ -155,7 +157,7 @@ impl NameAndTypeView<'_> {
     }
     pub fn desc_method(&self, pool: &CompressedClassfileStringPool) -> CMethodDescriptor {
         //todo this is incorrect, name and types aren't always method descirpotrs
-        let desc_str = self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8();
+        let desc_str = self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
         let md = parse_method_descriptor(desc_str.as_str()).unwrap();
         CMethodDescriptor::from_legacy(md, pool)
     }
@@ -251,7 +253,7 @@ pub struct MethodTypeView<'cl> {
 impl MethodTypeView<'_> {
     pub fn get_descriptor(&self) -> String {
         let desc_i = self.method_type().descriptor_index;
-        self.class_view.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8()
+        self.class_view.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo check if it actually was validated and shoul we allow wtf8 in method names etc")
     }
 
     fn method_type(&self) -> &MethodType {

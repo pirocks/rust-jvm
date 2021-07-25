@@ -1,6 +1,9 @@
 use std::hash::Hasher;
 
 use num_derive::FromPrimitive;
+use wtf8::Wtf8Buf;
+
+use sketch_jvm_version_of_utf8::Utf8OrWtf8;
 
 use crate::classnames::class_name;
 use crate::ptype::PType;
@@ -500,7 +503,7 @@ pub struct IInc {
 #[derive(Eq)]
 pub struct Utf8 {
     pub length: u16,
-    pub string: String,
+    pub string: Wtf8Buf,
 }
 
 

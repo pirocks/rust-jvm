@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use std::sync::RwLock;
 
 use lazy_static::lazy_static;
+use wtf8::Wtf8Buf;
 
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use slow_interpreter::interpreter::WasException;
@@ -72,16 +73,16 @@ unsafe fn InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> Result<
     let int_state = get_interpreter_state(env);
     let props = JavaValue::Object(todo!()/*from_jclass(jvm,agent_props)*/).cast_properties();
 
-    let sun_java_command = JString::from_rust(jvm, int_state, "sun.java.command".to_string())?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string())?;
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.java.command"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from_rust(jvm, int_state, "sun.jvm.flags".to_string())?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string())?;
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.flags"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
-    let sun_java_command = JString::from_rust(jvm, int_state, "sun.jvm.args".to_string())?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, "command line not currently compatible todo".to_string())?;
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.args"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     Ok(agent_props)

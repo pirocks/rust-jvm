@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use itertools::Either;
+use wtf8::Wtf8Buf;
 
 use classfile_view::view::ClassView;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor};
@@ -224,7 +225,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &'gc_lif
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz(jvm))?;
     let field_type_option = member_name.get_field_type(jvm, int_state)?;
     let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
-    let empty_string = JString::from_rust(jvm, int_state, "".to_string())?;
+    let empty_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("".to_string()))?;
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![])?;
     Ok(Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?)
 }

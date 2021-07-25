@@ -92,7 +92,7 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
         Either::Left(ldcw) => {
             match &ldcw {
                 CompressedLdcW::String { str } => {
-                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.to_str(&jvm.string_pool).to_string()).expect("todo").object().into()).java_value();
+                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().into()).java_value();
                     int_state.push_current_operand_stack(string_value)
                 }
                 CompressedLdcW::Class { type_ } => {

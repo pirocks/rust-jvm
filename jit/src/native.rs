@@ -1,3 +1,4 @@
+use std::iter::once;
 use std::mem::transmute;
 use std::os::raw::c_void;
 use std::sync::atomic::{fence, Ordering};
@@ -198,6 +199,7 @@ impl JittedFunction {
 
 #[cfg(test)]
 pub mod test {
+    use std::iter::once;
     use std::sync::{Arc, Mutex};
 
     use iced_x86::{Formatter, Instruction, InstructionBlock, IntelFormatter};
@@ -307,7 +309,7 @@ pub mod test {
     #[test]
     pub fn test_basic_int_arithmetic() {
         let mut x86_instructions = InstructionSink::new();
-        let java_instructions = vec![CInstructionInfo::iconst_0, CInstructionInfo::iconst_1, CInstructionInfo::iadd, CInstructionInfo::return_];
+        let java_instructions = vec![CInstructionInfo::iconst_2, CInstructionInfo::iconst_1, CInstructionInfo::iadd];
         test_code(java_instructions, &CompressedClassfileStringPool::new())
     }
 
@@ -380,7 +382,7 @@ pub mod test {
         let classname = CClassName::object();//disables superclass checks
         let method_name = MethodName(pool.add_name("test_method".to_string(), false));
         let mut offset = 0;
-        let java_instructions = instruction_infos.into_iter().map(|info| {
+        let mut java_instructions = instruction_infos.into_iter().chain(once(CInstructionInfo::return_)).map(|info| {
             let instruction_size = info.size(offset);
             let res = CInstruction {
                 offset,
@@ -403,11 +405,18 @@ pub mod test {
 
         verify(&mut verifier, classname, LoaderName::BootstrapLoader).unwrap();
         let types = &verifier.verification_types[&0u16];
+        java_instructions.pop();
+        java_instructions.push(CInstruction {
+            offset: offset - 1,
+            instruction_size: 1,
+            info: CInstructionInfo::nop,
+        });
         let res = code_to_ir(java_instructions, &FrameBackedStackframeMemoryLayout::new(2, 1, types.clone())).unwrap();
         let mut x86_instructions = InstructionSink::new();
         for ir in res.main_block.instructions {
             ir.to_x86(&mut x86_instructions);
         }
+        IRInstruction::VMExit(VMExitType::DebugTestExit).to_x86(&mut x86_instructions);
         let mut jitted_code = JITedCode {
             code: vec![]
         };

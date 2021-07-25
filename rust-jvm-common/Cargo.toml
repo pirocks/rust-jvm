@@ -17,3 +17,4 @@ add-only-static-vec = { path = "../add-only-static-vec" }
 itertools = "0.10.0"
 strum = "0.21.0"
 strum_macros = "0.21.1"
+wtf8 = "0.1.0"

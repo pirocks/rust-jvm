@@ -1,6 +1,7 @@
 use std::ptr::null_mut;
 
 use by_address::ByAddress;
+use wtf8::Wtf8Buf;
 
 use classfile_view::view::attribute_view::SourceFileView;
 use classfile_view::view::ClassView;
@@ -50,9 +51,9 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 cur_line
             }
         };
-        let declaring_class_name = JString::from_rust(jvm, int_state, PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation())?;
-        let method_name = JString::from_rust(jvm, int_state, method_view.name().0.to_str(&jvm.string_pool))?;
-        let source_file_name = JString::from_rust(jvm, int_state, file)?;
+        let declaring_class_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation()))?;
+        let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool)))?;
+        let source_file_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(file))?;
 
         Ok(Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?))
     }).collect::<Result<Vec<Option<_>>, WasException>>().expect("todo").into_iter().flatten().collect::<Vec<_>>();

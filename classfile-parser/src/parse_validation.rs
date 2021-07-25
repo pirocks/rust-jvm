@@ -51,6 +51,13 @@ pub enum ClassfileError {
     BadUTF8,
 }
 
+
+impl From<wtf8::Wtf8Buf> for ClassfileError {
+    fn from(_: wtf8::Wtf8Buf) -> Self {
+        ClassfileError::BadUTF8
+    }
+}
+
 impl From<ValidationError> for ClassfileError {
     fn from(_: ValidationError) -> Self {
         Self::BadUTF8
@@ -312,7 +319,7 @@ impl ValidatorSettings {
         // interface name encoded in internal form (§4.2.1).
         match &c.constant_pool[class_info.name_index as usize].kind {
             ConstantKind::Utf8(utf8) => {
-                let name_string = &utf8.string;
+                let name_string = &utf8.string.clone().into_string()?;
                 self.validate_class_name(&name_string)?;
             }
             _ => return Result::Err(ClassfileError::ExpectedUtf8CPEntry)

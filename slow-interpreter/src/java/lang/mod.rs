@@ -415,6 +415,7 @@ pub mod string {
     use std::cell::UnsafeCell;
 
     use itertools::Itertools;
+    use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
@@ -444,12 +445,12 @@ pub mod string {
             string_obj_to_string(jvm, self.normal_object.clone().into())
         }
 
-        pub fn from_rust(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, rust_str: String) -> Result<JString<'gc_life>, WasException> {
+        pub fn from_rust(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, rust_str: Wtf8Buf) -> Result<JString<'gc_life>, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into()).unwrap();//todo replace these unwraps
             push_new_object(jvm, int_state, &string_class);
             let string_object = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
 
-            let vec1 = rust_str.chars().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
+            let vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
             let array_object = ArrayObject {
                 elems: UnsafeCell::new(vec1),
                 elem_type: CPDType::CharType,
@@ -554,6 +555,7 @@ pub mod thread {
     use std::sync::Arc;
 
     use itertools::Itertools;
+    use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
@@ -657,7 +659,7 @@ pub mod thread {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             push_new_object(jvm, int_state, &thread_class);
             let thread_object = int_state.pop_current_operand_stack(Some(CClassName::thread().into()));
-            let thread_name = JString::from_rust(jvm, int_state, thread_name)?;
+            let thread_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(thread_name))?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()],
                             &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
@@ -833,6 +835,8 @@ pub mod class_not_found_exception {
 }
 
 pub mod null_pointer_exception {
+    use wtf8::Wtf8Buf;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
@@ -861,7 +865,7 @@ pub mod null_pointer_exception {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::null_pointer_exception().into())?;
             push_new_object(jvm, int_state, &class_not_found_class);
             let this = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            let message = JString::from_rust(jvm, int_state, "This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string())?;
+            let message = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), message.java_value()],
                             &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_null_pointer_exception())

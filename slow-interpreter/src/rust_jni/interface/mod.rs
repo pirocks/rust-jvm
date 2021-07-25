@@ -9,6 +9,7 @@ use std::sync::{Arc, RwLock};
 
 use by_address::ByAddress;
 use itertools::Itertools;
+use wtf8::Wtf8Buf;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -19,6 +20,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::LoaderName;
+use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::create_class_object;
@@ -570,7 +572,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Ok(string) => string,
             Err(_) => return -2
         }.to_string();
-        let java_string = match JString::from_rust(jvm, int_state, rust_string) {
+        let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
             Ok(java_string) => java_string,
             Err(WasException {}) => return -4
         };
@@ -615,9 +617,9 @@ pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let field_name_str = field_name.0.to_str(&jvm.string_pool);
-    let name = JString::from_rust(jvm, int_state, field_name_str)?.intern(jvm, int_state)?;
+    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
     let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
-    let signature = JString::from_rust(jvm, int_state, field_desc_str)?;
+    let signature = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_desc_str))?;
     let annotations_ = vec![];//todo impl annotations.
 
     Ok(Field::init(

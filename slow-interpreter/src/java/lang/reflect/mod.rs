@@ -1,3 +1,5 @@
+use wtf8::Wtf8Buf;
+
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
@@ -65,7 +67,7 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 
 
 fn get_signature(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
-    Ok(JString::from_rust(jvm, int_state, method_view.desc_str().to_str(&jvm.string_pool))?.intern(jvm, int_state)?)
+    Ok(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.desc_str().to_str(&jvm.string_pool)))?.intern(jvm, int_state)?)
 }
 
 fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
@@ -117,6 +119,8 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
 
 
 pub mod method {
+    use wtf8::Wtf8Buf;
+
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
@@ -160,7 +164,7 @@ pub mod method {
                 if name == MethodName::constructor_init() {
                     return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, name.0.to_str(&jvm.string_pool))?.intern(jvm, int_state)?
+                JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {

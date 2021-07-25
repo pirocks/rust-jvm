@@ -4,6 +4,7 @@ use std::ptr::{null, null_mut};
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use wtf8::Wtf8Buf;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
@@ -243,15 +244,15 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
         }
     };
     let jv_vec = vec![
-        match JString::from_rust(jvm, int_state, class) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class)) {
             Ok(class) => class.java_value(),
             Err(WasException {}) => return null_mut()
         },
-        match JString::from_rust(jvm, int_state, name.to_str(&jvm.string_pool)) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.to_str(&jvm.string_pool))) {
             Ok(name) => name.java_value(),
             Err(WasException {}) => return null_mut()
         },
-        match JString::from_rust(jvm, int_state, desc_str.to_str(&jvm.string_pool)) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool))) {
             Ok(desc_str) => desc_str.java_value(),
             Err(WasException {}) => return null_mut()
         }];

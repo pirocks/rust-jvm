@@ -7,9 +7,9 @@ use itertools::{Either, Itertools};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
-use crate::classfile::{AttributeType, BootstrapMethods, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, String_, UninitializedVariableInfo, Wide};
+use crate::classfile::{AppendFrame, AttributeInfo, AttributeType, BootstrapMethods, ChopFrame, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, FullFrame, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, String_, UninitializedVariableInfo, Wide};
 use crate::classnames::class_name;
-use crate::compressed_classfile::code::{CInstructionInfo, CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
+use crate::compressed_classfile::code::{CInstructionInfo, CompressedAppendFrame, CompressedChopFrame, CompressedCode, CompressedExceptionTableElem, CompressedFullFrame, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
 use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use crate::EXPECTED_CLASSFILE_MAGIC;
@@ -411,7 +411,7 @@ impl CompressedClassfile {
             let interface = *interface as usize;
             match &constant_pool[interface].kind {
                 ConstantKind::Class(c) => {
-                    CompressedClassName(pool.add_name(constant_pool[c.name_index as usize].extract_string_from_utf8(), true))
+                    CompressedClassName(pool.add_name(constant_pool[c.name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), true))
                 }
                 _ => panic!()
             }
@@ -425,10 +425,10 @@ impl CompressedClassfile {
                 attributes: _
             } = field_info;
             let desc_str = classfile.constant_pool[*descriptor_index as usize].extract_string_from_utf8();
-            let parsed = parse_field_descriptor(desc_str.as_str()).unwrap();
+            let parsed = parse_field_descriptor(desc_str.into_string().expect("should have validated this earlier maybe todo").as_str()).unwrap();
             CompressedFieldInfo {
                 access_flags: *access_flags,
-                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string(), false),
+                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().as_str().expect("should have validated this earlier maybe todo"), false),
                 descriptor_type: CompressedParsedDescriptorType::from_ptype(&parsed.field_type, pool),
             }
         }).collect_vec();
@@ -439,7 +439,7 @@ impl CompressedClassfile {
                 descriptor_index,
                 attributes
             } = method_info;
-            let descriptor_str = constant_pool[*descriptor_index as usize].extract_string_from_utf8();
+            let descriptor_str = constant_pool[*descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
             let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(descriptor_str.as_str()).unwrap();
             let descriptor_str = pool.add_name(descriptor_str, false);
             let return_type = CompressedParsedDescriptorType::from_ptype(&return_type, pool);
@@ -462,30 +462,39 @@ impl CompressedClassfile {
                             info,
                         })
                     }).collect();
+                    let exception_table = exception_table.iter().map(|ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }| {
+                        let catch_type = if *catch_type == 0 {
+                            None
+                        } else {
+                            Some(CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*catch_type)), pool).unwrap_class_type())
+                        };
+                        CompressedExceptionTableElem {
+                            start_pc: *start_pc,
+                            end_pc: *end_pc,
+                            handler_pc: *handler_pc,
+                            catch_type,
+                        }
+                    }).collect_vec();
+                    let stack_map_table = attributes.iter().find_map(|attr| {
+                        match &attr.attribute_type {
+                            AttributeType::StackMapTable(StackMapTable { entries }) => {
+                                CompressedClassfile::convert_stack_map_table_entries(pool, entries)
+                            }
+                            _ => None
+                        }
+                    }).unwrap_or(vec![]);
                     code_attr = Some(CompressedCode {
                         instructions,
                         max_locals: *max_locals,
                         max_stack: *max_stack,
-                        exception_table: exception_table.iter().map(|ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type }| {
-                            let catch_type = if *catch_type == 0 {
-                                None
-                            } else {
-                                Some(CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*catch_type)), pool).unwrap_class_type())
-                            };
-                            CompressedExceptionTableElem {
-                                start_pc: *start_pc,
-                                end_pc: *end_pc,
-                                handler_pc: *handler_pc,
-                                catch_type,
-                            }
-                        }).collect_vec(),
-                        stack_map_table: vec![]
+                        exception_table,
+                        stack_map_table,
                     });
                 }
             }
             CompressedMethodInfo {
                 access_flags: *access_flags,
-                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().to_string(), false),
+                name: pool.add_name(constant_pool[*name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), false),
                 descriptor: CompressedMethodDescriptor { arg_types, return_type },
                 descriptor_str,
                 code: code_attr,
@@ -508,6 +517,43 @@ impl CompressedClassfile {
             methods,
             bootstrap_methods: (|| { Some(CompressedBootstrapMethods { inner: bootstrap_methods? }) })(),
         }
+    }
+
+    fn convert_stack_map_table_entries(pool: &CompressedClassfileStringPool, entries: &Vec<StackMapFrame>) -> Option<Vec<CompressedStackMapFrame>> {
+        Some(entries.iter().map(|stackmapframe| {
+            match stackmapframe {
+                StackMapFrame::SameFrame(sf) => CompressedStackMapFrame::SameFrame(sf.clone()),
+                StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame { offset_delta, stack }) => {
+                    let stack = VType::from_ptype(stack, LoaderName::BootstrapLoader, pool);
+                    CompressedStackMapFrame::SameLocals1StackItemFrame(CompressedSameLocals1StackItemFrame { offset_delta: *offset_delta, stack })//todo deal with this usage of bootstrap loader
+                }
+                StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack }) => {
+                    let stack = CPDType::from_ptype(stack, pool).to_verification_type(LoaderName::BootstrapLoader);
+                    CompressedStackMapFrame::SameLocals1StackItemFrameExtended(CompressedSameLocals1StackItemFrameExtended { offset_delta: *offset_delta, stack })
+                }
+                StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop }) => {
+                    CompressedStackMapFrame::ChopFrame(CompressedChopFrame { offset_delta: *offset_delta, k_frames_to_chop: *k_frames_to_chop })
+                }
+                StackMapFrame::SameFrameExtended(SameFrameExtended { offset_delta }) => {
+                    CompressedStackMapFrame::SameFrameExtended(CompressedSameFrameExtended { offset_delta: *offset_delta })
+                }
+                StackMapFrame::AppendFrame(AppendFrame { offset_delta, locals }) => {
+                    let locals = locals.iter().map(|local| VType::from_ptype(local, LoaderName::BootstrapLoader, pool)).collect_vec();//todo deal with this usage of bootstrap loader
+                    CompressedStackMapFrame::AppendFrame(CompressedAppendFrame { offset_delta: *offset_delta, locals })
+                }
+                StackMapFrame::FullFrame(FullFrame { offset_delta, number_of_locals, locals, number_of_stack_items, stack }) => {
+                    let locals = locals.iter().map(|local| VType::from_ptype(local, LoaderName::BootstrapLoader, pool)).collect_vec();//todo deal with this usage of bootstrap loader
+                    let stack = stack.iter().map(|local| VType::from_ptype(local, LoaderName::BootstrapLoader, pool)).collect_vec();//todo deal with this usage of bootstrap loader
+                    CompressedStackMapFrame::FullFrame(CompressedFullFrame {
+                        offset_delta: *offset_delta,
+                        number_of_locals: *number_of_locals,
+                        locals,
+                        number_of_stack_items: *number_of_stack_items,
+                        stack,
+                    })
+                }
+            }
+        }).collect_vec())
     }
 
     fn compressed_instruction_from_instruction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, instruction: &Instruction) -> CompressedInstructionInfo {
@@ -733,7 +779,7 @@ impl CompressedClassfile {
             }
             InstructionInfo::ldc2_w(cp) => {
                 CInstructionInfo::ldc2_w(CompressedClassfile::constant_value(pool, constant_pool, *cp).unwrap_right())
-            },
+            }
             InstructionInfo::ldiv => CInstructionInfo::ldiv,
             InstructionInfo::lload(idx) => CInstructionInfo::lload(*idx),
             InstructionInfo::lload_0 => CInstructionInfo::lload_0,
@@ -761,7 +807,7 @@ impl CompressedClassfile {
             InstructionInfo::multianewarray(MultiNewArray { index, dims }) => {
                 let type_ = CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*index)), pool);
                 CInstructionInfo::multianewarray { type_, dimensions: NonZeroU8::new(*dims).unwrap() }
-            },
+            }
             InstructionInfo::new(cp) => {
                 let classname = CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*cp)), pool).unwrap_class_type();
                 CInstructionInfo::new(classname)
@@ -803,25 +849,24 @@ impl CompressedClassfile {
             ConstantKind::Utf8(_) => todo!(),
             ConstantKind::Integer(Integer { bytes }) => {
                 Either::Left(CompressedLdcW::Integer { integer: bytes as i32 })
-            },
+            }
             ConstantKind::Float(Float { bytes }) => {
                 Either::Left(CompressedLdcW::Float { float: f32::from_ne_bytes(bytes.to_ne_bytes()) })
-            },
+            }
             ConstantKind::Long(Long { low_bytes, high_bytes }) => {
                 Either::Right(CompressedLdc2W::Long(((high_bytes as u64) << 32 | low_bytes as u64) as i64))
-            },
+            }
             ConstantKind::Double(Double { low_bytes, high_bytes }) => {
                 Either::Right(CompressedLdc2W::Double(f64::from_ne_bytes((((high_bytes as u64) << 32) | low_bytes as u64).to_ne_bytes())))
-            },
+            }
             ConstantKind::Class(Class { name_index }) => {
-                let name = constant_pool[name_index as usize].extract_string_from_utf8();
+                let name = constant_pool[name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
                 let type_ = CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool);
                 Either::Left(CompressedLdcW::Class { type_ })
             }
             ConstantKind::String(String_ { string_index }) => {
                 let string = constant_pool[string_index as usize].extract_string_from_utf8();
-                let ccstring = pool.add_name(string, false);
-                Either::Left(CompressedLdcW::String { str: ccstring })
+                Either::Left(CompressedLdcW::String { str: string })
             }
             ConstantKind::MethodHandle(_) => todo!(),
             ConstantKind::MethodType(_) => todo!(),

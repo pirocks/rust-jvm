@@ -16,7 +16,7 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
     let name_pool = &p.constant_pool_borrow()[attribute_name_index as usize];
     assert!(is_utf8(&name_pool.kind).is_some());
     let name_struct = is_utf8(&name_pool.kind).ok_or(ClassfileParsingError::NoAttributeName)?;
-    let name = &name_struct.string;
+    let name = &name_struct.string.clone().into_string()?;
     let attribute_type = match name.as_str() {
         "ConstantValue" => parse_constant_value_index(p),
         "Code" => parse_code(p),
@@ -485,7 +485,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, Cla
                 ConstantKind::Class(c) => c.name_index,
                 _ => { return Err(ClassfileParsingError::WromngCPEntry); }
             };
-            let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8();
+            let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8().into_string()?;
             if type_descriptor.starts_with('[') {
                 let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).ok_or(ClassfileParsingError::WrongDescriptor)?;
                 res_descriptor.field_type

@@ -23,6 +23,8 @@ use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 
+use wtf8::Wtf8Buf;
+
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -103,7 +105,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
 fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, arg_str.clone()).expect("todo").java_value());
+        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").java_value());
     }
     let arg_array = JavaValue::Object(Some(jvm.allocate_object(Array(ArrayObject::new_array(
         jvm,
@@ -126,8 +128,8 @@ fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let key = JString::from_rust(jvm, int_state, properties[key_i].clone()).expect("todo");
-        let value = JString::from_rust(jvm, int_state, properties[value_i].clone()).expect("todo");
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
         prop_obj.set_property(jvm, int_state, key, value)?;
     }
     int_state.pop_frame(jvm, frame_for_properties, false);

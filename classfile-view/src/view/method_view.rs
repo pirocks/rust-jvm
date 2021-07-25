@@ -154,7 +154,7 @@ impl LocalVariableView<'_> {
     pub fn name(&self) -> String {
         let cv = self.method_view.class_view;
         let name_i = self.local_variable_entry.name_index;
-        cv.underlying_class.constant_pool[name_i as usize].extract_string_from_utf8()
+        cv.underlying_class.constant_pool[name_i as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn variable_length(&self) -> usize {
@@ -164,7 +164,7 @@ impl LocalVariableView<'_> {
     pub fn desc_str(&self) -> String {
         let cv = self.method_view.class_view;
         let desc_i = self.local_variable_entry.descriptor_index;
-        cv.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8()
+        cv.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn desc(&self) -> FieldDescriptor {

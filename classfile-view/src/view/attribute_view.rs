@@ -153,7 +153,7 @@ impl InnerClassView<'_> {
         if inner_name_index == 0 {
             return None;
         }
-        PTypeView::from_ptype(&parse_class_name(&self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8())).unwrap_ref_type().clone().into()
+        PTypeView::from_ptype(&parse_class_name(&self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo"))).unwrap_ref_type().clone().into()
     }
 }
 
@@ -173,6 +173,6 @@ impl SourceFileView<'_> {
 
     pub fn file(&self) -> String {
         let si = self.source_file_attr().sourcefile_index;
-        self.backing_class.underlying_class.constant_pool[si as usize].extract_string_from_utf8()
+        self.backing_class.underlying_class.constant_pool[si as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 }

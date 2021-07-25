@@ -4,10 +4,13 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 
+use wtf8::Wtf8Buf;
+
 use sketch_jvm_version_of_utf8::ValidationError;
 
 use crate::compressed_classfile::CPRefType;
 use crate::compressed_classfile::names::CClassName;
+use crate::loading::ClassfileParsingError::UTFValidationError;
 
 pub trait LivePoolGetter {
     fn elem_type(&self, idx: usize) -> CPRefType;
@@ -43,6 +46,12 @@ impl From<ValidationError> for ClassfileParsingError {
     fn from(err: ValidationError) -> Self {
         panic!()
         // Self::UTFValidationError(err)
+    }
+}
+
+impl From<wtf8::Wtf8Buf> for ClassfileParsingError {
+    fn from(_: Wtf8Buf) -> Self {
+        UTFValidationError(ValidationError::InvalidCodePoint)
     }
 }
 

@@ -38,7 +38,7 @@ pub fn parse_constant_info(p: &mut dyn ParsingContext, debug: bool) -> Result<Co
             for _ in 0..length {
                 buffer.push(p.read8()?)
             }
-            let str_ = PossiblyJVMString::new(buffer).validate()?.to_string()?;
+            let str_ = PossiblyJVMString::new(buffer).validate(true)?.to_wtf8();
             ConstantKind::Utf8(Utf8 { length, string: str_ })
         }
         INTEGER_CONST_NUM => {

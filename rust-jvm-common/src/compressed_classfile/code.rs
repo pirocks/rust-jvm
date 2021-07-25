@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::num::NonZeroU8;
 
 use itertools::Either;
+use wtf8::Wtf8Buf;
 
 use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
 use crate::compressed_classfile::{CCString, CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
@@ -498,7 +499,7 @@ impl CInstructionInfo {
 #[derive(Debug, Clone)]
 pub enum CompressedLdcW {
     String {
-        str: CCString
+        str: Wtf8Buf
     },
     Class {
         type_: CPDType
@@ -561,6 +562,7 @@ pub struct CompressedSameLocals1StackItemFrameExtended {
 #[derive(Debug)]
 #[derive(Eq, PartialEq, Clone)]
 pub struct CompressedChopFrame {
+    //todo why is this a thing
     pub offset_delta: u16,
     pub k_frames_to_chop: u8,
 }
@@ -568,6 +570,7 @@ pub struct CompressedChopFrame {
 #[derive(Debug)]
 #[derive(Eq, PartialEq, Clone)]
 pub struct CompressedSameFrameExtended {
+    //todo why is this is a thing as well, since its same as non-compressed
     pub offset_delta: u16,
 }
 

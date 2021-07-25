@@ -167,6 +167,7 @@ impl MemoryOffset {
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct AbsoluteOffsetInCodeRegion(pub *mut c_void);
 
+#[derive(Debug)]
 pub struct InstructionSink {
     instructions: Vec<Instruction>,
     memory_offset_to_vm_exit: HashMap<MemoryOffset, VMExitType>,
@@ -282,8 +283,8 @@ r15 is reserved for context pointer
                     Constant::Long(_) => {
                         todo!()
                     }
-                    Constant::Int(_) => {
-                        todo!()
+                    Constant::Int(constant) => {
+                        instructions.add_instruction(Instruction::try_with_mem_i32(Code::Mov_rm32_imm32, output_memory_operand, *constant).expect("wat"));
                     }
                     Constant::Short(_) => {
                         todo!()
@@ -354,18 +355,18 @@ r15 is reserved for context pointer
     fn integer_arithmetic(instructions: &mut InstructionSink, input_offset_a: &FramePointerOffset, input_offset_b: &FramePointerOffset, output_offset: &FramePointerOffset, size: &Size, signed: &bool, arithmetic_type: &ArithmeticType) {
         let input_load_memory_operand_a = MemoryOperand::with_base_displ(Register::RBP, input_offset_a.0 as i64);
         let load_value_a = match size {
-            Size::Byte => Instruction::with_reg_mem(Code::Mov_rm8_r8, Register::AL, input_load_memory_operand_a),
-            Size::Short => Instruction::with_reg_mem(Code::Mov_rm16_r16, Register::AX, input_load_memory_operand_a),
-            Size::Int => Instruction::with_reg_mem(Code::Mov_rm32_r32, Register::EAX, input_load_memory_operand_a),
-            Size::Long => Instruction::with_reg_mem(Code::Mov_rm64_r64, Register::RAX, input_load_memory_operand_a)
+            Size::Byte => Instruction::with_reg_mem(Code::Mov_r8_rm8, Register::AL, input_load_memory_operand_a),
+            Size::Short => Instruction::with_reg_mem(Code::Mov_r16_rm16, Register::AX, input_load_memory_operand_a),
+            Size::Int => Instruction::with_reg_mem(Code::Mov_r32_rm32, Register::EAX, input_load_memory_operand_a),
+            Size::Long => Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RAX, input_load_memory_operand_a)
         };
         instructions.add_instruction(load_value_a);
         let input_load_memory_operand_b = MemoryOperand::with_base_displ(Register::RBP, input_offset_b.0 as i64);
         let load_value_b = match size {
-            Size::Byte => Instruction::with_reg_mem(Code::Mov_rm8_r8, Register::BL, input_load_memory_operand_b.clone()),
-            Size::Short => Instruction::with_reg_mem(Code::Mov_rm16_r16, Register::BX, input_load_memory_operand_b.clone()),
-            Size::Int => Instruction::with_reg_mem(Code::Mov_rm32_r32, Register::EBX, input_load_memory_operand_b.clone()),
-            Size::Long => Instruction::with_reg_mem(Code::Mov_rm64_r64, Register::RBX, input_load_memory_operand_b.clone())
+            Size::Byte => Instruction::with_reg_mem(Code::Mov_r8_rm8, Register::BL, input_load_memory_operand_b.clone()),
+            Size::Short => Instruction::with_reg_mem(Code::Mov_r16_rm16, Register::BX, input_load_memory_operand_b.clone()),
+            Size::Int => Instruction::with_reg_mem(Code::Mov_r32_rm32, Register::EBX, input_load_memory_operand_b.clone()),
+            Size::Long => Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBX, input_load_memory_operand_b.clone())
         };
         instructions.add_instruction(load_value_b);
         let arithmetic = match arithmetic_type {
@@ -451,12 +452,13 @@ r15 is reserved for context pointer
                 }
             }
         };
+        instructions.add_instruction(arithmetic);
         let output_memory_operand = MemoryOperand::with_base_displ(Register::RBP, output_offset.0 as i64);
         let write_result = match size {
-            Size::Byte => Instruction::with_mem_reg(Code::Mov_r8_rm8, output_memory_operand, Register::AL),
-            Size::Short => Instruction::with_mem_reg(Code::Mov_r16_rm16, output_memory_operand, Register::AX),
-            Size::Int => Instruction::with_mem_reg(Code::Mov_r32_rm32, output_memory_operand, Register::EAX),
-            Size::Long => Instruction::with_mem_reg(Code::Mov_r64_rm64, output_memory_operand, Register::RAX),
+            Size::Byte => Instruction::with_mem_reg(Code::Mov_rm8_r8, output_memory_operand, Register::AL),
+            Size::Short => Instruction::with_mem_reg(Code::Mov_rm16_r16, output_memory_operand, Register::AX),
+            Size::Int => Instruction::with_mem_reg(Code::Mov_rm32_r32, output_memory_operand, Register::EAX),
+            Size::Long => Instruction::with_mem_reg(Code::Mov_rm64_r64, output_memory_operand, Register::RAX),
         };
         instructions.add_instruction(write_result);
     }

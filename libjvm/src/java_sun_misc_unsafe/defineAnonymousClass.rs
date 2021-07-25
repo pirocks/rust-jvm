@@ -9,6 +9,7 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::Ordering::AcqRel;
 
 use by_address::ByAddress;
+use wtf8::Wtf8Buf;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
@@ -90,7 +91,7 @@ fn patch_all(jvm: &'gc_life JVMState<'gc_life>, frame: StackEntryRef, args: &mut
     });
     let old_name_temp = class_name(&unpatched);
     let old_name = old_name_temp.get_referred_name();
-    let new_name = format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.read().unwrap().len());
+    let new_name = Wtf8Buf::from_string(format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.read().unwrap().len()));
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });

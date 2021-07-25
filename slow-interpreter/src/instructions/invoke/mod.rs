@@ -20,6 +20,8 @@ pub mod virtual_;
 pub mod static_;
 
 pub mod dynamic {
+    use wtf8::Wtf8Buf;
+
     use classfile_view::view::attribute_view::BootstrapArgView;
     use classfile_view::view::ClassView;
     use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
@@ -110,7 +112,7 @@ pub mod dynamic {
         //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
         let lookup_for_this = Lookup::trusted_lookup(jvm, int_state);
         let method_type = desc_from_rust_str(jvm, int_state, other_desc_str.to_str(&jvm.string_pool).clone())?;
-        let name_jstring = JString::from_rust(jvm, int_state, other_name.to_str(&jvm.string_pool))?.java_value();
+        let name_jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(other_name.to_str(&jvm.string_pool)))?.java_value();
 
         int_state.push_current_operand_stack(bootstrap_method_handle.java_value());
         int_state.push_current_operand_stack(lookup_for_this.java_value());
@@ -156,7 +158,7 @@ pub mod dynamic {
 
     //todo this should go in MethodType or something.
     fn desc_from_rust_str(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, desc_str: String) -> Result<JavaValue<'gc_life>, WasException> {
-        let desc_str = JString::from_rust(jvm, int_state, desc_str)?;
+        let desc_str = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str))?;
         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
         Ok(method_type.java_value())
     }
@@ -170,8 +172,8 @@ pub mod dynamic {
                     InvokeStatic::Method(mr) => {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
-                        let name = JString::from_rust(jvm, int_state, mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool))?;
-                        let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
+                        let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                        let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str().to_str(&jvm.string_pool)))?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                         let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
@@ -185,8 +187,8 @@ pub mod dynamic {
                         {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
-                            let name = JString::from_rust(jvm, int_state, mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool))?;
-                            let desc = JString::from_rust(jvm, int_state, mr.name_and_type().desc_str().to_str(&jvm.string_pool))?;
+                            let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                            let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str().to_str(&jvm.string_pool)))?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                             let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();

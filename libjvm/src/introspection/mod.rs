@@ -7,6 +7,7 @@ use std::ptr::null_mut;
 
 use by_address::ByAddress;
 use num_cpus::get;
+use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::attribute_view::InnerClassesView;
@@ -135,7 +136,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
 
     let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
-    match JString::from_rust(jvm, int_state, PTypeView::from_compressed(&ptype, &jvm.string_pool).jvm_representation()) {
+    match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&ptype, &jvm.string_pool).jvm_representation())) {
         Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
         Err(WasException) => null_mut()
     }

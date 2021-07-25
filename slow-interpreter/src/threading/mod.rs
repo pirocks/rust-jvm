@@ -13,6 +13,7 @@ use std::time::Duration;
 use crossbeam::thread::Scope;
 use libloading::Symbol;
 use num::Integer;
+use wtf8::Wtf8Buf;
 
 use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
@@ -132,8 +133,8 @@ impl<'gc_life> ThreadState<'gc_life> {
         }
         set_properties(jvm, int_state).expect("todo");
         //todo read and copy props here
-        let key = JString::from_rust(jvm, int_state, "java.home".to_string()).expect("todo");
-        let value = JString::from_rust(jvm, int_state, "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string()).expect("todo");
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
         //todo should handle excpetions here

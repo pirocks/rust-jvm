@@ -3,6 +3,8 @@ use std::iter::once;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 
+use wtf8::Wtf8Buf;
+
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
@@ -43,7 +45,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
-    new_local_ref_public(match JString::from_rust(jvm, int_state, str.to_str().unwrap().to_string()) {
+    new_local_ref_public(match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
         Ok(jstring) => jstring,
         Err(WasException {}) => return null_mut()
     }.object().into(), int_state)
