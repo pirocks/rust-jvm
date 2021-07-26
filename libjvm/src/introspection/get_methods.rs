@@ -54,12 +54,14 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
     methods.filter(|(c, i)| {
         let c_view = c.view();
         let method_view = c_view.method_view_i(*i);
-        if publicOnly > 0 {
-            method_view.is_public()
-        } else {
-            let name = method_view.name();
-            name != MethodName::constructor_clinit() && name != MethodName::constructor_init()
-        }
+        let name = method_view.name();
+        name != MethodName::constructor_clinit() &&
+            name != MethodName::constructor_init() &&
+            if publicOnly > 0 {
+                method_view.is_public()
+            } else {
+                true
+            }
     }).for_each(|(c, i)| {
         let c_view = c.view();
         let method_view = c_view.method_view_i(i);

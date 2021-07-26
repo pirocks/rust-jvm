@@ -609,11 +609,11 @@ impl<'gc_life> JavaValue<'gc_life> {
     }
 
     pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> JavaValue<'gc_life> {
-        JavaValue::Object(todo!()/*Some(Arc::new(Object::Array(ArrayObject {
-            elems: UnsafeCell::new(vals),
+        JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject {
+            elems: UnsafeCell::new(vals.into_iter().map(|val| val.to_native()).collect_vec()),
             elem_type,
             monitor: jvm.thread_state.new_monitor("".to_string()),
-        })))*/)
+        }))))
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life> {
@@ -1245,7 +1245,7 @@ impl<'gc_life> ArrayObject<'gc_life> {
 
 impl<'gc_life> std::convert::From<Option<GcManagedObject<'gc_life>>> for JavaValue<'gc_life> {
     fn from(f: Option<GcManagedObject<'gc_life>>) -> Self {
-        JavaValue::Object(todo!()/*f*/)
+        JavaValue::Object(f)
     }
 }
 

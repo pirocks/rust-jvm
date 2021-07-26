@@ -949,7 +949,7 @@ pub mod illegal_argument_exception {
 pub mod long {
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -979,13 +979,17 @@ pub mod long {
                             &CMethodDescriptor::void_return(vec![CPDType::LongType]))?;
             Ok(this.cast_long())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jlong {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_long()
+        }
     }
 }
 
 pub mod int {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1015,13 +1019,17 @@ pub mod int {
                             &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
             Ok(this.cast_int())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_int()
+        }
     }
 }
 
 pub mod short {
-    use jvmti_jni_bindings::jshort;
+    use jvmti_jni_bindings::{jint, jshort};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1051,13 +1059,17 @@ pub mod short {
                             &CMethodDescriptor::void_return(vec![CPDType::ShortType]))?;
             Ok(this.cast_short())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jshort {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_short()
+        }
     }
 }
 
 pub mod byte {
     use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1087,13 +1099,17 @@ pub mod byte {
                             &CMethodDescriptor::void_return(vec![CPDType::ByteType]))?;
             Ok(this.cast_byte())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jbyte {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_byte()
+        }
     }
 }
 
 pub mod boolean {
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1123,13 +1139,17 @@ pub mod boolean {
                             &CMethodDescriptor::void_return(vec![CPDType::BooleanType]))?;
             Ok(this.cast_boolean())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jboolean {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_boolean()
+        }
     }
 }
 
 pub mod char {
     use jvmti_jni_bindings::jchar;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1159,13 +1179,17 @@ pub mod char {
                             &CMethodDescriptor::void_return(vec![CPDType::CharType]))?;
             Ok(this.cast_char())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jchar {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_char()
+        }
     }
 }
 
 pub mod float {
     use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1195,13 +1219,17 @@ pub mod float {
                             &CMethodDescriptor::void_return(vec![CPDType::FloatType]))?;
             Ok(this.cast_float())
         }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jfloat {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_float()
+        }
     }
 }
 
 pub mod double {
     use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
@@ -1230,6 +1258,10 @@ pub mod double {
             run_constructor(jvm, int_state, class_not_found_class, vec![this.clone(), JavaValue::Double(param)],
                             &CMethodDescriptor::void_return(vec![CPDType::DoubleType]))?;
             Ok(this.cast_double())
+        }
+
+        pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jdouble {
+            self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_double()
         }
     }
 }

@@ -61,11 +61,13 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromClassLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, throwError: jboolean) -> jclass {
+    dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, from: jclass) -> jclass {
+    dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }
 

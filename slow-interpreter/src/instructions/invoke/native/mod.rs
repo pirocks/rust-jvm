@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use by_address::ByAddress;
@@ -34,6 +35,16 @@ pub fn run_native_method(
         assert_ne!(before, 0);
     }
     assert!(method.is_native());
+
+    let method_as_string = method.name().0.to_str(&jvm.string_pool);
+    let noise = vec!["arraycopy", "getClass", "hashCode", "getComponentType", "getSuperclass",
+                     "newArray", "clone", "compareAndSwapObject", "identityHashCode", "nanoTime",
+                     "getObjectVolatile", "compareAndSwapLong", "intern", "doPrivileged", "invoke0",
+                     "getDeclaredMethods0", "putObjectVolatile", "desiredAssertionStatus0", "getName0",
+                     "compareAndSwapInt", "getCallerClass", "getModifiers", "isInstance"].into_iter().collect::<HashSet<_>>();
+    if !noise.contains(method_as_string.as_str()) {
+        dbg!(method_as_string);
+    }
     let parsed = method.desc();
     let mut args = vec![];
     if method.is_static() {

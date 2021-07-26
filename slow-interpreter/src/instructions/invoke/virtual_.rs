@@ -234,9 +234,9 @@ pub fn virtual_method_lookup(
                 md.arg_types == cur_desc.arg_types //we don't check return types b/c these could be subclassed
             }
     }).unwrap_or_else(|| {
-        dbg!(method_name);
+        dbg!(method_name.0.to_str(&jvm.string_pool));
         dbg!(md);
-        dbg!(c.view().name());
+        dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
         int_state.debug_print_stack_trace(jvm);
         // dbg!(int_state.current_frame().operand_stack_types());
         // dbg!(int_state.current_frame().local_vars_types());

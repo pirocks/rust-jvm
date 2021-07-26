@@ -1,5 +1,3 @@
-use std::char::from_u32;
-use std::mem::transmute;
 use std::string::FromUtf8Error;
 
 use wtf8::{CodePoint, Wtf8Buf};

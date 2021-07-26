@@ -14,6 +14,7 @@ verification = { path = "./verification" }
 slow-interpreter = { path = "./slow-interpreter" }
 jar-manipulation = { path = "./jar-manipulation" }
 jvm = { path = "./libjvm" }
+jmm = { path = "./libjmm" }
 classfile-view = { path = "./classfile-view" }
 jvmti-jni-bindings = { path = "./jvmti-jni-bindings" }
 type-safe-proc-macro-utils = { path = "./type-safe-proc-macro-utils" }
@@ -41,4 +42,6 @@ members = [
     "jit",
     "jit-common",
     "add-only-static-vec",
+    "libjmm",
+    "jmm-bindings"
 ]

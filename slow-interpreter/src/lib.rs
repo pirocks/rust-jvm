@@ -29,7 +29,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::class_loading::{check_loaded_class, check_loaded_class_force_loader};
+use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -77,6 +77,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.main_class_name.clone().into(), main_loader).expect("failed to load main class");
+    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);

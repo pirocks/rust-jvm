@@ -12,7 +12,7 @@ use slow_interpreter::field_table::FieldId;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
 
 use crate::introspection::JVM_GetCallerClass;
@@ -135,7 +135,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
 ) -> jlong {
     //todo major duplication
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(todo!()/*from_jclass(jvm,field_obj)*/).cast_field();
+    let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
     let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
     let class_view = clazz.view();

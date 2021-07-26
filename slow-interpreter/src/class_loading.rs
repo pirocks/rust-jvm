@@ -23,7 +23,7 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -290,7 +290,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         return Ok(jvm.allocate_object(Object::Object(NormalObject {
             monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields: JVMState::get_class_field_numbers().into_values().map(|_| UnsafeCell::new(JavaValue::Top.to_native())).collect_vec(),
+                fields: JVMState::get_class_field_numbers().into_values().map(|(_, type_)| UnsafeCell::new(default_value(type_).to_native())).collect_vec(),
                 class_pointer: jvm.classes.read().unwrap().class_class.clone(),
             },
         })));

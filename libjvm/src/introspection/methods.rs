@@ -50,7 +50,6 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
     if from_jclass(jvm, ofClass).as_type(jvm).is_primitive() {
         return std::ptr::null_mut();
     }
-    int_state.debug_print_stack_trace(jvm);
     let view = from_jclass(jvm, ofClass).as_runtime_class(jvm).view();
     let em = view.enclosing_method_view();
     match em {

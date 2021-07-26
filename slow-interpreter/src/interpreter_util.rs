@@ -7,6 +7,7 @@ use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::{default_value, GcManagedObject, JavaValue};
@@ -19,6 +20,7 @@ pub fn push_new_object<'gc_life>(
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     runtime_class: &'_ Arc<RuntimeClass<'gc_life>>,
 ) {
+    check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);

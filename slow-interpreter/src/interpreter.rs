@@ -12,7 +12,7 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::classfile::{Code, InstructionInfo};
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -85,6 +85,17 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                 safepoint_check(jvm, interpreter_state).unwrap();
             }
         }
+        /*if (meth_name == MethodName::constructor_init() && class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("com/google/common/base/CharMatcher$RangesMatcher",true)))||
+            (meth_name == MethodName::constructor_clinit() && class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("com/google/common/base/CharMatcher",true))){
+            let mut frame = interpreter_state.current_frame_mut();
+            let mut operand_stack = frame.operand_stack_mut();
+            let top_operand_stack = operand_stack.pop(None);
+            if let Some(jv) = top_operand_stack {
+                dbg!(jv.try_unwrap_int());
+                operand_stack.push(jv);
+            }
+            dbg!(instruct);
+        }*/
         run_single_instruction(jvm, interpreter_state, &instruct.info, method_id);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();
@@ -94,7 +105,8 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                     match excep_table.catch_type {
                         None => {
                             //todo dup
-                            interpreter_state.push_current_operand_stack(JavaValue::Object(todo!()/*interpreter_state.throw()*/));
+                            interpreter_state.debug_print_stack_trace(jvm);
+                            interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);
                             interpreter_state.set_current_pc(excep_table.handler_pc);
                             // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());

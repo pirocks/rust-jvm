@@ -174,7 +174,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
     let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| {
         Some(entry.try_class_pointer()?.cpdtype())
     }).map(|ptype| {
-        get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(todo!()/*elem.into()*/))
+        get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))
     }).collect::<Result<Vec<_>, WasException>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut()

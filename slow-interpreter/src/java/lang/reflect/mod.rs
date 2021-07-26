@@ -162,7 +162,8 @@ pub mod method {
             let name = {
                 let name = method_view.name();
                 if name == MethodName::constructor_init() {
-                    return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
+                    todo!()
+                    // return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
                 JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
             };

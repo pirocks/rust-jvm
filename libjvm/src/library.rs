@@ -44,8 +44,9 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
 
 #[no_mangle]
 unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut c_void) {
-    let jvm = JVM.as_ref().unwrap();
-    unimplemented!()
+    // let jvm = JVM.as_ref().unwrap();
+    // unimplemented!()
+    //todo this seems to be actually be called so it should really work
 }
 
 #[no_mangle]

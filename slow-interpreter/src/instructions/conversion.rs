@@ -39,7 +39,7 @@ pub fn i2d(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'
 
 pub fn i2c(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let int = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    current_frame.push(JavaValue::Int(int as u8 as char as i32));
+    current_frame.push(JavaValue::Int(int as u16 as i32));
 }
 
 

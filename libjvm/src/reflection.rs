@@ -1,22 +1,32 @@
 use std::borrow::Borrow;
 use std::ops::Deref;
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
-use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::java::lang::boolean::Boolean;
+use slow_interpreter::java::lang::byte::Byte;
+use slow_interpreter::java::lang::char::Char;
+use slow_interpreter::java::lang::double::Double;
+use slow_interpreter::java::lang::float::Float;
+use slow_interpreter::java::lang::integer::Integer;
+use slow_interpreter::java::lang::long::Long;
+use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
+use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -72,16 +82,43 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     };
 
     //todo this arg array setup is almost certainly wrong.
-    for arg in args.array_iterator(jvm) {
-        int_state.push_current_operand_stack(arg.clone());
-    }
-
-    //todo clean this up, and handle invoke special
     let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
     let parsed_md = CMethodDescriptor {
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
     };
+    for (arg, type_) in args.array_iterator(jvm).zip(parsed_md.arg_types.iter()) {
+        let arg = match type_ {
+            CompressedParsedDescriptorType::BooleanType => {
+                JavaValue::Boolean(arg.cast_boolean().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::ByteType => {
+                JavaValue::Byte(arg.cast_byte().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::ShortType => {
+                JavaValue::Short(arg.cast_short().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::CharType => {
+                JavaValue::Char(arg.cast_char().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::IntType => {
+                JavaValue::Int(arg.cast_int().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::LongType => {
+                JavaValue::Long(arg.cast_long().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::FloatType => {
+                JavaValue::Float(arg.cast_float().inner_value(jvm))
+            }
+            CompressedParsedDescriptorType::DoubleType => {
+                JavaValue::Double(arg.cast_double().inner_value(jvm))
+            }
+            _ => arg.clone()
+        };
+        int_state.push_current_operand_stack(arg.clone());
+    }
+
+    //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     if is_virtual {
         invoke_virtual(jvm, int_state, method_name, &parsed_md);
@@ -135,10 +172,15 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
+    if let Err(WasException {}) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
+        return null_mut()
+    };
     let mut signature_str = string_obj_to_string(jvm, match signature_str_obj.unwrap_object() {
         None => return throw_npe(jvm, int_state),
         Some(signature) => signature
     });
+    dbg!(&signature_str);
+    dbg!(clazz.cpdtype().unwrap_class_type().0.to_str(&jvm.string_pool));
     let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
     let signature = CMethodDescriptor {
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),

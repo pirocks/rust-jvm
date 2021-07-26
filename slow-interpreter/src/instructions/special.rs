@@ -58,8 +58,8 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
                 int_state.debug_print_stack_trace(jvm);
-                dbg!(object_class.view().name());
-                dbg!(instanceof_class.view().name());
+                dbg!(object_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
+                dbg!(instanceof_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 unimplemented!()
             }
         }
@@ -185,7 +185,7 @@ pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inter
 
     for (_, i) in inherits.view().interfaces().enumerate() {
         let interface = runtime_interface_class(jvm, int_state, i)?;
-        interfaces_match |= interface.view().name() == parent.view().name();
+        interfaces_match |= inherits_from(jvm, int_state, &interface, &parent)?;
     }
 
 
