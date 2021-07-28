@@ -68,7 +68,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
     let normal_obj = notnull.unwrap_normal_object();
     let curval = normal_obj.get_var_top_level(jvm, field_name);
     (if curval.unwrap_long() == old {
-        normal_obj.set_var_top_level(field_name, JavaValue::Long(new));
+        normal_obj.set_var(rc, field_name, JavaValue::Long(new));
         1
     } else {
         0
@@ -107,10 +107,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
                 Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
                 Err(WasException {}) => return jboolean::MAX
             };
-            let mut curval = normal_obj.get_var_top_level(jvm, field_name);
+            let mut curval = normal_obj.get_var(jvm, rc.clone(), field_name);
             let old = from_object(jvm, old);
             let (should_replace, new) = do_swap(curval, old, new);
-            normal_obj.set_var_top_level(field_name, new);
+            normal_obj.set_var(rc, field_name, new);
             should_replace
         }
     }

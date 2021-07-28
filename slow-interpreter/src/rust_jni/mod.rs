@@ -51,6 +51,7 @@ pub fn call<'gc_life>(
     md: CMethodDescriptor,
 ) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
+    // dbg!(&mangled);
     let raw: unsafe extern fn() = unsafe {
         let libraries_guard = jvm.libjava.native_libs.read().unwrap();
         let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());

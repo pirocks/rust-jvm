@@ -284,6 +284,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObject(env: *mut JNIEnv, the_u
     Java_sun_misc_Unsafe_putObjectVolatile(env, the_unsafe, obj, offset, to_put)
 }
 
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putOrderedObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
+    Java_sun_misc_Unsafe_putObjectVolatile(env, the_unsafe, obj, offset, to_put)
+}
+
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_setMemory(env: *mut JNIEnv, the_unsafe: jobject, o: jobject, offset: jlong, bytes: jlong, value: jbyte) {
     assert_eq!(o, null_mut());

@@ -12,5 +12,6 @@ slow-interpreter/gen/
 swipl.log
 test_/
 /jvmti-jni-bindings/gen/
+/jmm-bindings/gen/
 /terminal-build/
 /threads/gen/

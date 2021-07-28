@@ -146,6 +146,7 @@ pub fn baload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
     let unborrowed = temp.unwrap_array();
     let as_byte = match &unborrowed.get_i(jvm, index) {
         JavaValue::Byte(i) => *i,
+        JavaValue::Boolean(i) => *i as i8,
         val => {
             dbg!(&unborrowed.elem_type);
             dbg!(val);

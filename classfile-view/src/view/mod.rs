@@ -3,7 +3,8 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind};
+use classfile_parser::attribute_infos::annotation_to_bytes;
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
@@ -67,6 +68,7 @@ pub trait ClassView: HasAccessFlags {
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
+    fn annotations(&self) -> Option<Vec<u8>>;
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView>;
     fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView>;
@@ -187,6 +189,17 @@ impl ClassView for ClassBackedView {
             matches!(attr.attribute_type, AttributeType::InnerClasses(_))
         }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
         todo!()
+    }
+
+    fn annotations(&self) -> Option<Vec<u8>> {
+        self.underlying_class.attributes.iter().find_map(|attr| {
+            match &attr.attribute_type {
+                AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => {
+                    Some(annotations.iter().flat_map(|annotation| annotation_to_bytes(annotation.clone())).collect_vec())
+                }
+                _ => None
+            }
+        })
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
@@ -315,6 +328,10 @@ impl ClassView for PrimitiveView {
         None
     }
 
+    fn annotations(&self) -> Option<Vec<u8>> {
+        todo!()
+    }
+
     fn lookup_method(&self, _name: MethodName, _desc: &CMethodDescriptor) -> Option<MethodView> {
         None
     }
@@ -409,6 +426,10 @@ impl ClassView for ArrayView {
 
     fn inner_classes_view(&self) -> Option<InnerClassesView> {
         None
+    }
+
+    fn annotations(&self) -> Option<Vec<u8>> {
+        todo!()
     }
 
     fn lookup_method(&self, _name: MethodName, _desc: &CMethodDescriptor) -> Option<MethodView> {

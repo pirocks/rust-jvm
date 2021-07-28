@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
+use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 

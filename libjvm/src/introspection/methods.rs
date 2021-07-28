@@ -2,18 +2,22 @@ use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_int, c_uchar, c_ushort};
 use std::ptr::null_mut;
 
+use itertools::Itertools;
+
+use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
-use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
@@ -209,7 +213,16 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
-    unimplemented!()
+    let jvm = get_state(env);
+    let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
+    let bytes_vec = match rc.unwrap_class_class().class_view.annotations() {
+        Some(x) => x,
+        None => {
+            vec![]
+        },
+    }.into_iter().map(|byte| JavaValue::Byte(byte as i8)).collect_vec();
+    let res = JavaValue::new_vec_from_vec(jvm, bytes_vec, CPDType::ByteType);
+    new_local_ref_public(res.unwrap_object(), get_interpreter_state(env))
 }
 
 #[no_mangle]

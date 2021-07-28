@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 fn main() {
     let jmm_include_path = env::var("JMM_H").unwrap_or("/home/francis/build/openjdk-debug/jdk8u/jdk/src/share/javavm/export/".to_string());
+    let jni_md_include_path = env::var("JNI_MD_H").unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/linux/".to_string());
     // println!("cargo:rerun-if-changed={}", path_join(jvm_include_path, "/jvm.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jvm_md_include_path, "/jvm_md.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jni_include_path, "/jni.h"));
@@ -24,6 +25,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg(format!("-I/{}/", jmm_include_path))
+        .clang_arg(format!("-I/{}/", jni_md_include_path))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)

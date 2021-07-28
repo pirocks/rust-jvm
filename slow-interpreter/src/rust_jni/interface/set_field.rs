@@ -50,7 +50,7 @@ pub unsafe extern "C" fn set_double_field(env: *mut JNIEnv, obj: jobject, field_
 }
 
 pub unsafe extern "C" fn set_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jobject) {
-    set_field(env, obj, field_id_raw, JavaValue::Object(todo!()/*from_jclass(jvm,val)*/));
+    set_field(env, obj, field_id_raw, JavaValue::Object(from_object(get_state(env), val)));
 }
 
 

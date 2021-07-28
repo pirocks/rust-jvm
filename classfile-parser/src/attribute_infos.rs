@@ -199,6 +199,64 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, Class
     })
 }
 
+pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
+    let mut res = vec![];
+    match element_value {
+        ElementValue::Byte(cp_index) => {
+            res.push('B' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Char(cp_index) => {
+            res.push('C' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Double(cp_index) => {
+            res.push('D' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Float(cp_index) => {
+            res.push('F' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Int(cp_index) => {
+            res.push('I' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Long(cp_index) => {
+            res.push('J' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Short(cp_index) => {
+            res.push('S' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::Boolean(cp_index) => {
+            res.push('Z' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::String(cp_index) => {
+            res.push('s' as u8);
+            res.extend_from_slice(&cp_index.to_be_bytes());
+        }
+        ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
+            res.extend_from_slice(&type_name_index.to_be_bytes());
+            res.extend_from_slice(&const_name_index.to_be_bytes());
+        }
+        ElementValue::Class(ClassInfoIndex { class_info_index }) => {
+            res.extend_from_slice(&class_info_index.to_be_bytes());
+        }
+        ElementValue::AnnotationType(AnnotationValue { annotation }) => {
+            res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
+        }
+        ElementValue::ArrayType(ArrayValue { values }) => {
+            for value in values {
+                res.extend_from_slice(element_value_to_bytes(value).as_slice());
+            }
+        }
+    }
+    res
+}
+
 fn parse_enum_const_value(p: &mut dyn ParsingContext) -> Result<EnumConstValue, ClassfileParsingError> {
     let type_name_index = p.read16()?;
     let const_name_index = p.read16()?;
@@ -226,6 +284,18 @@ fn parse_annotation(p: &mut dyn ParsingContext) -> Result<Annotation, ClassfileP
         num_element_value_pairs,
         element_value_pairs,
     })
+}
+
+pub fn annotation_to_bytes(annotation: Annotation) -> Vec<u8> {
+    let mut res = vec![];
+    let Annotation { type_index, num_element_value_pairs, element_value_pairs } = annotation;
+    res.extend_from_slice(&type_index.to_be_bytes());
+    res.extend_from_slice(&num_element_value_pairs.to_be_bytes());
+    for ElementValuePair { element_name_index, value } in element_value_pairs {
+        res.extend_from_slice(&element_name_index.to_be_bytes());
+        res.extend_from_slice(&element_value_to_bytes(value));
+    }
+    res
 }
 
 fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Annotation>, ClassfileParsingError> {

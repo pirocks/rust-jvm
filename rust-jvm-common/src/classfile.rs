@@ -1,4 +1,5 @@
 use std::hash::Hasher;
+use std::io::Write;
 
 use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
