@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::mem::transmute;
 use std::ops::{Deref, Rem};
+use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use itertools::Either;
@@ -52,6 +53,8 @@ pub struct WasException;
 
 static mut INSTRUCTION_COUNT: u64 = 0;
 
+static mut ITERATION_COUNT: u64 = 0;
+
 pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
@@ -85,17 +88,42 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                 safepoint_check(jvm, interpreter_state).unwrap();
             }
         }
-        /*if (meth_name == MethodName::constructor_init() && class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("com/google/common/base/CharMatcher$RangesMatcher",true)))||
-            (meth_name == MethodName::constructor_clinit() && class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("com/google/common/base/CharMatcher",true))){
-            let mut frame = interpreter_state.current_frame_mut();
-            let mut operand_stack = frame.operand_stack_mut();
-            let top_operand_stack = operand_stack.pop(None);
-            if let Some(jv) = top_operand_stack {
-                dbg!(jv.try_unwrap_int());
-                operand_stack.push(jv);
+        if meth_name == MethodName(jvm.string_pool.add_name("developLongDigits", false)) ||
+            meth_name == MethodName(jvm.string_pool.add_name("getBinaryToASCIIConverter", false)) ||
+            meth_name == MethodName(jvm.string_pool.add_name("dtoa", false)) {
+            unsafe {
+                if ITERATION_COUNT > 250 {
+                    panic!();
+                }
             }
+            unsafe { ITERATION_COUNT += 1; }
+            /*&& class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("sun/misc/FloatingDecimal$BinaryToASCIIBuffer", true)*/
+            let mut frame = interpreter_state.current_frame_mut();
+            let local_vars_ref = frame.local_vars();
+            let num_local_vars = local_vars_ref.len();
+            for i in 0..num_local_vars {
+                dbg!(i);
+                dbg!(local_vars_ref.get(i as u16, RuntimeType::LongType).try_unwrap_long());
+            }
+            let operand_stack = frame.operand_stack_ref(jvm);
+            dbg!(operand_stack.types());
+            for elem in operand_stack.types_vals() {
+                match elem {
+                    JavaValue::Long(_) => { dbg!(elem); }
+                    JavaValue::Int(_) => { dbg!(elem); }
+                    JavaValue::Short(_) => { dbg!(elem); }
+                    JavaValue::Byte(_) => { dbg!(elem); }
+                    JavaValue::Boolean(_) => { dbg!(elem); }
+                    JavaValue::Char(_) => { dbg!(elem); }
+                    JavaValue::Float(_) => { dbg!(elem); }
+                    JavaValue::Double(_) => { dbg!(elem); }
+                    JavaValue::Object(_) => {}
+                    JavaValue::Top => {}
+                };
+            }
+
             dbg!(instruct);
-        }*/
+        }
         run_single_instruction(jvm, interpreter_state, &instruct.info, method_id);
         if interpreter_state.throw().is_some() {
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();

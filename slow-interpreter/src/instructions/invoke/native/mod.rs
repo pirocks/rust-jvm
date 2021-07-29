@@ -41,7 +41,8 @@ pub fn run_native_method(
                      "newArray", "clone", "compareAndSwapObject", "identityHashCode", "nanoTime",
                      "getObjectVolatile", "compareAndSwapLong", "intern", "doPrivileged", "invoke0",
                      "getDeclaredMethods0", "putObjectVolatile", "desiredAssertionStatus0", "getName0",
-                     "compareAndSwapInt", "getCallerClass", "getModifiers", "isInstance"].into_iter().collect::<HashSet<_>>();
+                     "compareAndSwapInt", "getCallerClass", "getModifiers", "isInstance", "findBootstrapClass",
+                     "findLoadedClass0", "getStackTraceElement"].into_iter().collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
         dbg!(method_as_string);
     }

@@ -414,7 +414,34 @@ impl<'gc_life> JavaValue<'gc_life> {
 
 impl<'gc_life> Debug for JavaValue<'gc_life> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        todo!()
+        match self {
+            JavaValue::Long(elem) => {
+                writeln!(f, "Long:{}", elem)
+            }
+            JavaValue::Int(elem) => {
+                writeln!(f, "Int:{}", elem)
+            }
+            JavaValue::Short(elem) => {
+                writeln!(f, "Short:{}", elem)
+            }
+            JavaValue::Byte(elem) => {
+                writeln!(f, "Byte:{}", elem)
+            }
+            JavaValue::Boolean(elem) => {
+                writeln!(f, "Boolean:{}", elem)
+            }
+            JavaValue::Char(elem) => {
+                writeln!(f, "Char:{}", elem)
+            }
+            JavaValue::Float(elem) => {
+                writeln!(f, "Float:{}", elem)
+            }
+            JavaValue::Double(elem) => {
+                writeln!(f, "Double:{}", elem)
+            }
+            JavaValue::Object(_) => panic!(),
+            JavaValue::Top => writeln!(f, "top")
+        }
     }
 }
 

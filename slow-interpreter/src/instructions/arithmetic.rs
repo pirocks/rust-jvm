@@ -72,27 +72,27 @@ pub fn lneg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 pub fn land(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let first = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long();
     let second = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long();
-    current_frame.push(JavaValue::Long(first & second))
+    current_frame.push(JavaValue::Long(((first as u64) & (second as u64)) as i64))
 }
 
 pub fn iand(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let first = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let second = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    current_frame.push(JavaValue::Int(first & second))
+    current_frame.push(JavaValue::Int(((first as u32) & (second as u32)) as i32))
 }
 
 
 pub fn ixor(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let first = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let second = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    current_frame.push(JavaValue::Int(first ^ second))
+    current_frame.push(JavaValue::Int((first as u32 ^ second as u32) as i32))
 }
 
 
 pub fn ior(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let first = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let second = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    current_frame.push(JavaValue::Int(first | second))
+    current_frame.push(JavaValue::Int(((first as u32) | (second as u32)) as i32))
 }
 
 
@@ -225,5 +225,5 @@ pub fn lshr(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
 pub fn lushr(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long() as u64;
-    current_frame.push(JavaValue::Long((value1 << (value2 & 0x7F) as u64) as i64));
+    current_frame.push(JavaValue::Long((value1 >> (value2 & 0x7F) as u64) as i64));
 }
