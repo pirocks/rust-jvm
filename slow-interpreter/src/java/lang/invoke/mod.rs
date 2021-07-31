@@ -83,7 +83,7 @@ pub mod method_type {
 
         pub fn get_ptypes_as_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<CPDType> {
             self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter()
-                .map(|x| JavaValue::Object(todo!()/*x.clone()*/).cast_class().unwrap().as_type(jvm)).collect()
+                .map(|x| JavaValue::Object(x.clone()).cast_class().unwrap().as_type(jvm)).collect()
         }
 
         pub fn set_form(&self, jvm: &'gc_life JVMState<'gc_life>, form: MethodTypeForm<'gc_life>) {

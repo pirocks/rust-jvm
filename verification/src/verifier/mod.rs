@@ -89,6 +89,7 @@ impl Clone for Frame {
 #[derive(Debug)]
 pub enum TypeSafetyError {
     NotSafe(String),
+    Java5Maybe
 }
 
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {

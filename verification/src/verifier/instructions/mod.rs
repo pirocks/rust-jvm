@@ -52,7 +52,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                 FrameResult::AfterGoto => {
                     match i.info {
                         CInstructionInfo::EndOfCode => return Result::Ok(()),
-                        _ => return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()))
+                        _ => return Result::Ok(())/*return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()))*///todo deal with java 5 bs
                     }
                 }
             };
@@ -105,13 +105,23 @@ fn offset_stack_frame(env: &Environment, offset: u16) -> Result<Frame, TypeSafet
             },
         }
     }) {
-        None => { panic!()/*Result::Err(unknown_error_verifying!())*/ }
+        None => {
+            return Err(TypeSafetyError::Java5Maybe);
+            panic!()/*Result::Err(unknown_error_verifying!())*/
+        }
         Some(f) => Result::Ok(f),
     }
 }
 
 fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: u16) -> Result<(), TypeSafetyError> {
-    let frame = offset_stack_frame(env, target)?;
+    let frame = match offset_stack_frame(env, target) {
+        Ok(frame) => frame,
+        Err(TypeSafetyError::Java5Maybe) => {
+            //todo hacky
+            return Result::Ok(())
+        }
+        Err(other) => return Err(other),
+    };
     frame_is_assignable(&env.vf, stack_frame, &frame)?;
     Result::Ok(())
 }
@@ -181,7 +191,11 @@ pub fn start_is_member_of(start: u16, merged_instructs: &[MergedCodeInstruction]
 pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafetyError> {
     if h.start < h.end {
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
-            let _target_stack_frame = offset_stack_frame(env, h.target)?;
+            match offset_stack_frame(env, h.target) {
+                Ok(_target_stack_frame) => {},
+                Err(TypeSafetyError::Java5Maybe) => {}
+                Err(err) => { return Err(err) }
+            };
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }),

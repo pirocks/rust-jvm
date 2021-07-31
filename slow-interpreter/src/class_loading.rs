@@ -11,8 +11,8 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::{LivePoolGetter, LoaderName};
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use verification::{ClassFileGetter, VerifierContext, verify};
@@ -242,15 +242,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 for interface in class_view.interfaces() {
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
-                let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-                let field_numbers = class_view
-                    .fields()
-                    .filter(|field| !field.is_static())
-                    .map(|name| (name.field_name(), name.field_type()))
-                    .sorted_by_key(|(name, _ptype)| name.0)
-                    .enumerate()
-                    .map(|(index, (name, ptype))| (name, (index + start_field_number, ptype)))
-                    .collect::<HashMap<_, _>>();
+                let field_numbers = get_field_numbers(&class_view, &parent);
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     field_numbers,
@@ -275,6 +267,19 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
+}
+
+pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> HashMap<FieldName, (usize, CompressedParsedDescriptorType)> {
+    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
+    let field_numbers = class_view
+        .fields()
+        .filter(|field| !field.is_static())
+        .map(|name| (name.field_name(), name.field_type()))
+        .sorted_by_key(|(name, _ptype)| name.0)
+        .enumerate()
+        .map(|(index, (name, ptype))| (name, (index + start_field_number, ptype)))
+        .collect::<HashMap<_, _>>();
+    field_numbers
 }
 
 pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {

@@ -39,10 +39,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut args = vec![];
-    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,the_unsafe)*/));
-    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,parent_class)*/));
-    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,byte_array)*/));
-    args.push(JavaValue::Object(todo!()/*from_jclass(jvm,patches)*/));
+    args.push(JavaValue::Object(from_object(jvm, the_unsafe)));
+    args.push(JavaValue::Object(from_object(jvm, parent_class)));
+    args.push(JavaValue::Object(from_object(jvm, byte_array)));
+    args.push(JavaValue::Object(from_object(jvm, patches)));
 
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())//todo local ref
 }
@@ -105,7 +105,7 @@ fn patch_single(
     unpatched: &mut Classfile,
     i: usize,
 ) {
-    let class_name = JavaValue::Object(todo!()/*patch.clone().into()*/).to_type();
+    let class_name = JavaValue::Object(patch.clone().into()).to_type();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
     // Utf8: a string (must have suitable syntax if used as signature or name)

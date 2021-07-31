@@ -23,7 +23,8 @@ use rust_jvm_common::loading::LoaderName;
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::create_class_object;
+use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, create_class_object, get_field_numbers};
+use crate::class_objects::get_or_create_class_object;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
@@ -651,7 +652,7 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
 
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
     let jvm = get_state(env);
-    let field_obj = JavaValue::Object(todo!()/*from_jclass(jvm,method)*/).cast_field();
+    let field_obj = JavaValue::Object(from_object(jvm, method)).cast_field();
     let runtime_class = field_obj.clazz(jvm).as_runtime_class(jvm);
     let field_name = FieldName(jvm.string_pool.add_name(field_obj.name(jvm).to_rust_string(jvm), false));
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name)
@@ -667,12 +668,16 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
 
 pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_name = class_view.name().unwrap_name();
+    let class_view = Arc::new(class_view);
+    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
+    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
+    let field_numbers = get_field_numbers(&class_view, &super_class);
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-        class_view: Arc::new(class_view),
-        field_numbers: todo!(),
+        class_view,
+        field_numbers,
         static_vars: Default::default(),
-        parent: todo!(),
-        interfaces: todo!(),
+        parent: super_class,
+        interfaces,
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
@@ -688,14 +693,14 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(todo!()/*get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()*/))
+    Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap();//todo unused?
-    let loader_name = JavaValue::Object(todo!()/*from_jclass(jvm,loader)*/).cast_class_loader().to_jvm_loader(jvm);
+    let loader_name = JavaValue::Object(from_object(jvm, loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.store_generated_classes { File::create("unsafe_define_class").unwrap().write_all(slice).unwrap(); }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));

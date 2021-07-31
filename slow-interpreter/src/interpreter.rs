@@ -91,13 +91,6 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         if meth_name == MethodName(jvm.string_pool.add_name("developLongDigits", false)) ||
             meth_name == MethodName(jvm.string_pool.add_name("getBinaryToASCIIConverter", false)) ||
             meth_name == MethodName(jvm.string_pool.add_name("dtoa", false)) {
-            unsafe {
-                if ITERATION_COUNT > 250 {
-                    panic!();
-                }
-            }
-            unsafe { ITERATION_COUNT += 1; }
-            /*&& class_name__.unwrap_class_type() == CompressedClassName(jvm.string_pool.add_name("sun/misc/FloatingDecimal$BinaryToASCIIBuffer", true)*/
             let mut frame = interpreter_state.current_frame_mut();
             let local_vars_ref = frame.local_vars();
             let num_local_vars = local_vars_ref.len();

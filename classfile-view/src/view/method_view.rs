@@ -1,5 +1,5 @@
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -83,12 +83,12 @@ impl MethodView<'_> {
         // •  It has a return type of Object.
         // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
         self.class_view.name() == CClassName::method_handle().into() &&
-            /*self.desc().arg_types.len() == 1 &&
+            self.desc().arg_types.len() == 1 &&
             self.desc().arg_types[0] == CPDType::array(CPDType::object()) &&
             self.desc().return_type == CPDType::object() &&
             self.is_varargs() &&
-            self.is_native()*/
-            todo!()
+            self.is_native()
+        //todo
     }
 
     //todo this shouldn't be public but needs to be atm.
