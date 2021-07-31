@@ -41,5 +41,6 @@ members = [
     "jit",
     "jit-common",
     "add-only-static-vec",
-    "jmm-bindings"
+    "jmm-bindings",
+    "operand-stack-removal"
 ]

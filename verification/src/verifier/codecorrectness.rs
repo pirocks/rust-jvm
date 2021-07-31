@@ -144,7 +144,6 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &method.class);
     let method_view = method_class.method_view_i(method.method_index as u16);
-    dbg!(method_view.name().0.to_str(vf.string_pool));
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())

@@ -44,6 +44,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     args.push(JavaValue::Object(from_object(jvm, byte_array)));
     args.push(JavaValue::Object(from_object(jvm, patches)));
 
+    int_state.debug_print_stack_trace(jvm);
+
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())//todo local ref
 }
 
@@ -58,15 +60,6 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
     //todo maybe have an anon loader for this
     let current_loader = int_state.current_loader();
 
-    let vf = VerifierContext {
-        live_pool_getter: jvm.get_live_object_pool_getter(),
-        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
-        string_pool: &jvm.string_pool,
-        class_view_cache: Mutex::new(Default::default()),
-        current_loader,
-        verification_types: Default::default(),
-        debug: false,
-    };
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.store_generated_classes {
         File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();

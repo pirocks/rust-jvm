@@ -31,7 +31,7 @@ pub mod method_type {
     impl<'gc_life> MethodType<'gc_life> {
         pub fn from_method_descriptor_string(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str: JString<'gc_life>, class_loader: Option<ClassLoader<'gc_life>>) -> Result<MethodType<'gc_life>, WasException> {
             int_state.push_current_operand_stack(str.java_value());
-            int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(todo!()/*None*/)));
+            int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             run_static_or_virtual(jvm, int_state, &method_type, MethodName::method_fromMethodDescriptorString(), &CMethodDescriptor { arg_types: vec![CClassName::string().into(), CClassName::classloader().into()], return_type: CClassName::method_type().into() })?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
@@ -290,9 +290,10 @@ pub mod method_handle {
         }
 
 
-        pub fn get_form_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<LambdaForm<'gc_life>> {
-            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_form());
-            if maybe_null.try_unwrap_object().is_some() {
+        pub fn get_form_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Option<LambdaForm<'gc_life>>, WasException> {
+            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
+            let maybe_null = self.normal_object.unwrap_normal_object().get_var(jvm, method_handle_class, FieldName::field_form());//.lookup_field(jvm, FieldName::field_form());
+            Ok(if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.cast_lambda_form().into()
                 } else {
@@ -300,10 +301,10 @@ pub mod method_handle {
                 }
             } else {
                 maybe_null.cast_lambda_form().into()
-            }
+            })
         }
-        pub fn get_form(&self, jvm: &'gc_life JVMState<'gc_life>) -> LambdaForm<'gc_life> {
-            self.get_form_or_null(jvm).unwrap()
+        pub fn get_form(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<LambdaForm<'gc_life>, WasException> {
+            Ok(self.get_form_or_null(jvm)?.unwrap())
         }
 
 
@@ -375,7 +376,7 @@ pub mod method_handles {
                 int_state.push_current_operand_stack(name.java_value());
                 int_state.push_current_operand_stack(mt.java_value());
                 int_state.push_current_operand_stack(special_caller.java_value());
-                let desc = CMethodDescriptor { arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into()], return_type: CClassName::method_handle().into() };
+                let desc = CMethodDescriptor { arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into(), CClassName::class().into()], return_type: CClassName::method_handle().into() };
                 run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findSpecial(), &desc)?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }

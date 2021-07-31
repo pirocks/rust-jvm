@@ -662,7 +662,7 @@ fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut Interpre
     // if jvm.debug_print_exceptions {
     println!("EXCEPTION:");
     interpreter_state.debug_print_stack_trace(jvm);
-    dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));
+    /*dbg!(exception_obj.lookup_field(jvm, FieldName::field_detailMessage()));*/
     // }
 
     interpreter_state.set_throw(exception_obj.into());

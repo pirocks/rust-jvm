@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
 use itertools::Itertools;
@@ -19,8 +19,9 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
+use verification::{VerifierContext, verify};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, create_class_object, get_field_numbers};
@@ -672,22 +673,35 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let field_numbers = get_field_numbers(&class_view, &super_class);
+    let current_loader = int_state.current_loader();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-        class_view,
+        class_view: class_view.clone(),
         field_numbers,
         static_vars: Default::default(),
         parent: super_class,
         interfaces,
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
+    let mut class_view_cache = HashMap::new();
+    class_view_cache.insert(ClassWithLoader { class_name, loader: int_state.current_loader() }, class_view.clone() as Arc<dyn ClassView>);
+    let mut vf = VerifierContext {
+        live_pool_getter: jvm.get_live_object_pool_getter(),
+        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
+        string_pool: &jvm.string_pool,
+        class_view_cache: Mutex::new(class_view_cache),
+        current_loader,
+        verification_types: Default::default(),
+        debug: false,
+    };
+    verify(&mut vf, class_name, current_loader).unwrap();
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
-    let current_loader = int_state.current_loader();
     classes.anon_classes.write().unwrap().push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
     classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
+    jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
     prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);

@@ -368,7 +368,7 @@ pub fn get_method_descriptor(pool: &CompressedClassfileStringPool, cp: usize, cl
     let c = &classfile.constant_pool_view(cp);
     let (ref_type, method_name, parsed_descriptor) = match c {
         ConstantInfoView::Methodref(m) => {
-            let ref_type = m.class();
+            let ref_type = m.class(pool);
             let (method_name, descriptor) = (m.name_and_type().name(pool), m.name_and_type().desc_method(pool));
             (ref_type, MethodName(method_name), descriptor)
         }

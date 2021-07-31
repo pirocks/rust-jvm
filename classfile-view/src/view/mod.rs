@@ -160,14 +160,13 @@ impl ClassView for ClassBackedView {
         self.backing_class.interfaces.len()
     }
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
-        /*let (i, _) = self.backing_class.attributes.iter().enumerate().find(|(_, x)| {
+        let (i, _) = self.underlying_class.attributes.iter().enumerate().find(|(_, x)| {
             match &x.attribute_type {
                 AttributeType::BootstrapMethods(_) => true,
                 _ => false
             }
         })?;
-        BootstrapMethodsView { backing_class: self, attr_i: i }.into()*/
-        todo!()
+        BootstrapMethodsView { backing_class: self, attr_i: i }.into()
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
         let i = self.underlying_class.attributes.iter().enumerate().flat_map(|(i, x)| {

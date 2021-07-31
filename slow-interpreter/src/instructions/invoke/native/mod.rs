@@ -42,9 +42,10 @@ pub fn run_native_method(
                      "getObjectVolatile", "compareAndSwapLong", "intern", "doPrivileged", "invoke0",
                      "getDeclaredMethods0", "putObjectVolatile", "desiredAssertionStatus0", "getName0",
                      "compareAndSwapInt", "getCallerClass", "getModifiers", "isInstance", "findBootstrapClass",
-                     "findLoadedClass0", "getStackTraceElement"].into_iter().collect::<HashSet<_>>();
+                     "findLoadedClass0", "getStackTraceElement", "objectFieldOffset", "getDeclaringClass0",
+                     "getEnclosingMethod0", "isArray", "init", "isPrimitive", "isInterface"].into_iter().collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
-        dbg!(method_as_string);
+        dbg!(&method_as_string);
     }
     let parsed = method.desc();
     let mut args = vec![];

@@ -1,11 +1,13 @@
 use wtf8::Wtf8Buf;
 
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPRefType};
+use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
+use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -97,10 +99,9 @@ impl MethodrefView<'_> {
         }
     }
 
-    pub fn class(&self) -> CPRefType {
+    pub fn class(&self, pool: &CompressedClassfileStringPool) -> CPRefType {
         let class_index = self.get_raw().class_index;
-        // PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index))).unwrap_ref_type().clone()
-        todo!()
+        CPDType::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index)), pool).unwrap_ref_type().clone()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView {
@@ -151,8 +152,8 @@ impl NameAndTypeView<'_> {
     pub fn name(&self, pool: &CompressedClassfileStringPool) -> CCString {
         pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), true)
     }
-    pub fn desc_str(&self) -> CCString {
-        todo!()
+    pub fn desc_str(&self, pool: &CompressedClassfileStringPool) -> CCString {
+        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), false)
         /*self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()*/
     }
     pub fn desc_method(&self, pool: &CompressedClassfileStringPool) -> CMethodDescriptor {

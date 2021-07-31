@@ -647,10 +647,6 @@ pub fn loadable_constant_w(vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
     match c {
         CompressedLdc2W::Long(_) => VType::LongType,
         CompressedLdc2W::Double(_) => VType::DoubleType,
-
-        _ => {
-            panic!()
-        }
     }
 }
 
@@ -673,7 +669,10 @@ pub fn instruction_is_type_safe_ldc_w(const_: &CompressedLdcW, env: &Environment
         CompressedLdcW::Class { .. } => VType::Class(ClassWithLoader { class_name: CClassName::class(), loader: env.vf.current_loader.clone() }),
         CompressedLdcW::String { .. } => VType::Class(ClassWithLoader { class_name: CClassName::string(), loader: env.vf.current_loader.clone() }),
         CompressedLdcW::MethodType {} => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: env.vf.current_loader.clone() }),
-        _ => panic!()
+        CompressedLdcW::MethodHandle { .. } => todo!(),
+        CompressedLdcW::LiveObject(live_object_index) => {
+            VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: LoaderName::BootstrapLoader })//todo loader
+        }
     };
     type_transition(env, stack_frame, vec![], type_)
 }

@@ -51,7 +51,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         let op_stack = current_frame.operand_stack(jvm);
         let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16, CClassName::method_handle().into());
         let method_handle = temp_value.cast_method_handle();
-        let form: LambdaForm = method_handle.get_form(jvm);
+        let form: LambdaForm = method_handle.get_form(jvm)?;
         let vmentry: MemberName = form.get_vmentry(jvm);
         if target_method.name() == MethodName::method_invoke() || target_method.name() == MethodName::method_invokeBasic() || target_method.name() == MethodName::method_invokeExact() {
             //todo do conversion.

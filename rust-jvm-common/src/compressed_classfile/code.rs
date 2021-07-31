@@ -5,7 +5,7 @@ use itertools::Either;
 use wtf8::Wtf8Buf;
 
 use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
-use crate::compressed_classfile::{CCString, CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
+use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
 use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use crate::vtype::VType;
 

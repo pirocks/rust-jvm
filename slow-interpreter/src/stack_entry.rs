@@ -680,10 +680,7 @@ pub enum OperandStackRef<'gc_life, 'l, 'k> {
 
 impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     pub fn is_empty(&self) -> bool {
-        match self {
-            /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackRef::Jit { .. } => todo!()
-        }
+        self.len() == 0
     }
 
     pub fn len(&self) -> u16 {
@@ -761,18 +758,22 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
         }
     }
 
-    pub fn insert(&self, index: usize, j: JavaValue<'gc_life>) {
-        match self {
-            /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackMut::Jit { .. } => todo!()
+    pub fn insert(&mut self, index: usize, j: JavaValue<'gc_life>) {
+        let mut temp = vec![];
+        for _ in self.len()..index {
+            temp.push(self.pop(None).unwrap());
+        }
+        self.push(j);
+        for to_push in temp {
+            self.push(to_push);
         }
     }
 
     pub fn len(&self) -> usize {
-        match self {
+        (match self {
             /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackMut::Jit { .. } => todo!()
-        }
+            OperandStackMut::Jit { frame_view, .. } => frame_view.operand_stack_length()
+        }) as usize
     }
 }
 

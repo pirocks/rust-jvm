@@ -258,7 +258,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(
     let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name, true))));
 
     let loader_name = from_object(jvm, loader)
-        .map(|loader_obj| JavaValue::Object(todo!()/*loader_obj.into()*/).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+        .map(|loader_obj| JavaValue::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
 
     let class_lookup_result = get_or_create_class_object_force_loader(
         jvm,

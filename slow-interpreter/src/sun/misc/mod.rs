@@ -1,6 +1,7 @@
 pub mod unsafe_ {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -27,12 +28,15 @@ pub mod unsafe_ {
         }
 
         pub fn object_field_offset(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, field: Field<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             let desc = CMethodDescriptor { arg_types: vec![CClassName::field().into()], return_type: CPDType::LongType };
             run_static_or_virtual(jvm, int_state, &rc, MethodName::method_objectFieldOffset(), &desc)?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())))
+            let res = int_state.pop_current_operand_stack(Some(RuntimeType::LongType));
+            dbg!(res.to_type());
+            dbg!(res.clone());
+            Ok(res)
         }
 
         as_object_or_java_value!();

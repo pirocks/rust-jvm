@@ -68,7 +68,7 @@ pub mod dynamic {
             _ => panic!(),
         };
         let other_name = invoke_dynamic_view.name_and_type().name(&jvm.string_pool);//todo get better names
-        let other_desc_str = invoke_dynamic_view.name_and_type().desc_str();
+        let other_desc_str = invoke_dynamic_view.name_and_type().desc_str(&jvm.string_pool);
 
 
         let bootstrap_method_view = invoke_dynamic_view.bootstrap_method();
@@ -99,7 +99,7 @@ pub mod dynamic {
                 match is {
                     InvokeStatic::Interface(_) => unimplemented!(),
                     InvokeStatic::Method(m) => {
-                        m.name_and_type().desc_str()
+                        m.name_and_type().desc_str(&jvm.string_pool)
                     }
                 }
             }
@@ -137,7 +137,7 @@ pub mod dynamic {
         } else {
             let method_type = target.type__(jvm);
             let args = method_type.get_ptypes_as_types(jvm);
-            let form: LambdaForm<'gc_life> = target.get_form(jvm);
+            let form: LambdaForm<'gc_life> = target.get_form(jvm)?;
             let member_name: MemberName<'gc_life> = form.get_vmentry(jvm);
             let static_: bool = member_name.is_static(jvm, int_state)?;
             (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
@@ -173,9 +173,9 @@ pub mod dynamic {
                         // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                         let lookup = Lookup::trusted_lookup(jvm, int_state);
                         let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                        let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str().to_str(&jvm.string_pool)))?;
+                        let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                        let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
+                        let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class(&jvm.string_pool)))?;
                         lookup.find_static(jvm, int_state, target_class, name, method_type)?
                     }
                 }
@@ -188,9 +188,9 @@ pub mod dynamic {
                             //todo dupe
                             let lookup = Lookup::trusted_lookup(jvm, int_state);
                             let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                            let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str().to_str(&jvm.string_pool)))?;
+                            let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                            let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class()))?;
+                            let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class(&jvm.string_pool)))?;
                             let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();
                             let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                             lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?

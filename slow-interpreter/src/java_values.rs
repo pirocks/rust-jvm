@@ -439,7 +439,9 @@ impl<'gc_life> Debug for JavaValue<'gc_life> {
             JavaValue::Double(elem) => {
                 writeln!(f, "Double:{}", elem)
             }
-            JavaValue::Object(_) => panic!(),
+            JavaValue::Object(_) => {
+                writeln!(f, "obj")
+            },
             JavaValue::Top => writeln!(f, "top")
         }
     }
@@ -551,7 +553,7 @@ impl<'gc_life> JavaValue<'gc_life> {
         }
     }
 
-    pub fn unwrap_array(&self) -> &ArrayObject<'gc_life> {
+    pub fn unwrap_array<'l>(&'l self) -> &'l ArrayObject<'gc_life> {
         match self {
             JavaValue::Object(o) => {
                 o.as_ref().unwrap().unwrap_array()
@@ -948,7 +950,7 @@ impl<'gc_life> ArrayObject<'gc_life> {
         unsafe { self.elems.get().as_mut() }.unwrap()[i as usize] = jv.to_native();
     }
 
-    pub fn array_iterator<'l>(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> impl Iterator<Item=JavaValue<'gc_life>> + 'l {
+    pub fn array_iterator<'l>(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l> {
         ArrayIterator {
             elems: self,
             jvm,

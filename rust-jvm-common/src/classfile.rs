@@ -1,10 +1,7 @@
 use std::hash::Hasher;
-use std::io::Write;
 
 use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
-
-use sketch_jvm_version_of_utf8::Utf8OrWtf8;
 
 use crate::classnames::class_name;
 use crate::ptype::PType;

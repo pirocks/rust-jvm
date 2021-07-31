@@ -405,4 +405,9 @@ impl Monitor2 {
         guard.owner = Some(current_thread.java_tid);
         Ok(())
     }
+
+    pub fn this_thread_holds_lock(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
+        let current_thread = jvm.thread_state.get_current_thread();
+        self.monitor2_priv.read().unwrap().owner == Some(current_thread.java_tid)
+    }
 }

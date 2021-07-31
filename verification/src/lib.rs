@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use classfile_view::view::{ClassBackedView, ClassView};
+use classfile_view::view::ClassView;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;

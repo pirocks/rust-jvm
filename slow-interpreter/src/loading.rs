@@ -70,6 +70,7 @@ impl Classpath {
                 return Result::Ok(Arc::new(classfile));
             }
         }
+        dbg!(class_name.0.to_str(pool));
         Result::Err(ClassNotFoundException)
     }
 

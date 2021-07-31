@@ -26,7 +26,7 @@ pub mod throwable {
     impl<'gc_life> Throwable<'gc_life> {
         pub fn print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType))?;
             Ok(())
         }
@@ -113,14 +113,14 @@ pub mod member_name {
         // private int flags;
         pub fn get_name_func(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JString<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())
         }
 
         pub fn is_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<bool, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType))?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)
         }
@@ -204,14 +204,14 @@ pub mod member_name {
 
         pub fn get_method_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
         pub fn get_field_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JClass<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class())
         }
@@ -762,18 +762,20 @@ pub mod thread_group {
             Ok(thread_group_object.cast_thread_group())
         }
 
-        pub fn threads(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Option<JThread>> {
-            self.normal_object.lookup_field(jvm, FieldName::field_threads()).unwrap_array().array_iterator(jvm).map(|thread|
+        pub fn threads(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Option<JThread<'gc_life>>> {
+            let threads_field = self.normal_object.lookup_field(jvm, FieldName::field_threads());
+            let array = threads_field.unwrap_array();
+            array.array_iterator(jvm).map(|thread|
                 {
                     match thread.unwrap_object() {
                         None => None,
-                        Some(t) => JavaValue::Object(todo!()/*t.into()*/).cast_thread().into(),
+                        Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
                     }
                 }
             ).collect()
         }
 
-        pub fn threads_non_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JThread> {
+        pub fn threads_non_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JThread<'gc_life>> {
             self.threads(jvm).into_iter().flatten().collect()
         }
 

@@ -108,6 +108,11 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
                     let int: i32 = *integer;
                     int_state.push_current_operand_stack(JavaValue::Int(int));
                 }
+                CompressedLdcW::LiveObject(live_object_index) => {
+                    let classes_guard = jvm.classes.read().unwrap();
+                    let obj = &classes_guard.anon_class_live_object_ldc_pool.read().unwrap()[*live_object_index];
+                    int_state.push_current_operand_stack(JavaValue::Object(Some(obj.clone())));
+                }
                 _ => {
                     // dbg!(cp);
                     int_state.debug_print_stack_trace(jvm);

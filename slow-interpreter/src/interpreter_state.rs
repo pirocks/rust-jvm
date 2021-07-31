@@ -1,5 +1,6 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::RandomState;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
@@ -12,6 +13,7 @@ use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use verification::verifier::Frame;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};
@@ -246,7 +248,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                         let class_view = class_pointer.view();
                         let method_view = class_view.method_view_i(method_i);
                         let code = method_view.code_attribute().unwrap();
-                        let frame_vtype = &jvm.function_frame_type_data.read().unwrap()[&(method_id as usize)];//TODO MAKE SAFE TYPE WRAPPERS FOR METHOD ID AND I
+                        let function_frame_type = jvm.function_frame_type_data.read().unwrap();
+                        let frame_vtype = match function_frame_type.get(&(method_id as usize)) {
+                            None => {
+                                let (rc, index) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                                let view = rc.view();
+                                let method_view = view.method_view_i(index);
+                                dbg!(method_view.name().0.to_str(&jvm.string_pool));
+                                dbg!(view.name().unwrap_object_name().0.to_str(&jvm.string_pool));
+                                panic!()
+                            }
+                            Some(frame_vtype) => frame_vtype
+                        };//TODO MAKE SAFE TYPE WRAPPERS FOR METHOD ID AND I
                         let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
                         assert!(operand_stack.is_empty());//todo setup operand stack
                         unsafe {

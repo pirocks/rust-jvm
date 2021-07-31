@@ -128,7 +128,7 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
     }
     let method_obj = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class()), load_class)? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class(&jvm.string_pool)), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class
             };
@@ -222,21 +222,21 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
     }
     let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => {
-            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
+            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class(&jvm.string_pool)), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
-            let desc_str = ref_.name_and_type().desc_str();
+            let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
         }
         ConstantInfoView::InterfaceMethodref(ref_) => {
             let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
-            let desc_str = ref_.name_and_type().desc_str();
+            let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
         }
         ConstantInfoView::Fieldref(ref_) => {
             let class = ref_.class();
             let name = ref_.name_and_type().name(&jvm.string_pool);
-            let desc_str = ref_.name_and_type().desc_str();
+            let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
         }
         _ => {
@@ -456,8 +456,8 @@ unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jcla
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str().to_str(&jvm.string_pool)),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str().to_str(&jvm.string_pool)),
+        ConstantInfoView::Methodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -474,7 +474,7 @@ unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclas
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str().to_str(&jvm.string_pool)),
+        ConstantInfoView::Fieldref(ref_) => jvm.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
