@@ -19,8 +19,9 @@ use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
+use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LoaderName};
 use verification::{VerifierContext, verify};
+use verification::verifier::TypeSafetyError;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_field_numbers};
@@ -30,6 +31,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::interpreter_util::push_new_object;
 use crate::java::lang::class::JClass;
+use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
@@ -691,7 +693,19 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         verification_types: Default::default(),
         debug: false,
     };
-    verify(&mut vf, class_name, LoaderName::BootstrapLoader/*todo*/).unwrap();
+    match verify(&mut vf, class_name, LoaderName::BootstrapLoader/*todo*/) {
+        Ok(_) => {}
+        Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException)) => {
+            let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("todo"))?;
+            let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().into();
+            int_state.set_throw(to_throw);
+            return Err(WasException {})
+        }
+        Err(TypeSafetyError::NotSafe(_)) => panic!(),
+        Err(TypeSafetyError::Java5Maybe) => panic!(),
+        Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
+        Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
+    };
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.write().unwrap().push(runtime_class.clone());

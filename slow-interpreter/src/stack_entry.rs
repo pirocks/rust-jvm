@@ -546,7 +546,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 entry.push(j);
             }*/
-            StackEntryMut::Jit { jvm, .. } => {
+            StackEntryMut::Jit { .. } => {
                 self.operand_stack_mut().push(j);
             }
         }

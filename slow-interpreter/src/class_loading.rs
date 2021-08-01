@@ -12,9 +12,10 @@ use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-use rust_jvm_common::loading::{LivePoolGetter, LoaderName};
+use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use verification::{ClassFileGetter, VerifierContext, verify};
+use verification::verifier::TypeSafetyError;
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -164,16 +165,17 @@ pub struct DefaultClassfileGetter<'l, 'k> {
 }
 
 impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
-    fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Arc<dyn ClassView> {
+    fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         //todo verification needs to be better hooked in
-        match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
+        Ok(match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
             Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
             Err(err) => {
-                dbg!(err);
+                eprintln!("WARN: CLASS NOT FOUND WHILE VERIFYING:");
+                dbg!(&err);
                 dbg!(class.0.to_str(&self.jvm.string_pool));
-                panic!()
+                return Err(err)
             }
-        }
+        })
     }
 }
 
@@ -230,7 +232,16 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
                 };
-                verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader).unwrap();
+                match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
+                    Ok(_) => {}
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException)) => {
+                        return Err(WasException);
+                    }
+                    Err(TypeSafetyError::NotSafe(_)) => panic!(),
+                    Err(TypeSafetyError::Java5Maybe) => panic!(),
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
+                };
                 let parent = match class_view.super_name() {
                     Some(super_name) => {
                         Some(check_loaded_class(jvm, int_state, super_name.into())?)

@@ -158,6 +158,8 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
         None
     } else if &mangled == "Java_sun_misc_Perf_createLong" {
         Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.java_value())//todo this is incorrect and should be implemented properly.
+    } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
+        Some(JavaValue::Int(4096))
     } else {
         int_state.debug_print_stack_trace(jvm);
         dbg!(mangled);

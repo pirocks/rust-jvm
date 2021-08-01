@@ -1,4 +1,5 @@
 pub mod method_type {
+    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
@@ -13,7 +14,7 @@ pub mod method_type {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -118,7 +119,7 @@ pub mod method_type {
             jvm: &'gc_life JVMState<'gc_life>,
             int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
             rtype: JClass<'gc_life>,
-            ptypes: Vec<JClass>,
+            ptypes: Vec<JClass<'gc_life>>,
             form: MethodTypeForm<'gc_life>,
             wrap_alt: JavaValue<'gc_life>,
             invokers: JavaValue<'gc_life>,
@@ -127,12 +128,12 @@ pub mod method_type {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             push_new_object(jvm, int_state, &method_type);
             let res = int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type();
-            let ptypes_arr = JavaValue::Object(todo!()/*Some(Arc::new(
+            let ptypes_arr = JavaValue::Object(Some(jvm.allocate_object(
                 Object::Array(ArrayObject {
-                    elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value()).collect::<Vec<_>>()),
-                    elem_type: PTypeView::Ref(ReferenceTypeView::Class(ClassName::class())),
+                    elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
+                    elem_type: CClassName::class().into(),
                     monitor: jvm.thread_state.new_monitor("".to_string()),
-                })))*/);
+                }))));
             res.set_ptypes(ptypes_arr);
             res.set_rtype(rtype);
             res.set_form(jvm, form);

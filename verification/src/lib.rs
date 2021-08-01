@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use classfile_view::view::ClassView;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
+use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
 
 use crate::verifier::class_is_type_safe;
@@ -42,13 +42,13 @@ pub struct VerifierContext<'l> {
 
 
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<dyn ClassView>;
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
 }
 
 pub struct NoopClassFileGetter;
 
 impl ClassFileGetter for NoopClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<dyn ClassView> {
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         todo!("{:?}{:?}", loader, class)
     }
 }

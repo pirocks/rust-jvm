@@ -34,16 +34,16 @@ pub fn is_bootstrap_loader(loader: &LoaderName) -> bool {
     loader == &BootstrapLoader
 }
 
-pub fn get_class_methods(vf: &VerifierContext, class: ClassWithLoader) -> Vec<ClassWithLoaderMethod> {
+pub fn get_class_methods(vf: &VerifierContext, class: ClassWithLoader) -> Result<Vec<ClassWithLoaderMethod>, TypeSafetyError> {
     let mut res = vec![];
-    for method_index in 0..get_class(vf, &class).num_methods() {
+    for method_index in 0..get_class(vf, &class)?.num_methods() {
         res.push(ClassWithLoaderMethod { class: class.clone(), method_index })
     }
-    res
+    Ok(res)
 }
 
-pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
-    get_class(vf, class).is_final()
+pub fn class_is_final(vf: &VerifierContext, class: &ClassWithLoader) -> Result<bool, TypeSafetyError> {
+    Ok(get_class(vf, class)?.is_final())
 }
 
 
@@ -60,8 +60,8 @@ pub fn loaded_class(_vf: &VerifierContext, class_name: CClassName, loader: Loade
 }
 
 
-pub fn class_is_interface(vf: &VerifierContext, class: &ClassWithLoader) -> bool {
-    get_class(vf, class).is_interface()
+pub fn class_is_interface(vf: &VerifierContext, class: &ClassWithLoader) -> Result<bool, TypeSafetyError> {
+    Ok(get_class(vf, class)?.is_interface())
 }
 
 pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
@@ -268,7 +268,7 @@ fn is_java_assignable_array_types(vf: &VerifierContext, left: CPDType, right: CP
 
 fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(vf, to.class_name.clone(), to.loader.clone())?;
-    if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() }) {
+    if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() })? {
         return Result::Ok(());
     }
     is_java_sub_class_of(vf, from, to)
@@ -283,10 +283,10 @@ pub fn is_java_subclass_of(_vf: &VerifierContext, _sub: &ClassWithLoader, _super
     unimplemented!()
 }
 
-pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> CClassName {
+pub fn class_super_class_name(vf: &VerifierContext, class: &ClassWithLoader) -> Result<CClassName, TypeSafetyError> {
     //todo dup, this must exist elsewhere
-    let classfile = get_class(vf, class);
-    classfile.super_name().unwrap()
+    let classfile = get_class(vf, class)?;
+    Ok(classfile.super_name().unwrap())
 }
 
 pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, loader: LoaderName, res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
@@ -301,7 +301,7 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
         // }
     }
     let class = loaded_class(vf, chain_start.class_name.clone(), loader.clone())?;//todo loader duplication
-    let super_class_name = class_super_class_name(vf, &class);
+    let super_class_name = class_super_class_name(vf, &class)?;
     let super_class = loaded_class(vf, super_class_name.clone(), loader.clone())?;
     res.push(super_class);
     super_class_chain(vf, &loaded_class(vf, super_class_name, loader.clone())?, loader, res)?;
@@ -309,21 +309,21 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
 }
 
 
-pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
+pub fn is_final_method(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> Result<bool, TypeSafetyError> {
     //todo check if same
-    get_class(vf, &method.class).method_view_i(method.method_index as u16).is_final()
+    Ok(get_class(vf, &method.class)?.method_view_i(method.method_index as u16).is_final())
 }
 
 
-pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
+pub fn is_static(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> Result<bool, TypeSafetyError> {
     //todo check if same
-    get_class(vf, &method.class).method_view_i(method.method_index as u16).is_static()
+    Ok(get_class(vf, &method.class)?.method_view_i(method.method_index as u16).is_static())
 }
 
-pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> bool {
+pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: &ClassWithLoader) -> Result<bool, TypeSafetyError> {
     //todo check if method class and class same
 //    assert!(class == &method.class);
-    get_class(vf, &method.class).method_view_i(method.method_index as u16).is_private()
+    Ok(get_class(vf, &method.class)?.method_view_i(method.method_index as u16).is_private())
 }
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
@@ -334,7 +334,7 @@ pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoa
         // } else {
         //     Result::Err(TypeSafetyError::NotSafe("Loading Object w/o bootstrap loader".to_string()))
         // }
-    } else if is_private(vf, method, class) || is_static(vf, method, class) {
+    } else if is_private(vf, method, class)? || is_static(vf, method, class)? {
         Result::Ok(())
     } else {
         does_not_override_final_method_of_superclass(vf, class, method)
@@ -347,29 +347,29 @@ pub fn final_method_not_overridden(
     super_class: &ClassWithLoader,
     super_method_list: &[ClassWithLoaderMethod],
 ) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, &method.class);
+    let method_class = get_class(vf, &method.class)?;
     let method_info = &method_class.method_view_i(method.method_index as u16);
     let method_name_ = method_info.name();
     let descriptor_string = method_info.desc_str();
     //todo this stuff needs indexing. The below is guilty of 3% total init time.
-    let matching_method = super_method_list.iter().find(|x| {
-        let x_method_class = get_class(vf, &x.class);
+    let matching_method = super_method_list.iter().map(|x| {
+        let x_method_class = get_class(vf, &x.class)?;
         let x_method_info = &x_method_class.method_view_i(x.method_index as u16);
         let x_method_name = x_method_info.name();
         let x_descriptor_string = x_method_info.desc_str();
-        x_descriptor_string == descriptor_string && x_method_name == method_name_
-    });
+        Ok((x_descriptor_string == descriptor_string && x_method_name == method_name_, x))
+    }).collect::<Result<Vec<_>, TypeSafetyError>>()?.into_iter().find(|(cond, _)| *cond).map(|(_, clwithmethod)| clwithmethod);
     match matching_method {
         None => {
             return does_not_override_final_method(vf, super_class, method);
         }
         Some(method) => {
-            if is_final_method(vf, method, super_class) {
-                if is_private(vf, method, super_class) || is_static(vf, method, super_class) {
+            if is_final_method(vf, method, super_class)? {
+                if is_private(vf, method, super_class)? || is_static(vf, method, super_class)? {
                     return Result::Ok(());
                 }
             } else {
-                return if is_private(vf, method, super_class) || is_static(vf, method, super_class) {
+                return if is_private(vf, method, super_class)? || is_static(vf, method, super_class)? {
                     does_not_override_final_method(vf, super_class, method)
                 } else {
                     Result::Ok(())
@@ -381,20 +381,20 @@ pub fn final_method_not_overridden(
 }
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let super_class_name = class_super_class_name(vf, class);
+    let super_class_name = class_super_class_name(vf, class)?;
     let super_class = loaded_class(vf, super_class_name, vf.current_loader.clone())?;
-    let super_methods_list = get_class_methods(vf, super_class.clone());
+    let super_methods_list = get_class_methods(vf, super_class.clone())?;
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }
 
-pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> u16 {
+pub fn get_access_flags(vf: &VerifierContext, _class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<u16, TypeSafetyError> {
     //todo why the duplicate parameters?
-    get_class(vf, &method.class).method_view_i(method.method_index as u16).access_flags()
+    Ok(get_class(vf, &method.class)?.method_view_i(method.method_index as u16).access_flags())
 }
 
 //todo ClassName v. Name
-pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: CCString, member_descriptor: &Descriptor) -> bool {
-    let class = get_class(vf, super_);
+pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name: CCString, member_descriptor: &Descriptor) -> Result<bool, TypeSafetyError> {
+    let class = get_class(vf, super_)?;
     for method in class.methods() {
         let method_name = method.name();
         if member_name == method_name.0 {
@@ -418,7 +418,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
                 _ => panic!()
             };
             if parsed_member_type == field_type.0 {
-                return field.is_protected();
+                return Ok(field.is_protected());
             }
         }
     }

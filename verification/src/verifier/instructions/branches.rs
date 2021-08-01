@@ -94,7 +94,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: u16, env: &Environment, stack_
 }
 
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_class = get_class(&env.vf, &env.method.class);
+    let method_class = get_class(&env.vf, &env.method.class)?;
     let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
         ConstantInfoView::InvokeDynamic(i) => {
             (MethodName(i.name_and_type().name(env.vf.string_pool)), i.name_and_type().desc_method(env.vf.string_pool))

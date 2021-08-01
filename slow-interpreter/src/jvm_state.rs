@@ -23,9 +23,9 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
-use rust_jvm_common::loading::{LivePoolGetter, LoaderIndex, LoaderName};
+use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use verification::{ClassFileGetter, VerifierContext, verify};
-use verification::verifier::Frame;
+use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
@@ -408,9 +408,9 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
     fn get_classfile(&self,
                      loader: LoaderName,
                      class: CClassName,
-    ) -> Arc<dyn ClassView> {
+    ) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
-        Arc::new(ClassBackedView::from(self.jvm.classpath.lookup(&class, &self.jvm.string_pool).unwrap(), &self.jvm.string_pool))
+        Ok(Arc::new(ClassBackedView::from(self.jvm.classpath.lookup(&class, &self.jvm.string_pool)?, &self.jvm.string_pool)))
     }
 }
 

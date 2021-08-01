@@ -123,6 +123,8 @@ pub mod management_impl {
         JNI_OK as i32
     }
 
+    #[allow(non_camel_case_types)]
+    #[allow(non_upper_case_globals)]
     unsafe extern "C" fn GetLongAttribute(env: *mut JNIEnv, obj: jobject, att: jmmLongAttribute) -> jlong {
         match att {
             jmmLongAttribute_JMM_CLASS_LOADED_COUNT => todo!(),

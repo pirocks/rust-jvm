@@ -142,10 +142,10 @@ fn is_applicable_handler(offset: u16, handler: &Handler) -> bool {
     offset >= handler.start && offset < handler.end
 }
 
-fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> VType {
+fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> Result<VType, TypeSafetyError> {
     let class_view = get_class(vf, class);
-    let class_name = class_view.name();
-    class_name.to_verification_type(class.loader)
+    let class_name = class_view?.name();
+    Ok(class_name.to_verification_type(class.loader))
 }
 
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
@@ -155,7 +155,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     let locals = &exc_stack_frame.locals;
     let flags = exc_stack_frame.flag_this_uninit;
     let locals_copy = locals.clone();
-    let stack_map = OperandStack::new_prolog_display_order(&[class_to_type(&env.vf, &exception_class)]);
+    let stack_map = OperandStack::new_prolog_display_order(&[class_to_type(&env.vf, &exception_class)?]);
     let true_exc_stack_frame = Frame { locals: locals_copy, stack_map: stack_map.clone(), flag_this_uninit: flags };
     if operand_stack_has_legal_length(env, &stack_map) {
         target_is_type_safe(env, &true_exc_stack_frame, target)

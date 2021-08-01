@@ -140,7 +140,7 @@ pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) ->
 }
 
 pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, &method.class);
+    let method_class = get_class(vf, &method.class)?;
     let method_view = method_class.method_view_i(method.method_index as u16);
     does_not_override_final_method(vf, class, method)?;
     if method_view.is_native() || method_view.is_abstract() {
@@ -164,7 +164,7 @@ pub fn get_handlers(_vf: &VerifierContext, _class: &ClassWithLoader, code: &Comp
 }
 
 pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
-    let method_class = get_class(vf, &class);
+    let method_class = get_class(vf, &class)?;
     let method_info = &method_class.method_view_i(method.method_index as u16);
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
@@ -280,7 +280,7 @@ pub fn merge_stack_map_and_code<'l>(instruction: Vec<&'l CInstruction>, stack_ma
 }
 
 fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod, frame_size: u16) -> Result<(Frame, VType), TypeSafetyError> {
-    let classfile = get_class(vf, class);
+    let classfile = get_class(vf, class)?;
     let method_view = &classfile.method_view_i(method.method_index as u16);
     let parsed_descriptor = method_view.desc().clone();
     let this_list = method_initial_this_type(vf, class, method)?;
@@ -348,7 +348,7 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
 
 
 fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<Option<VType>, TypeSafetyError> {
-    let method_class = get_class(vf, &method.class);
+    let method_class = get_class(vf, &method.class)?;
     let method_view = method_class.method_view_i(method.method_index as u16);
     if method_view.is_static() {
         let method_name = method_view.name();
@@ -363,7 +363,7 @@ fn method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, metho
 }
 
 fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<VType, TypeSafetyError> {
-    let classfile = get_class(vf, &method.class);
+    let classfile = get_class(vf, &method.class)?;
     let method_name = classfile.method_view_i(method.method_index as u16).name();
     if method_name == MethodName::constructor_init() {
         if class.class_name == CClassName::object() {
@@ -378,6 +378,6 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
             }
         }
     } else {
-        Result::Ok(get_class(vf, class).name().to_verification_type(class.loader))
+        Result::Ok(get_class(vf, class)?.name().to_verification_type(class.loader))
     }
 }

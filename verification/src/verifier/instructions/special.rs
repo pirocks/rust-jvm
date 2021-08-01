@@ -105,7 +105,7 @@ pub fn instruction_is_type_safe_checkcast(cpd_type: &CPDType, env: &Environment,
 
 
 pub fn instruction_is_type_safe_putfield(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let method_classfile = get_class(&env.vf, &env.method.class);
+    let method_classfile = get_class(&env.vf, &env.method.class)?;
     if method_classfile.method_view_i(env.method.method_index as u16).name() == MethodName::constructor_init() {
         if let Ok(res) = instruction_is_type_safe_putfield_second_case(field_class_name, field_name, field_descriptor, env, &stack_frame) {
             return Result::Ok(res);
@@ -124,7 +124,7 @@ fn instruction_is_type_safe_putfield_second_case(field_class_name: CClassName, _
         return Result::Err(unknown_error_verifying!());
     }
     //todo is this equivalent to isInit
-    let method_classfile = get_class(&env.vf, &env.method.class);
+    let method_classfile = get_class(&env.vf, &env.method.class)?;
     if method_classfile.method_view_i(env.method.method_index as u16).name() != MethodName::constructor_init() {
         return Result::Err(unknown_error_verifying!());
     }

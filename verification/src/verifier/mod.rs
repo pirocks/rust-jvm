@@ -36,10 +36,16 @@ pub struct InternalFrame {
 }
 
 //todo impl on VerifierContext
-pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Arc<dyn ClassView> {
-    verifier_context.class_view_cache.lock().unwrap().entry(class.clone()).or_insert_with(|| {
-        verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())
-    }).clone()
+pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    let mut guard = verifier_context.class_view_cache.lock().unwrap();
+    match guard.get(class) {
+        None => {
+            let res = verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())?;
+            guard.insert(class.clone(), res.clone());
+            Ok(res)
+        }
+        Some(res) => Ok(res.clone())
+    }
     // Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
 
     //todo ideally we would just use parsed here so that we don't have infinite recursion in verify
@@ -88,7 +94,14 @@ impl Clone for Frame {
 #[derive(Debug)]
 pub enum TypeSafetyError {
     NotSafe(String),
-    Java5Maybe
+    Java5Maybe,
+    ClassNotFound(ClassLoadingError),
+}
+
+impl From<ClassLoadingError> for TypeSafetyError {
+    fn from(err: ClassLoadingError) -> Self {
+        TypeSafetyError::ClassNotFound(err)
+    }
 }
 
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
@@ -102,13 +115,13 @@ pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> 
         if chain.is_empty() {
             return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
         }
-        let super_class_name = get_class(vf, class).super_name();
+        let super_class_name = get_class(vf, class)?.super_name();
         let super_class = loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
-        if class_is_final(vf, &super_class) {
+        if class_is_final(vf, &super_class)? {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }
     }
-    let methods = get_class_methods(vf, class.clone());
+    let methods = get_class_methods(vf, class.clone())?;
     let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
         method_is_type_safe(vf, class, m)
     }).collect();
@@ -173,7 +186,7 @@ fn classes_in_other_pkg_with_protected_member_impl(
         let l = first.loader.clone();
         if different_runtime_package(vf, class, first) {
             let super_ = loaded_class(vf, member_class_name.clone(), l)?;
-            if is_protected(vf, &super_, member_name.clone(), member_descriptor) {
+            if is_protected(vf, &super_, member_name.clone(), member_descriptor)? {
                 res.push(first.clone())
             }
         }

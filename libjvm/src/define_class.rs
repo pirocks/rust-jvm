@@ -30,6 +30,8 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     to_object(match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
         Ok(res) => res,
-        Err(_) => todo!()
+        Err(WasException {}) => {
+            return null_mut();
+        }
     }.unwrap_object())
 }

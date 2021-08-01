@@ -255,6 +255,7 @@ pub mod class {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
+    use crate::class_objects::get_or_create_class_object;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{push_new_object, run_constructor};
@@ -285,7 +286,7 @@ pub mod class {
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(
                 jvm,
                 int_state,
@@ -295,7 +296,7 @@ pub mod class {
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into()))
                 .unwrap_object()
-                .map(|cl| JavaValue::Object(todo!()/*cl.into()*/).cast_class_loader()))
+                .map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))
         }
 
         pub fn new_bootstrap_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Self, WasException> {
@@ -317,7 +318,7 @@ pub mod class {
 
         pub fn from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: CClassName) -> JClass<'gc_life> {
             let type_ = CPDType::Ref(CPRefType::Class(name));
-            JavaValue::Object(todo!()/*get_or_create_class_object(jvm, type_, int_state).unwrap().into()*/).cast_class().unwrap()
+            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().into()).cast_class().unwrap()
         }
 
         pub fn from_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<JClass<'gc_life>, WasException> {

@@ -12,10 +12,10 @@ use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classname: CClassName) {
     let target_classfile = match check_initing_or_inited_class(jvm, int_state, classname.into()) {
         Ok(x) => x,
-        Err(_) => {
+        Err(WasException {}) => {
             int_state.debug_print_stack_trace(jvm);
-            int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
-            todo!()
+            // int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
+            return;
         },
     };
     push_new_object(jvm, int_state, &target_classfile);

@@ -397,7 +397,7 @@ fn run_single_instruction(
         CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor),
-        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type: _ } => invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor),
         CInstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::ireturn => ireturn(jvm, interpreter_state),
