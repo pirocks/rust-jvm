@@ -438,7 +438,7 @@ impl CInstructionInfo {
             CompressedInstructionInfo::lload_3 => 1,
             CompressedInstructionInfo::lmul => 1,
             CompressedInstructionInfo::lneg => 1,
-            CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default }) => {
+            CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default: _ }) => {
                 let pad_and_bytecode = 4 - (starting_offset % 4);
                 pad_and_bytecode + 4 + 4 + pairs.len() as u16 * 8
             }
@@ -471,7 +471,7 @@ impl CInstructionInfo {
             CompressedInstructionInfo::sastore => 1,
             CompressedInstructionInfo::sipush(_) => 3,
             CompressedInstructionInfo::swap => 1,
-            CompressedInstructionInfo::tableswitch(box TableSwitch { default, low, high, offsets }) => {
+            CompressedInstructionInfo::tableswitch(box TableSwitch { default: _, low: _, high: _, offsets }) => {
                 let pad_and_bytecode = 4 - (starting_offset % 4);
                 pad_and_bytecode + 4 + 4 + 4 + offsets.len() as u16 * 4
             }

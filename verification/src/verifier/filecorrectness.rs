@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -408,7 +406,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
             /*if &parsed_member_types.arg_types == &member_types.arg_types && parsed_member_types.return_type == member_types.return_type {
                 return method.is_protected();
             }*/
-            todo!()
+            todo!("{:?}{:?}", parsed_member_types, member_types)
         }
     }
     for field in class.fields() {

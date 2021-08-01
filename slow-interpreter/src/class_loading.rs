@@ -9,7 +9,6 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -171,7 +170,7 @@ impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
             Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
             Err(err) => {
                 dbg!(err);
-                dbg!(class);
+                dbg!(class.0.to_str(&self.jvm.string_pool));
                 panic!()
             }
         }

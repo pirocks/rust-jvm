@@ -1,6 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::collections::hash_map::RandomState;
+use std::collections::HashSet;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLockWriteGuard};
@@ -13,7 +12,6 @@ use jit_common::java_stack::{JavaStack, JavaStatus};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use verification::verifier::Frame;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};

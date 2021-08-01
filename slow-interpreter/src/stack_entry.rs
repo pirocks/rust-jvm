@@ -211,7 +211,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                 RuntimeType::LongType => {
                     JavaValue::Long((target as *const jlong).read())
                 }
-                RuntimeType::Ref(ref_) => {
+                RuntimeType::Ref(_) => {
                     let obj = (target as *const jobject).read();
                     // eprintln!("Read:{:?}", obj);
                     match NonNull::new(obj as *mut Object<'gc_life>) {
@@ -291,7 +291,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         self.get_frame_info().operand_stack_types()
     }
 
-    pub fn set_local_var(&mut self, jvm: &'gc_life JVMState<'gc_life>, i: u16, jv: JavaValue<'gc_life>) {
+    pub fn set_local_var(&mut self, _jvm: &'gc_life JVMState<'gc_life>, i: u16, jv: JavaValue<'gc_life>) {
         self.get_frame_info_mut().set_local_var_type(jv.to_type(), i as usize);
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::write_target(target, jv)
@@ -579,7 +579,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         }
     }
 
-    pub fn operand_stack_ref(&'k mut self, jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
+    pub fn operand_stack_ref(&'k mut self, _jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
         match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 OperandStackRef::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }

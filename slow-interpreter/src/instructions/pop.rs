@@ -1,5 +1,4 @@
 use rust_jvm_common::runtime_type::RuntimeType;
-use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 

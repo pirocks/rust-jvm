@@ -3,7 +3,6 @@ use std::ffi::{VaList, VaListImpl};
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;

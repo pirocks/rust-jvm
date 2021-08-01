@@ -1,4 +1,3 @@
-use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};

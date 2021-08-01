@@ -1,10 +1,9 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -22,7 +21,7 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
-use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 

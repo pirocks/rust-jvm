@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use jvmti_jni_bindings::{jbyte, jfieldID, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
@@ -609,7 +609,6 @@ impl<'gc_life> JavaValue<'gc_life> {
         //     }
         //     return Some((field.field_name(), UnsafeCell::new(JavaValue::Top)));
         // }).collect::<HashMap<_, _>>();
-        let class_class = runtime_class.unwrap_class_class();
         let fields = repeat_n(JavaValue::Top, runtime_class.unwrap_class_class().num_vars()).map(|jv| UnsafeCell::new(jv.to_native())).collect_vec();
         ObjectFieldsAndClass {
             fields,

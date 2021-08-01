@@ -29,7 +29,7 @@ const METHOD_HANDLE_CONST_NUM: u8 = 15;
 const METHOD_TYPE_CONST_NUM: u8 = 16;
 const INVOKE_DYNAMIC_CONST_NUM: u8 = 18;
 
-pub fn parse_constant_info(p: &mut dyn ParsingContext, debug: bool) -> Result<ConstantInfo, ClassfileParsingError> {
+pub fn parse_constant_info(p: &mut dyn ParsingContext, _debug: bool) -> Result<ConstantInfo, ClassfileParsingError> {
     let kind = p.read8()?;
     let result_kind: ConstantKind = match kind {
         UTF8_CONST_NUM => {

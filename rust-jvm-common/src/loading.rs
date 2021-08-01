@@ -44,8 +44,7 @@ pub enum ClassfileParsingError {
 
 impl From<ValidationError> for ClassfileParsingError {
     fn from(err: ValidationError) -> Self {
-        panic!()
-        // Self::UTFValidationError(err)
+        Self::UTFValidationError(err)
     }
 }
 

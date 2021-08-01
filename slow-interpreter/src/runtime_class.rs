@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
-use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
+use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 
@@ -191,7 +191,7 @@ pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_
 
 
 impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<'gc_life> {
-    fn from(rcc: RuntimeClassClass) -> Self {
+    fn from(rcc: RuntimeClassClass<'gc_life>) -> Self {
         Self::Object(rcc)
     }
 }

@@ -70,7 +70,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(jvm, klass as jobject).unwrap();//todo handle null
     let res = {
-        let type_ = &JavaValue::Object(todo!()/*class.into()*/).cast_class().unwrap().as_type(jvm);
+        let type_ = &JavaValue::Object(class.into()).cast_class().unwrap().as_type(jvm);
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;

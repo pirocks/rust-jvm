@@ -64,17 +64,6 @@ pub fn instruction_is_type_safe_anewarray(cpdtype: &CPDType, env: &Environment, 
     type_transition(env, stack_frame, expected_types_on_stack, res_type)
 }
 
-fn extract_constant_pool_entry_as_type(cp: CPIndex, env: &Environment) -> CPDType {
-    let class = get_class(&env.vf, &env.method.class);
-    let class_name = match &class.constant_pool_view(cp as usize) {
-        ConstantInfoView::Class(c) => {
-            c.class_ref_type()
-        }
-        _ => panic!()
-    };
-    CPDType::Ref(class_name)
-}
-
 pub fn instruction_is_type_safe_arraylength(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let array_type = nth1_operand_stack_is(1, &stack_frame)?;
     array_component_type(array_type)?;
@@ -128,7 +117,7 @@ pub fn instruction_is_type_safe_putfield(field_class_name: CClassName, field_nam
     }
 }
 
-fn instruction_is_type_safe_putfield_second_case(field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn instruction_is_type_safe_putfield_second_case(field_class_name: CClassName, _field_name: FieldName, field_descriptor: &CFieldDescriptor, env: &Environment, stack_frame: &Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo duplication
     let field_type = field_descriptor.0.to_verification_type(env.class_loader);
     if env.method.class.class_name != field_class_name {

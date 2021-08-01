@@ -5,10 +5,7 @@ use std::collections::vec_deque::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use classfile_view::view::ClassView;
-use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
@@ -52,7 +49,7 @@ pub struct NoopClassFileGetter;
 
 impl ClassFileGetter for NoopClassFileGetter {
     fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Arc<dyn ClassView> {
-        todo!()
+        todo!("{:?}{:?}", loader, class)
     }
 }
 

@@ -1,6 +1,6 @@
 use itertools::Either;
 
-use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
+use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};

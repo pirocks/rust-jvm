@@ -1,19 +1,15 @@
 use std::borrow::Borrow;
-use std::mem::transmute;
 use std::ops::{Deref, Rem};
-use std::slice::SliceIndex;
 use std::sync::Arc;
 
 use itertools::Either;
 use num::Zero;
 
-use classfile_parser::code::{CodeParserContext, parse_instruction};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
-use rust_jvm_common::classfile::{Code, InstructionInfo};
-use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -45,7 +41,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
-use crate::stack_entry::{StackEntryMut, StackEntryRef};
+use crate::stack_entry::StackEntryMut;
 use crate::threading::safepoints::Monitor2;
 
 #[derive(Debug)]
@@ -55,7 +51,7 @@ static mut INSTRUCTION_COUNT: u64 = 0;
 
 static mut ITERATION_COUNT: u64 = 0;
 
-pub fn run_function(_jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
     let method = view.method_view_i(method_i);
@@ -174,7 +170,7 @@ pub fn run_function(_jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ m
     Ok(())
 }
 
-pub fn safepoint_check(_jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let thread = interpreter_state.thread.clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
@@ -191,7 +187,7 @@ fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGua
     interpreter_state.set_current_pc(pc);
 }
 
-fn breakpoint_check(_jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
+fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
     let stop = match &jvm.jvmti_state {
         None => false,
@@ -505,7 +501,7 @@ fn f2l(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.push(JavaValue::Long(res))
 }
 
-fn dup2_x2(_jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc();
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
@@ -622,7 +618,7 @@ pub fn ret(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
     *current_frame.pc_offset_mut() = 0;
 }
 
-fn dcmpl(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+fn dcmpl(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
@@ -644,7 +640,7 @@ fn dcmp_common(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntry
     current_frame.push(JavaValue::Int(res));
 }
 
-fn dcmpg(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+fn dcmpg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
@@ -653,7 +649,7 @@ fn dcmpg(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'g
     dcmp_common(jvm, current_frame, val2, val1)
 }
 
-fn athrow(_jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
+fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack(Some(CClassName::throwable().into()));
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();

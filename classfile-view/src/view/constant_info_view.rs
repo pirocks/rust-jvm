@@ -7,7 +7,6 @@ use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
-use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]
 pub struct Utf8View {

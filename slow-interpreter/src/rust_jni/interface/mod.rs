@@ -20,12 +20,11 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
-use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 use verification::{VerifierContext, verify};
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, create_class_object, get_field_numbers};
-use crate::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
+use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_field_numbers};
+use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;

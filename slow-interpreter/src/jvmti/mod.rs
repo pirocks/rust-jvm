@@ -32,6 +32,7 @@ use crate::jvmti::threads::thread_groups::*;
 use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::from_jclass;
+use crate::rust_jni::native_util::from_object;
 
 pub mod event_callbacks;
 
@@ -417,7 +418,7 @@ unsafe extern "C" fn set_local_float(env: *mut jvmtiEnv, thread: jthread, depth:
 unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth: jint) -> jvmtiError {
     let jvm = get_state(env);
     //todo check capability
-    let java_thread = get_thread_or_error!(thread).get_java_thread(jvm);
+    let java_thread = get_thread_or_error!(jvm,thread).get_java_thread(jvm);
     let action = |int_state: &mut InterpreterStateGuard| {
         //todo check thread opaque
         match int_state.add_should_frame_pop_notify(depth as usize) {

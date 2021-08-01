@@ -643,7 +643,7 @@ pub fn loadable_constant(vf: &VerifierContext, c: &CompressedLdcW) -> VType {
     }
 }
 
-pub fn loadable_constant_w(vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
+pub fn loadable_constant_w(_vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
     match c {
         CompressedLdc2W::Long(_) => VType::LongType,
         CompressedLdc2W::Double(_) => VType::DoubleType,
@@ -662,7 +662,7 @@ pub fn loadable_constant_w(vf: &VerifierContext, c: &CompressedLdc2W) -> VType {
 // }
 
 pub fn instruction_is_type_safe_ldc_w(const_: &CompressedLdcW, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let view = get_class(&env.vf, &env.method.class);
+    let _view = get_class(&env.vf, &env.method.class);
     let type_ = match const_ {
         CompressedLdcW::Integer { .. } => VType::IntType,
         CompressedLdcW::Float { .. } => VType::FloatType,
@@ -670,7 +670,7 @@ pub fn instruction_is_type_safe_ldc_w(const_: &CompressedLdcW, env: &Environment
         CompressedLdcW::String { .. } => VType::Class(ClassWithLoader { class_name: CClassName::string(), loader: env.vf.current_loader.clone() }),
         CompressedLdcW::MethodType {} => VType::Class(ClassWithLoader { class_name: CClassName::method_type(), loader: env.vf.current_loader.clone() }),
         CompressedLdcW::MethodHandle { .. } => todo!(),
-        CompressedLdcW::LiveObject(live_object_index) => {
+        CompressedLdcW::LiveObject(_live_object_index) => {
             VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: LoaderName::BootstrapLoader })//todo loader
         }
     };

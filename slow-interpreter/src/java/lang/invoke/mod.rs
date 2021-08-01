@@ -316,7 +316,7 @@ pub mod method_handle {
 
 pub mod method_handles {
     pub mod lookup {
-        use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor};
+        use rust_jvm_common::compressed_classfile::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
         use crate::class_loading::assert_inited_or_initing_class;

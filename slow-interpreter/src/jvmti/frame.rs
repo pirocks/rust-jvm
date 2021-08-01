@@ -10,6 +10,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_state::InterpreterState;
 use crate::jvmti::{get_interpreter_state, get_state};
+use crate::jvmti::from_object;
 use crate::method_table::from_jmethod_id;
 use crate::stack_entry::StackEntry;
 
@@ -50,7 +51,7 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     assert!(jvm.vm_live());
     null_check!(count_ptr);
 
-    let jthread = get_thread_or_error!(thread);
+    let jthread = get_thread_or_error!(jvm,thread);
     let java_thread = jthread.get_java_thread(jvm);
     if !java_thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
@@ -108,7 +109,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     let jvm = get_state(env);
     let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetFrameLocation");
     assert!(jvm.vm_live());
-    let jthread = get_thread_or_error!(thread);
+    let jthread = get_thread_or_error!(jvm,thread);
     null_check!(method_ptr);
     null_check!(location_ptr);
     if depth < 0 {

@@ -1,11 +1,8 @@
 use std::num::NonZeroU8;
 
-use rust_jvm_common::classfile::InvokeInterface;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;

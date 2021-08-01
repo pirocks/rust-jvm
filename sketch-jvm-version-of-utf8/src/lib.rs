@@ -66,8 +66,7 @@ pub enum ValidationError {
 
 impl From<FromUtf8Error> for ValidationError {
     fn from(err: FromUtf8Error) -> Self {
-        panic!()
-        // Self::UTfError(err)
+        Self::UTfError(err)
     }
 }
 

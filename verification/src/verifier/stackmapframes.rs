@@ -2,12 +2,9 @@ use std::rc::Rc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classfile::{AppendFrame, AttributeType, ChopFrame, Code, FullFrame, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, VerificationTypeInfo};
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedAppendFrame, CompressedChopFrame, CompressedFullFrame, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 
@@ -25,7 +22,7 @@ pub fn stack_map_table_attribute(code: &Code) -> Option<&StackMapTable> {
     None
 }
 
-pub fn get_stack_map_frames(vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
+pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, method_info: &MethodView) -> Vec<StackMap> {
     let mut res = vec![];
     let code = method_info
         .code_attribute()

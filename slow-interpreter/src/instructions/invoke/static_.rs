@@ -3,7 +3,6 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::descriptors::ActuallyCompressedMD;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};

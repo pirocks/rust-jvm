@@ -18,11 +18,8 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView};
-use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
-use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
@@ -123,7 +120,7 @@ impl<'gc_life> Classes<'gc_life> {
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc_life>>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.cpdtype()).unwrap();
-        if (!Arc::ptr_eq(class_, actual_class)) {
+        if !Arc::ptr_eq(class_, actual_class) {
             dbg!(class_.cpdtype().unwrap_class_type());
             dbg!(actual_class.cpdtype().unwrap_class_type());
             dbg!(res);

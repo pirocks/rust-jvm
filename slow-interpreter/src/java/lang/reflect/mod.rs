@@ -1,10 +1,10 @@
 use wtf8::Wtf8Buf;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -134,7 +134,6 @@ pub mod method {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
-    use crate::java::lang::reflect::constructor::Constructor;
     use crate::java::lang::string::JString;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
@@ -403,7 +402,7 @@ pub mod constructor {
 
 pub mod field {
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};

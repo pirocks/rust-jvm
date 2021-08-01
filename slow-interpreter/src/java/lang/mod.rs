@@ -1029,7 +1029,7 @@ pub mod int {
 }
 
 pub mod short {
-    use jvmti_jni_bindings::{jint, jshort};
+    use jvmti_jni_bindings::jshort;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 

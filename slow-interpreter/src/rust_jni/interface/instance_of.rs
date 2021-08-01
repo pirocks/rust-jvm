@@ -1,5 +1,4 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::instructions::special::instance_of_impl;

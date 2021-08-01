@@ -4,9 +4,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
@@ -156,7 +154,7 @@ pub struct ParsedCodeAttribute {
     pub method: ClassWithLoaderMethod,
 }
 
-pub fn get_handlers(vf: &VerifierContext, class: &ClassWithLoader, code: &CompressedCode) -> Vec<Handler> {
+pub fn get_handlers(_vf: &VerifierContext, _class: &ClassWithLoader, code: &CompressedCode) -> Vec<Handler> {
     code.exception_table.iter().map(|f| Handler {
         start: f.start_pc as u16,
         end: f.end_pc as u16,

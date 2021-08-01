@@ -8,8 +8,8 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 #[macro_export]
 macro_rules! get_thread_or_error {
-    ($raw_thread: expr) => {
-    match crate::JavaValue::Object(todo!()/*from_jclass(jvm,$raw_thread)*/).try_cast_thread() {
+    ($jvm: expr,$raw_thread: expr) => {
+    match crate::JavaValue::Object(from_object($jvm,$raw_thread)).try_cast_thread() {
         None => return jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_INVALID_THREAD,
         Some(jt) => jt
     }

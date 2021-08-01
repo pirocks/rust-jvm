@@ -1,11 +1,10 @@
 use rust_jvm_common::runtime_type::RuntimeType;
-use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
-use crate::stack_entry::{FrameView, StackEntryMut};
+use crate::stack_entry::StackEntryMut;
 
 pub fn dup(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let val = current_frame.pop(None);//type doesn't currently matter so do whatever(well it has to be 64 bit).//todo fix for when type does matter
