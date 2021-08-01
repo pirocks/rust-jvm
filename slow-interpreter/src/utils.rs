@@ -1,9 +1,10 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -21,7 +22,7 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
-use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
+use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue, Object};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 
@@ -128,7 +129,6 @@ pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: 
         JavaValue::Top => panic!()
     })
 }
-
 
 pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: MethodName, desc: &CMethodDescriptor) -> Result<(), WasException> {
     let view = class.view();

@@ -760,7 +760,7 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
 
     pub fn insert(&mut self, index: usize, j: JavaValue<'gc_life>) {
         let mut temp = vec![];
-        for _ in self.len()..index {
+        for _ in index..self.len() {
             temp.push(self.pop(None).unwrap());
         }
         self.push(j);

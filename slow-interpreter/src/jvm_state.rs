@@ -123,7 +123,12 @@ impl<'gc_life> Classes<'gc_life> {
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc_life>>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.cpdtype()).unwrap();
-        assert!(Arc::ptr_eq(class_, actual_class));
+        if (!Arc::ptr_eq(class_, actual_class)) {
+            dbg!(class_.cpdtype().unwrap_class_type());
+            dbg!(actual_class.cpdtype().unwrap_class_type());
+            dbg!(res);
+            // panic!()//todo
+        }
         *res
     }
 

@@ -46,6 +46,7 @@ pub fn run_native_method(
                      "getEnclosingMethod0", "isArray", "init", "isPrimitive", "isInterface"].into_iter().collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
         dbg!(&method_as_string);
+        int_state.debug_print_stack_trace(jvm);
     }
     let parsed = method.desc();
     let mut args = vec![];

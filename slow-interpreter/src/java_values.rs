@@ -441,7 +441,7 @@ impl<'gc_life> Debug for JavaValue<'gc_life> {
             }
             JavaValue::Object(_) => {
                 writeln!(f, "obj")
-            },
+            }
             JavaValue::Top => writeln!(f, "top")
         }
     }
@@ -513,7 +513,10 @@ impl<'gc_life> JavaValue<'gc_life> {
             JavaValue::Long(l) => {
                 (*l).into()
             }
-            _ => None
+            _ => {
+                dbg!(self);
+                None
+            }
         }
     }
 

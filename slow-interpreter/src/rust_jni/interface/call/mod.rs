@@ -41,7 +41,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(CClassName::object().into())).into()
+        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
     })
 }
 

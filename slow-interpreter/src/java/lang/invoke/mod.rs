@@ -279,11 +279,12 @@ pub mod method_handle {
         }
 
         pub fn type__(&self, jvm: &'gc_life JVMState<'gc_life>) -> MethodType<'gc_life> {
-            self.normal_object.lookup_field(jvm, FieldName::field_type()).cast_method_type()
+            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
+            self.normal_object.unwrap_normal_object().get_var(jvm, method_handle_class, FieldName::field_type()).cast_method_type()
         }
 
         pub fn type_(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
-            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
+            let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_type(), &CMethodDescriptor::empty_args(CClassName::method_type().into()))?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
@@ -292,6 +293,7 @@ pub mod method_handle {
 
         pub fn get_form_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Option<LambdaForm<'gc_life>>, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
+            dbg!(self.normal_object.unwrap_normal_object().objinfo.class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
             let maybe_null = self.normal_object.unwrap_normal_object().get_var(jvm, method_handle_class, FieldName::field_form());//.lookup_field(jvm, FieldName::field_form());
             Ok(if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {

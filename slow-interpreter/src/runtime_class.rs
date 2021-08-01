@@ -192,7 +192,7 @@ pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_
 
 impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<'gc_life> {
     fn from(rcc: RuntimeClassClass) -> Self {
-        todo!()/*Self::Object(rcc)*/
+        Self::Object(rcc)
     }
 }
 

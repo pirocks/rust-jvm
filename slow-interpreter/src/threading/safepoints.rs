@@ -274,8 +274,9 @@ impl<'gc_life> SafePoint<'gc_life> {
             guard.waiting_monitor_notify = None;
             if should_reacquire {
                 let monitors_gaurd = jvm.thread_state.monitors.read().unwrap();
-                let monitor = &monitors_gaurd[monitor];
+                let monitor = &monitors_gaurd[monitor].clone();
                 drop(guard);
+                drop(monitors_gaurd);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
                 return self.check(jvm, int_state);
             } else {

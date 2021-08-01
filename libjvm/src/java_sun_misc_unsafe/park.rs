@@ -41,7 +41,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe: jobject, thread: jthread) {
     let jvm = get_state(env);
-    let thread_obj = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread();
+    let thread_obj = JavaValue::Object(from_object(jvm, thread)).cast_thread();
     let target_thread = thread_obj.get_java_thread(jvm);
     target_thread.unpark(jvm, get_interpreter_state(env));
 }

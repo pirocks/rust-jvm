@@ -143,10 +143,14 @@ pub mod dynamic {
             (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
         }; //todo also sketch
         let operand_stack_len = int_state.current_frame().operand_stack(jvm).len();
+        dbg!(operand_stack_len - num_args);
+        dbg!(operand_stack_len);
+        dbg!(num_args);
         int_state.current_frame_mut().operand_stack_mut().insert((operand_stack_len - num_args) as usize, target.java_value());
         //todo not passing final call args?
         // int_state.print_stack_trace();
-        // dbg!(&args);
+        dbg!(&args);
+        dbg!(int_state.current_frame().operand_stack(jvm).types());
         invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) }, method_handle_class, invoke)?;
 
         assert!(int_state.throw().is_none());

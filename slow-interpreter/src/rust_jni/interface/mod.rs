@@ -25,7 +25,7 @@ use verification::{VerifierContext, verify};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, create_class_object, get_field_numbers};
-use crate::class_objects::get_or_create_class_object;
+use crate::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
@@ -673,7 +673,6 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let field_numbers = get_field_numbers(&class_view, &super_class);
-    let current_loader = int_state.current_loader();
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: class_view.clone(),
         field_numbers,
@@ -683,17 +682,17 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
     let mut class_view_cache = HashMap::new();
-    class_view_cache.insert(ClassWithLoader { class_name, loader: int_state.current_loader() }, class_view.clone() as Arc<dyn ClassView>);
+    class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);
     let mut vf = VerifierContext {
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
         string_pool: &jvm.string_pool,
         class_view_cache: Mutex::new(class_view_cache),
-        current_loader,
+        current_loader: LoaderName::BootstrapLoader,//todo
         verification_types: Default::default(),
         debug: false,
     };
-    verify(&mut vf, class_name, current_loader).unwrap();
+    verify(&mut vf, class_name, LoaderName::BootstrapLoader/*todo*/).unwrap();
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.write().unwrap().push(runtime_class.clone());
@@ -707,7 +706,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(get_or_create_class_object(jvm, class_name.into(), int_state).unwrap().into()))
+    Ok(JavaValue::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().into()))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {

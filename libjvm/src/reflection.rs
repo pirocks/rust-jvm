@@ -133,31 +133,6 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let args = if args0.is_null() {
-        vec![]
-    } else {
-        let temp_1 = match from_object(jvm, args0) {
-            Some(x) => x,
-            None => {
-                return throw_npe(jvm, int_state);
-            }
-        };
-        let elems_refcell = temp_1.unwrap_array();
-        elems_refcell.array_iterator(jvm).map(|jv| match jv {
-            JavaValue::Object(o) => {
-                todo!()/*if let Some(o) = o {
-                    if let Object::Object(obj) = o.deref() {
-                        //todo handle others
-                        if obj.objinfo.class_pointer.view().name() == ClassName::Str("java/lang/Integer".to_string()).into() {
-                            return obj.get_var_top_level("value").clone();
-                        }
-                    }
-                }*/
-                // jv.clone()
-            }
-            _ => jv.clone()
-        }).collect::<Vec<_>>()
-    };
     let constructor_obj = match from_object(jvm, c) {
         Some(x) => x,
         None => {
@@ -182,6 +157,47 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     dbg!(&signature_str);
     dbg!(clazz.cpdtype().unwrap_class_type().0.to_str(&jvm.string_pool));
     let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
+    let args = if args0.is_null() {
+        vec![]
+    } else {
+        let temp_1 = match from_object(jvm, args0) {
+            Some(x) => x,
+            None => {
+                return throw_npe(jvm, int_state);
+            }
+        };
+        let elems_refcell = temp_1.unwrap_array();
+        elems_refcell.array_iterator(jvm).zip(parameter_types.iter()).map(|(arg, ptype)| {
+            //todo dupe with standard method invoke
+            match CPDType::from_ptype(ptype, &jvm.string_pool) {
+                CompressedParsedDescriptorType::BooleanType => {
+                    JavaValue::Boolean(arg.cast_boolean().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::ByteType => {
+                    JavaValue::Byte(arg.cast_byte().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::ShortType => {
+                    JavaValue::Short(arg.cast_short().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::CharType => {
+                    JavaValue::Char(arg.cast_char().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::IntType => {
+                    JavaValue::Int(arg.cast_int().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::LongType => {
+                    JavaValue::Long(arg.cast_long().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::FloatType => {
+                    JavaValue::Float(arg.cast_float().inner_value(jvm))
+                }
+                CompressedParsedDescriptorType::DoubleType => {
+                    JavaValue::Double(arg.cast_double().inner_value(jvm))
+                }
+                _ => arg.clone()
+            }
+        }).collect::<Vec<_>>()
+    };
     let signature = CMethodDescriptor {
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),//todo use from_leaacy instead

@@ -130,7 +130,7 @@ unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
 unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, clearInterrupted: jboolean) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let thread_object = JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).cast_thread();
+    let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
     let thread = thread_object.get_java_thread(jvm);
     let guard = thread.thread_status.read().unwrap();
     guard.interrupted as jboolean
