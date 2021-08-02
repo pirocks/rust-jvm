@@ -9,7 +9,7 @@ use crate::{JitBlock, JITError, JitState};
 
 pub fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset: FramePointerOffset) -> Result<(JitBlock, IRLabel), JITError> {
     let mut block = JitBlock {
-        java_pc_to_ir: Default::default(),
+        ir_to_java_pc: Default::default(),
         instructions: vec![],
     };
     let label = current_jit_state.new_ir_label();

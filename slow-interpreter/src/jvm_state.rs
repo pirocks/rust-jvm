@@ -19,6 +19,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
+use jit::CompiledMethodTable;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
@@ -49,6 +50,9 @@ pub static mut JVM: Option<&'static JVMState> = None;
 
 
 pub struct JVMState<'gc_life> {
+    pub compiled_methods: RwLock<CompiledMethodTable>,
+    pub compiled_mode_active: bool,
+
     pub libjava_path: OsString,
     pub(crate) properties: Vec<String>,
     pub system_domain_loader: bool,
@@ -162,6 +166,8 @@ impl<'gc_life> JVMState<'gc_life> {
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
         let mut jvm = Self {
+            compiled_methods: RwLock::new(CompiledMethodTable::new()),
+            compiled_mode_active: true,
             libjava_path: libjava,
             properties,
             system_domain_loader: true,

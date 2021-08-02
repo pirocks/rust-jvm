@@ -21,6 +21,7 @@ sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
+jit = { path = "../jit" }
 libc = "0.2.66"
 regex = "1"
 va_list = "0.1.3"

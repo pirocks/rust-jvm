@@ -12,3 +12,4 @@ gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 memoffset = "0.6"
 jit-common = { path = "../jit-common" }
 rangemap = "0.1.10"
+libc = "0.2.98"

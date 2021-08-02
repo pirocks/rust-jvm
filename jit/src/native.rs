@@ -25,12 +25,9 @@ struct CodeRegion {
 }
 
 
-const MAX_CODE_SIZE: usize = 1_000_000usize;
-const CODE_LOCATION: usize = 0x1_000_000usize;
-
 impl JITedCode {
     pub unsafe fn add_code_region(&mut self, instructions: InstructionSink) -> usize {
-        let prot_flags = ProtFlags::PROT_EXEC | ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
+        /*let prot_flags = ProtFlags::PROT_EXEC | ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
         let flags = MapFlags::MAP_ANONYMOUS | MapFlags::MAP_NORESERVE | MapFlags::MAP_PRIVATE;
         let mmap_addr = mmap(transmute(CODE_LOCATION), MAX_CODE_SIZE, prot_flags, flags, -1, 0).unwrap();
         let rip_start = mmap_addr as u64;
@@ -51,7 +48,8 @@ impl JITedCode {
         });
         fence(Ordering::SeqCst);
         // __clear_cache();//todo should use this
-        return len_before;
+        return len_before;*/
+        todo!()
     }
 
     pub unsafe fn run_jitted_coded(&self, id: usize, mut stack: JavaStack) {

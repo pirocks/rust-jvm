@@ -7,6 +7,7 @@ use num::Zero;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
+use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -52,6 +53,23 @@ static mut INSTRUCTION_COUNT: u64 = 0;
 static mut ITERATION_COUNT: u64 = 0;
 
 pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+    if jvm.compiled_mode_active {
+        let rc = interpreter_state.current_frame().class_pointer(jvm);
+        let method_i = interpreter_state.current_method_i(jvm);
+        let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
+        let view = interpreter_state.current_class_view(jvm).clone();
+        let method = view.method_view_i(method_i);
+        let code = method.code_attribute().unwrap();
+        let stack_frame_layouts_guard = jvm.stack_frame_layouts.read().unwrap();
+        let layout = &stack_frame_layouts_guard[&method_id];
+        jvm.compiled_methods.write().unwrap().add_method(method_id, code.instructions.values().cloned().collect(), layout);
+        todo!()
+    } else {
+        run_function_interpreted(&jvm, interpreter_state)
+    }
+}
+
+fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
     let method = view.method_view_i(method_i);

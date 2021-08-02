@@ -4,7 +4,7 @@ extern crate memoffset;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
-use iced_x86::{Code, Instruction, MemoryOperand, Register};
+use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, Code, Instruction, InstructionBlock, MemoryOperand, Register};
 
 use gc_memory_layout_common::FramePointerOffset;
 use jit_common::{JitCodeContext, VMExitType};
@@ -170,6 +170,7 @@ pub struct AbsoluteOffsetInCodeRegion(pub *mut c_void);
 #[derive(Debug)]
 pub struct InstructionSink {
     instructions: Vec<Instruction>,
+    ir_indexes: Vec<usize>,
     memory_offset_to_vm_exit: HashMap<MemoryOffset, VMExitType>,
     memory_offset_to_vm_return: HashMap<MemoryOffset, MemoryOffset>,
     current_memory_offset: usize,
@@ -182,17 +183,18 @@ pub struct RegistrationGuard {
 
 pub struct VMExits {
     pub memory_offset_to_vm_exit: HashMap<AbsoluteOffsetInCodeRegion, VMExitType>,
-    pub memory_offset_to_vm_return: HashMap<AbsoluteOffsetInCodeRegion, AbsoluteOffsetInCodeRegion>,
+    pub memory_offset_to_vm_return: HashMap<AbsoluteOffsetInCodeRegion, Option<AbsoluteOffsetInCodeRegion>>,
 }
 
 impl InstructionSink {
     pub fn new() -> Self {
-        Self { instructions: vec![], memory_offset_to_vm_exit: HashMap::new(), memory_offset_to_vm_return: HashMap::new(), current_memory_offset: 0 }
+        Self { instructions: vec![], ir_indexes: vec![], memory_offset_to_vm_exit: HashMap::new(), memory_offset_to_vm_return: HashMap::new(), current_memory_offset: 0 }
     }
 
-    pub fn add_instruction(&mut self, instruction: Instruction) {
+    pub fn add_instruction(&mut self, ir_index: usize, instruction: Instruction) {
         self.current_memory_offset += instruction.len();
         self.instructions.push(instruction);
+        self.ir_indexes.push(ir_index);
     }
 
     pub fn register_exit_before(&mut self, vm_exit_type: VMExitType) -> RegistrationGuard {
@@ -205,17 +207,39 @@ impl InstructionSink {
         self.memory_offset_to_vm_return.insert(registration_guard.before_offset, MemoryOffset(self.current_memory_offset));
     }
 
-    pub fn as_slice(&self) -> &[Instruction] {
-        self.instructions.as_slice()
-    }
-
     pub fn get_vm_exits_given_installed_address(&self, installed_address: *mut c_void) -> VMExits {
         VMExits {
             memory_offset_to_vm_exit: self.memory_offset_to_vm_exit.iter().map(|(mem_offset, vm_exit)| (mem_offset.to_absolute(installed_address), vm_exit.clone())).collect(),
-            memory_offset_to_vm_return: self.memory_offset_to_vm_return.iter().map(|(mem_offset, return_offset)| (mem_offset.to_absolute(installed_address), return_offset.to_absolute(installed_address))).collect(),
+            memory_offset_to_vm_return: self.memory_offset_to_vm_return.iter().map(|(mem_offset, return_offset)| (mem_offset.to_absolute(installed_address), Some(return_offset.to_absolute(installed_address)))).collect(),
         }
     }
+
+    pub fn fully_compiled(self, install_to: *mut c_void, max_len: usize) -> (VMExits, IRIndexToNative, usize) {
+        let vmexits = self.get_vm_exits_given_installed_address(install_to);
+        let InstructionSink {
+            instructions,
+            current_memory_offset,
+            ir_indexes,
+            ..
+        } = self;
+        let block = InstructionBlock::new(instructions.as_slice(), install_to as u64);
+        let BlockEncoderResult { rip, code_buffer, reloc_infos, new_instruction_offsets, constant_offsets } = BlockEncoder::encode(64, block, BlockEncoderOptions::NONE).unwrap();
+        if code_buffer.len() > max_len {
+            todo!()
+        }
+        unsafe { libc::memcpy(install_to, code_buffer.as_ptr() as *const c_void, code_buffer.len()); }
+        assert_eq!(current_memory_offset, code_buffer.len());
+        assert_eq!(new_instruction_offsets.len(), ir_indexes.len());
+        let inner = ir_indexes.into_iter().zip(new_instruction_offsets.into_iter()).map(|(ir_index, new_offset)| (ir_index, unsafe { install_to.offset(new_offset as isize) })).collect();
+        (vmexits, IRIndexToNative { inner }, code_buffer.len())
+    }
 }
+
+
+pub struct IRIndexToNative {
+    pub inner: HashMap<usize, *mut c_void>,
+}
+
 
 impl IRInstruction {
     /*
@@ -243,12 +267,12 @@ r15 is reserved for context pointer
             IRInstruction::BranchUnConditional(_) => todo!(),
             IRInstruction::VMExit(exit_type) => {
                 let restore_old_stack = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RSP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64));
-                instructions.add_instruction(restore_old_stack);
+                instructions.add_instruction(todo!(), restore_old_stack);
                 let restore_old_frame = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBP, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64));
-                instructions.add_instruction(restore_old_frame);
+                instructions.add_instruction(todo!(), restore_old_frame);
                 let jmp_to_old = Instruction::with_mem(Code::Jmp_rm64, MemoryOperand::with_base_displ(Register::R15, (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)) as i64));
                 let registration_guard = instructions.register_exit_before(exit_type.clone());
-                instructions.add_instruction(jmp_to_old);
+                instructions.add_instruction(todo!(), jmp_to_old);
                 instructions.register_exit_after(registration_guard);
                 match exit_type {
                     VMExitType::CheckCast => todo!(),
@@ -284,7 +308,7 @@ r15 is reserved for context pointer
                         todo!()
                     }
                     Constant::Int(constant) => {
-                        instructions.add_instruction(Instruction::try_with_mem_i32(Code::Mov_rm32_imm32, output_memory_operand, *constant).expect("wat"));
+                        instructions.add_instruction(todo!(), Instruction::try_with_mem_i32(Code::Mov_rm32_imm32, output_memory_operand, *constant).expect("wat"));
                     }
                     Constant::Short(_) => {
                         todo!()
@@ -303,10 +327,10 @@ r15 is reserved for context pointer
             IRInstruction::Label(_) => todo!(),
             IRInstruction::ReturnNone => {
                 let move_sp_to_old_ip = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RSP, MemoryOperand::with_base(Register::RBP));
-                instructions.add_instruction(move_sp_to_old_ip);
+                instructions.add_instruction(todo!(), move_sp_to_old_ip);
                 let set_to_old_rbp = Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBP, MemoryOperand::with_base_displ(Register::RBP, 8));
-                instructions.add_instruction(set_to_old_rbp);
-                instructions.add_instruction(Instruction::with(Code::Retnq));
+                instructions.add_instruction(todo!(), set_to_old_rbp);
+                instructions.add_instruction(todo!(), Instruction::with(Code::Retnq));
             }
             IRInstruction::Call { local_var_and_operand_stack_size, resolved_destination, return_location } => todo!()
         }
@@ -318,13 +342,13 @@ r15 is reserved for context pointer
             FloatSize::Float => Instruction::with_reg_mem(Code::Movss_xmm_xmmm32, Register::XMM0, input_load_memory_operand_a),
             FloatSize::Double => Instruction::with_reg_mem(Code::Movsd_xmm_xmmm64, Register::XMM0, input_load_memory_operand_a)
         };
-        instructions.add_instruction(load_value_a);
+        instructions.add_instruction(todo!(), load_value_a);
         let input_load_memory_operand_b = MemoryOperand::with_base_displ(Register::RBP, input_offset_b.0 as i64);
         let load_value_b = match size {
             FloatSize::Float => Instruction::with_reg_mem(Code::Movss_xmm_xmmm32, Register::XMM1, input_load_memory_operand_b.clone()),
             FloatSize::Double => Instruction::with_reg_mem(Code::Movsd_xmm_xmmm64, Register::XMM1, input_load_memory_operand_b.clone())
         };
-        instructions.add_instruction(load_value_b);
+        instructions.add_instruction(todo!(), load_value_b);
         let operation = match arithmetic_type {
             FloatArithmeticType::Add => match size {
                 FloatSize::Float => Instruction::with_reg_mem(Code::Addss_xmm_xmmm32, Register::XMM0, input_load_memory_operand_b),
@@ -343,13 +367,13 @@ r15 is reserved for context pointer
                 FloatSize::Double => Instruction::with_reg_mem(Code::Divsd_xmm_xmmm64, Register::XMM0, input_load_memory_operand_b),
             }
         };
-        instructions.add_instruction(operation);
+        instructions.add_instruction(todo!(), operation);
         let output_memory_operand = MemoryOperand::with_base_displ(Register::RBP, output_offset.0 as i64);
         let write_res = match size {
             FloatSize::Float => Instruction::with_mem_reg(Code::Movss_xmmm32_xmm, output_memory_operand, Register::XMM0),
             FloatSize::Double => Instruction::with_mem_reg(Code::Movsd_xmmm64_xmm, output_memory_operand, Register::XMM0)
         };
-        instructions.add_instruction(write_res)
+        instructions.add_instruction(todo!(), write_res)
     }
 
     fn integer_arithmetic(instructions: &mut InstructionSink, input_offset_a: &FramePointerOffset, input_offset_b: &FramePointerOffset, output_offset: &FramePointerOffset, size: &Size, signed: &bool, arithmetic_type: &ArithmeticType) {
@@ -360,7 +384,7 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_reg_mem(Code::Mov_r32_rm32, Register::EAX, input_load_memory_operand_a),
             Size::Long => Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RAX, input_load_memory_operand_a)
         };
-        instructions.add_instruction(load_value_a);
+        instructions.add_instruction(todo!(), load_value_a);
         let input_load_memory_operand_b = MemoryOperand::with_base_displ(Register::RBP, input_offset_b.0 as i64);
         let load_value_b = match size {
             Size::Byte => Instruction::with_reg_mem(Code::Mov_r8_rm8, Register::BL, input_load_memory_operand_b.clone()),
@@ -368,7 +392,7 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_reg_mem(Code::Mov_r32_rm32, Register::EBX, input_load_memory_operand_b.clone()),
             Size::Long => Instruction::with_reg_mem(Code::Mov_r64_rm64, Register::RBX, input_load_memory_operand_b.clone())
         };
-        instructions.add_instruction(load_value_b);
+        instructions.add_instruction(todo!(), load_value_b);
         let arithmetic = match arithmetic_type {
             ArithmeticType::Add => {
                 match size {
@@ -452,7 +476,7 @@ r15 is reserved for context pointer
                 }
             }
         };
-        instructions.add_instruction(arithmetic);
+        instructions.add_instruction(todo!(), arithmetic);
         let output_memory_operand = MemoryOperand::with_base_displ(Register::RBP, output_offset.0 as i64);
         let write_result = match size {
             Size::Byte => Instruction::with_mem_reg(Code::Mov_rm8_r8, output_memory_operand, Register::AL),
@@ -460,7 +484,7 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_mem_reg(Code::Mov_rm32_r32, output_memory_operand, Register::EAX),
             Size::Long => Instruction::with_mem_reg(Code::Mov_rm64_r64, output_memory_operand, Register::RAX),
         };
-        instructions.add_instruction(write_result);
+        instructions.add_instruction(todo!(), write_result);
     }
 
     fn copy_relative(instructions: &mut InstructionSink, input_offset: &FramePointerOffset, output_offset: &FramePointerOffset, signed: &bool, input_size: &Size, output_size: &Size) {
@@ -535,8 +559,8 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_mem_reg(Code::Mov_rm32_r32, write_memory_operand, Register::EBX),
             Size::Long => Instruction::with_mem_reg(Code::Mov_rm64_r64, write_memory_operand, Register::RBX)
         };
-        instructions.add_instruction(load_value);
-        instructions.add_instruction(write_value);
+        instructions.add_instruction(todo!(), load_value);
+        instructions.add_instruction(todo!(), write_value);
     }
 
     fn store_absolute(instructions: &mut InstructionSink, address_to: &FramePointerOffset, input_offset: &FramePointerOffset, size: &Size) {
@@ -556,9 +580,9 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_mem_reg(Code::Mov_rm32_r32, MemoryOperand::with_base(Register::RAX), Register::EBX),
             Size::Long => Instruction::with_mem_reg(Code::Mov_rm64_r64, MemoryOperand::with_base(Register::RAX), Register::RBX)
         };
-        instructions.add_instruction(write_address_load);
-        instructions.add_instruction(load_value);
-        instructions.add_instruction(write_value);
+        instructions.add_instruction(todo!(), write_address_load);
+        instructions.add_instruction(todo!(), load_value);
+        instructions.add_instruction(todo!(), write_value);
     }
 
     fn load_absolute(instructions: &mut InstructionSink, address_from: &FramePointerOffset, output_offset: &FramePointerOffset, size: &Size) -> () {
@@ -578,9 +602,9 @@ r15 is reserved for context pointer
             Size::Int => Instruction::with_mem_reg(Code::Mov_rm32_r32, write_memory_operand, Register::EBX),
             Size::Long => Instruction::with_mem_reg(Code::Mov_rm64_r64, write_memory_operand, Register::RBX)
         };
-        instructions.add_instruction(load_address);
-        instructions.add_instruction(load_value);
-        instructions.add_instruction(write_value)
+        instructions.add_instruction(todo!(), load_address);
+        instructions.add_instruction(todo!(), load_value);
+        instructions.add_instruction(todo!(), write_value)
     }
 }
 

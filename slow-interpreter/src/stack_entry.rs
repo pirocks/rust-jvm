@@ -271,19 +271,6 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let operand_stack_base = self.get_operand_stack_base();
         let target = unsafe { operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize) };
         let res = Self::read_target(jvm, target, expected_type.unwrap_or(type_.clone()));
-        // match type_ {
-        //     PTypeView::NullType => {
-        //         if jvm.vm_live() {
-        //             match res {
-        //                 JavaValue::Object(None) => {}
-        //                 _ => {
-        //                     dbg!(res.to_type());
-        //                     panic!()}
-        //             }
-        //         }
-        //     }
-        //     _ => {}
-        // }
         Some(res)
     }
 
