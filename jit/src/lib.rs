@@ -15,16 +15,19 @@ use std::sync::RwLock;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use gc_memory_layout_common::{ArrayMemoryLayout, StackframeMemoryLayout};
-use jit_common::VMExitType;
+use jit_common::{JitCodeContext, SavedRegisters, VMExitType};
+use jit_common::java_stack::JavaStack;
 use jit_ir::{ArithmeticType, Constant, InstructionSink, IRIndexToNative, IRInstruction, IRLabel, Size, VMExits};
+use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 
 use crate::arrays::{array_load, array_store};
 use crate::integer_arithmetic::{binary_and, binary_or, binary_xor, integer_add, integer_div, integer_mul, integer_sub, shift, ShiftDirection};
 
 pub const MAX_CODE_SIZE: usize = 2_000_000_000usize;
-pub const CODE_LOCATION: usize = 0x1_000_000_000_000usize;
+pub const CODE_LOCATION: usize = 0x100_000_000_000usize;
 
+#[derive(Debug)]
 pub struct VMExit {
     type_: VMExitType,
     start: NonNull<c_void>,
@@ -38,6 +41,8 @@ pub struct CompiledMethodTable {
     exits: HashMap<*mut c_void, VMExit>,
     table_end: *mut c_void,
 }
+
+pub struct NotCompiled {}
 
 impl CompiledMethodTable {
     pub fn new() -> Self {
@@ -53,15 +58,144 @@ impl CompiledMethodTable {
         }
     }
 
+    pub fn run_method(&self, methodid: usize, stack: &mut JavaStack) -> Result<Option<jvalue>, NotCompiled> {
+        match self.method_id_to_location.get(&methodid) {
+            None => {
+                Err(NotCompiled {})
+            }
+            Some(location) => {
+                unsafe {
+                    let as_ptr = *location;
+                    let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: _, status_register } = stack.handle_vm_entry();
+                    let rust_stack: u64 = stack_pointer as u64;
+                    let rust_frame: u64 = frame_pointer as u64;
+                    let mut jit_code_context = JitCodeContext {
+                        native_saved: SavedRegisters {
+                            stack_pointer: 0xdeaddeaddeaddead as *mut c_void,
+                            frame_pointer: 0xdeaddeaddeaddead as *mut c_void,
+                            instruction_pointer: 0xdeaddeaddeaddead as *mut c_void,
+                            status_register,
+                        },
+                        java_saved: SavedRegisters {
+                            stack_pointer,
+                            frame_pointer,
+                            instruction_pointer: as_ptr as *mut c_void,
+                            status_register,
+                        },
+                    };
+                    let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
+                    ///pub struct FrameHeader {
+                    //     pub prev_rip: *mut c_void,
+                    //     pub prev_rpb: *mut c_void,
+                    //     pub frame_info_ptr: *mut FrameInfo,
+                    //     pub debug_ptr: *mut c_void,
+                    //     pub magic_part_1: u64,
+                    //     pub magic_part_2: u64,
+                    // }
+                    let old_java_ip: *mut c_void;
+                    asm!(
+                    "push rbx",
+                    "push rbp",
+                    "push r12",
+                    "push r13",
+                    "push r14",
+                    "push r15",
+                    // technically these need only be saved on windows:
+                    // "push xmm*",
+                    //todo perhaps should use pusha/popa here, b/c this must be really slow
+                    "push rsp",
+                    // load context pointer into r15
+                    // store old stack pointer into context
+                    "mov [{0} + {old_stack_pointer_offset}],rsp",
+                    // store old frame pointer into context
+                    "mov [{0} + {old_frame_pointer_offset}],rbp",
+                    // store exit instruction pointer into context
+                    "lea r15, [rip+after_call]",
+                    "mov [{0} + {old_rip_offset}],r15",
+                    "mov r15,{0}",
+                    // load java frame pointer
+                    "mov rbp, [{0} + {new_frame_pointer_offset}]",
+                    // load java stack pointer
+                    "mov rsp, [{0} + {new_stack_pointer_offset}]",
+                    // jump to jitted code
+                    "jmp [{0} + {new_rip_offset}]",
+                    //
+                    "after_call:",
+                    // gets old java ip from call back to here in java
+                    "pop {1}",
+                    "pop rsp",
+                    "pop r15",
+                    "pop r14",
+                    "pop r13",
+                    "pop r12",
+                    "pop rbp",
+                    "pop rbx",
+                    in(reg) jit_context_pointer,
+                    out(reg) old_java_ip,
+                    old_stack_pointer_offset = const 0,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)),
+                    old_frame_pointer_offset = const 8,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)),
+                    old_rip_offset = const 16,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)),
+                    new_stack_pointer_offset = const 32,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)),
+                    new_frame_pointer_offset = const 40,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)),
+                    new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
+                    );
+
+                    jit_code_context.java_saved.instruction_pointer = old_java_ip;
+                    dbg!(jit_code_context.java_saved.instruction_pointer);
+                    dbg!(jit_code_context.java_saved.frame_pointer);
+                    dbg!(jit_code_context.java_saved.stack_pointer);
+                    dbg!(jit_code_context.native_saved.instruction_pointer);
+                    dbg!(jit_code_context.native_saved.stack_pointer);
+                    dbg!(jit_code_context.native_saved.frame_pointer);
+                    dbg!(&self.exits);
+                    let vm_exit_type = self.exits.get(&jit_code_context.java_saved.instruction_pointer).unwrap().type_;
+                    match vm_exit_type {
+                        VMExitType::CheckCast => todo!(),
+                        VMExitType::InstanceOf => todo!(),
+                        VMExitType::Throw => todo!(),
+                        VMExitType::InvokeDynamic => todo!(),
+                        VMExitType::InvokeStaticResolveTarget { .. } => todo!(),
+                        VMExitType::InvokeVirtualResolveTarget { .. } => todo!(),
+                        VMExitType::InvokeSpecialResolveTarget { .. } => todo!(),
+                        VMExitType::InvokeInterfaceResolveTarget { .. } => todo!(),
+                        VMExitType::MonitorEnter => todo!(),
+                        VMExitType::MonitorExit => todo!(),
+                        VMExitType::MultiNewArray => todo!(),
+                        VMExitType::ArrayOutOfBounds => todo!(),
+                        VMExitType::DebugTestExit => {
+                            todo!()//we are in test and expected this
+                        }
+                        VMExitType::ExitDueToCompletion => {
+                            todo!()
+                        }
+                        VMExitType::DebugTestExitValue { .. } => {
+                            todo!()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn add_method(&mut self, method_id: usize, code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryLayout) {
         let JitIROutput { main_block: JitBlock { ir_to_java_pc, instructions } } = code_to_ir(code, memory_layout).unwrap();
 
         let mut instruction_sink = InstructionSink::new();
-        for instruction in instructions {
-            instruction.to_x86(&mut instruction_sink)
+        for (ir_index, instruction) in instructions.into_iter().enumerate() {
+            dbg!(&instruction);
+            instruction.to_x86(ir_index, &mut instruction_sink)
         }
         let table_used_size = self.table_end as usize - self.table_start as usize;
-        let (VMExits { memory_offset_to_vm_exit, memory_offset_to_vm_return }, IRIndexToNative { inner: ir_index_to_native }, added_len) = instruction_sink.fully_compiled(self.table_end, MAX_CODE_SIZE - (table_used_size));
+        let (
+            VMExits {
+                memory_offset_to_vm_exit,
+                memory_offset_to_vm_return
+            },
+            IRIndexToNative {
+                inner: ir_index_to_native
+            },
+            added_len
+        ) = instruction_sink.fully_compiled(self.table_end, MAX_CODE_SIZE - (table_used_size));
         for (abs_offset, vm_exit_type) in memory_offset_to_vm_exit {
             let vm_exit = VMExit {
                 type_: vm_exit_type,
@@ -71,8 +205,11 @@ impl CompiledMethodTable {
             self.exits.insert(abs_offset.0, vm_exit);
         }
         for (ir_index, native) in ir_index_to_native {
+            dbg!(ir_index);
+            dbg!(&ir_to_java_pc);
             self.location_to_java_pc.insert(native, ir_to_java_pc[&ir_index]);
         }
+        self.method_id_to_location.insert(method_id, self.table_end);
         unsafe { self.table_end = self.table_end.offset(added_len as isize); }
     }
 }
@@ -90,13 +227,14 @@ pub struct JitBlock {
 }
 
 impl JitBlock {
-    pub fn add_instruction(&mut self, instruction: IRInstruction) {
+    pub fn add_instruction(&mut self, instruction: IRInstruction, java_pc: u16) {
+        self.ir_to_java_pc.insert(self.instructions.len(), java_pc);
         self.instructions.push(instruction);//todo need to handle java_pc somehow
     }
 }
 
 pub struct JitIROutput {
-    main_block: JitBlock
+    main_block: JitBlock,
 }
 
 impl JitIROutput {
@@ -135,6 +273,9 @@ pub fn code_to_ir(code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryL
     let mut current_instr: Option<&CInstruction> = None;
     for future_instr in &code {
         if let Some(current_instr) = current_instr.take() {
+            dbg!(&code);
+            dbg!(future_instr);
+            dbg!(current_instr);
             jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset as usize).unwrap());
             jit_state.java_pc = current_instr.offset;
             byte_code_to_ir(current_instr, &mut jit_state)?;
@@ -180,7 +321,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             current_jit_state.output.main_block.add_instruction(IRInstruction::Return {
                 return_value: current_jit_state.memory_layout.operand_stack_entry(java_pc as u16, 0),
                 return_value_size: Size::Long,
-            });
+            }, current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::arraylength => {
@@ -205,7 +346,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             astore_n(current_jit_state, 3)
         }
         CInstructionInfo::athrow => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::baload => {
@@ -220,7 +361,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
         }
         CInstructionInfo::castore => { Err(JITError::NotSupported) }
         CInstructionInfo::checkcast(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::d2f => Err(JITError::NotSupported),
@@ -427,39 +568,40 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
                 signed: true,
                 arithmetic_type: ArithmeticType::Mul,
             };
-            current_jit_state.output.main_block.add_instruction(instruct);
+            current_jit_state.output.main_block.add_instruction(instruct, current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::ineg => {
             todo!()
         }
         CInstructionInfo::instanceof(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokedynamic(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
             let resolved_function_location = current_jit_state.memory_layout.safe_temp_location(java_pc as u16, 0);
             let local_var_and_operand_stack_size_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
-            let exit_to_get_target = IRInstruction::VMExit(VMExitType::InvokeInterfaceResolveTarget { resolved: resolved_function_location });
-            current_jit_state.output.main_block.add_instruction(exit_to_get_target);
+            let exit_to_get_target = IRInstruction::VMExit(VMExitType::InvokeInterfaceResolveTarget {});
+            current_jit_state.output.main_block.add_instruction(exit_to_get_target, current_jit_state.java_pc);
             let call = IRInstruction::Call { resolved_destination: resolved_function_location, local_var_and_operand_stack_size: local_var_and_operand_stack_size_location, return_location: todo!() };
-            current_jit_state.output.main_block.add_instruction(call);
+            current_jit_state.output.main_block.add_instruction(call, current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecialResolveTarget { resolved: todo!() }));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecialResolveTarget {}), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStaticResolveTarget { resolved: todo!() }));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStaticResolveTarget {}), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtualResolveTarget { resolved: todo!() }));
+            //todo handle if resolved
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtualResolveTarget {}), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::ior => {
@@ -583,15 +725,15 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             binary_xor(current_jit_state, Size::Long)
         }
         CInstructionInfo::monitorenter => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::monitorexit => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::multianewarray { type_, dimensions } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray));
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::new(_) => Err(JITError::NotSupported),
@@ -609,7 +751,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
         CInstructionInfo::putstatic { name, desc, target_class } => Err(JITError::NotSupported),
         CInstructionInfo::ret(_) => Err(JITError::NotSupported),
         CInstructionInfo::return_ => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::ReturnNone);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::ReturnNone, current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::saload => {
@@ -639,7 +781,7 @@ fn swap(current_jit_state: &mut JitState) -> Result<(), JITError> {
         output_size: Size::Int,
         signed: false,
     };
-    current_jit_state.output.main_block.add_instruction(copy_to_temp);
+    current_jit_state.output.main_block.add_instruction(copy_to_temp, current_jit_state.java_pc);
     let b_to_a = IRInstruction::CopyRelative {
         input_offset: b,
         output_offset: a,
@@ -647,7 +789,7 @@ fn swap(current_jit_state: &mut JitState) -> Result<(), JITError> {
         output_size: Size::Int,
         signed: false,
     };
-    current_jit_state.output.main_block.add_instruction(b_to_a);
+    current_jit_state.output.main_block.add_instruction(b_to_a, current_jit_state.java_pc);
     let temp_to_b = IRInstruction::CopyRelative {
         input_offset: temp,
         output_offset: b,
@@ -655,7 +797,7 @@ fn swap(current_jit_state: &mut JitState) -> Result<(), JITError> {
         output_size: Size::Int,
         signed: false,
     };
-    current_jit_state.output.main_block.add_instruction(temp_to_b);
+    current_jit_state.output.main_block.add_instruction(temp_to_b, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -668,7 +810,7 @@ fn constant(current_jit_state: &mut JitState, constant: Constant) -> Result<(), 
     current_jit_state.output.main_block.add_instruction(IRInstruction::Constant {
         output_offset: null_offset,
         constant,
-    });
+    }, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -685,7 +827,7 @@ fn load_n(current_jit_state: &mut JitState, variable_index: usize, size: Size) -
         input_size: size,
         output_size: size,
         signed: false,
-    });
+    }, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -703,7 +845,7 @@ fn store_n(current_jit_state: &mut JitState, variable_index: u16, size: Size) ->
         input_size: size,
         output_size: size,
         signed: false,
-    });
+    }, current_jit_state.java_pc);
     Ok(())
 }
 

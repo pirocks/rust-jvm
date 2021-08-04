@@ -1,3 +1,5 @@
+#![feature(assoc_char_funcs)]
+
 use std::string::FromUtf8Error;
 
 use wtf8::{CodePoint, Wtf8Buf};

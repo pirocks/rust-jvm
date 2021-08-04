@@ -2,13 +2,14 @@ use std::borrow::Borrow;
 use std::ops::{Deref, Rem};
 use std::sync::Arc;
 
-use itertools::Either;
+use itertools::{Either, Itertools};
 use num::Zero;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
-use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
+use jit::NotCompiled;
+use jvmti_jni_bindings::{jvalue, JVM_ACC_SYNCHRONIZED};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -62,8 +63,11 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let code = method.code_attribute().unwrap();
         let stack_frame_layouts_guard = jvm.stack_frame_layouts.read().unwrap();
         let layout = &stack_frame_layouts_guard[&method_id];
-        jvm.compiled_methods.write().unwrap().add_method(method_id, code.instructions.values().cloned().collect(), layout);
-        todo!()
+        jvm.compiled_methods.write().unwrap().add_method(method_id, code.instructions.values().sorted_by_key(|instr| instr.offset).cloned().collect(), layout);
+        match jvm.compiled_methods.read().unwrap().run_method(method_id, interpreter_state.get_java_stack()) {
+            Ok(_) => todo!(),
+            Err(_) => todo!(),
+        }
     } else {
         run_function_interpreted(&jvm, interpreter_state)
     }

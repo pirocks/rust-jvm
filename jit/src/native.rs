@@ -10,7 +10,7 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jit_common::{JitCodeContext, SavedRegisters, VMExitType};
 use jit_common::java_stack::JavaStack;
-use jit_ir::{AbsoluteOffsetInCodeRegion, InstructionSink, VMExits};
+use jit_ir::{AbsolutePositionInCodeRegion, InstructionSink, VMExits};
 use rust_jvm_common::classfile::SameFrameExtended;
 
 use crate::code_to_ir;
@@ -53,109 +53,109 @@ impl JITedCode {
     }
 
     pub unsafe fn run_jitted_coded(&self, id: usize, mut stack: JavaStack) {
-        let as_ptr = self.code[id].raw;
-        let vm_exits: &VMExits = &self.code[id].vm_exits;
-        let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: _, status_register } = stack.handle_vm_entry();
-        let rust_stack: u64 = stack_pointer as u64;
-        let rust_frame: u64 = frame_pointer as u64;
-        let jit_code_context = JitCodeContext {
-            native_saved: SavedRegisters {
-                stack_pointer: 0xdeaddeaddeaddead as *mut c_void,
-                frame_pointer: 0xdeaddeaddeaddead as *mut c_void,
-                instruction_pointer: 0xdeaddeaddeaddead as *mut c_void,
-                status_register
-            },
-            java_saved: SavedRegisters {
-                stack_pointer,
-                frame_pointer,
-                instruction_pointer: as_ptr as *mut c_void,
-                status_register,
-            },
-        };
-        dbg!(as_ptr);
-        let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
-        ///pub struct FrameHeader {
-        //     pub prev_rip: *mut c_void,
-        //     pub prev_rpb: *mut c_void,
-        //     pub frame_info_ptr: *mut FrameInfo,
-        //     pub debug_ptr: *mut c_void,
-        //     pub magic_part_1: u64,
-        //     pub magic_part_2: u64,
-        // }
-        asm!(
-        "push rbx",
-        "push rbp",
-        "push r12",
-        "push r13",
-        "push r14",
-        "push r15",
-        // technically these need only be saved on windows:
-        // "push xmm*",
-        //todo perhaps should use pusha/popa here, b/c this must be really slow
-        "push rsp",
-        // load context pointer into r15
-        // store old stack pointer into context
-        "mov [{0} + {old_stack_pointer_offset}],rsp",
-        // store old frame pointer into context
-        "mov [{0} + {old_frame_pointer_offset}],rbp",
-        // store exit instruction pointer into context
-        "lea r15, [rip+after_call]",
-        "mov [{0} + {old_rip_offset}],r15",
-        "mov r15,{0}",
-        // load java frame pointer
-        "mov rbp, [{0} + {new_frame_pointer_offset}]",
-        // load java stack pointer
-        "mov rsp, [{0} + {new_stack_pointer_offset}]",
-        // jump to jitted code
-        "jmp [{0} + {new_rip_offset}]",
+        // let as_ptr = self.code[id].raw;
+        // let vm_exits: &VMExits = &self.code[id].vm_exits;
+        // let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: _, status_register } = stack.handle_vm_entry();
+        // let rust_stack: u64 = stack_pointer as u64;
+        // let rust_frame: u64 = frame_pointer as u64;
+        // let jit_code_context = JitCodeContext {
+        //     native_saved: SavedRegisters {
+        //         stack_pointer: 0xdeaddeaddeaddead as *mut c_void,
+        //         frame_pointer: 0xdeaddeaddeaddead as *mut c_void,
+        //         instruction_pointer: 0xdeaddeaddeaddead as *mut c_void,
+        //         status_register
+        //     },
+        //     java_saved: SavedRegisters {
+        //         stack_pointer,
+        //         frame_pointer,
+        //         instruction_pointer: as_ptr as *mut c_void,
+        //         status_register,
+        //     },
+        // };
+        // let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
+        // ///pub struct FrameHeader {
+        // //     pub prev_rip: *mut c_void,
+        // //     pub prev_rpb: *mut c_void,
+        // //     pub frame_info_ptr: *mut FrameInfo,
+        // //     pub debug_ptr: *mut c_void,
+        // //     pub magic_part_1: u64,
+        // //     pub magic_part_2: u64,
+        // // }
+        // asm!(
+        // "push rbx",
+        // "push rbp",
+        // "push r12",
+        // "push r13",
+        // "push r14",
+        // "push r15",
+        // // technically these need only be saved on windows:
+        // // "push xmm*",
+        // //todo perhaps should use pusha/popa here, b/c this must be really slow
+        // "push rsp",
+        // // load context pointer into r15
+        // // store old stack pointer into context
+        // "mov [{0} + {old_stack_pointer_offset}],rsp",
+        // // store old frame pointer into context
+        // "mov [{0} + {old_frame_pointer_offset}],rbp",
+        // // store exit instruction pointer into context
+        // "lea r15, [rip+after_call]",
+        // "mov [{0} + {old_rip_offset}],r15",
+        // "mov r15,{0}",
+        // // load java frame pointer
+        // "mov rbp, [{0} + {new_frame_pointer_offset}]",
+        // // load java stack pointer
+        // "mov rsp, [{0} + {new_stack_pointer_offset}]",
+        // // jump to jitted code
+        // "jmp [{0} + {new_rip_offset}]",
+        // //
+        // "after_call:",
+        // "pop rsp",
+        // "pop r15",
+        // "pop r14",
+        // "pop r13",
+        // "pop r12",
+        // "pop rbp",
+        // "pop rbx",
+        // in(reg) jit_context_pointer,
+        // old_stack_pointer_offset = const 0,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)),
+        // old_frame_pointer_offset = const 8,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)),
+        // old_rip_offset = const 16,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)),
+        // new_stack_pointer_offset = const 32,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)),
+        // new_frame_pointer_offset = const 40,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)),
+        // new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
+        // );
         //
-        "after_call:",
-        "pop rsp",
-        "pop r15",
-        "pop r14",
-        "pop r13",
-        "pop r12",
-        "pop rbp",
-        "pop rbx",
-        in(reg) jit_context_pointer,
-        old_stack_pointer_offset = const 0,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)),
-        old_frame_pointer_offset = const 8,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)),
-        old_rip_offset = const 16,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)),
-        new_stack_pointer_offset = const 32,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)),
-        new_frame_pointer_offset = const 40,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)),
-        new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
-        );
-
-        dbg!(*(stack_pointer.offset(0) as *mut u64));
-        dbg!(*(stack_pointer.offset(8) as *mut u64));
-        dbg!(*(stack_pointer.offset(16) as *mut u64));
-        dbg!(*(stack_pointer.offset(24) as *mut u64));
-        dbg!(*(stack_pointer.offset(36) as *mut u64));
-        dbg!(jit_code_context.java_saved);
-        let vm_exit_type = vm_exits.memory_offset_to_vm_exit.get(&AbsoluteOffsetInCodeRegion(jit_code_context.java_saved.instruction_pointer)).expect("Unexpected VM exit");
-        match vm_exit_type {
-            VMExitType::CheckCast => todo!(),
-            VMExitType::InstanceOf => todo!(),
-            VMExitType::Throw => todo!(),
-            VMExitType::InvokeDynamic => todo!(),
-            VMExitType::InvokeStaticResolveTarget { .. } => todo!(),
-            VMExitType::InvokeVirtualResolveTarget { .. } => todo!(),
-            VMExitType::InvokeSpecialResolveTarget { .. } => todo!(),
-            VMExitType::InvokeInterfaceResolveTarget { .. } => todo!(),
-            VMExitType::MonitorEnter => todo!(),
-            VMExitType::MonitorExit => todo!(),
-            VMExitType::MultiNewArray => todo!(),
-            VMExitType::ArrayOutOfBounds => todo!(),
-            VMExitType::DebugTestExit => {
-                return;//we are in test and expected this
-            }
-            VMExitType::ExitDueToCompletion => {
-                todo!()
-            }
-            VMExitType::DebugTestExitValue { .. } => {
-                todo!()
-            }
-        }
+        // dbg!(*(stack_pointer.offset(0) as *mut u64));
+        // dbg!(*(stack_pointer.offset(8) as *mut u64));
+        // dbg!(*(stack_pointer.offset(16) as *mut u64));
+        // dbg!(*(stack_pointer.offset(24) as *mut u64));
+        // dbg!(*(stack_pointer.offset(36) as *mut u64));
+        // dbg!(jit_code_context.java_saved);
+        // let vm_exit_type = vm_exits.memory_offset_to_vm_exit.get(&AbsolutePositionInCodeRegion(jit_code_context.java_saved.instruction_pointer)).expect("Unexpected VM exit");
+        // match vm_exit_type {
+        //     VMExitType::CheckCast => todo!(),
+        //     VMExitType::InstanceOf => todo!(),
+        //     VMExitType::Throw => todo!(),
+        //     VMExitType::InvokeDynamic => todo!(),
+        //     VMExitType::InvokeStaticResolveTarget { .. } => todo!(),
+        //     VMExitType::InvokeVirtualResolveTarget { .. } => todo!(),
+        //     VMExitType::InvokeSpecialResolveTarget { .. } => todo!(),
+        //     VMExitType::InvokeInterfaceResolveTarget { .. } => todo!(),
+        //     VMExitType::MonitorEnter => todo!(),
+        //     VMExitType::MonitorExit => todo!(),
+        //     VMExitType::MultiNewArray => todo!(),
+        //     VMExitType::ArrayOutOfBounds => todo!(),
+        //     VMExitType::DebugTestExit => {
+        //         return;//we are in test and expected this
+        //     }
+        //     VMExitType::ExitDueToCompletion => {
+        //         todo!()
+        //     }
+        //     VMExitType::DebugTestExitValue { .. } => {
+        //         todo!()
+        //     }
+        // }
+        todo!()
     }
 
     // pub fn handle_vm_exit(&self, vm_exit_type: VMExitType) -> !{

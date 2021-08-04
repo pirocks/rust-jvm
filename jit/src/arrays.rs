@@ -13,8 +13,8 @@ pub fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset
         instructions: vec![],
     };
     let label = current_jit_state.new_ir_label();
-    block.add_instruction(IRInstruction::Label(label));
-    block.add_instruction(IRInstruction::VMExit(VMExitType::ArrayOutOfBounds));
+    block.add_instruction(IRInstruction::Label(label), current_jit_state.java_pc);
+    block.add_instruction(IRInstruction::VMExit(VMExitType::ArrayOutOfBounds), current_jit_state.java_pc);
     Ok((block, label))
 }
 
@@ -34,7 +34,7 @@ pub fn array_store(current_jit_state: &mut JitState, size: Size) -> Result<(), J
         size,
         input_offset: value_operand,
     };
-    current_jit_state.output.main_block.add_instruction(store);
+    current_jit_state.output.main_block.add_instruction(store, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -42,7 +42,7 @@ pub fn array_bounds_check(current_jit_state: &mut JitState, array_operand: Frame
     let java_pc = current_jit_state.java_pc;
     let zero = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let load_zero = IRInstruction::Constant { output_offset: zero.clone(), constant: Constant::Int(0) };
-    current_jit_state.output.main_block.add_instruction(load_zero);
+    current_jit_state.output.main_block.add_instruction(load_zero, current_jit_state.java_pc);
     let (exception_block, excpetion_block_label) = array_out_of_bounds_block(current_jit_state, index_operand)?;
     current_jit_state.output.add_block(exception_block);
     let branch_if_zero_or_less = IRInstruction::BranchIfComparison {
@@ -52,13 +52,13 @@ pub fn array_bounds_check(current_jit_state: &mut JitState, array_operand: Frame
         to: excpetion_block_label,
         branch_type: BranchType::Less,
     };
-    current_jit_state.output.main_block.add_instruction(branch_if_zero_or_less);
+    current_jit_state.output.main_block.add_instruction(branch_if_zero_or_less, current_jit_state.java_pc);
     let length_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let length_offset = IRInstruction::Constant {
         output_offset: length_location,
         constant: Constant::Pointer(layout.len_entry()),
     };
-    current_jit_state.output.main_block.add_instruction(length_offset);
+    current_jit_state.output.main_block.add_instruction(length_offset, current_jit_state.java_pc);
     let length_offset_add = IRInstruction::IntegerArithmetic {
         input_offset_a: length_location,
         input_offset_b: array_operand,
@@ -67,14 +67,14 @@ pub fn array_bounds_check(current_jit_state: &mut JitState, array_operand: Frame
         signed: false,
         arithmetic_type: ArithmeticType::Add,
     };
-    current_jit_state.output.main_block.add_instruction(length_offset_add);
+    current_jit_state.output.main_block.add_instruction(length_offset_add, current_jit_state.java_pc);
     let length = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let length_load = IRInstruction::LoadAbsolute {
         address_from: length_location,
         output_offset: length,
         size: Size::Int,
     };
-    current_jit_state.output.main_block.add_instruction(length_load);
+    current_jit_state.output.main_block.add_instruction(length_load, current_jit_state.java_pc);
     let length_branch_if_index_too_big = IRInstruction::BranchIfComparison {
         offset_a: index_operand,
         offset_b: length,
@@ -82,7 +82,7 @@ pub fn array_bounds_check(current_jit_state: &mut JitState, array_operand: Frame
         to: excpetion_block_label,
         branch_type: BranchType::MoreEqual,
     };
-    current_jit_state.output.main_block.add_instruction(length_branch_if_index_too_big);
+    current_jit_state.output.main_block.add_instruction(length_branch_if_index_too_big, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -100,7 +100,7 @@ pub fn array_load(current_jit_state: &mut JitState, size: Size) -> Result<(), JI
         output_offset: current_jit_state.memory_layout.operand_stack_entry(current_jit_state.next_pc.unwrap().get() as u16, 0),
         size,
     };
-    current_jit_state.output.main_block.add_instruction(load);
+    current_jit_state.output.main_block.add_instruction(load, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -114,7 +114,7 @@ pub fn array_final_address(current_jit_state: &mut JitState, size: &Size, array_
     };
     let shift_constant_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 0);
     let shift_amount = IRInstruction::Constant { output_offset: shift_constant_location, constant: shift_amount };
-    current_jit_state.output.main_block.add_instruction(shift_amount);
+    current_jit_state.output.main_block.add_instruction(shift_amount, current_jit_state.java_pc);
     let shift_instruction = IRInstruction::IntegerArithmetic {
         input_offset_a: index_operand,
         input_offset_b: shift_constant_location,
@@ -123,14 +123,14 @@ pub fn array_final_address(current_jit_state: &mut JitState, size: &Size, array_
         signed: false,
         arithmetic_type: ArithmeticType::LeftShift,
     };
-    current_jit_state.output.main_block.add_instruction(shift_instruction);
+    current_jit_state.output.main_block.add_instruction(shift_instruction, current_jit_state.java_pc);
     let base_offset = layout.elem_0_entry();
     let base_offset_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
     let base_offset_instruction = IRInstruction::Constant {
         output_offset: base_offset_location,
         constant: Constant::Long(base_offset as i64),
     };
-    current_jit_state.output.main_block.add_instruction(base_offset_instruction);
+    current_jit_state.output.main_block.add_instruction(base_offset_instruction, current_jit_state.java_pc);
     let base_offset_add = IRInstruction::IntegerArithmetic {
         input_offset_a: base_offset_location,
         input_offset_b: array_operand,
@@ -139,7 +139,7 @@ pub fn array_final_address(current_jit_state: &mut JitState, size: &Size, array_
         signed: false,
         arithmetic_type: ArithmeticType::Add,
     };
-    current_jit_state.output.main_block.add_instruction(base_offset_add);
+    current_jit_state.output.main_block.add_instruction(base_offset_add, current_jit_state.java_pc);
     let index_add = IRInstruction::IntegerArithmetic {
         input_offset_a: array_operand,
         input_offset_b: index_operand,
@@ -148,6 +148,6 @@ pub fn array_final_address(current_jit_state: &mut JitState, size: &Size, array_
         signed: false,
         arithmetic_type: ArithmeticType::Add,
     };
-    current_jit_state.output.main_block.add_instruction(index_add);
+    current_jit_state.output.main_block.add_instruction(index_add, current_jit_state.java_pc);
     Ok(array_operand)
 }

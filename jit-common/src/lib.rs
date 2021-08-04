@@ -32,16 +32,12 @@ pub enum VMExitType {
     Throw,
     InvokeDynamic,
     InvokeStaticResolveTarget {
-        resolved: FramePointerOffset
     },
     InvokeVirtualResolveTarget {
-        resolved: FramePointerOffset
     },
     InvokeSpecialResolveTarget {
-        resolved: FramePointerOffset
     },
     InvokeInterfaceResolveTarget {
-        resolved: FramePointerOffset
     },
     MonitorEnter,
     MonitorExit,

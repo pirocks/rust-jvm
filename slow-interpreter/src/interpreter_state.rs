@@ -86,6 +86,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
+    pub fn get_java_stack(&mut self) -> &mut JavaStack {
+        let interpreter_state = self.int_state.as_mut().unwrap().deref_mut();
+        match interpreter_state {
+            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
+                StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
+            }*/
+            InterpreterState::Jit { call_stack, .. } => {
+                call_stack
+            }
+        }
+    }
+
     pub fn current_loader(&self) -> LoaderName {
         self.current_frame().loader()
     }

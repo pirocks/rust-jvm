@@ -44,7 +44,7 @@ pub fn shift(current_jit_state: &mut JitState, java_pc: u16, size: Size, shift_d
             Size::Long => Constant::Int(0x3f)
         },
     };
-    current_jit_state.output.main_block.add_instruction(mask_constant);
+    current_jit_state.output.main_block.add_instruction(mask_constant, current_jit_state.java_pc);
     let mask_shift_value = IRInstruction::IntegerArithmetic {
         input_offset_a: value_to_shift,
         input_offset_b: mask,
@@ -53,7 +53,7 @@ pub fn shift(current_jit_state: &mut JitState, java_pc: u16, size: Size, shift_d
         signed: false,
         arithmetic_type: ArithmeticType::BinaryAnd,
     };
-    current_jit_state.output.main_block.add_instruction(mask_shift_value);
+    current_jit_state.output.main_block.add_instruction(mask_shift_value, current_jit_state.java_pc);
     let copy_int_to_long = IRInstruction::CopyRelative {
         input_offset: amount_to_shift_by,
         output_offset: amount_to_shift_by,
@@ -61,7 +61,7 @@ pub fn shift(current_jit_state: &mut JitState, java_pc: u16, size: Size, shift_d
         output_size: Size::Long,
         signed: true,
     };
-    current_jit_state.output.main_block.add_instruction(copy_int_to_long);
+    current_jit_state.output.main_block.add_instruction(copy_int_to_long, current_jit_state.java_pc);
     let instruct = IRInstruction::IntegerArithmetic {
         input_offset_a: value_to_shift,
         input_offset_b: amount_to_shift_by,
@@ -70,7 +70,7 @@ pub fn shift(current_jit_state: &mut JitState, java_pc: u16, size: Size, shift_d
         signed: shift_direction.signed(),
         arithmetic_type: shift_direction.to_arithmetic_type(),
     };
-    current_jit_state.output.main_block.add_instruction(instruct);
+    current_jit_state.output.main_block.add_instruction(instruct, current_jit_state.java_pc);
     Ok(())
 }
 
@@ -84,7 +84,7 @@ pub fn arithmetic_common(current_jit_state: &mut JitState, size: Size, atype: Ar
         signed: false,
         arithmetic_type: atype,
     };
-    current_jit_state.output.main_block.add_instruction(instruct);
+    current_jit_state.output.main_block.add_instruction(instruct, current_jit_state.java_pc);
     Ok(())
 }
 
