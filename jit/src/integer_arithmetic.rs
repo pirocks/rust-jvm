@@ -1,4 +1,3 @@
-use gc_memory_layout_common::StackframeMemoryLayout;
 use jit_ir::{ArithmeticType, Constant, IRInstruction, Size};
 
 use crate::{JITError, JitState};

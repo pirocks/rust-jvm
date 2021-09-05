@@ -35,7 +35,7 @@ pub struct TopOfFrame(pub *mut c_void);
 #[derive(Debug)]
 pub struct JavaStack {
     pub top: *mut c_void,
-    saved_registers: Option<SavedRegisters>,
+    pub saved_registers: Option<SavedRegisters>,
     operand_stack_type_info: HashMap<TopOfFrame, Vec<PTypeView>>,
 }
 

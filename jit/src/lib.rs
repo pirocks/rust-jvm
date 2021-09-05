@@ -10,16 +10,22 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::num::NonZeroUsize;
 use std::ptr::NonNull;
-use std::sync::RwLock;
 
+use iced_x86::{Code, Instruction, MemoryOperand, Register};
+use iced_x86::ConditionCode::s;
+use itertools::Either;
+use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
-use gc_memory_layout_common::{ArrayMemoryLayout, StackframeMemoryLayout};
-use jit_common::{JitCodeContext, SavedRegisters, VMExitType};
+use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, StackframeMemoryLayout};
+use jit_common::{JitCodeContext, SavedRegisters, VMExitData};
 use jit_common::java_stack::JavaStack;
+use jit_common::VMExitData::InvokeStaticResolveTarget;
 use jit_ir::{ArithmeticType, Constant, InstructionSink, IRIndexToNative, IRInstruction, IRLabel, Size, VMExits};
 use jvmti_jni_bindings::jvalue;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::arrays::{array_load, array_store};
 use crate::integer_arithmetic::{binary_and, binary_or, binary_xor, integer_add, integer_div, integer_mul, integer_sub, shift, ShiftDirection};
@@ -29,14 +35,14 @@ pub const CODE_LOCATION: usize = 0x100_000_000_000usize;
 
 #[derive(Debug)]
 pub struct VMExit {
-    type_: VMExitType,
+    type_: VMExitData,
     start: NonNull<c_void>,
     return_to: Option<NonNull<c_void>>,
 }
 
 pub struct CompiledMethodTable {
     table_start: *mut c_void,
-    method_id_to_location: HashMap<usize, *mut c_void>,
+    method_id_to_location: HashMap<MethodId, NonNull<c_void>>,
     location_to_java_pc: HashMap<*mut c_void, u16>,
     exits: HashMap<*mut c_void, VMExit>,
     table_end: *mut c_void,
@@ -58,7 +64,7 @@ impl CompiledMethodTable {
         }
     }
 
-    pub fn run_method(&self, methodid: usize, stack: &mut JavaStack) -> Result<Option<jvalue>, NotCompiled> {
+    pub fn run_method(&self, methodid: usize, stack: &mut JavaStack) -> Result<Either<Option<jvalue>, VMExitData>, NotCompiled> {
         match self.method_id_to_location.get(&methodid) {
             None => {
                 Err(NotCompiled {})
@@ -79,7 +85,7 @@ impl CompiledMethodTable {
                         java_saved: SavedRegisters {
                             stack_pointer,
                             frame_pointer,
-                            instruction_pointer: as_ptr as *mut c_void,
+                            instruction_pointer: as_ptr.as_ptr(),
                             status_register,
                         },
                     };
@@ -148,27 +154,28 @@ impl CompiledMethodTable {
                     dbg!(jit_code_context.native_saved.stack_pointer);
                     dbg!(jit_code_context.native_saved.frame_pointer);
                     dbg!(&self.exits);
-                    let vm_exit_type = self.exits.get(&jit_code_context.java_saved.instruction_pointer).unwrap().type_;
+                    stack.saved_registers = Some(jit_code_context.java_saved.clone());
+                    let vm_exit_type = self.exits.get(&jit_code_context.java_saved.instruction_pointer).unwrap().type_.clone();
                     match vm_exit_type {
-                        VMExitType::CheckCast => todo!(),
-                        VMExitType::InstanceOf => todo!(),
-                        VMExitType::Throw => todo!(),
-                        VMExitType::InvokeDynamic => todo!(),
-                        VMExitType::InvokeStaticResolveTarget { .. } => todo!(),
-                        VMExitType::InvokeVirtualResolveTarget { .. } => todo!(),
-                        VMExitType::InvokeSpecialResolveTarget { .. } => todo!(),
-                        VMExitType::InvokeInterfaceResolveTarget { .. } => todo!(),
-                        VMExitType::MonitorEnter => todo!(),
-                        VMExitType::MonitorExit => todo!(),
-                        VMExitType::MultiNewArray => todo!(),
-                        VMExitType::ArrayOutOfBounds => todo!(),
-                        VMExitType::DebugTestExit => {
+                        VMExitData::CheckCast => todo!(),
+                        VMExitData::InstanceOf => todo!(),
+                        VMExitData::Throw => todo!(),
+                        VMExitData::InvokeDynamic => todo!(),
+                        VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end } => return Ok(Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end })),
+                        VMExitData::InvokeVirtualResolveTarget { .. } => todo!(),
+                        VMExitData::InvokeSpecialResolveTarget { .. } => todo!(),
+                        VMExitData::InvokeInterfaceResolveTarget { .. } => todo!(),
+                        VMExitData::MonitorEnter => todo!(),
+                        VMExitData::MonitorExit => todo!(),
+                        VMExitData::MultiNewArray => todo!(),
+                        VMExitData::ArrayOutOfBounds => todo!(),
+                        VMExitData::DebugTestExit => {
                             todo!()//we are in test and expected this
                         }
-                        VMExitType::ExitDueToCompletion => {
+                        VMExitData::ExitDueToCompletion => {
                             todo!()
                         }
-                        VMExitType::DebugTestExitValue { .. } => {
+                        VMExitData::DebugTestExitValue { .. } => {
                             todo!()
                         }
                     }
@@ -178,13 +185,29 @@ impl CompiledMethodTable {
     }
 
     pub fn add_method(&mut self, method_id: usize, code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryLayout) {
-        let JitIROutput { main_block: JitBlock { ir_to_java_pc, instructions } } = code_to_ir(code, memory_layout).unwrap();
+        let JitIROutput { main_block: JitBlock { ir_to_java_pc, instructions } } = code_to_ir(code, memory_layout, self).unwrap();
 
         let mut instruction_sink = InstructionSink::new();
         for (ir_index, instruction) in instructions.into_iter().enumerate() {
             dbg!(&instruction);
             instruction.to_x86(ir_index, &mut instruction_sink)
         }
+        self.add_from_instruction_sink(Some(method_id), &ir_to_java_pc, instruction_sink)
+    }
+
+
+    pub fn replace_exit(&mut self, start: *mut c_void, end: *mut c_void, replace_with: Vec<IRInstruction>) {
+        let exit = self.exits.remove(&start).unwrap();
+        let mut sink = InstructionSink::new();
+        for instruct in replace_with {
+            instruct.to_x86(todo!(), &mut sink);
+        }
+        let (exits, ir_to_native, size) = sink.fully_compiled(start, unsafe { start.offset_from(end) } as usize);
+        let replaced_end = unsafe { start.offset(size as isize) };
+        let remaining_branch = todo!();
+    }
+
+    fn add_from_instruction_sink(&mut self, method_id: Option<usize>, ir_to_java_pc: &HashMap<usize, u16>, instruction_sink: InstructionSink) {
         let table_used_size = self.table_end as usize - self.table_start as usize;
         let (
             VMExits {
@@ -209,11 +232,18 @@ impl CompiledMethodTable {
             dbg!(&ir_to_java_pc);
             self.location_to_java_pc.insert(native, ir_to_java_pc[&ir_index]);
         }
-        self.method_id_to_location.insert(method_id, self.table_end);
+        if let Some(method_id) = method_id {
+            self.method_id_to_location.insert(method_id, NonNull::new(self.table_end).unwrap());
+        }
         unsafe { self.table_end = self.table_end.offset(added_len as isize); }
     }
 }
 
+impl MethodLocationLookup for CompiledMethodTable {
+    fn lookup(&self, method_id: MethodId) -> Option<NonNull<c_void>> {
+        self.method_id_to_location.get(&method_id).cloned()
+    }
+}
 
 #[derive(Debug)]
 pub enum JITError {
@@ -262,7 +292,17 @@ impl JitState<'_> {
 
 const MAX_INTERMEDIATE_VALUE_PADDING: usize = 3;
 
-pub fn code_to_ir(code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryLayout) -> Result<JitIROutput, JITError> {
+pub type MethodId = usize; //todo I should do something about this hack with multiple defs of this
+
+pub trait MethodLocationLookup {
+    fn lookup(&self, method_id: MethodId) -> Option<NonNull<c_void>>;
+}
+
+pub trait MethodLayoutLookup {
+    fn lookup_layout(&self, method_id: MethodId) -> &dyn StackframeMemoryLayout;
+}
+
+pub fn code_to_ir(code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryLayout, lookup_method_location: &dyn MethodLocationLookup) -> Result<JitIROutput, JITError> {
     // let  = StackframeMemoryLayout::new((code.max_stack as usize + MAX_INTERMEDIATE_VALUE_PADDING) as usize, code.max_locals as usize, frame_vtypes);
     let mut jit_state = JitState {
         memory_layout,
@@ -278,16 +318,16 @@ pub fn code_to_ir(code: Vec<CInstruction>, memory_layout: &dyn StackframeMemoryL
             dbg!(current_instr);
             jit_state.next_pc = Some(NonZeroUsize::new(future_instr.offset as usize).unwrap());
             jit_state.java_pc = current_instr.offset;
-            byte_code_to_ir(current_instr, &mut jit_state)?;
+            byte_code_to_ir(current_instr, &mut jit_state, lookup_method_location)?;
         }
         jit_state.next_pc = None;
         current_instr = Some(future_instr);
     }
-    byte_code_to_ir(current_instr.unwrap(), &mut jit_state)?;
+    byte_code_to_ir(current_instr.unwrap(), &mut jit_state, lookup_method_location)?;
     Ok(jit_state.output)
 }
 
-pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState) -> Result<(), JITError> {
+pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState, lookup_method_location: &dyn MethodLocationLookup) -> Result<(), JITError> {
     let CInstruction { offset, instruction_size, info } = bytecode;
     current_jit_state.java_pc = *offset;
     let java_pc = current_jit_state.java_pc as u16;
@@ -346,7 +386,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             astore_n(current_jit_state, 3)
         }
         CInstructionInfo::athrow => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::Throw), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::Throw), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::baload => {
@@ -361,7 +401,7 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
         }
         CInstructionInfo::castore => { Err(JITError::NotSupported) }
         CInstructionInfo::checkcast(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::CheckCast), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::CheckCast), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::d2f => Err(JITError::NotSupported),
@@ -575,33 +615,78 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             todo!()
         }
         CInstructionInfo::instanceof(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InstanceOf), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::InstanceOf), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokedynamic(_) => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeDynamic), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::InvokeDynamic), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
             let resolved_function_location = current_jit_state.memory_layout.safe_temp_location(java_pc as u16, 0);
             let local_var_and_operand_stack_size_location = current_jit_state.memory_layout.safe_temp_location(java_pc, 1);
-            let exit_to_get_target = IRInstruction::VMExit(VMExitType::InvokeInterfaceResolveTarget {});
+            let exit_to_get_target = IRInstruction::VMExit(VMExitData::InvokeInterfaceResolveTarget {});
             current_jit_state.output.main_block.add_instruction(exit_to_get_target, current_jit_state.java_pc);
-            let call = IRInstruction::Call { resolved_destination: resolved_function_location, local_var_and_operand_stack_size: local_var_and_operand_stack_size_location, return_location: todo!() };
+            let call = IRInstruction::Call { resolved_destination_rel: todo!(), local_var_and_operand_stack_size: local_var_and_operand_stack_size_location, return_location: todo!() };
             current_jit_state.output.main_block.add_instruction(call, current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeSpecialResolveTarget {}), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::InvokeSpecialResolveTarget {}), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeStaticResolveTarget {}), current_jit_state.java_pc);
+            let CMethodDescriptor { arg_types, return_type } = descriptor;
+            //todo need to get memory layout for next
+            for (i, arg) in arg_types.iter().rev().enumerate() {
+                let size = match arg {
+                    CompressedParsedDescriptorType::BooleanType => Size::Byte,
+                    CompressedParsedDescriptorType::ByteType => Size::Byte,
+                    CompressedParsedDescriptorType::ShortType => Size::Short,
+                    CompressedParsedDescriptorType::CharType => Size::Short,
+                    CompressedParsedDescriptorType::IntType => Size::Int,
+                    CompressedParsedDescriptorType::LongType => Size::Long,
+                    CompressedParsedDescriptorType::FloatType => Size::Int,
+                    CompressedParsedDescriptorType::DoubleType => Size::Long,
+                    CompressedParsedDescriptorType::VoidType => panic!(),
+                    CompressedParsedDescriptorType::Ref(_) => Size::Long
+                };
+                current_jit_state.output.main_block.add_instruction(IRInstruction::CopyRelative {
+                    input_offset: current_jit_state.memory_layout.operand_stack_entry(java_pc, 0),
+                    output_offset: FramePointerOffset(current_jit_state.memory_layout.full_frame_size() + todo!() as usize),
+                    input_size: size,
+                    output_size: size,
+                    signed: false,
+                }, current_jit_state.java_pc);
+            }
+            assert_eq!(return_type, &CPDType::VoidType);
+            // let call_location = lookup_method_location.lookup(method_name, descriptor);
+            // match call_location{
+            //     None => {
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::InvokeStaticResolveTarget {
+                method_name: *method_name,
+                descriptor: descriptor.clone(),
+                classname_ref_type: classname_ref_type.clone(),
+                native_start: todo!(),
+                native_end: todo!(),
+            }), current_jit_state.java_pc);
+            // }
+            // Some(call_location) => {
+            //     let actual_call = IRInstruction::Call {
+            //         resolved_destination_rel: call_location,
+            //         local_var_and_operand_stack_size: FramePointerOffset(todo!()),
+            //         return_location: None,
+            //     };
+            //     current_jit_state.output.main_block.add_instruction(actual_call, current_jit_state.java_pc);
+            // }
+            // }
+
+
             Ok(())
         }
         CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
             //todo handle if resolved
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::InvokeVirtualResolveTarget {}), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::InvokeVirtualResolveTarget {}), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::ior => {
@@ -725,15 +810,15 @@ pub fn byte_code_to_ir(bytecode: &CInstruction, current_jit_state: &mut JitState
             binary_xor(current_jit_state, Size::Long)
         }
         CInstructionInfo::monitorenter => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorEnter), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::MonitorEnter), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::monitorexit => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MonitorExit), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::MonitorExit), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::multianewarray { type_, dimensions } => {
-            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitType::MultiNewArray), current_jit_state.java_pc);
+            current_jit_state.output.main_block.add_instruction(IRInstruction::VMExit(VMExitData::MultiNewArray), current_jit_state.java_pc);
             Ok(())
         }
         CInstructionInfo::new(_) => Err(JITError::NotSupported),

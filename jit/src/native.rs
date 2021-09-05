@@ -1,14 +1,11 @@
-use std::iter::once;
-use std::mem::transmute;
 use std::os::raw::c_void;
-use std::sync::atomic::{fence, Ordering};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, InstructionBlock};
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
-use jit_common::{JitCodeContext, SavedRegisters, VMExitType};
+use jit_common::{JitCodeContext, SavedRegisters, VMExitData};
 use jit_common::java_stack::JavaStack;
 use jit_ir::{AbsolutePositionInCodeRegion, InstructionSink, VMExits};
 use rust_jvm_common::classfile::SameFrameExtended;
@@ -191,7 +188,7 @@ impl JittedFunction {
     pub fn call_code_jit(&self, jitted_code: &mut JITedCode, args: Vec<()>) {
         let stack_memory_layout: FrameBackedStackframeMemoryLayout = todo!();
         assert!(args.is_empty());
-        let res = code_to_ir(todo!(), &stack_memory_layout).expect("failed to compile");
+        let res = code_to_ir(todo!(), &stack_memory_layout, todo!()).expect("failed to compile");
     }
 }
 
@@ -211,7 +208,7 @@ pub mod test {
     use classfile_view::view::method_view::{MethodIterator, MethodView};
     use gc_memory_layout_common::{ArrayMemoryLayout, FrameBackedStackframeMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
     use jit_common::java_stack::{JavaStack, JavaStatus};
-    use jit_common::VMExitType;
+    use jit_common::VMExitData;
     use jit_ir::{InstructionSink, IRInstruction, Size, VariableSize};
     use rust_jvm_common::classfile::{ACC_PRIVATE, ACC_STATIC, Classfile, InstructionInfo};
     use rust_jvm_common::classfile::StackMapFrame::SameFrameExtended;
@@ -295,7 +292,7 @@ pub mod test {
     #[test]
     pub fn test_basic_debug_vm_exit() {
         let mut x86_instructions = InstructionSink::new();
-        IRInstruction::VMExit(VMExitType::DebugTestExit {}).to_x86(&mut x86_instructions);
+        IRInstruction::VMExit(VMExitData::DebugTestExit {}).to_x86(&mut x86_instructions);
         let mut jitted_code = JITedCode {
             code: vec![]
         };
@@ -414,7 +411,7 @@ pub mod test {
         for ir in res.main_block.instructions {
             ir.to_x86(&mut x86_instructions);
         }
-        IRInstruction::VMExit(VMExitType::DebugTestExit).to_x86(&mut x86_instructions);
+        IRInstruction::VMExit(VMExitData::DebugTestExit).to_x86(&mut x86_instructions);
         let mut jitted_code = JITedCode {
             code: vec![]
         };

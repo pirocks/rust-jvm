@@ -3,12 +3,13 @@ extern crate memoffset;
 
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::ptr::NonNull;
 
 use bimap::BiMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, BlockEncoderResult, Code, Instruction, InstructionBlock, MemoryOperand, Register};
 
 use gc_memory_layout_common::FramePointerOffset;
-use jit_common::{JitCodeContext, VMExitType};
+use jit_common::{JitCodeContext, VMExitData};
 use jit_common::SavedRegisters;
 
 pub struct RelativeAddress(isize);
@@ -158,17 +159,16 @@ pub enum IRInstruction {
         return_value_size: Size,
     },
     Call {
-        resolved_destination: FramePointerOffset,
+        resolved_destination_rel: NonNull<c_void>,
         local_var_and_operand_stack_size: FramePointerOffset,
         return_location: Option<FramePointerOffset>,
     },
-    VMExit(VMExitType),
+    VMExit(VMExitData),
     Label(IRLabel),
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct IRInstructionCount(usize);
-
+pub struct InstructionCount(usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct AbsolutePositionInCodeRegion(pub *mut c_void);
@@ -177,18 +177,18 @@ pub struct AbsolutePositionInCodeRegion(pub *mut c_void);
 pub struct InstructionSink {
     instructions: Vec<Instruction>,
     ir_indexes: Vec<usize>,
-    memory_offset_to_vm_exit: HashMap<IRInstructionCount, VMExitType>,
-    memory_offset_to_vm_return: HashMap<IRInstructionCount, IRInstructionCount>,
+    memory_offset_to_vm_exit: HashMap<InstructionCount, VMExitData>,
+    memory_offset_to_vm_return: HashMap<InstructionCount, InstructionCount>,
     current_instruction_count: usize,
 }
 
 #[must_use]
 pub struct RegistrationGuard {
-    before_offset: IRInstructionCount,
+    before_offset: InstructionCount,
 }
 
 pub struct VMExits {
-    pub memory_offset_to_vm_exit: HashMap<AbsolutePositionInCodeRegion, VMExitType>,
+    pub memory_offset_to_vm_exit: HashMap<AbsolutePositionInCodeRegion, VMExitData>,
     pub memory_offset_to_vm_return: HashMap<AbsolutePositionInCodeRegion, Option<AbsolutePositionInCodeRegion>>,
 }
 
@@ -203,14 +203,14 @@ impl InstructionSink {
         self.ir_indexes.push(ir_index);
     }
 
-    pub fn register_exit_before(&mut self, vm_exit_type: VMExitType) -> RegistrationGuard {
-        let before_offset = IRInstructionCount(self.current_instruction_count);
+    pub fn register_exit_before(&mut self, vm_exit_type: VMExitData) -> RegistrationGuard {
+        let before_offset = InstructionCount(self.current_instruction_count);
         self.memory_offset_to_vm_exit.insert(before_offset, vm_exit_type);
         RegistrationGuard { before_offset }
     }
 
     pub fn register_exit_after(&mut self, registration_guard: RegistrationGuard) {
-        self.memory_offset_to_vm_return.insert(registration_guard.before_offset, IRInstructionCount(self.current_instruction_count));
+        self.memory_offset_to_vm_return.insert(registration_guard.before_offset, InstructionCount(self.current_instruction_count));
     }
 
     pub fn fully_compiled(self, install_to: *mut c_void, max_len: usize) -> (VMExits, IRIndexToNative, usize) {
@@ -231,22 +231,23 @@ impl InstructionSink {
             constant_offsets
         } = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         dbg!(code_buffer.len());
-        dbg!(new_instruction_offsets.len());
+        dbg!(&new_instruction_offsets);
         dbg!(reloc_infos.len());
         if code_buffer.len() > max_len {
             todo!()
         }
         unsafe { libc::memcpy(install_to, code_buffer.as_ptr() as *const c_void, code_buffer.len()); }
+        const SIZE_OF_CALL_INSTRUCTION: isize = 4isize;
         let vmexits = VMExits {
             memory_offset_to_vm_exit: memory_offset_to_vm_exit.into_iter()
                 .map(|(ir_offset, exit_type)| {
-                    (unsafe { AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset.0] as isize)) }, exit_type)
+                    (unsafe { AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset.0] as isize + SIZE_OF_CALL_INSTRUCTION)) }, exit_type)
                 })
                 .collect(),
             memory_offset_to_vm_return: memory_offset_to_vm_return.into_iter()
                 .map(|(ir_offset_exit, ir_offset_return)| unsafe {
-                    (AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset_exit.0] as isize)),
-                     Some(AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset_return.0] as isize))))
+                    (AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset_exit.0] as isize + SIZE_OF_CALL_INSTRUCTION)),
+                     Some(AbsolutePositionInCodeRegion(install_to.offset(new_instruction_offsets[ir_offset_return.0] as isize - SIZE_OF_CALL_INSTRUCTION))))
                 })
                 .collect(),
         };
@@ -311,21 +312,21 @@ r15 is reserved for context pointer
                 instructions.add_instruction(ir_instruction_index, call_to_old);
                 instructions.register_exit_after(registration_guard);
                 match exit_type {
-                    VMExitType::CheckCast => todo!(),
-                    VMExitType::InstanceOf => todo!(),
-                    VMExitType::Throw => todo!(),
-                    VMExitType::InvokeDynamic => todo!(),
-                    VMExitType::InvokeStaticResolveTarget { .. } => {}
-                    VMExitType::InvokeVirtualResolveTarget { .. } => todo!(),
-                    VMExitType::InvokeSpecialResolveTarget { .. } => todo!(),
-                    VMExitType::InvokeInterfaceResolveTarget { .. } => todo!(),
-                    VMExitType::MonitorEnter => todo!(),
-                    VMExitType::MonitorExit => todo!(),
-                    VMExitType::MultiNewArray => todo!(),
-                    VMExitType::ArrayOutOfBounds => todo!(),
-                    VMExitType::DebugTestExit => {}
-                    VMExitType::ExitDueToCompletion => {}
-                    VMExitType::DebugTestExitValue { .. } => todo!()
+                    VMExitData::CheckCast => todo!(),
+                    VMExitData::InstanceOf => todo!(),
+                    VMExitData::Throw => todo!(),
+                    VMExitData::InvokeDynamic => todo!(),
+                    VMExitData::InvokeStaticResolveTarget { .. } => {}
+                    VMExitData::InvokeVirtualResolveTarget { .. } => todo!(),
+                    VMExitData::InvokeSpecialResolveTarget { .. } => todo!(),
+                    VMExitData::InvokeInterfaceResolveTarget { .. } => todo!(),
+                    VMExitData::MonitorEnter => todo!(),
+                    VMExitData::MonitorExit => todo!(),
+                    VMExitData::MultiNewArray => todo!(),
+                    VMExitData::ArrayOutOfBounds => todo!(),
+                    VMExitData::DebugTestExit => {}
+                    VMExitData::ExitDueToCompletion => {}
+                    VMExitData::DebugTestExitValue { .. } => todo!()
                 }
             }
             IRInstruction::Constant { output_offset, constant } => {
@@ -368,7 +369,7 @@ r15 is reserved for context pointer
                 instructions.add_instruction(ir_instruction_index, set_to_old_rbp);
                 instructions.add_instruction(ir_instruction_index, Instruction::with(Code::Retnq));
             }
-            IRInstruction::Call { local_var_and_operand_stack_size, resolved_destination, return_location } => todo!()
+            IRInstruction::Call { resolved_destination_rel, local_var_and_operand_stack_size, return_location } => todo!()
         }
     }
 

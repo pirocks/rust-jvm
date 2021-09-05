@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
-use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, StackframeMemoryLayout};
-use jit_common::VMExitType;
+use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset};
+use jit_common::VMExitData;
 use jit_ir::{ArithmeticType, BranchType, Constant, IRInstruction, IRLabel, Size};
 use jvmti_jni_bindings::{jbyte, jint, jlong, jshort};
 
@@ -14,7 +14,7 @@ pub fn array_out_of_bounds_block(current_jit_state: &mut JitState, _index_offset
     };
     let label = current_jit_state.new_ir_label();
     block.add_instruction(IRInstruction::Label(label), current_jit_state.java_pc);
-    block.add_instruction(IRInstruction::VMExit(VMExitType::ArrayOutOfBounds), current_jit_state.java_pc);
+    block.add_instruction(IRInstruction::VMExit(VMExitData::ArrayOutOfBounds), current_jit_state.java_pc);
     Ok((block, label))
 }
 

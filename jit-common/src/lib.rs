@@ -3,6 +3,8 @@
 use std::ffi::c_void;
 
 use gc_memory_layout_common::FramePointerOffset;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::java_stack::JavaStatus;
 
@@ -25,13 +27,18 @@ pub struct JitCodeContext {
     pub java_saved: SavedRegisters,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum VMExitType {
+#[derive(Clone, Debug)]
+pub enum VMExitData {
     CheckCast,
     InstanceOf,
     Throw,
     InvokeDynamic,
     InvokeStaticResolveTarget {
+        method_name: MethodName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
+        native_start: *mut c_void,
+        native_end: *mut c_void,
     },
     InvokeVirtualResolveTarget {
     },
