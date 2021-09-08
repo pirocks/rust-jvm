@@ -12,6 +12,8 @@ jit-common = { path = "../jit-common" }
 itertools = "0.10.1"
 add-only-static-vec = { path = "../add-only-static-vec" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+memoffset = "0.6.4"
+libc = ""
 
 [dependencies.iced-x86]
 version = "1.14.0"

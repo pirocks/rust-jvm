@@ -1,14 +1,35 @@
+use iced_x86::code_asm::{AsmRegister64, r10, r11, r12, r13, r14, r8, r9, rbx, rcx, rdx};
+
 use gc_memory_layout_common::FramePointerOffset;
 
 use crate::{LabelName, VMExitType};
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct IRLabel {
     pub(crate) name: LabelName,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Register(u8);
+pub struct Register(pub u8);
 
+
+impl Register {
+    pub fn to_native_64(&self) -> AsmRegister64 {
+        match self.0 {
+            0 => rbx,
+            1 => rcx,
+            2 => rdx,
+            3 => r8,
+            4 => r9,
+            5 => r10,
+            6 => r11,
+            7 => r12,
+            8 => r13,
+            9 => r14,
+            _ => todo!()
+        }
+    }
+}
 // pub struct FramePointerOffset(i16);
 
 pub enum IRInstr {
@@ -64,8 +85,9 @@ pub enum IRInstr {
     BranchToLabel {
         label: LabelName
     },
-    BranchIfZero {
-        maybe_zero: Register,
+    BranchEqual {
+        a: Register,
+        b: Register,
         label: LabelName,
     },
     VMExit(VMExitType),
