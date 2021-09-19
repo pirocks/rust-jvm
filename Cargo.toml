@@ -42,6 +42,5 @@ members = [
     "jit-common",
     "add-only-static-vec",
     "jmm-bindings",
-    "method-table",
-    "jit2"
+    "method-table"
 ]

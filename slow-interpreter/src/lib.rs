@@ -7,8 +7,8 @@
 #![feature(entry_insert)]
 #![feature(in_band_lifetimes)]
 #![feature(destructuring_assignment)]
-#![feature(assoc_char_funcs)]
-#![feature(map_into_keys_values)]
+#![feature(asm)]
+#![feature(thread_id_value)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;
@@ -72,6 +72,7 @@ mod resolvers;
 pub mod class_loading;
 #[macro_use]
 pub mod runtime_class;
+pub mod jit2;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

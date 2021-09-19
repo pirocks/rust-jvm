@@ -88,6 +88,7 @@ impl CompiledMethodTable {
                             instruction_pointer: as_ptr.as_ptr(),
                             status_register,
                         },
+                        exit_handler_ip: todo!("this is deprectaed code so don't fix")
                     };
                     let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
                     ///pub struct FrameHeader {
@@ -116,7 +117,7 @@ impl CompiledMethodTable {
                     // store old frame pointer into context
                     "mov [{0} + {old_frame_pointer_offset}],rbp",
                     // store exit instruction pointer into context
-                    "lea r15, [rip+after_call]",
+                    "lea r15, [rip+1]",
                     "mov [{0} + {old_rip_offset}],r15",
                     "mov r15,{0}",
                     // load java frame pointer
@@ -126,7 +127,7 @@ impl CompiledMethodTable {
                     // jump to jitted code
                     "jmp [{0} + {new_rip_offset}]",
                     //
-                    "after_call:",
+                    "1:", //after_call
                     // gets old java ip from call back to here in java
                     "pop {1}",
                     "pop rsp",
