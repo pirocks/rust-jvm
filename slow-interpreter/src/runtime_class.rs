@@ -199,15 +199,14 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
 pub fn initialize_class(
     runtime_class: Arc<RuntimeClass<'gc_life>>,
     jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
 ) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
-    assert!(interpreter_state.throw().is_none());
+    assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname
     {
         let view = &runtime_class.view();
-        // dbg!(view.name());
         for field in view.fields() {
             if field.is_static() && field.is_final() {
                 //todo do I do this for non-static? Should I?
@@ -215,7 +214,7 @@ pub fn initialize_class(
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, interpreter_state);
+                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
                 let name = field.field_name();
                 runtime_class.static_vars().insert(name, constant_value);
             }
@@ -239,20 +238,26 @@ pub fn initialize_class(
 
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
-    let new_function_frame = interpreter_state.push_frame(new_stack, jvm);
-    match run_function(jvm, interpreter_state) {
+    dbg!(int_state.get_java_stack().stack_pointer());
+    dbg!(int_state.get_java_stack().frame_pointer());
+    let new_function_frame = int_state.push_frame(new_stack, jvm);
+    match run_function(jvm, int_state) {
         Ok(()) => {
-            interpreter_state.pop_frame(jvm, new_function_frame, true);
-            if interpreter_state.function_return() {
-                interpreter_state.set_function_return(false);
+            if !jvm.compiled_mode_active {
+                int_state.pop_frame(jvm, new_function_frame, true);
+            }
+            dbg!(int_state.get_java_stack().stack_pointer());
+            dbg!(int_state.get_java_stack().frame_pointer());
+            if int_state.function_return() {
+                int_state.set_function_return(false);
                 return Ok(runtime_class);
             }
             panic!()
         }
         Err(WasException {}) => {
-            interpreter_state.pop_frame(jvm, new_function_frame, false);
+            int_state.pop_frame(jvm, new_function_frame, false);
             // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string(jvm));
-            interpreter_state.debug_print_stack_trace(jvm);
+            int_state.debug_print_stack_trace(jvm);
             return Err(WasException);
         }
     };

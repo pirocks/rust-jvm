@@ -35,11 +35,13 @@ pub struct FrameView<'gc_life, 'l> {
 
 impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn new(ptr: *mut c_void, call_stack: &'l JavaStack) -> Self {
-        Self {
+        let res = Self {
             frame_ptr: ptr,
             call_stack,
             phantom_data: PhantomData::default(),
-        }
+        };
+        let _header = res.get_header();
+        res
     }
 
     fn get_header(&self) -> &FrameHeader {
@@ -249,9 +251,10 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     pub fn push_operand_stack(&mut self, j: JavaValue<'gc_life>) {
-        self.get_frame_info_mut().push_operand_stack(j.to_type());
+        let frame_info = dbg!(self.get_frame_info_mut());
+        frame_info.push_operand_stack(j.to_type());
         // dbg!(self.get_frame_ptrs());
-        let operand_stack_depth = self.get_frame_info_mut().operand_stack_depth_mut();
+        let operand_stack_depth = frame_info.operand_stack_depth_mut();
         let current_depth = *operand_stack_depth;
         *operand_stack_depth += 1;
         let operand_stack_base = self.get_operand_stack_base();

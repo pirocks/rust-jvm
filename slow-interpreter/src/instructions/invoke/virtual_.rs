@@ -63,7 +63,10 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         return Ok(());
     }
     if target_method.is_native() {
-        run_native_method(jvm, interpreter_state, target_class, target_method_i)
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i) {
+            Ok(_) => todo!(),
+            Err(_) => todo!()
+        }
     } else if !target_method.is_abstract() {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
@@ -73,7 +76,9 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 assert!(!interpreter_state.throw().is_some());
-                interpreter_state.pop_frame(jvm, frame_for_function, false);
+                if !jvm.compiled_mode_active {
+                    interpreter_state.pop_frame(jvm, frame_for_function, false);
+                }
                 if interpreter_state.function_return() {
                     interpreter_state.set_function_return(false);
                     return Ok(());

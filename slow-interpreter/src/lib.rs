@@ -94,7 +94,9 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     jvm.include_name_field.store(true, Ordering::SeqCst);
     match run_function(&jvm, int_state) {
         Ok(_) => {
-            int_state.pop_frame(jvm, main_frame_guard, false);
+            if !jvm.compiled_mode_active {
+                int_state.pop_frame(jvm, main_frame_guard, false);
+            }
             sleep(Duration::new(100, 0));//todo need to wait for other threads or something
         }
         Err(WasException {}) => {

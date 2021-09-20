@@ -65,9 +65,10 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let stack_frame_layouts_guard = jvm.stack_frame_layouts.read().unwrap();
         let layout = &stack_frame_layouts_guard[&method_id];
         jvm.jit_state.write().unwrap().add_function(code, method_id);//todo fix method id jankyness
-        match jvm.jit_state.write().unwrap().run_method_safe(method_id, interpreter_state.get_java_stack()) {
+        match jvm.jit_state.write().unwrap().run_method_safe(jvm, interpreter_state, method_id) {
             Ok(res) => {
-                todo!()
+                assert!(res.is_none());
+                return Ok(());
                 /*match res {
                     Either::Left(res) => todo!(),
                     Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {

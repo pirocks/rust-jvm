@@ -252,6 +252,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     operand_stack,
                     native_local_refs
                 } = frame;
+                let is_top_frame = call_stack.top == call_stack.saved_registers.unwrap().frame_pointer;
+                let return_to_rip = if is_top_frame {
+                    Some(jvm.jit_state.read().unwrap().top_level_exit_code)
+                } else {
+                    None
+                };
                 if let Some(NonNativeFrameData { pc, pc_offset }) = non_native_data {
                     if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
                         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
@@ -282,11 +288,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                                 operand_stack_depth: 0,
                                 operand_stack_types: vec![],
                                 locals_types: vec![RuntimeType::TopType; code.max_locals as usize],
-                            });
+                            }, return_to_rip);
                         }
-                        // dbg!(&local_vars);
-                        // dbg!(method_view.name());
-                        // dbg!(class_view.name());
                         for (i, local_var) in local_vars.into_iter().enumerate() {
                             self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
                         }
@@ -296,20 +299,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     }
                 } else if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
                     let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
-                    let class_view = class_pointer.view();
-                    let method_view = class_view.method_view_i(method_i);
                     unsafe {
                         call_stack.push_frame(&NativeStackframeMemoryLayout {}, FrameInfo::Native {
                             method_id,
                             loader,
                             operand_stack_depth: 0,
                             native_local_refs,
-                            operand_stack_types: vec![]
-                        })
+                            operand_stack_types: vec![],
+                        }, return_to_rip)
                     }
                 } else {
                     unsafe {
-                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] })
+                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] }, return_to_rip)
                     }
                 }
                 for operand in operand_stack {

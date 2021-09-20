@@ -199,7 +199,7 @@ impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
     }
 }
 
-
+#[derive(Debug)]
 pub enum FrameInfo {
     FullyOpaque {
         loader: LoaderName,

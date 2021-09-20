@@ -25,7 +25,7 @@ pub fn run_native_method(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
     class: Arc<RuntimeClass<'gc_life>>,
-    method_i: u16) -> Result<(), WasException> {
+    method_i: u16) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -68,7 +68,8 @@ pub fn run_native_method(
     }
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()), jvm);
     assert!(int_state.current_frame().is_native());
-
+    dbg!(int_state.get_java_stack().stack_pointer());
+    dbg!(int_state.get_java_stack().frame_pointer());
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm, int_state).unwrap();
@@ -110,13 +111,12 @@ pub fn run_native_method(
     if let Some(m) = monitor.as_ref() { m.unlock(jvm, int_state).unwrap(); }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
+    dbg!(int_state.get_java_stack().stack_pointer());
+    dbg!(int_state.get_java_stack().frame_pointer());
     if was_exception {
         Err(WasException)
     } else {
-        if let Some(res) = result {
-            int_state.push_current_operand_stack(res);
-        }
-        Ok(())
+        Ok(result)
     }
 }
 

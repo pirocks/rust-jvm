@@ -93,6 +93,9 @@ pub enum IRInstr {
     Return {
         return_val: Option<Register>
     },
-    VMExit(VMExitType),
+    VMExit {
+        exit_label: LabelName,
+        exit_type: VMExitType,
+    },
     Label(IRLabel),
 }

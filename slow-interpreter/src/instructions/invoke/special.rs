@@ -10,6 +10,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::setup_virtual_args;
 use crate::interpreter::{run_function, WasException};
+use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
@@ -39,7 +40,10 @@ pub fn invoke_special_impl(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        run_native_method(jvm, interpreter_state, final_target_class, target_m_i)
+        match run_native_method(jvm, interpreter_state, final_target_class, target_m_i) {
+            Ok(_) => todo!(),
+            Err(_) => todo!()
+        }
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
@@ -50,7 +54,9 @@ pub fn invoke_special_impl(
         let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
-                interpreter_state.pop_frame(jvm, function_call_frame, false);
+                if !jvm.compiled_mode_active {
+                    interpreter_state.pop_frame(jvm, function_call_frame, false);
+                }
                 if interpreter_state.function_return() {
                     interpreter_state.set_function_return(false);
                 }

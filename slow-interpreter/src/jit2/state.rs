@@ -12,6 +12,7 @@ use std::thread::LocalKey;
 use itertools::Itertools;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
+use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
 use jit_common::{JitCodeContext, SavedRegisters};
 use jit_common::java_stack::JavaStack;
@@ -19,8 +20,15 @@ use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::InstructionInfo::lookupswitch;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 
-use crate::jit2::{CompiledCodeID, exit_handler, ir_to_native, IRInstructionIndex, LabelName, to_ir, ToNative, transition_stack_frame, TransitionType, VMExitType};
-use crate::jit2::ir::IRLabel;
+use crate::class_loading::check_initing_or_inited_class;
+use crate::instructions::invoke::native::run_native_method;
+use crate::interpreter::WasException;
+use crate::interpreter_state::{InterpreterState, InterpreterStateGuard};
+use crate::java_values::JavaValue;
+use crate::jit2::{ByteCodeOffset, CompiledCodeID, exit_handler, ir_to_native, IRInstructionIndex, LabelName, to_ir, ToIR, ToNative, transition_stack_frame, TransitionType, VMExitType};
+use crate::jit2::ir::{IRInstr, IRLabel};
+use crate::jvm_state::JVMState;
+use crate::method_table::MethodId;
 
 thread_local! {
 pub static CODE_ADDRESS : RefCell<*mut c_void> = RefCell::new(null_mut());
@@ -36,59 +44,8 @@ pub struct JITState {
     exits: HashMap<*mut c_void, VMExitType>,
     labels: HashMap<LabelName, *mut c_void>,
     labeler: Labeler,
+    pub top_level_exit_code: *mut c_void
 }
-
-
-pub struct NaiveStackframeLayout {
-    max_locals: u16,
-    stack_depth: HashMap<u16, u16>,
-}
-
-impl NaiveStackframeLayout {
-    pub fn new(instructions: &Vec<&CInstruction>, max_locals: u16) -> Self {
-        let mut stack_depth = HashMap::new();
-        let current_depth = 0;
-        for instruct in instructions {
-            match &instruct.info {
-                CompressedInstructionInfo::invokestatic { .. } => {}
-                CompressedInstructionInfo::return_ => {}
-                todo => todo!("{:?}", todo)
-            }
-            stack_depth.insert(instruct.offset, current_depth);
-        }
-        Self {
-            max_locals,
-            stack_depth,
-        }
-    }
-}
-
-impl StackframeMemoryLayout for NaiveStackframeLayout {
-    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
-    }
-
-    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
-        todo!()
-    }
-
-    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
-        todo!()
-    }
-
-    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout {
-        todo!()
-    }
-
-    fn full_frame_size(&self) -> usize {
-        todo!()
-    }
-
-    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
-    }
-}
-
 
 impl JITState {
     pub fn new() -> Self {
@@ -106,7 +63,7 @@ impl JITState {
             *address_refcell.borrow_mut() = res_addr;
             res_addr
         });
-        Self {
+        let mut res = Self {
             code: &CODE_ADDRESS,
             method_id_to_code: Default::default(),
             function_addresses: vec![],
@@ -115,15 +72,34 @@ impl JITState {
             exits: HashMap::new(),
             labels: HashMap::new(),
             labeler: Labeler { current_label: 0 },
-        }
+            top_level_exit_code: null_mut(),
+        };
+        res.top_level_exit_code = res.add_top_level_exit_code();
+        res
     }
 
 
-    pub fn add_function(&mut self, code: &CompressedCode, methodid: usize) -> *mut c_void {
+    fn add_top_level_exit_code(&mut self) -> *mut c_void {
+        let mut labels = vec![];
+        let exit_label = self.labeler.new_label(&mut labels);
+        let ir = ToIR {
+            labels,
+            ir: vec![(ByteCodeOffset(0), IRInstr::VMExit { exit_label, exit_type: VMExitType::TopLevelReturn {} })],
+        };
+
+        let current_code_id = self.next_code_id((-1isize) as usize);
+        self.add_from_ir(current_code_id, ir)
+    }
+
+    fn next_code_id(&mut self, method_id: MethodId) -> CompiledCodeID {
         let next_code_id = CompiledCodeID(self.method_id_to_code.len() as u32);
         assert!(!self.method_id_to_code.values().contains(&next_code_id));
-        self.method_id_to_code.insert(methodid, next_code_id);
-        let current_code_id = next_code_id;
+        self.method_id_to_code.insert(method_id, next_code_id);
+        next_code_id
+    }
+
+    pub fn add_function(&mut self, code: &CompressedCode, methodid: usize) -> *mut c_void {
+        let current_code_id = self.next_code_id(methodid);
         let CompressedCode {
             instructions,
             max_locals,
@@ -133,10 +109,15 @@ impl JITState {
         } = code;
         let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
         let layout = NaiveStackframeLayout::new(&cinstructions, *max_locals);
-        let ir = to_ir(cinstructions, self.current_jit_instr, &mut self.labeler, &layout).unwrap();
+        let ir = to_ir(cinstructions, &mut self.labeler, &layout).unwrap();
+        self.add_from_ir(current_code_id, ir)
+    }
+
+    fn add_from_ir(&mut self, current_code_id: CompiledCodeID, ir: ToIR) -> *mut c_void {
         let ToNative {
             code,
-            new_labels
+            new_labels,
+            exits
         } = ir_to_native(ir, self.current_end);
         let install_at = self.current_end;
         unsafe { self.current_end = install_at.offset(code.len() as isize); }
@@ -148,6 +129,9 @@ impl JITState {
                 }
             }
         });
+        for (label_name, exit_type) in exits {
+            self.exits.insert(new_labels[&label_name], exit_type);
+        }
         self.labels.extend(new_labels.into_iter());
         unsafe {
             copy_nonoverlapping(
@@ -168,17 +152,17 @@ impl JITState {
         todo!("resume execution, adjust ip.")
     }
 
-    pub fn run_method_safe(&mut self, methodid: usize, java_stack: &mut JavaStack) -> Result<Option<jvalue>, Box<dyn Error>> {
+    pub fn run_method_safe(&mut self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue>, WasException> {
         unsafe {
-            self.run_method(methodid, self.method_id_to_code[&methodid], java_stack);
+            self.run_method(jvm, int_state, methodid, self.method_id_to_code[&methodid])
         }
-        todo!()
     }
 
     #[allow(named_asm_labels)]
-    pub unsafe fn run_method(&mut self, methodid: usize, compiled_id: CompiledCodeID, java_stack: &mut JavaStack) {
-        let target_ip = self.function_addresses[compiled_id.0 as usize];
+    pub unsafe fn run_method(&mut self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue>, WasException> {
+        let mut target_ip = self.function_addresses[compiled_id.0 as usize];
         loop {
+            let java_stack: &mut JavaStack = int_state.get_java_stack();
             let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
             let rust_stack: u64 = stack_pointer as u64;
             let rust_frame: u64 = frame_pointer as u64;
@@ -198,6 +182,8 @@ impl JITState {
                 },
                 exit_handler_ip: exit_handler as *mut c_void,
             };
+            eprintln!("going in");
+            dbg!(frame_pointer);
             let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
             ///pub struct FrameHeader {
             //     pub prev_rip: *mut c_void,
@@ -256,10 +242,47 @@ impl JITState {
             jit_code_context.java_saved.instruction_pointer = old_java_ip;
             java_stack.saved_registers = Some(jit_code_context.java_saved.clone());
             //todo exception handling
-            match self.exits.get(&old_java_ip).unwrap().clone() {
-                VMExitType::ResolveInvokeStatic { method_name, desc } => {
-                    self.recompile_method(methodid, todo!(), java_stack, TransitionType::ResolveCalls);
+            dbg!(&self.exits);
+            dbg!(old_java_ip);
+            eprintln!("going out ");
+            dbg!(java_stack.frame_pointer());
+            let exit_type = self.exits.get(&old_java_ip).unwrap().clone();
+            target_ip = match self.handle_exit(exit_type, jvm, int_state, methodid, old_java_ip) {
+                None => {
+                    return Ok(None)
                 }
+                Some(target_ip) => target_ip
+            };
+        }
+    }
+    fn handle_exit(&mut self, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
+        match exit_type {
+            VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
+                let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
+                dbg!(method_name.0.to_str(&jvm.string_pool));
+                let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
+                if method_view.is_native() {
+                    dbg!(int_state.get_java_stack().stack_pointer());
+                    dbg!(int_state.get_java_stack().frame_pointer());
+                    match run_native_method(jvm, int_state, inited_class.clone(), method_view.method_i()) {
+                        Ok(Some(res)) => int_state.current_frame_mut().push(res),
+                        Ok(None) => {}
+                        Err(WasException {}) => todo!(),
+                    };
+                    return Some(old_java_ip);
+                } else {
+                    self.add_function(method_view.code_attribute().unwrap(), to_call_function_method_id);
+                    let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
+                    let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
+                    let code = method_view.code_attribute().unwrap();
+                    self.recompile_method(methodid, code, int_state.get_java_stack(), TransitionType::ResolveCalls);
+                    todo!()
+                }
+            }
+            VMExitType::TopLevelReturn { .. } => {
+                int_state.set_function_return(true);
+                None
             }
         }
     }
@@ -279,3 +302,55 @@ impl Labeler {
         res
     }
 }
+
+
+pub struct NaiveStackframeLayout {
+    max_locals: u16,
+    stack_depth: HashMap<u16, u16>,
+}
+
+impl NaiveStackframeLayout {
+    pub fn new(instructions: &Vec<&CInstruction>, max_locals: u16) -> Self {
+        let mut stack_depth = HashMap::new();
+        let current_depth = 0;
+        for instruct in instructions {
+            match &instruct.info {
+                CompressedInstructionInfo::invokestatic { .. } => {}
+                CompressedInstructionInfo::return_ => {}
+                todo => todo!("{:?}", todo)
+            }
+            stack_depth.insert(instruct.offset, current_depth);
+        }
+        Self {
+            max_locals,
+            stack_depth,
+        }
+    }
+}
+
+impl StackframeMemoryLayout for NaiveStackframeLayout {
+    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
+        todo!()
+    }
+
+    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
+        todo!()
+    }
+
+    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
+        todo!()
+    }
+
+    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout {
+        todo!()
+    }
+
+    fn full_frame_size(&self) -> usize {
+        todo!()
+    }
+
+    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
+        todo!()
+    }
+}
+

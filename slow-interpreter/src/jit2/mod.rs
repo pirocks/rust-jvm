@@ -1,7 +1,7 @@
 #![feature(asm)]
 #![feature(thread_id_value)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::panic;
@@ -17,7 +17,7 @@ use gc_memory_layout_common::{FrameHeader, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jit_common::JitCodeContext;
 use jit_common::SavedRegisters;
-use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
@@ -32,7 +32,8 @@ pub struct LabelName(u32);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum VMExitType {
-    ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor }
+    ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    TopLevelReturn {},
 }
 
 
@@ -56,7 +57,7 @@ pub struct ToIR {
     ir: Vec<(ByteCodeOffset, IRInstr)>,
 }
 
-pub fn to_ir(byte_code: Vec<&CInstruction>, ir_base_position: IRInstructionIndex, labeler: &mut Labeler, layout: &dyn StackframeMemoryLayout) -> Result<ToIR, NotSupported> {
+pub fn to_ir(byte_code: Vec<&CInstruction>, labeler: &mut Labeler, layout: &dyn StackframeMemoryLayout) -> Result<ToIR, NotSupported> {
     let mut labels = vec![];
     let mut initial_ir = vec![];
     let function_start_label: LabelName = labeler.new_label(&mut labels);
@@ -66,7 +67,8 @@ pub fn to_ir(byte_code: Vec<&CInstruction>, ir_base_position: IRInstructionIndex
         let current_offset = ByteCodeOffset(byte_code_instr.offset);
         match &byte_code_instr.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                initial_ir.push((current_offset, IRInstr::VMExit(VMExitType::ResolveInvokeStatic { method_name: *method_name, desc: descriptor.clone() })));
+                let exit_label = labeler.new_label(&mut labels);
+                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::ResolveInvokeStatic { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
             }
             CompressedInstructionInfo::ifnull(offset) => {
                 let branch_to_label = labeler.new_label(&mut labels);
@@ -117,12 +119,14 @@ pub fn to_ir(byte_code: Vec<&CInstruction>, ir_base_position: IRInstructionIndex
 pub struct ToNative {
     code: Vec<u8>,
     new_labels: HashMap<LabelName, *mut c_void>,
+    exits: HashMap<LabelName, VMExitType>,
 }
 
 pub fn ir_to_native(ir: ToIR, base_address: *mut c_void) -> ToNative {
-    let ToIR { labels, ir } = ir;
+    let ToIR { labels: ir_labels, ir } = ir;
+    let mut exits = HashMap::new();
     let mut assembler = CodeAssembler::new(64).unwrap();
-    let iced_labels = labels.into_iter().map(|label| (label, assembler.create_label())).collect::<HashMap<_, _>>();
+    let iced_labels = ir_labels.into_iter().map(|label| (label, assembler.create_label())).collect::<HashMap<_, _>>();
     let mut label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
     for (bytecode_offset, ir_instr) in ir {
         match ir_instr {
@@ -142,7 +146,7 @@ pub fn ir_to_native(ir: ToIR, base_address: *mut c_void) -> ToNative {
                 assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
                 assembler.je(iced_labels[&IRLabel { name: label }]).unwrap();
             }
-            IRInstr::VMExit(VMExitType::ResolveInvokeStatic { method_name, desc }) => {
+            IRInstr::VMExit { exit_label, exit_type } => {
                 let native_stack_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64;
                 let native_frame_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64;
                 let native_instruction_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)) as i64;
@@ -174,6 +178,17 @@ pub fn ir_to_native(ir: ToIR, base_address: *mut c_void) -> ToNative {
                 assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
                 // call_to_old
                 assembler.call(qword_ptr(r15 + native_instruction_pointer)).unwrap();
+                exits.insert(exit_label, exit_type);
+                label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));
+                //need noop b/c can't have a label at end
+                assembler.nop().unwrap()
+                // match exit_type.clone(){
+                //     VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
+                //
+                //     }
+                //     VMExitType::TopLevelReturn { .. } => {
+                //         todo!()
+                //     }
                 // }
             }
             IRInstr::Label(label) => {
@@ -212,7 +227,8 @@ pub fn ir_to_native(ir: ToIR, base_address: *mut c_void) -> ToNative {
             break;
         }
     }
-    ToNative { code: result.code_buffer, new_labels }
+    assert!(label_instruction_indexes.peek().is_none());
+    ToNative { code: result.code_buffer, new_labels, exits }
 }
 
 

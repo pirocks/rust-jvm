@@ -88,7 +88,9 @@ pub fn invoke_static_impl(
         let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(_) => {
-                interpreter_state.pop_frame(jvm, function_call_frame, false);
+                if !jvm.compiled_mode_active {
+                    interpreter_state.pop_frame(jvm, function_call_frame, false);
+                }
                 if interpreter_state.function_return() {
                     interpreter_state.set_function_return(false);
                     return Ok(());
@@ -101,6 +103,9 @@ pub fn invoke_static_impl(
             }
         }
     } else {
-        run_native_method(jvm, interpreter_state, target_class, target_method_i)
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i) {
+            Ok(_) => todo!(),
+            Err(_) => todo!()
+        }
     }
 }
