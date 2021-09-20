@@ -2,9 +2,11 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::cmp::max;
 use std::collections::HashMap;
+use std::env::current_exe;
 use std::error::Error;
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
+use std::mem::size_of;
 use std::ptr::null_mut;
 use std::thread;
 use std::thread::LocalKey;
@@ -16,7 +18,7 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{ArrayMemoryLayout, FramePointerOffset, ObjectMemoryLayout, StackframeMemoryLayout};
 use jit_common::{JitCodeContext, SavedRegisters};
 use jit_common::java_stack::JavaStack;
-use jvmti_jni_bindings::jvalue;
+use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::classfile::InstructionInfo::lookupswitch;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 
@@ -44,7 +46,7 @@ pub struct JITState {
     exits: HashMap<*mut c_void, VMExitType>,
     labels: HashMap<LabelName, *mut c_void>,
     labeler: Labeler,
-    pub top_level_exit_code: *mut c_void
+    pub top_level_exit_code: *mut c_void,
 }
 
 impl JITState {
@@ -249,7 +251,7 @@ impl JITState {
             let exit_type = self.exits.get(&old_java_ip).unwrap().clone();
             target_ip = match self.handle_exit(exit_type, jvm, int_state, methodid, old_java_ip) {
                 None => {
-                    return Ok(None)
+                    return Ok(None);
                 }
                 Some(target_ip) => target_ip
             };
@@ -284,6 +286,12 @@ impl JITState {
                 int_state.set_function_return(true);
                 None
             }
+            VMExitType::ResolveInvokeSpecial { .. } => {
+                todo!()
+            }
+            VMExitType::Todo { .. } => {
+                todo!()
+            }
         }
     }
 }
@@ -312,14 +320,33 @@ pub struct NaiveStackframeLayout {
 impl NaiveStackframeLayout {
     pub fn new(instructions: &Vec<&CInstruction>, max_locals: u16) -> Self {
         let mut stack_depth = HashMap::new();
-        let current_depth = 0;
-        for instruct in instructions {
+        let mut current_depth = 0;
+        for (i, instruct) in instructions.iter().enumerate() {
             match &instruct.info {
                 CompressedInstructionInfo::invokestatic { .. } => {}
                 CompressedInstructionInfo::return_ => {}
+                CompressedInstructionInfo::aload_0 => {
+                    current_depth += 1;
+                }
+                CompressedInstructionInfo::aload_1 => {
+                    current_depth += 1;
+                }
+                CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
+                    current_depth -= 1;
+                    current_depth -= descriptor.arg_types.len() as u16;
+                }
+                CompressedInstructionInfo::iconst_0 => {
+                    current_depth += 1;
+                }
+                CompressedInstructionInfo::putfield { name, desc, target_class } => {
+                    current_depth -= 1;
+                }
+                CompressedInstructionInfo::aconst_null => {
+                    current_depth += 1;
+                }
                 todo => todo!("{:?}", todo)
             }
-            stack_depth.insert(instruct.offset, current_depth);
+            stack_depth.insert(i as u16, current_depth);
         }
         Self {
             max_locals,
@@ -329,12 +356,14 @@ impl NaiveStackframeLayout {
 }
 
 impl StackframeMemoryLayout for NaiveStackframeLayout {
-    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
+    fn local_var_entry(&self, current_count: u16, i: u16) -> FramePointerOffset {
+        FramePointerOffset(i as usize * size_of::<jlong>())
     }
 
-    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
-        todo!()
+    fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
+        dbg!(current_count);
+        dbg!(&self.stack_depth);
+        FramePointerOffset((self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
     }
 
     fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {

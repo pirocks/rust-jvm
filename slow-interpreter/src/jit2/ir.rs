@@ -1,4 +1,4 @@
-use iced_x86::code_asm::{AsmRegister64, r10, r11, r12, r13, r14, r8, r9, rbx, rcx, rdx};
+use iced_x86::code_asm::{AsmRegister32, AsmRegister64, ebx, ecx, edx, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r8, r8d, r9, r9d, rbx, rcx, rdx};
 
 use gc_memory_layout_common::FramePointerOffset;
 
@@ -26,6 +26,22 @@ impl Register {
             7 => r12,
             8 => r13,
             9 => r14,
+            _ => todo!()
+        }
+    }
+
+    pub fn to_native_32(&self) -> AsmRegister32 {
+        match self.0 {
+            0 => ebx,
+            1 => ecx,
+            2 => edx,
+            3 => r8d,
+            4 => r9d,
+            5 => r10d,
+            6 => r11d,
+            7 => r12d,
+            8 => r13d,
+            9 => r14d,
             _ => todo!()
         }
     }
