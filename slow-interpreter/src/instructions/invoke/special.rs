@@ -55,8 +55,11 @@ pub fn invoke_special_impl(
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 if !jvm.compiled_mode_active {
+                    dbg!(interpreter_state.current_loader());
                     interpreter_state.pop_frame(jvm, function_call_frame, false);
+                    dbg!(interpreter_state.current_loader());
                 }
+                dbg!(interpreter_state.current_loader());
                 if interpreter_state.function_return() {
                     interpreter_state.set_function_return(false);
                 }

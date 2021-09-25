@@ -300,9 +300,7 @@ pub mod class {
         }
 
         pub fn new_bootstrap_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Self, WasException> {
-            dbg!(int_state.cloned_stack_snapshot(jvm).len());
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
-            dbg!(int_state.cloned_stack_snapshot(jvm).len());
             push_new_object(jvm, int_state, &class_class);
             let res = int_state.pop_current_operand_stack(Some(CClassName::class().into()));
             run_constructor(jvm, int_state, class_class, vec![res.clone(), JavaValue::null()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;

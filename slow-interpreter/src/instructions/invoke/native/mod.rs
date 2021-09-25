@@ -111,8 +111,6 @@ pub fn run_native_method(
     if let Some(m) = monitor.as_ref() { m.unlock(jvm, int_state).unwrap(); }
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
-    dbg!(int_state.get_java_stack().stack_pointer());
-    dbg!(int_state.get_java_stack().frame_pointer());
     if was_exception {
         Err(WasException)
     } else {

@@ -21,6 +21,7 @@ sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
+rangemap = { git = "https://github.com/pirocks/rangemap.git" }
 #jit = { path = "../jit" }
 libc = "0.2.66"
 regex = "1"
@@ -38,6 +39,7 @@ itertools = "0.10.0"
 closure = "0.3.0"
 wtf8 = "0.1.0"
 memoffset = "0.6.4"
+
 
 [dependencies.iced-x86]
 version = "1.14.0"

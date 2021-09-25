@@ -123,15 +123,13 @@ impl JavaStack {
         let prev_rbp = self.frame_pointer();
         let prev_sp = self.stack_pointer();
         let new_rbp = prev_sp;
-        let new_sp = new_rbp.offset(dbg!(layout.full_frame_size()) as isize);
+        let new_sp = new_rbp.offset(layout.full_frame_size() as isize);
         self.set_stack_pointer(new_sp);
         self.set_frame_pointer(new_rbp);
-        dbg!(self.stack_pointer());
         let new_header = (new_rbp as *mut FrameHeader).as_mut().unwrap();
         new_header.magic_part_1 = MAGIC_1_EXPECTED;
         new_header.magic_part_2 = MAGIC_2_EXPECTED;
         new_header.frame_info_ptr = Box::into_raw(box frame_info);//leak dealt with in frame pop
-        dbg!(new_header.frame_info_ptr);
         new_header.debug_ptr = null_mut();
         new_header.prev_rip = match prev_rip {
             None => transmute(0xDEADDEADDEADDEADusize),
@@ -143,13 +141,11 @@ impl JavaStack {
     pub unsafe fn pop_frame(&mut self) {
         let current_header = self.current_frame_ptr() as *const FrameHeader;
         let current_frame_info = (*current_header).frame_info_ptr;
-        dbg!(current_frame_info);
         drop(Box::from_raw(current_frame_info));
         let new_rbp = (*current_header).prev_rpb;
         let new_sp = self.current_frame_ptr();
         self.set_frame_pointer(new_rbp);
         self.set_stack_pointer(new_sp);
-        dbg!(self.stack_pointer());
     }
 
     pub fn throw(&self) -> jobject {

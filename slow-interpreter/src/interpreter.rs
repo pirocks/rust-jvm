@@ -13,6 +13,7 @@ use jvmti_jni_bindings::{jvalue, JVM_ACC_SYNCHRONIZED};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -42,6 +43,7 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
+use crate::jit2::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
@@ -64,7 +66,8 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let code = method.code_attribute().unwrap();
         let stack_frame_layouts_guard = jvm.stack_frame_layouts.read().unwrap();
         let layout = &stack_frame_layouts_guard[&method_id];
-        jvm.jit_state.write().unwrap().add_function(code, method_id);//todo fix method id jankyness
+        let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
+        jvm.jit_state.write().unwrap().add_function(code, method_id, resolver);//todo fix method id jankyness
         match jvm.jit_state.write().unwrap().run_method_safe(jvm, interpreter_state, method_id) {
             Ok(res) => {
                 assert!(res.is_none());

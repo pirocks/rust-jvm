@@ -10,19 +10,25 @@ use std::process::exit;
 
 use iced_x86::{BlockEncoder, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
-use iced_x86::code_asm::{CodeAssembler, qword_ptr, r15, rax, rbp, rdx, rsp};
+use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
 use memoffset::offset_of;
 
+use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{FrameHeader, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jit_common::JitCodeContext;
 use jit_common::SavedRegisters;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::jit2::ir::{IRInstr, IRLabel, Register};
+use crate::jit2::state::birangemap::BiRangeMap;
 use crate::jit2::state::Labeler;
+use crate::jvm_state::JVMState;
+use crate::method_table::MethodId;
+use crate::rust_jni::interface::array::release_boolean_array_elements;
 
 pub mod ir;
 pub mod state;
@@ -33,6 +39,7 @@ pub struct LabelName(u32);
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum VMExitType {
     ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     TopLevelReturn {},
     Todo {},
@@ -54,223 +61,52 @@ pub struct NotSupported;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ByteCodeOffset(u16);
 
+#[derive(Clone, Copy)]
+pub struct MethodResolver<'gc_life> {
+    pub(crate) jvm: &'gc_life JVMState<'gc_life>,
+    pub(crate) loader: LoaderName,
+}
+
+impl<'gc_life> MethodResolver<'gc_life> {
+    pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+        let classes_guard = self.jvm.classes.read().unwrap();
+        let (loader_name, rc) = classes_guard.initiating_loaders.get(&on)?;
+        assert_eq!(loader_name, &self.loader);
+        let view = rc.view();
+        let method_view = view.lookup_method(name, &desc).unwrap();
+        assert!(method_view.is_static() || method_view.name() == MethodName::constructor_clinit() || method_view.name() == MethodName::constructor_init());
+        let mut method_table_guard = self.jvm.method_table.write().unwrap();
+        let method_id = method_table_guard.get_method_id(rc.clone(), method_view.method_i());
+        Some((method_id, method_view.is_native()))
+    }
+
+    pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+        self.lookup_static(on, name, desc)
+    }
+
+    pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.code_attribute().unwrap().clone()
+    }
+}
+
 pub struct ToIR {
     labels: Vec<IRLabel>,
     ir: Vec<(ByteCodeOffset, IRInstr)>,
-}
-
-pub fn to_ir(byte_code: Vec<&CInstruction>, labeler: &mut Labeler, layout: &dyn StackframeMemoryLayout) -> Result<ToIR, NotSupported> {
-    let mut labels = vec![];
-    let mut initial_ir = vec![];
-    let function_start_label: LabelName = labeler.new_label(&mut labels);
-    let function_end_label: LabelName = labeler.new_label(&mut labels);
-    let mut pending_labels = vec![(ByteCodeOffset(0), function_start_label), (ByteCodeOffset(byte_code.last().unwrap().offset), function_end_label)];
-    for (i, byte_code_instr) in byte_code.iter().enumerate() {
-        let current_offset = ByteCodeOffset(byte_code_instr.offset);
-        let current_byte_code_instr_count: u16 = i as u16;
-        let next_byte_code_instr_count: u16 = (i + 1) as u16;
-        match &byte_code_instr.info {
-            CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                let exit_label = labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::ResolveInvokeStatic { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
-            }
-            CompressedInstructionInfo::ifnull(offset) => {
-                let branch_to_label = labeler.new_label(&mut labels);
-                pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
-                let possibly_null_register = Register(0);
-                initial_ir.push((current_offset, IRInstr::LoadFPRelative {
-                    from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
-                    to: possibly_null_register,
-                }));
-                let register_with_null = Register(1);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: register_with_null, const_: 0 }));
-                initial_ir.push((current_offset, IRInstr::BranchEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
-            }
-            CompressedInstructionInfo::return_ => {
-                initial_ir.push((current_offset, IRInstr::Return { return_val: None }));
-            }
-            CompressedInstructionInfo::aload_0 => {
-                let temp = Register(0);
-                initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
-            }
-            CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                let exit_label = labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::ResolveInvokeSpecial { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
-            }
-            CompressedInstructionInfo::iconst_0 => {
-                let const_register = Register(0);
-                initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 0 }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
-            }
-            CompressedInstructionInfo::aload_1 => {
-                let const_register = Register(0);
-                initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 1 }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
-                //todo dup
-            }
-            CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                let exit_label = labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Todo {} }));
-            }
-            CompressedInstructionInfo::aconst_null => {
-                let const_register = Register(0);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: const_register, const_: 0 }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
-            }
-            todo => todo!("{:?}", todo)
-        }
-    }
-    let mut ir = vec![];
-
-    let mut pending_labels = pending_labels.into_iter().peekable();
-
-    for (offset, ir_instr) in initial_ir {
-        loop {
-            match pending_labels.peek() {
-                None => break,
-                Some((label_offset, label)) => {
-                    if label_offset == &offset {
-                        ir.push((*label_offset, IRInstr::Label(IRLabel { name: *label })));
-                        let _ = pending_labels.next();
-                        continue;
-                    }
-                }
-            }
-            break;
-        }
-        ir.push((offset, ir_instr));
-    }
-
-    Ok(ToIR {
-        labels,
-        ir,
-    })
+    pub function_start_label: LabelName,
 }
 
 
 pub struct ToNative {
     code: Vec<u8>,
     new_labels: HashMap<LabelName, *mut c_void>,
+    bytecode_offset_to_address: BiRangeMap<*mut c_void, ByteCodeOffset>,
     exits: HashMap<LabelName, VMExitType>,
+    function_start_label: LabelName,
 }
 
-pub fn ir_to_native(ir: ToIR, base_address: *mut c_void) -> ToNative {
-    let ToIR { labels: ir_labels, ir } = ir;
-    let mut exits = HashMap::new();
-    let mut assembler = CodeAssembler::new(64).unwrap();
-    let iced_labels = ir_labels.into_iter().map(|label| (label, assembler.create_label())).collect::<HashMap<_, _>>();
-    let mut label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
-    for (bytecode_offset, ir_instr) in ir {
-        match ir_instr {
-            IRInstr::LoadFPRelative { from, to } => {
-                assembler.mov(to.to_native_64(), rbp + from.0).unwrap();
-            },
-            IRInstr::StoreFPRelative { from, to } => {
-                assembler.mov(rbp + to.0, from.to_native_64()).unwrap();
-            },
-            IRInstr::Load { .. } => todo!(),
-            IRInstr::Store { .. } => todo!(),
-            IRInstr::Add { .. } => todo!(),
-            IRInstr::Sub { .. } => todo!(),
-            IRInstr::Div { .. } => todo!(),
-            IRInstr::Mod { .. } => todo!(),
-            IRInstr::Mul { .. } => todo!(),
-            IRInstr::Const32bit { to, const_ } => {
-                assembler.mov(to.to_native_32(), const_).unwrap();
-            },
-            IRInstr::Const64bit { to, const_ } => {
-                assembler.mov(to.to_native_64(), const_).unwrap();
-            },
-            IRInstr::BranchToLabel { .. } => todo!(),
-            IRInstr::BranchEqual { label, a, b } => {
-                assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
-                assembler.je(iced_labels[&IRLabel { name: label }]).unwrap();
-            }
-            IRInstr::VMExit { exit_label, exit_type } => {
-                let native_stack_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64;
-                let native_frame_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64;
-                let native_instruction_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)) as i64;
-                let java_stack_pointer = (offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64;
-                let java_frame_pointer = (offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)) as i64;
-                let exit_handler_ip = offset_of!(JitCodeContext,exit_handler_ip) as i64;
-                if false {
-                    //exit to exit handler
-                    // save_java_stack
-                    assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
-                    // save_java_frame
-                    assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
-                    // restore_old_stack
-                    assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
-                    // restore_old_frame
-                    assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
-                    // call back to exit_handler
-                    assembler.call(qword_ptr(r15 + exit_handler_ip)).unwrap();
-                }
-                //exit back to initial run_method
-                // if false {
-                // save_java_stack
-                assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
-                // save_java_frame
-                assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
-                // restore_old_stack
-                assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
-                // restore_old_frame
-                assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
-                // call_to_old
-                assembler.call(qword_ptr(r15 + native_instruction_pointer)).unwrap();
-                exits.insert(exit_label, exit_type);
-                label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));
-                //need noop b/c can't have a label at end
-                assembler.nop().unwrap()
-                // match exit_type.clone(){
-                //     VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
-                //
-                //     }
-                //     VMExitType::TopLevelReturn { .. } => {
-                //         todo!()
-                //     }
-                // }
-            }
-            IRInstr::Label(label) => {
-                let mut iced_label = iced_labels[&label];
-                label_instruction_offsets.push((label.name, assembler.instructions().len() as u32));
-                assembler.set_label(&mut iced_label).unwrap()// todo this could fail if two labels on same instruction which is likely to happen
-            }
-            IRInstr::Return { return_val } => {
-                if let Some(return_register) = return_val {
-                    assembler.mov(rax, return_register.to_native_64()).unwrap();
-                }
-                assembler.mov(rsp, rbp + size_of::<*mut c_void>()).unwrap();
-                assert_eq!(offset_of!(FrameHeader,prev_rip), 0);
-                assembler.mov(rbp, rbp + offset_of!(FrameHeader,prev_rpb)).unwrap();
-                assembler.ret().unwrap();
-            }
-        }
-    }
-    let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
-    let result = BlockEncoder::encode(assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
-    let mut new_labels: HashMap<LabelName, *mut c_void> = Default::default();
-    let mut label_instruction_indexes = label_instruction_offsets.into_iter().peekable();
-    for (i, native_offset) in result.new_instruction_offsets.iter().enumerate() {
-        loop {
-            match label_instruction_indexes.peek() {
-                None => break,
-                Some((label, instruction_index)) => {
-                    assert!(i <= *instruction_index as usize);
-                    if *instruction_index as usize == i {
-                        new_labels.insert(*label, unsafe { base_address.offset(*native_offset as isize) });
-                        let _ = label_instruction_indexes.next();
-                        continue;
-                    }
-                }
-            }
-            break;
-        }
-    }
-    assert!(label_instruction_indexes.peek().is_none());
-    ToNative { code: result.code_buffer, new_labels, exits }
-}
 
 
 pub enum TransitionType {
@@ -284,9 +120,5 @@ pub fn transition_stack_frame(transition_type: TransitionType, frame_to_fix: &mu
 }
 
 
-// recompile calling fn completely, but only switch over for new fn calls
 
-unsafe extern "C" fn exit_handler() {
-    panic!("not using exit handler for most stuff and just restoring to run_method")
-}
 

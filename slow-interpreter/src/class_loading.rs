@@ -129,7 +129,9 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                 CPRefType::Class(class_name) => {
                                     drop(guard);
                                     let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
-                                    class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
+                                    let res = class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm);
+                                    dbg!(int_state.current_loader());
+                                    res
                                 }
                                 CPRefType::Array(sub_type) => {
                                     drop(guard);
@@ -148,7 +150,8 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                 }
                 LoaderName::BootstrapLoader => {
                     drop(guard);
-                    bootstrap_load(jvm, int_state, ptype.clone())?
+                    let res = bootstrap_load(jvm, int_state, ptype.clone())?;
+                    res
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
@@ -264,7 +267,6 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
-                dbg!(int_state.cloned_stack_snapshot(jvm).len());
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
@@ -311,7 +313,6 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
             },
         })));
     }
-    dbg!(int_state.cloned_stack_snapshot(jvm).len());
     let class_object = match loader {
         LoaderName::UserDefinedLoader(_idx) => {
             JClass::new(jvm, int_state, loader_object.cast_class_loader())

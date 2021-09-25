@@ -4,7 +4,7 @@ use gc_memory_layout_common::FramePointerOffset;
 
 use crate::jit2::{LabelName, VMExitType};
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct IRLabel {
     pub(crate) name: LabelName,
 }
@@ -48,6 +48,7 @@ impl Register {
 }
 // pub struct FramePointerOffset(i16);
 
+#[derive(Debug)]
 pub enum IRInstr {
     LoadFPRelative {
         from: FramePointerOffset,
@@ -100,6 +101,13 @@ pub enum IRInstr {
     },
     BranchToLabel {
         label: LabelName
+    },
+    LoadLabel {
+        label: LabelName,
+        to: Register,
+    },
+    LoadRBP {
+        to: Register
     },
     BranchEqual {
         a: Register,

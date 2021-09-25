@@ -186,12 +186,9 @@ impl<'gc_life> ThreadState<'gc_life> {
         }
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
         let frame_for_bootstrapping = new_int_state.push_frame(frame, jvm);
-        dbg!(new_int_state.cloned_stack_snapshot(jvm).len());
         let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
-        dbg!(new_int_state.cloned_stack_snapshot(jvm).len());
         // let class_rc = check_loaded_class(jvm,&mut new_int_state, CClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
-        dbg!(new_int_state.cloned_stack_snapshot(jvm).len());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 
         push_new_object(jvm, &mut new_int_state, &thread_classfile);

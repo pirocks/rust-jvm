@@ -251,7 +251,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     pub fn push_operand_stack(&mut self, j: JavaValue<'gc_life>) {
-        let frame_info = dbg!(self.get_frame_info_mut());
+        let frame_info = self.get_frame_info_mut();
         frame_info.push_operand_stack(j.to_type());
         // dbg!(self.get_frame_ptrs());
         let operand_stack_depth = frame_info.operand_stack_depth_mut();
@@ -428,6 +428,7 @@ impl<'vm_life> Iterator for StackIter<'vm_life, '_> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_frame != self.top {
             let frame_view = FrameView::new(self.current_frame, self.java_stack);
+            let _ = frame_view.get_header();
             let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));
             self.current_frame = frame_view.get_header().prev_rpb;
             res
