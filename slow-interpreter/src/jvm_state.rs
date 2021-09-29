@@ -1,4 +1,4 @@
-use std::cell::UnsafeCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -8,6 +8,7 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::LocalKey;
 use std::time::Instant;
 
 use bimap::BiMap;
@@ -34,7 +35,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
-use crate::jit2::state::JITState;
+use crate::jit2::state::{JITState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
@@ -51,7 +52,7 @@ pub static mut JVM: Option<&'static JVMState> = None;
 
 pub struct JVMState<'gc_life> {
     // pub compiled_methods: RwLock<CompiledMethodTable>,
-    pub jit_state: RwLock<JITState>,
+    pub jit_state: &'static LocalKey<RefCell<JITState>>,
     pub compiled_mode_active: bool,
 
     pub libjava_path: OsString,
@@ -167,7 +168,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
         let mut jvm = Self {
-            jit_state: RwLock::new(JITState::new()),
+            jit_state: &JITSTATE,
             compiled_mode_active: true,
             libjava_path: libjava,
             properties,
@@ -261,7 +262,8 @@ impl<'gc_life> JVMState<'gc_life> {
         let parent = None;
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, static_vars, parent, interfaces, status)));
+        let recursive_num_fields = field_numbers.len();
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();

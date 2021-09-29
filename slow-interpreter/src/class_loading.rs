@@ -255,10 +255,11 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 for interface in class_view.interfaces() {
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
-                let field_numbers = get_field_numbers(&class_view, &parent);
+                let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
                 let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
                     class_view: class_view.clone(),
                     field_numbers,
+                    recursive_num_fields,
                     static_vars: Default::default(),
                     parent,
                     interfaces,
@@ -282,7 +283,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     Ok(runtime_class)
 }
 
-pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> HashMap<FieldName, (usize, CompressedParsedDescriptorType)> {
+pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (usize, CompressedParsedDescriptorType)>) {
     let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
     let field_numbers = class_view
         .fields()
@@ -292,7 +293,7 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
         .enumerate()
         .map(|(index, (name, ptype))| (name, (index + start_field_number, ptype)))
         .collect::<HashMap<_, _>>();
-    field_numbers
+    (start_field_number + field_numbers.len(), field_numbers)
 }
 
 pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {

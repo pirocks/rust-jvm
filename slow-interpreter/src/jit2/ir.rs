@@ -109,6 +109,9 @@ pub enum IRInstr {
     LoadRBP {
         to: Register
     },
+    WriteRBP {
+        from: Register
+    },
     BranchEqual {
         a: Register,
         b: Register,
@@ -120,6 +123,12 @@ pub enum IRInstr {
     VMExit {
         exit_label: LabelName,
         exit_type: VMExitType,
+    },
+    GrowStack {
+        amount: usize
+    },
+    LoadSP {
+        to: Register
     },
     Label(IRLabel),
 }

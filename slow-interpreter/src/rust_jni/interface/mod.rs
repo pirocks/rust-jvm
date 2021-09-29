@@ -673,10 +673,11 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
-    let field_numbers = get_field_numbers(&class_view, &super_class);
+    let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: class_view.clone(),
         field_numbers,
+        recursive_num_fields,
         static_vars: Default::default(),
         parent: super_class,
         interfaces,

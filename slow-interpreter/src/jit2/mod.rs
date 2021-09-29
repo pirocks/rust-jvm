@@ -1,33 +1,33 @@
-#![feature(asm)]
-#![feature(thread_id_value)]
-
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::panic;
 use std::panic::catch_unwind;
 use std::process::exit;
+use std::sync::Arc;
 
 use iced_x86::{BlockEncoder, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
 use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
+use itertools::Itertools;
 use memoffset::offset_of;
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{FrameHeader, StackframeMemoryLayout};
+use gc_memory_layout_common::{FrameHeader, FramePointerOffset, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jit_common::JitCodeContext;
 use jit_common::SavedRegisters;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::jit2::ir::{IRInstr, IRLabel, Register};
+use crate::jit2::state::{Labeler, NaiveStackframeLayout};
 use crate::jit2::state::birangemap::BiRangeMap;
-use crate::jit2::state::Labeler;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
+use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::array::release_boolean_array_elements;
 
 pub mod ir;
@@ -41,8 +41,10 @@ pub enum VMExitType {
     ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
     TopLevelReturn {},
     Todo {},
+    AllocateVariableSizeArrayANewArray { target_type_sub_type: CPDType, len_offset: FramePointerOffset, res_write_offset: FramePointerOffset },
 }
 
 
@@ -82,6 +84,21 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
     pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         self.lookup_static(on, name, desc)
+    }
+
+    pub fn lookup_type_loaded(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
+        let rc = self.jvm.classes.read().unwrap().is_loaded(cpdtype)?;
+        let loader = self.jvm.classes.read().unwrap().get_initiating_loader(&rc);
+        Some((rc, loader))
+    }
+
+    pub fn lookup_method_layout(&self, methodid: usize) -> NaiveStackframeLayout {
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let CompressedCode { instructions, max_locals, max_stack, .. } = method_view.code_attribute().unwrap();
+        let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
+        NaiveStackframeLayout::new(&cinstructions, *max_locals, *max_stack)
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {

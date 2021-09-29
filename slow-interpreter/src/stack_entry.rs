@@ -13,7 +13,7 @@ use itertools::Itertools;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use jit_common::java_stack::JavaStack;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -143,7 +143,12 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         unsafe { self.frame_ptr.offset((size_of::<FrameHeader>()) as isize) }
     }
 
-    fn write_target(target: *mut c_void, j: JavaValue<'gc_life>) {
+    pub(crate) fn raw_write_target(target: *mut c_void, jv: jvalue) {
+        unsafe { assert_eq!(size_of::<jvalue>(), size_of::<u64>()); }
+        unsafe { (target as *mut u64).write(jv.j as u64); }
+    }
+
+    pub(crate) fn write_target(target: *mut c_void, j: JavaValue<'gc_life>) {
         // dbg!("write",target,&j);
         unsafe {
             match j {
@@ -195,7 +200,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
-    fn read_target(jvm: &'gc_life JVMState<'gc_life>, target: *const c_void, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+    pub(crate) fn read_target(jvm: &'gc_life JVMState<'gc_life>, target: *const c_void, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         // dbg!("read",target,&expected_type);
         unsafe {
             match expected_type {

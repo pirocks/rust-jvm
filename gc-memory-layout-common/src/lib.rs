@@ -1,17 +1,150 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![feature(destructuring_assignment)]
+#![feature(int_roundings)]
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::ptr::null_mut;
+use std::sync::{Mutex, MutexGuard};
+use std::thread::ThreadId;
 
 use itertools::{Either, Itertools};
+use lazy_static::lazy_static;
+use nix::sys::mman::{MapFlags, mmap, ProtFlags};
+use num_integer::Integer;
 
-use jvmti_jni_bindings::{jlong, jobject};
+use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::Frame;
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+pub enum AllocatedObjectType {
+    Class {
+        name: CClassName,
+        loader: LoaderName,
+        size: usize,
+    },
+    ObjectArray {
+        sub_type: CPRefType,
+        sub_type_loader: LoaderName,
+        len: usize,
+    },
+    PrimitiveArray {
+        primitive_type: CPDType,
+        len: usize,
+    },
+}
+
+impl AllocatedObjectType {
+    pub fn size(&self) -> usize {
+        match self {
+            AllocatedObjectType::Class { size, name, loader } => {
+                *size
+            }
+            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
+                *len * size_of::<jobject>() + size_of::<jint>()
+            }
+            AllocatedObjectType::PrimitiveArray { len, primitive_type } => {
+                *len * match primitive_type {
+                    CPDType::BooleanType => 1,
+                    CPDType::ByteType => 1,
+                    CPDType::ShortType => 2,
+                    CPDType::CharType => 2,
+                    CPDType::IntType => 4,
+                    CPDType::LongType => 8,
+                    CPDType::FloatType => 4,
+                    CPDType::DoubleType => 8,
+                    CPDType::VoidType => panic!(),
+                    CPDType::Ref(_) => panic!()
+                } + size_of::<jint>()
+            }
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref THIS_THREAD_MEMORY_REGIONS: Mutex<MemoryRegions> = Mutex::new(MemoryRegions::new());
+}
+
+pub struct RegionData {
+    ptr: *mut c_void,
+    used_bitmap: *mut c_void,
+    current_elements_count: usize,
+    region_type: AllocatedObjectType,
+    region_max_elements: usize,
+}
+
+impl RegionData {
+    pub fn get_allocation(&mut self) -> *mut c_void {
+        let res = self.ptr;
+        self.current_elements_count += 1;
+        res
+    }
+}
+
+
+unsafe impl Send for RegionData {}
+
+pub struct MemoryRegions {
+    regions: HashMap<AllocatedObjectType, Vec<RegionData>>,
+}
+
+impl MemoryRegions {
+    pub fn new() -> MemoryRegions {
+        MemoryRegions { regions: HashMap::new() }
+    }
+
+    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> &mut RegionData {
+        let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
+            vec![]
+        }).last().unwrap();
+        let region_as_bytes = current_region.used_bitmap as *const u8;
+        let mut all_in_use = true;
+        for i in 0..current_region.region_max_elements {
+            let byte = unsafe { region_as_bytes.offset(i.div_floor(&8) as isize).read() };
+            let current_bit = (byte >> (i % 8)) & 0b1;
+            all_in_use |= current_bit == 1;
+        }
+        if let Some(expected_new_region) = expected_new_region {
+            assert_eq!(expected_new_region, all_in_use);
+        }
+        if all_in_use {
+            Self::push_new_region(self, to_allocate_type.clone());
+        }
+        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap()
+    }
+
+    fn region(to_allocate_type: AllocatedObjectType, region_max_elements: usize) -> RegionData {
+        let object_size: usize = to_allocate_type.size();
+        let read_and_write = ProtFlags::PROT_READ | ProtFlags::PROT_WRITE;
+        let map_flags = MapFlags::MAP_NORESERVE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE;
+        let ptr = unsafe { mmap(null_mut(), object_size * region_max_elements, read_and_write, map_flags, -1, 0).unwrap() };
+        let used_bitmap = unsafe { mmap(null_mut(), region_max_elements.div_ceil(&size_of::<u8>()), read_and_write, map_flags, -1, 0).unwrap() };
+        unsafe { libc::memset(used_bitmap, 0, object_size * region_max_elements) };
+        RegionData {
+            ptr,
+            used_bitmap,
+            current_elements_count: 0,
+            region_type: to_allocate_type,
+            region_max_elements: 1,
+        }
+    }
+
+    fn push_new_region(&mut self, to_allocated_type: AllocatedObjectType) {
+        let regions = self.regions.get_mut(&to_allocated_type).unwrap();
+        let RegionData { region_max_elements, .. } = regions.last().unwrap();
+        let new_region_max_elements = *region_max_elements * 2;
+        let new_region = Self::region(to_allocated_type, new_region_max_elements);
+        regions.push(new_region);
+    }
+}
+
 
 pub struct GCState {
     roots: HashMap<*mut c_void, PointerMemoryLayout>,
@@ -141,7 +274,7 @@ pub struct FrameHeader {
 }
 
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FramePointerOffset(pub usize);
 
 pub trait StackframeMemoryLayout {

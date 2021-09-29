@@ -7,8 +7,9 @@ use std::sync::{Arc, RwLockWriteGuard};
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FullyOpaqueFrame, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use jit_common::java_stack::{JavaStack, JavaStatus};
+use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -127,6 +128,32 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             }*/
             InterpreterState::Jit { call_stack, jvm } => {
                 StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack), jvm }
+            }
+        }
+    }
+
+    pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+        let interpreter_state = self.int_state.as_ref().unwrap().deref();
+        match interpreter_state {
+            InterpreterState::Jit { call_stack, jvm } => {
+                let frame_ptr = call_stack.current_frame_ptr();
+                unsafe {
+                    let offseted = frame_ptr.offset(offset.0 as isize);
+                    FrameView::read_target(jvm, offseted, expected_type)
+                }
+            }
+        }
+    }
+
+    pub fn raw_write_at_frame_pointer_offset(&self, offset: FramePointerOffset, jv: jvalue) {
+        let interpreter_state = self.int_state.as_ref().unwrap().deref();
+        match interpreter_state {
+            InterpreterState::Jit { call_stack, jvm } => {
+                let frame_ptr = call_stack.current_frame_ptr();
+                unsafe {
+                    let offseted = frame_ptr.offset(offset.0 as isize);
+                    FrameView::raw_write_target(offseted, jv);
+                }
             }
         }
     }
@@ -254,7 +281,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 } = frame;
                 let is_top_frame = call_stack.top == call_stack.saved_registers.unwrap().frame_pointer;
                 let return_to_rip = if is_top_frame {
-                    Some(jvm.jit_state.read().unwrap().top_level_exit_code)
+                    Some(jvm.jit_state.with(|jit_state| jit_state.borrow().top_level_exit_code))
                 } else {
                     None
                 };
