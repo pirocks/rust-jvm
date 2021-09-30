@@ -69,27 +69,22 @@ pub enum IRInstr {
     Add {
         res: Register,
         a: Register,
-        b: Register,
     },
     Sub {
         res: Register,
-        a: Register,
         to_subtract: Register,
     },
     Div {
         res: Register,
-        to_divide: Register,
         divisor: Register,
     },
     Mod {
         res: Register,
-        to_divide: Register,
         divisor: Register,
     },
     Mul {
         res: Register,
         a: Register,
-        b: Register,
     },
     Const32bit {
         to: Register,

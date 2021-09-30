@@ -20,6 +20,7 @@ use iced_x86::BlockEncoderOptions;
 use iced_x86::code_asm::{CodeAssembler, dword_ptr, qword_ptr, r15, rax, rbp, rsp};
 use iced_x86::ConditionCode::l;
 use iced_x86::IntelFormatter;
+use iced_x86::OpCodeOperandKind::cl;
 use itertools::Itertools;
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
@@ -242,6 +243,9 @@ impl JITState {
                             let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
                             initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
                             initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
+                            let one_element_skip = Register(7);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
                             initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
                             initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
@@ -279,8 +283,48 @@ impl JITState {
                     //todo dup
                 }
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                    let exit_label = self.labeler.new_label(&mut labels);
-                    initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Todo {} }));
+                    let cpd_type = (*target_class).into();
+                    match resolver.lookup_type_loaded(&cpd_type) {
+                        None => {
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::InitClass { target_class: cpd_type } }));
+                        }
+                        Some((rc, _)) => {
+                            let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(name).unwrap();
+                            // dbg!(name.0.to_str(&resolver.jvm.string_pool));
+                            // dbg!(desc);
+                            // if field_type.try_unwrap_class_type().is_some(){
+                            //     dbg!(field_type.unwrap_class_type().0.to_str(&resolver.jvm.string_pool));
+                            //     dbg!(desc.0.unwrap_class_type().0.to_str(&resolver.jvm.string_pool));
+                            // }
+                            // assert_eq!(&desc.0, field_type);
+                            let class_ref_register = Register(0);
+                            let to_put_value = Register(1);
+                            let offset = Register(2);
+                            let null = Register(3);
+                            initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 1), to: class_ref_register }));
+                            initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 0), to: to_put_value }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: null, const_: 0 }));
+                            let npe_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::BranchEqual {
+                                a: class_ref_register,
+                                b: null,
+                                label: npe_label,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: offset, const_: (field_number * size_of::<jlong>()) as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add {
+                                res: class_ref_register,
+                                a: offset,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Store { to_address: class_ref_register, from: to_put_value }));
+                            let after_npe_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::BranchToLabel { label: after_npe_label }));
+                            initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: npe_label })));
+                            let npe_exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: VMExitType::Todo {} }));
+                            initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_npe_label })))
+                        }
+                    }
                 }
                 CompressedInstructionInfo::aconst_null => {
                     let const_register = Register(0);
@@ -354,8 +398,12 @@ impl JITState {
                     assembler.mov(rbp + to.0, from.to_native_64()).unwrap();
                 }
                 IRInstr::Load { .. } => todo!(),
-                IRInstr::Store { .. } => todo!(),
-                IRInstr::Add { .. } => todo!(),
+                IRInstr::Store { from, to_address } => {
+                    assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap();
+                }
+                IRInstr::Add { res, a } => {
+                    assembler.add(res.to_native_64(), a.to_native_64()).unwrap();
+                }
                 IRInstr::Sub { .. } => todo!(),
                 IRInstr::Div { .. } => todo!(),
                 IRInstr::Mod { .. } => todo!(),
@@ -367,8 +415,15 @@ impl JITState {
                     assembler.mov(to.to_native_64(), const_).unwrap();
                 }
                 IRInstr::BranchToLabel { label } => {
-                    let target_location = self.labels[&label];
-                    assembler.jmp(target_location as u64).unwrap();
+                    let target_location = self.labels.get(&label);
+                    match target_location {
+                        None => {
+                            assembler.je(iced_labels[&label]).unwrap();
+                        }
+                        Some(target_location) => {
+                            assembler.jmp(*target_location as u64).unwrap();
+                        }
+                    }
                 }
                 IRInstr::BranchEqual { label, a, b } => {
                     assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
@@ -754,6 +809,14 @@ impl JITState {
                 let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
                 Some(restart_address)
             }
+            VMExitType::InitClass { target_class } => {
+                let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
+                let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
+                let code = method_view.code_attribute().unwrap();
+                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, TransitionType::ResolveCalls).unwrap();
+                todo!()
+            }
         }
     }
 }
@@ -888,7 +951,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 
     fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + (self.max_locals as usize + self.max_stack as usize) * size_of::<jlong>()
+        size_of::<FrameHeader>() + (self.max_locals as usize + self.max_stack as usize + 1) * size_of::<jlong>()// max stack is maximum depth which means we need 1 one more for size
     }
 
     fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {

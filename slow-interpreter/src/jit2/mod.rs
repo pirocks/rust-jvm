@@ -41,6 +41,7 @@ pub enum VMExitType {
     ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    InitClass { target_class: CPDType },
     PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
     TopLevelReturn {},
     Todo {},
