@@ -125,5 +125,6 @@ pub enum IRInstr {
     LoadSP {
         to: Register
     },
+    FNOP,
     Label(IRLabel),
 }

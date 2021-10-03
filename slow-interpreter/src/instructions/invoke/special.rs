@@ -50,7 +50,6 @@ pub fn invoke_special_impl(
         setup_virtual_args(interpreter_state, &parsed_descriptor, &mut args, max_locals);
         assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
-        let arc = final_target_class.view();
         let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {

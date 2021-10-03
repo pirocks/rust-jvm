@@ -141,6 +141,7 @@ impl JavaStack {
     pub unsafe fn pop_frame(&mut self) {
         let current_header = self.current_frame_ptr() as *const FrameHeader;
         let current_frame_info = (*current_header).frame_info_ptr;
+        dbg!(current_frame_info);
         drop(Box::from_raw(current_frame_info));
         let new_rbp = (*current_header).prev_rpb;
         let new_sp = self.current_frame_ptr();

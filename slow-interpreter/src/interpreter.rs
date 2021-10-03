@@ -69,6 +69,15 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
             jit_state.borrow_mut().add_function(code, method_id, resolver);//todo fix method id jankyness
             drop(jit_state.borrow_mut());
+            dbg!(interpreter_state.get_java_stack().current_frame_ptr());
+            dbg!(interpreter_state.current_frame().operand_stack(jvm).types());
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(0, RuntimeType::LongType));
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(1, RuntimeType::LongType));
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(2, RuntimeType::LongType));
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(3, RuntimeType::LongType));
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(4, RuntimeType::LongType));
+            dbg!(interpreter_state.current_frame().local_vars(jvm).get(5000, RuntimeType::LongType));
+            // todo!("copy current args over. ");
             match JITState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
                 Ok(res) => {
                     assert!(res.is_none());

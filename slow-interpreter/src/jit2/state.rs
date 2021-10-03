@@ -152,6 +152,9 @@ impl JITState {
             let current_offset = ByteCodeOffset(byte_code_instr.offset);
             let current_byte_code_instr_count: u16 = i as u16;
             let next_byte_code_instr_count: u16 = (i + 1) as u16;
+            dbg!(current_byte_code_instr_count);
+            dbg!(next_byte_code_instr_count);
+            dbg!(byte_code_instr);
             match &byte_code_instr.info {
                 CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
                     match resolver.lookup_static(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
@@ -189,7 +192,13 @@ impl JITState {
                 CompressedInstructionInfo::aload_0 => {
                     let temp = Register(0);
                     initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }));
+                }
+                CompressedInstructionInfo::aload_1 => {
+                    let temp = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
+                    //todo dup
                 }
                 CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                     match resolver.lookup_special(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
@@ -268,19 +277,13 @@ impl JITState {
                 CompressedInstructionInfo::iconst_0 => {
                     let const_register = Register(0);
                     initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 0 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }))
                 }
                 CompressedInstructionInfo::iconst_1 => {
                     //todo dup
                     let const_register = Register(0);
                     initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 1 }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
-                }
-                CompressedInstructionInfo::aload_1 => {
-                    let const_register = Register(0);
-                    initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 1 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
-                    //todo dup
                 }
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
                     let cpd_type = (*target_class).into();
@@ -291,13 +294,6 @@ impl JITState {
                         }
                         Some((rc, _)) => {
                             let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(name).unwrap();
-                            // dbg!(name.0.to_str(&resolver.jvm.string_pool));
-                            // dbg!(desc);
-                            // if field_type.try_unwrap_class_type().is_some(){
-                            //     dbg!(field_type.unwrap_class_type().0.to_str(&resolver.jvm.string_pool));
-                            //     dbg!(desc.0.unwrap_class_type().0.to_str(&resolver.jvm.string_pool));
-                            // }
-                            // assert_eq!(&desc.0, field_type);
                             let class_ref_register = Register(0);
                             let to_put_value = Register(1);
                             let offset = Register(2);
@@ -329,7 +325,7 @@ impl JITState {
                 CompressedInstructionInfo::aconst_null => {
                     let const_register = Register(0);
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: const_register, const_: 0 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }))
                 }
                 CompressedInstructionInfo::putstatic { name, desc, target_class } => {
                     let exit_label = self.labeler.new_label(&mut labels);
@@ -351,6 +347,7 @@ impl JITState {
                 }
                 todo => todo!("{:?}", todo)
             }
+            initial_ir.push((current_offset, IRInstr::FNOP));
         }
         let mut ir = vec![];
 
@@ -418,7 +415,7 @@ impl JITState {
                     let target_location = self.labels.get(&label);
                     match target_location {
                         None => {
-                            assembler.je(iced_labels[&label]).unwrap();
+                            assembler.jmp(iced_labels[&label]).unwrap();
                         }
                         Some(target_location) => {
                             assembler.jmp(*target_location as u64).unwrap();
@@ -506,6 +503,9 @@ impl JITState {
                 }
                 IRInstr::LoadSP { to } => {
                     assembler.mov(to.to_native_64(), rsp).unwrap();
+                }
+                IRInstr::FNOP => {
+                    assembler.fnop().unwrap();
                 }
             }
         }
@@ -623,6 +623,7 @@ impl JITState {
             let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
             let rust_stack: u64 = stack_pointer as u64;
             let rust_frame: u64 = frame_pointer as u64;
+            dbg!(frame_pointer);
 
             let mut jit_code_context = JitCodeContext {
                 native_saved: SavedRegisters {
@@ -892,8 +893,17 @@ impl NaiveStackframeLayout {
         let mut stack_depth = HashMap::new();
         let mut current_depth = 0;
         for (i, instruct) in instructions.iter().enumerate() {
+            stack_depth.insert(i as u16, current_depth);
             match &instruct.info {
-                CompressedInstructionInfo::invokestatic { .. } => {}
+                CompressedInstructionInfo::invokestatic { descriptor, .. } => {
+                    current_depth -= descriptor.arg_types.len() as u16;
+                    match &descriptor.return_type {
+                        CompressedParsedDescriptorType::VoidType => {}
+                        _ => {
+                            current_depth += 1;
+                        }
+                    }
+                }
                 CompressedInstructionInfo::return_ => {}
                 CompressedInstructionInfo::aload_0 => {
                     current_depth += 1;
@@ -909,7 +919,7 @@ impl NaiveStackframeLayout {
                     current_depth += 1;
                 }
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                    current_depth -= 1;
+                    current_depth -= 2;
                 }
                 CompressedInstructionInfo::aconst_null => {
                     current_depth += 1;
@@ -923,8 +933,8 @@ impl NaiveStackframeLayout {
                 CompressedInstructionInfo::anewarray(_) => {}
                 todo => todo!("{:?}", todo)
             }
-            stack_depth.insert(i as u16, current_depth);
         }
+        dbg!(stack_depth.iter().map(|(offset, depth)| (*offset, *depth)).sorted_by_key(|(offset, _)| *offset).collect_vec());
         Self {
             max_locals,
             max_stack,
@@ -939,7 +949,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 
     fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
-        FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
+        FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + dbg!(self.stack_depth[&current_count]) - from_end) as usize * size_of::<jlong>())
     }
 
     fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
