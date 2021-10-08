@@ -152,9 +152,6 @@ impl JITState {
             let current_offset = ByteCodeOffset(byte_code_instr.offset);
             let current_byte_code_instr_count: u16 = i as u16;
             let next_byte_code_instr_count: u16 = (i + 1) as u16;
-            dbg!(current_byte_code_instr_count);
-            dbg!(next_byte_code_instr_count);
-            dbg!(byte_code_instr);
             match &byte_code_instr.info {
                 CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
                     match resolver.lookup_static(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
@@ -192,7 +189,7 @@ impl JITState {
                 CompressedInstructionInfo::aload_0 => {
                     let temp = Register(0);
                     initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
                 }
                 CompressedInstructionInfo::aload_1 => {
                     let temp = Register(0);
@@ -277,7 +274,7 @@ impl JITState {
                 CompressedInstructionInfo::iconst_0 => {
                     let const_register = Register(0);
                     initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 0 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }))
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
                 }
                 CompressedInstructionInfo::iconst_1 => {
                     //todo dup
@@ -325,11 +322,19 @@ impl JITState {
                 CompressedInstructionInfo::aconst_null => {
                     let const_register = Register(0);
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: const_register, const_: 0 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: dbg!(layout.operand_stack_entry(next_byte_code_instr_count, 0)) }))
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
                 }
                 CompressedInstructionInfo::putstatic { name, desc, target_class } => {
                     let exit_label = self.labeler.new_label(&mut labels);
-                    initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::PutStatic { target_class: CPDType::Ref(CPRefType::Class(*target_class)), target_type: desc.0.clone(), name: *name, frame_pointer_offset_of_to_put: layout.operand_stack_entry(current_byte_code_instr_count, 0) } }))
+                    initial_ir.push((current_offset, IRInstr::VMExit {
+                        exit_label,
+                        exit_type: VMExitType::PutStatic {
+                            target_class: CPDType::Ref(CPRefType::Class(*target_class)),
+                            target_type: desc.0.clone(),
+                            name: *name,
+                            frame_pointer_offset_of_to_put: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        },
+                    }))
                 }
                 CompressedInstructionInfo::anewarray(cpdtype) => {
                     let exit_label = self.labeler.new_label(&mut labels);
@@ -505,7 +510,7 @@ impl JITState {
                     assembler.mov(to.to_native_64(), rsp).unwrap();
                 }
                 IRInstr::FNOP => {
-                    assembler.fnop().unwrap();
+                    // assembler.fnop().unwrap();
                 }
             }
         }
@@ -651,6 +656,7 @@ impl JITState {
             //     pub magic_part_2: u64,
             // }
             let old_java_ip: *mut c_void;
+            drop(jit_state.borrow_mut());
             asm!(
             "push rbx",
             "push rbp",
@@ -701,7 +707,6 @@ impl JITState {
             //todo exception handling
             eprintln!("going out ");
             let exit_type = jit_state.borrow().exits.get(&old_java_ip).unwrap().clone();
-            drop(jit_state.borrow_mut());
             target_ip = match JITState::handle_exit(jit_state, exit_type, jvm, int_state, methodid, old_java_ip) {
                 None => {
                     return Ok(None);
@@ -792,23 +797,23 @@ impl JITState {
                 Some(restart_address)
             }
             VMExitType::AllocateVariableSizeArrayANewArray { target_type_sub_type, len_offset, res_write_offset } => {
-                drop(jitstate.borrow_mut());
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_type_sub_type).unwrap();
                 let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
-                use gc_memory_layout_common::THIS_THREAD_MEMORY_REGIONS;
                 let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), array_len);
-                let mut guard = THIS_THREAD_MEMORY_REGIONS.lock().unwrap();
-                let region_data = guard.find_or_new_region_for(allocated_object_type, None);
-                let allocation = region_data.get_allocation();
-                let to_write = jvalue { l: allocation as jobject };
-                int_state.raw_write_at_frame_pointer_offset(res_write_offset, to_write);
-                let jitstate_borrow = jitstate.borrow();
-                let code_id = jitstate_borrow.method_id_to_code[&methodid];
-                let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3);// anewarray is 3 bytes
-                let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                Some(restart_address)
+                jvm.gc.this_thread_memory_region.with(|memory_region| {
+                    let mut memory_region = memory_region.lock().unwrap();
+                    let region_data = memory_region.find_or_new_region_for(allocated_object_type, None);
+                    let allocation = region_data.get_allocation();
+                    let to_write = jvalue { l: allocation.as_ptr() as jobject };
+                    int_state.raw_write_at_frame_pointer_offset(res_write_offset, to_write);
+                    let jitstate_borrow = jitstate.borrow();
+                    let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                    let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
+                    let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
+                    let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3);// anewarray is 3 bytes
+                    let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
+                    Some(restart_address)
+                })
             }
             VMExitType::InitClass { target_class } => {
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();

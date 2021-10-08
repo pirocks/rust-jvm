@@ -19,20 +19,24 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
         Some(o) => {
             match o.deref() {
                 Object::Array(a) => {
-                    let cloned_arr: Vec<_> = a.elems.get().as_ref().unwrap().iter().map(|elem| elem.clone()).collect_vec();
+                    // let cloned_arr: Vec<_> = /*a.elems.get().as_ref().unwrap().iter().map(|elem| elem.clone()).collect_vec()*/todo!();
                     Some(jvm.allocate_object(Object::Array(ArrayObject {
-                        elems: UnsafeCell::new(cloned_arr),
+                        // elems: UnsafeCell::new(cloned_arr),
+                        len: todo!(),
+                        elems: todo!(),
+                        phantom_data: Default::default(),
                         elem_type: a.elem_type.clone(),
-                        monitor: jvm.thread_state.new_monitor("".to_string()),
+                        // monitor: jvm.thread_state.new_monitor("".to_string()),
                     })))
                 }
                 Object::Object(o) => {
                     jvm.allocate_object(Object::Object(NormalObject {
-                        monitor: jvm.thread_state.new_monitor("".to_string()),
+                        // monitor: jvm.thread_state.new_monitor("".to_string()),
                         objinfo: ObjectFieldsAndClass {
-                            fields: o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect(),
+                            fields: todo!()/*o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect()*/,
                             class_pointer: o.objinfo.class_pointer.clone(),
                         },
+                        obj_ptr: todo!()
                     })).into()
                 }
             }

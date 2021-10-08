@@ -220,7 +220,7 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
                         unreachable!()
                     }
                 };
-                let ArrayObject { elems: _, elem_type, monitor: _monitor } = temp.unwrap_array();
+                let ArrayObject { elem_type, .. } = temp.unwrap_array();
                 let array_object = ArrayObject::new_array(
                     jvm,
                     int_state,

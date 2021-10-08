@@ -42,7 +42,7 @@ use crate::instructions::special::*;
 use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::JavaValue;
+use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit2::MethodResolver;
 use crate::jit2::state::JITState;
 use crate::jvm_state::JVMState;
@@ -68,15 +68,6 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
         let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
             jit_state.borrow_mut().add_function(code, method_id, resolver);//todo fix method id jankyness
-            drop(jit_state.borrow_mut());
-            dbg!(interpreter_state.get_java_stack().current_frame_ptr());
-            dbg!(interpreter_state.current_frame().operand_stack(jvm).types());
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(0, RuntimeType::LongType));
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(1, RuntimeType::LongType));
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(2, RuntimeType::LongType));
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(3, RuntimeType::LongType));
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(4, RuntimeType::LongType));
-            dbg!(interpreter_state.current_frame().local_vars(jvm).get(5000, RuntimeType::LongType));
             // todo!("copy current args over. ");
             match JITState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
                 Ok(res) => {
@@ -275,15 +266,16 @@ pub fn monitor_for_function(
     synchronized: bool,
 ) -> Option<Arc<Monitor2>> {
     if synchronized {
-        let monitor = if method.is_static() {
+        let monitor: Arc<Monitor2> = if method.is_static() {
             let class_object = get_or_create_class_object(
                 jvm,
                 method.classview().type_(),
                 int_state,
             ).unwrap();
-            class_object.unwrap_normal_object().monitor.clone()
+            todo!()/*class_object.unwrap_normal_object().monitor.clone()*/
         } else {
-            int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()
+            /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
+            todo!()
         };
         monitor.lock(jvm, int_state).unwrap();
         monitor.into()
@@ -512,7 +504,10 @@ fn run_single_instruction(
         CInstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::monitorenter => {
-            interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_lock(jvm, interpreter_state);
+            let mut stack_entry_mut: StackEntryMut<'gc_life, '_> = interpreter_state.current_frame_mut();
+            let popped: JavaValue<'gc_life> = stack_entry_mut.pop(Some(RuntimeType::object()));
+            let gc_managed_object: GcManagedObject<'gc_life> = popped.unwrap_object_nonnull();
+            gc_managed_object.monitor_lock(jvm, interpreter_state);
         }
         CInstructionInfo::monitorexit => {
             interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);

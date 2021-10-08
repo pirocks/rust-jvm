@@ -140,7 +140,7 @@ unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, c
 unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, threadClass: jclass, obj: jobject) -> jboolean {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let monitor: Arc<Monitor2> = JavaValue::Object(from_object(jvm, obj)).unwrap_normal_object().monitor.clone();
+    let monitor: Arc<Monitor2> = todo!()/*JavaValue::Object(from_object(jvm, obj)).unwrap_normal_object().monitor.clone()*/;
     monitor.this_thread_holds_lock(jvm) as jboolean
 }
 

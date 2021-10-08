@@ -17,3 +17,4 @@ jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 lazy_static = "1.4.0"
 nix = "0.22.1"
 num-integer = "0.1.44"
+rangemap = "0.1.13"

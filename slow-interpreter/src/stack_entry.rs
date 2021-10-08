@@ -221,12 +221,12 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                 RuntimeType::Ref(_) => {
                     let obj = (target as *const jobject).read();
                     // eprintln!("Read:{:?}", obj);
-                    match NonNull::new(obj as *mut Object<'gc_life>) {
+                    match NonNull::new(obj as *mut c_void) {
                         None => {
                             JavaValue::Object(None)
                         }
                         Some(ptr) => {
-                            let res = JavaValue::Object(GcManagedObject::from_native(ptr, &jvm.gc).into());
+                            let res = JavaValue::Object(GcManagedObject::from_native(ptr, jvm).into());
                             // res.self_check();
                             res
                         }

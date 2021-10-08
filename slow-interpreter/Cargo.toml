@@ -22,6 +22,7 @@ libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 rangemap = { git = "https://github.com/pirocks/rangemap.git" }
+lazy_static = "1.4.0"
 #jit = { path = "../jit" }
 libc = "0.2.66"
 regex = "1"

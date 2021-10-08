@@ -130,9 +130,12 @@ pub mod method_type {
             let res = int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type();
             let ptypes_arr = JavaValue::Object(Some(jvm.allocate_object(
                 Object::Array(ArrayObject {
-                    elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
+                    // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
+                    len: todo!(),
+                    elems: todo!(),
+                    phantom_data: Default::default(),
                     elem_type: CClassName::class().into(),
-                    monitor: jvm.thread_state.new_monitor("".to_string()),
+                    // monitor: jvm.thread_state.new_monitor("".to_string()),
                 }))));
             res.set_ptypes(ptypes_arr);
             res.set_rtype(rtype);

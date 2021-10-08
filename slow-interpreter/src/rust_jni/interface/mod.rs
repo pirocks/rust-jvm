@@ -35,7 +35,7 @@ use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
-use crate::java_values::JavaValue;
+use crate::java_values::{ByAddressGcManagedObject, JavaValue};
 use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
@@ -712,7 +712,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     classes.anon_classes.write().unwrap().push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
-    classes.class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
+    classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
     jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
     prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());

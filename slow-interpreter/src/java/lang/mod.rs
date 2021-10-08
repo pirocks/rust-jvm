@@ -261,7 +261,7 @@ pub mod class {
     use crate::interpreter_util::{push_new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{ByAddressGcManagedObject, GcManagedObject, JavaValue};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -282,7 +282,7 @@ pub mod class {
         }
 
         pub fn as_runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-            jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddress(self.normal_object.clone())).unwrap().clone().0
+            jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddressGcManagedObject(self.normal_object.clone())).unwrap().clone().0
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
@@ -453,9 +453,12 @@ pub mod string {
 
             let vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
             let array_object = ArrayObject {
-                elems: UnsafeCell::new(vec1),
+                // elems: UnsafeCell::new(vec1),
+                len: todo!(),
+                elems: todo!(),
+                phantom_data: Default::default(),
                 elem_type: CPDType::CharType,
-                monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
+                // monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
             let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
@@ -604,12 +607,14 @@ pub mod thread {
             const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
             JThread {
                 normal_object: jvm.allocate_object(Object::Object(NormalObject {
-                    monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
+                    /*monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
 
                     objinfo: ObjectFieldsAndClass {
                         fields: (0..NUMBER_OF_LOCAL_VARS_IN_THREAD).map(|_| UnsafeCell::new(NativeJavaValue { object: null_mut() })).collect_vec(),
                         class_pointer: Arc::new(RuntimeClass::Top),
-                    },
+                    },*/
+                    objinfo: todo!(),
+                    obj_ptr: todo!(),
                 }))
             }
         }

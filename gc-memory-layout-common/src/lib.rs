@@ -6,7 +6,8 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::null_mut;
+use std::ops::Range;
+use std::ptr::{NonNull, null_mut};
 use std::sync::{Mutex, MutexGuard};
 use std::thread::ThreadId;
 
@@ -14,6 +15,7 @@ use itertools::{Either, Itertools};
 use lazy_static::lazy_static;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use num_integer::Integer;
+use rangemap::RangeMap;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
 use rust_jvm_common::classnames::ClassName;
@@ -68,9 +70,6 @@ impl AllocatedObjectType {
     }
 }
 
-lazy_static! {
-    pub static ref THIS_THREAD_MEMORY_REGIONS: Mutex<MemoryRegions> = Mutex::new(MemoryRegions::new());
-}
 
 pub struct RegionData {
     ptr: *mut c_void,
@@ -81,29 +80,37 @@ pub struct RegionData {
 }
 
 impl RegionData {
-    pub fn get_allocation(&mut self) -> *mut c_void {
+    pub fn get_allocation(&mut self) -> NonNull<c_void> {
         let res = self.ptr;
         self.current_elements_count += 1;
-        res
+        NonNull::new(res).unwrap()
     }
 }
 
 
 unsafe impl Send for RegionData {}
 
+unsafe impl Send for MemoryRegions {}
+
 pub struct MemoryRegions {
     regions: HashMap<AllocatedObjectType, Vec<RegionData>>,
+    ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedObjectType>,
 }
 
 impl MemoryRegions {
     pub fn new() -> MemoryRegions {
-        MemoryRegions { regions: HashMap::new() }
+        MemoryRegions { regions: HashMap::new(), ptr_to_object_type: RangeMap::new() }
     }
 
     pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> &mut RegionData {
+        let mut new_allocated_range = None;
         let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
-            vec![]
+            let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), 1);
+            vec![region_data]
         }).last().unwrap();
+        if let Some(new_allocated_range) = new_allocated_range {
+            self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
+        }
         let region_as_bytes = current_region.used_bitmap as *const u8;
         let mut all_in_use = true;
         for i in 0..current_region.region_max_elements {
@@ -120,19 +127,26 @@ impl MemoryRegions {
         self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap()
     }
 
-    fn region(to_allocate_type: AllocatedObjectType, region_max_elements: usize) -> RegionData {
+    pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
+        self.ptr_to_object_type.get(&ptr).unwrap()
+    }
+
+    fn region(to_allocate_type: AllocatedObjectType, region_max_elements: usize) -> (RegionData, Range<NonNull<c_void>>) {
         let object_size: usize = to_allocate_type.size();
         let read_and_write = ProtFlags::PROT_READ | ProtFlags::PROT_WRITE;
         let map_flags = MapFlags::MAP_NORESERVE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE;
-        let ptr = unsafe { mmap(null_mut(), object_size * region_max_elements, read_and_write, map_flags, -1, 0).unwrap() };
+        let region_len = object_size * region_max_elements;
+        let ptr = unsafe { mmap(null_mut(), region_len, read_and_write, map_flags, -1, 0).unwrap() };
         let used_bitmap = unsafe { mmap(null_mut(), region_max_elements.div_ceil(&size_of::<u8>()), read_and_write, map_flags, -1, 0).unwrap() };
-        unsafe { libc::memset(used_bitmap, 0, object_size * region_max_elements) };
-        RegionData {
-            ptr,
-            used_bitmap,
-            current_elements_count: 0,
-            region_type: to_allocate_type,
-            region_max_elements: 1,
+        unsafe { libc::memset(used_bitmap, 0, region_len) };
+        unsafe {
+            (RegionData {
+                ptr,
+                used_bitmap,
+                current_elements_count: 0,
+                region_type: to_allocate_type,
+                region_max_elements: 1,
+            }, NonNull::new(ptr).unwrap()..NonNull::new(ptr.offset(region_len as isize)).unwrap())
         }
     }
 
@@ -140,7 +154,8 @@ impl MemoryRegions {
         let regions = self.regions.get_mut(&to_allocated_type).unwrap();
         let RegionData { region_max_elements, .. } = regions.last().unwrap();
         let new_region_max_elements = *region_max_elements * 2;
-        let new_region = Self::region(to_allocated_type, new_region_max_elements);
+        let (new_region, range) = Self::region(to_allocated_type.clone(), new_region_max_elements);
+        self.ptr_to_object_type.insert(range, to_allocated_type.clone());
         regions.push(new_region);
     }
 }

@@ -56,7 +56,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
         }
     };
     let mut guard = jvm.classes.write().unwrap();
-    to_object(guard.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0.into())
+    to_object(guard.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().0.clone().into())
 }
 
 #[no_mangle]

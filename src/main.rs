@@ -77,8 +77,10 @@ fn main() {
 
 fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
     let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope, gc);
+
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
     unsafe { JVM = Some(transmute(jvm_ref)) }
+    jvm_ref.add_class_class_class_object();
     let thread_state = &jvm_ref.thread_state;
     let main_thread: Arc<JavaThread> = ThreadState::bootstrap_main_thread(jvm_ref, &jvm_ref.thread_state.threads);
     let main_send = thread_state.setup_main_thread(jvm_ref, Box::leak(box main_thread.clone()));//todo fix this leak

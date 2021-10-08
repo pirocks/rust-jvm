@@ -21,6 +21,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 use classfile_view::view::{ClassBackedView, ClassView};
 use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
@@ -34,7 +35,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
-use crate::java_values::{GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressGcManagedObject, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit2::state::{JITState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
@@ -100,7 +101,7 @@ pub struct Classes<'gc_life> {
     //todo needs to be used for all instances of getClass
     pub loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass<'gc_life>>>>,
     pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>)>,
-    pub class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>>,
+    pub class_object_pool: BiMap<ByAddressGcManagedObject<'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>>,
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass<'gc_life>>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc_life>>>>,
     pub class_class: Arc<RuntimeClass<'gc_life>>,
@@ -137,7 +138,7 @@ impl<'gc_life> Classes<'gc_life> {
 
     pub fn get_class_obj(&self, ptypeview: CPDType) -> Option<GcManagedObject<'gc_life>> {
         let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
-        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().0;
+        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().0.clone();
         Some(obj)
     }
 
@@ -167,7 +168,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let string_pool = CompressedClassfileStringPool::new();
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
-        let mut jvm = Self {
+        let jvm = Self {
             jit_state: &JITSTATE,
             compiled_mode_active: true,
             libjava_path: libjava,
@@ -203,7 +204,6 @@ impl<'gc_life> JVMState<'gc_life> {
             monitors2: RwLock::new(vec![]),
             function_frame_type_data: Default::default(),
         };
-        jvm.add_class_class_class_object();
         (args, jvm)
     }
 
@@ -236,22 +236,25 @@ impl<'gc_life> JVMState<'gc_life> {
         self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
 
-    fn add_class_class_class_object(&mut self) {
+    pub fn add_class_class_class_object(&'gc_life self) {
         let mut classes = self.classes.write().unwrap();
         //todo desketchify this
         let mut fields: HashMap<String, JavaValue<'gc_life>, RandomState> = Default::default();
         fields.insert("name".to_string(), JavaValue::null());
         fields.insert("classLoader".to_string(), JavaValue::null());
         const MAX_LOCAL_VARS: i32 = 100;
+        let mut fields_vec = (0..MAX_LOCAL_VARS).map(|_| NativeJavaValue { object: null_mut() }).collect_vec();
         let class_object = self.allocate_object(Object::Object(NormalObject {
-            monitor: self.thread_state.new_monitor("class class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields: (0..MAX_LOCAL_VARS).map(|_| UnsafeCell::new(NativeJavaValue { object: null_mut() })).collect_vec(),
+                fields: RwLock::new(fields_vec.as_mut_slice()),
                 class_pointer: classes.class_class.clone(),
             },
+            obj_ptr: None,
         }));
         let runtime_class = ByAddress(classes.class_class.clone());
-        classes.class_object_pool.insert(ByAddress(class_object), runtime_class);
+        classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), runtime_class);
+        let runtime_class = classes.class_class.clone();
+        classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 
     fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
@@ -266,7 +269,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
-        let class_object_pool: BiMap<ByAddress<GcManagedObject<'gc_life>>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
+        let class_object_pool: BiMap<ByAddressGcManagedObject<'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
             initiating_loaders,
@@ -317,8 +320,8 @@ impl<'gc_life> JVMState<'gc_life> {
         }
     }
 
-    pub fn allocate_object(&self, object: Object<'gc_life>) -> GcManagedObject<'gc_life> {
-        self.gc.allocate_object(object)
+    pub fn allocate_object(&'gc_life self, object: Object<'gc_life, 'l>) -> GcManagedObject<'gc_life> {
+        self.gc.allocate_object(self, object)
     }
 }
 

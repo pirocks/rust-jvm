@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
@@ -23,7 +23,7 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressGcManagedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -138,7 +138,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                     let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                     let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
                                     let obj = create_class_object(jvm, int_state, None, loader)?;
-                                    jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(obj), ByAddress(res.clone()));
+                                    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(obj), ByAddress(res.clone()));
                                     res
                                 }
                             }
@@ -269,7 +269,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 jvm.sink_function_verification_date(&verification_types, res.clone());
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
-                jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object.clone()), ByAddress(res.clone()));
+                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
             CPRefType::Array(sub_type) => {
@@ -279,7 +279,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
             }
         },
     };
-    jvm.classes.write().unwrap().class_object_pool.insert(ByAddress(class_object), ByAddress(runtime_class.clone()));
+    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
 }
 
@@ -306,12 +306,14 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         }
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
+        let mut fields = JVMState::get_class_field_numbers().into_values().map(|(_, type_)| default_value(type_).to_native()).collect_vec();
         return Ok(jvm.allocate_object(Object::Object(NormalObject {
-            monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
+            // monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
-                fields: JVMState::get_class_field_numbers().into_values().map(|(_, type_)| UnsafeCell::new(default_value(type_).to_native())).collect_vec(),
+                fields: RwLock::new(fields.as_mut_slice()),
                 class_pointer: jvm.classes.read().unwrap().class_class.clone(),
             },
+            obj_ptr: None
         })));
     }
     let class_object = match loader {

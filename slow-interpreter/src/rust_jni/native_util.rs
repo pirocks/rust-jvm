@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::os::raw::c_void;
 use std::ptr::NonNull;
 
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
@@ -48,9 +49,9 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
 }
 
 pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
-    let option = NonNull::new(obj as *mut Object<'gc_life>)?;
+    let option = NonNull::new(obj as *mut c_void)?;
     assert!(jvm.gc.all_allocated_object.read().unwrap().contains(&option));
-    Some(GcManagedObject::from_native(option, &jvm.gc))
+    Some(GcManagedObject::from_native(option, jvm))
 }
 
 pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
