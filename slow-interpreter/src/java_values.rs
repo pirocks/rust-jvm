@@ -1,4 +1,4 @@
-use std::cell::UnsafeCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
@@ -32,12 +32,12 @@ use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
 
 thread_local! {
-    static THIS_THREAD_MEMORY_REGIONS: Mutex<MemoryRegions> = Mutex::new(MemoryRegions::new());
+    static THIS_THREAD_MEMORY_REGIONS: RefCell<MemoryRegions> = RefCell::new(MemoryRegions::new());
 }
 
 pub struct GC<'gc_life> {
     //doesn't really need to be atomic usize
-    pub this_thread_memory_region: &'static LocalKey<Mutex<MemoryRegions>>,
+    pub this_thread_memory_region: &'static LocalKey<RefCell<MemoryRegions>>,
     vm_temp_owned_roots: RwLock<HashMap<NonNull<c_void>, AtomicUsize>>,
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     phantom: PhantomData<&'gc_life ()>,
@@ -62,13 +62,13 @@ impl<'gc_life> GC<'gc_life> {
     pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: Object<'gc_life, 'l>) -> GcManagedObject<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let allocated = self.this_thread_memory_region.with(|memory_regions| {
-            let mut guard = memory_regions.lock().unwrap();
+            let mut guard = memory_regions.borrow_mut();
             let allocated_object_type = match &object {
                 Object::Array(arr) => {
                     todo!()
                 }
                 Object::Object(obj) => {
-                    runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, usize::MAX)
+                    runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None)
                 }
             };
             let memory_region = guard.find_or_new_region_for(allocated_object_type, None);
@@ -268,12 +268,11 @@ impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc_life JVMState<'gc_life>) -> Self {
         jvm.gc.register_root_reentrant(raw_ptr);
         jvm.gc.this_thread_memory_region.with(|memory_region| {
-            let guard = memory_region.lock().unwrap();
+            let guard = memory_region.borrow_mut();
             let allocated_type = guard.find_object_allocated_type(raw_ptr);
             let obj = match allocated_type {
                 AllocatedObjectType::Class { size, name, loader } => {
                     let classes = jvm.classes.read().unwrap();
-                    dbg!(name.0.to_str(&jvm.string_pool));
                     let runtime_class = classes.loaded_classes_by_type.get(loader).unwrap().get(&(*name).into()).unwrap();
                     let runtime_class_class = runtime_class.unwrap_class_class();
                     let num_fields = runtime_class_class.recursive_num_fields;

@@ -17,7 +17,6 @@ use crate::verifier::TypeSafetyError;
 pub mod verifier;
 
 pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    dbg!(to_verify.0.to_str(vf.string_pool));
     class_is_type_safe(vf, &ClassWithLoader {
         class_name: to_verify,
         loader,

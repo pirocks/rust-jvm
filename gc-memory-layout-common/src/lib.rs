@@ -3,6 +3,7 @@
 #![feature(destructuring_assignment)]
 #![feature(int_roundings)]
 
+use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -18,7 +19,6 @@ use num_integer::Integer;
 use rangemap::RangeMap;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -70,7 +70,7 @@ impl AllocatedObjectType {
     }
 }
 
-
+#[repr(packed, C)]
 pub struct RegionData {
     ptr: *mut c_void,
     used_bitmap: *mut c_void,
@@ -92,8 +92,12 @@ unsafe impl Send for RegionData {}
 
 unsafe impl Send for MemoryRegions {}
 
+
+//work around thread locals requiring Sync, when not actually required
+unsafe impl Sync for MemoryRegions {}
+
 pub struct MemoryRegions {
-    regions: HashMap<AllocatedObjectType, Vec<RegionData>>,
+    regions: HashMap<AllocatedObjectType, Vec<UnsafeCell<RegionData>>>,
     ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedObjectType>,
 }
 
@@ -106,14 +110,14 @@ impl MemoryRegions {
         let mut new_allocated_range = None;
         let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
             let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), 1);
-            vec![region_data]
-        }).last().unwrap();
+            vec![UnsafeCell::new(region_data)]
+        }).last_mut().unwrap();
         if let Some(new_allocated_range) = new_allocated_range {
             self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
         }
-        let region_as_bytes = current_region.used_bitmap as *const u8;
+        let region_as_bytes = current_region.get_mut().used_bitmap as *const u8;
         let mut all_in_use = true;
-        for i in 0..current_region.region_max_elements {
+        for i in 0..current_region.get_mut().region_max_elements {
             let byte = unsafe { region_as_bytes.offset(i.div_floor(&8) as isize).read() };
             let current_bit = (byte >> (i % 8)) & 0b1;
             all_in_use |= current_bit == 1;
@@ -124,7 +128,7 @@ impl MemoryRegions {
         if all_in_use {
             Self::push_new_region(self, to_allocate_type.clone());
         }
-        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap()
+        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().get_mut()
     }
 
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
@@ -152,11 +156,11 @@ impl MemoryRegions {
 
     fn push_new_region(&mut self, to_allocated_type: AllocatedObjectType) {
         let regions = self.regions.get_mut(&to_allocated_type).unwrap();
-        let RegionData { region_max_elements, .. } = regions.last().unwrap();
+        let RegionData { region_max_elements, .. } = regions.last_mut().unwrap().get_mut();
         let new_region_max_elements = *region_max_elements * 2;
         let (new_region, range) = Self::region(to_allocated_type.clone(), new_region_max_elements);
         self.ptr_to_object_type.insert(range, to_allocated_type.clone());
-        regions.push(new_region);
+        regions.push(UnsafeCell::new(new_region));
     }
 }
 

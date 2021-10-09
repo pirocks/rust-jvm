@@ -283,7 +283,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 let return_to_rip = if is_top_frame {
                     Some(jvm.jit_state.with(|jit_state| jit_state.borrow().top_level_exit_code))
                 } else {
-                    None
+                    // None
+                    Some(jvm.jit_state.with(|jit_state| jit_state.borrow().top_level_exit_code))
                 };
                 if let Some(NonNativeFrameData { pc, pc_offset }) = non_native_data {
                     if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {

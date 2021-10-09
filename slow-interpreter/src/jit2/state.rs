@@ -21,7 +21,7 @@ use iced_x86::code_asm::{CodeAssembler, dword_ptr, qword_ptr, r15, rax, rbp, rsp
 use iced_x86::ConditionCode::l;
 use iced_x86::IntelFormatter;
 use iced_x86::OpCodeOperandKind::cl;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
@@ -31,7 +31,7 @@ use jit_common::{JitCodeContext, SavedRegisters};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jdouble, jlong, jobject, jvalue};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::CompressedClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -350,6 +350,50 @@ impl JITState {
                         },
                     }))
                 }
+                CompressedInstructionInfo::new(class_name) => {
+                    match resolver.lookup_type_loaded(&(*class_name).into()) {
+                        None => {
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit {
+                                exit_label,
+                                exit_type: VMExitType::InitClass {
+                                    target_class: CPDType::Ref(CPRefType::Class(*class_name)),
+                                },
+                            }))
+                        }
+                        Some((rc, loader)) => {
+                            let allocated_type = runtime_class_to_allocated_object_type(rc.deref(), loader, None);
+                            resolver.jvm.gc.this_thread_memory_region.with(|memory_region| {
+                                let mut guard = memory_region.borrow_mut();
+                                let region = guard.find_or_new_region_for(allocated_type, None);
+                                todo!()
+                            });
+                            todo!("need to actually do allocation")
+                        }
+                    }
+                }
+                CompressedInstructionInfo::dup => {
+                    let temp_register = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 0), to: temp_register }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
+                }
+                CompressedInstructionInfo::ldc(Either::Left(left_ldc)) => {
+                    match left_ldc {
+                        CompressedLdcW::String { str } => {
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit {
+                                exit_label,
+                                exit_type: VMExitType::Todo {},
+                            }))
+                        }
+                        CompressedLdcW::Class { .. } => todo!(),
+                        CompressedLdcW::Float { .. } => todo!(),
+                        CompressedLdcW::Integer { .. } => todo!(),
+                        CompressedLdcW::MethodType { .. } => todo!(),
+                        CompressedLdcW::MethodHandle { .. } => todo!(),
+                        CompressedLdcW::LiveObject(_) => todo!(),
+                    }
+                }
                 todo => todo!("{:?}", todo)
             }
             initial_ir.push((current_offset, IRInstr::FNOP));
@@ -488,6 +532,7 @@ impl JITState {
                     }
                     //rsp is now equal is to prev rbp + 1, so that we can pop the previous rip in ret
                     assembler.mov(rsp, rbp).unwrap();
+                    // assembler.add(rsp,size_of::<*mut c_void>() as i32).unwrap();
                     assert_eq!(offset_of!(FrameHeader,prev_rip), 0);
                     //load prev fram pointer
                     assembler.mov(rbp, rbp + offset_of!(FrameHeader,prev_rpb)).unwrap();
@@ -799,9 +844,9 @@ impl JITState {
             VMExitType::AllocateVariableSizeArrayANewArray { target_type_sub_type, len_offset, res_write_offset } => {
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_type_sub_type).unwrap();
                 let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
-                let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), array_len);
+                let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len));
                 jvm.gc.this_thread_memory_region.with(|memory_region| {
-                    let mut memory_region = memory_region.lock().unwrap();
+                    let mut memory_region = memory_region.borrow_mut();
                     let region_data = memory_region.find_or_new_region_for(allocated_object_type, None);
                     let allocation = region_data.get_allocation();
                     let to_write = jvalue { l: allocation.as_ptr() as jobject };
@@ -827,7 +872,7 @@ impl JITState {
     }
 }
 
-pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: usize) -> AllocatedObjectType {
+pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
     match ref_type {
         RuntimeClass::Byte => panic!(),
         RuntimeClass::Boolean => panic!(),
@@ -852,13 +897,13 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 RuntimeClass::Object(_) | RuntimeClass::Array(_) => {
                     return AllocatedObjectType::ObjectArray {
                         sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
-                        len: arr_len,
+                        len: arr_len.unwrap(),
                         sub_type_loader: loader,
                     };
                 }
                 RuntimeClass::Top => panic!()
             };
-            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len }
+            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() }
         }
         RuntimeClass::Object(class_class) => {
             AllocatedObjectType::Class {
@@ -936,10 +981,18 @@ impl NaiveStackframeLayout {
                     current_depth -= 1;
                 }
                 CompressedInstructionInfo::anewarray(_) => {}
+                CompressedInstructionInfo::new(_) => {
+                    current_depth += 1;
+                }
+                CompressedInstructionInfo::dup => {
+                    current_depth += 1;
+                }
+                CompressedInstructionInfo::ldc(Either::Left(_)) => {
+                    current_depth += 1;
+                }
                 todo => todo!("{:?}", todo)
             }
         }
-        dbg!(stack_depth.iter().map(|(offset, depth)| (*offset, *depth)).sorted_by_key(|(offset, _)| *offset).collect_vec());
         Self {
             max_locals,
             max_stack,
@@ -954,7 +1007,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 
     fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
-        FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + dbg!(self.stack_depth[&current_count]) - from_end) as usize * size_of::<jlong>())
+        FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
     }
 
     fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
