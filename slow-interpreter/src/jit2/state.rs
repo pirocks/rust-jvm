@@ -26,7 +26,7 @@ use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FrameHeader, FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MemoryRegions, ObjectMemoryLayout, StackframeMemoryLayout};
+use gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FrameHeader, FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MemoryRegions, ObjectMemoryLayout, RegionData, StackframeMemoryLayout};
 use jit_common::{JitCodeContext, SavedRegisters};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jdouble, jlong, jobject, jvalue};
@@ -363,11 +363,82 @@ impl JITState {
                         }
                         Some((rc, loader)) => {
                             let allocated_type = runtime_class_to_allocated_object_type(rc.deref(), loader, None);
-                            resolver.jvm.gc.this_thread_memory_region.with(|memory_region| {
+                            let region_data_ptr = resolver.jvm.gc.this_thread_memory_region.with(|memory_region| {
                                 let mut guard = memory_region.borrow_mut();
-                                let region = guard.find_or_new_region_for(allocated_type, None);
-                                todo!()
+                                let region = guard.find_or_new_region_for(allocated_type.clone(), None);
+                                let region_data_ptr = region.get_mut().get_mut() as *mut RegionData;
+                                region_data_ptr
                             });
+                            let ptr_offset = offset_of!(RegionData,ptr);
+                            let used_bitmap_offset = offset_of!(RegionData,used_bitmap);
+                            let region_max_elements_offset = offset_of!(RegionData,region_max_elements);
+                            let current_elements_count_offset = offset_of!(RegionData,current_elements_count);
+                            let free_search_index_offset = offset_of!(RegionData,free_search_index);
+                            let region_data_ptr = Register(0);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: region_data_ptr, const_: region_data_ptr as usize as u64 }));
+                            let current_elements_count = Register(1);
+                            let current_elements_count_offset_ = Register(2);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: current_elements_count, to: region_data_ptr }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: current_elements_count_offset_, const_: current_elements_count_offset as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: current_elements_count, a: current_elements_count_offset_ }));
+                            initial_ir.push((current_offset, IRInstr::Load { to: current_elements_count, from_address: current_elements_count }));
+                            let max_elements_count = Register(3);
+                            let max_elements_count_offset_ = Register(4);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: max_elements_count, to: region_data_ptr }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: max_elements_count_offset_, const_: region_max_elements_offset as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: max_elements_count, a: max_elements_count_offset_ }));
+                            initial_ir.push((current_offset, IRInstr::Load { to: max_elements_count, from_address: max_elements_count }));
+                            let need_new_region_exit = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::BranchEqual {
+                                a: max_elements_count,
+                                b: current_elements_count,
+                                label: need_new_region_exit,
+                            }));
+                            //todo for now have no gc, so no need to search
+                            let free_search_index = Register(3);
+                            let free_search_index_offset_ = Register(4);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: free_search_index, to: region_data_ptr }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: free_search_index_offset_, const_: free_search_index_offset as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: free_search_index, a: free_search_index_offset_ }));
+                            initial_ir.push((current_offset, IRInstr::Load { to: free_search_index, from_address: free_search_index }));
+
+
+                            //registers in use beyond here: r1, r2, r3, r4, r5, r6, r7, r8 ,r9
+                            let eight = Register(5);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: eight, const_: 8 }));
+
+                            let current_index = Register(6);
+                            let current_index_div_8 = Register(7);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: current_index, to: current_index_div_8 }));
+                            initial_ir.push((current_offset, IRInstr::Div { res: current_index_div_8, divisor: eight }));
+                            let current_ptr = Register(8);
+
+                            let current_ptr_bitfield = Register(9);
+
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: free_search_index, to: current_index }));
+
+
+                            let ptr_base = Register(1);
+                            let ptr_base_offset_ = Register(2);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: ptr_base, to: region_data_ptr }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: ptr_base_offset_, const_: ptr_offset as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: ptr_base, a: ptr_base_offset_ }));
+                            initial_ir.push((current_offset, IRInstr::Load { to: ptr_base, from_address: ptr_base }));
+
+
+                            let bitmap_base = Register(3);
+                            let bitmap_base_offset_ = Register(4);
+                            initial_ir.push((current_offset, IRInstr::CopyRegister { from: bitmap_base, to: region_data_ptr }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: bitmap_base_offset_, const_: used_bitmap_offset as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: bitmap_base, a: bitmap_base_offset_ }));
+                            initial_ir.push((current_offset, IRInstr::Load { to: bitmap_base, from_address: bitmap_base }));
+
+                            initial_ir.push((current_offset, IRInstr::VMExit {
+                                exit_label,
+                                exit_type: VMExitType::NeedNewRegion {
+                                    target_class: allocated_type,
+                                },
+                            }));
                             todo!("need to actually do allocation")
                         }
                     }
@@ -645,12 +716,20 @@ impl JITState {
                                         jvm: &'gc_life JVMState<'gc_life>,
                                         int_state: &mut InterpreterStateGuard<'gc_life, 'l>,
                                         code: &CompressedCode,
+                                        old_java_ip: *mut c_void,
                                         transition_type: TransitionType,
     ) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         transition_stack_frame(transition_type, int_state.get_java_stack());
         let instruct_pointer = int_state.get_java_stack().saved_registers().instruction_pointer;
-        let compiled_code_id = *jit_state.borrow().function_addresses.get(&instruct_pointer).unwrap();
-        let return_to_byte_code_offset = *jit_state.borrow().address_to_byte_code_offset.get(&compiled_code_id).unwrap().get(&instruct_pointer).unwrap();
+        assert_eq!(instruct_pointer, old_java_ip);
+        let compiled_code_id = *dbg!(&jit_state.borrow().function_addresses).get(&instruct_pointer).unwrap();
+        let temp = jit_state.borrow();
+        let compiled_code = temp.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
+        dbg!(compiled_code);
+        dbg!(instruct_pointer);
+        // problem here is that a function call overwrites the old old ip
+        let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
+        drop(temp);
         let new_base_address = jit_state.borrow_mut().add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader() });
         let new_code_id = *jit_state.borrow().function_addresses.get(&new_base_address).unwrap();
         let start_byte_code_addresses = jit_state.borrow().address_to_byte_code_offset.get(&new_code_id).unwrap().get_reverse(&return_to_byte_code_offset).unwrap().clone();
@@ -785,7 +864,7 @@ impl JITState {
                     let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
                     let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
                     let code = method_view.code_attribute().unwrap();
-                    Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, TransitionType::ResolveCalls).unwrap();
+                    Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
                     todo!()
                 }
             }
@@ -802,7 +881,7 @@ impl JITState {
                 let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
                 let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
                 let code = method_view.code_attribute().unwrap();
-                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, TransitionType::ResolveCalls).unwrap();
+                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
                 todo!()
             }
             VMExitType::Todo { .. } => {
@@ -861,11 +940,13 @@ impl JITState {
                 })
             }
             VMExitType::InitClass { target_class } => {
+                let saved = int_state.get_java_stack().saved_registers;
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                int_state.get_java_stack().saved_registers = saved;
                 let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
                 let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
                 let code = method_view.code_attribute().unwrap();
-                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, TransitionType::ResolveCalls).unwrap();
+                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
                 todo!()
             }
         }

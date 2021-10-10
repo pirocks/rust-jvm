@@ -66,6 +66,10 @@ pub enum IRInstr {
         to_address: Register,
         from: Register,
     },
+    CopyRegister {
+        from: Register,
+        to: Register,
+    },
     Add {
         res: Register,
         a: Register,
@@ -85,6 +89,14 @@ pub enum IRInstr {
     Mul {
         res: Register,
         a: Register,
+    },
+    BinaryBitAnd {
+        res: Register,
+        a: Register,
+    },
+    ForwardBitScan {
+        to_scan: Register,
+        res: Register,
     },
     Const32bit {
         to: Register,

@@ -13,7 +13,7 @@ use itertools::Itertools;
 use memoffset::offset_of;
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{FrameHeader, FramePointerOffset, StackframeMemoryLayout};
+use gc_memory_layout_common::{AllocatedObjectType, FrameHeader, FramePointerOffset, StackframeMemoryLayout};
 use jit_common::java_stack::JavaStack;
 use jit_common::JitCodeContext;
 use jit_common::SavedRegisters;
@@ -42,6 +42,7 @@ pub enum VMExitType {
     RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     InitClass { target_class: CPDType },
+    NeedNewRegion { target_class: AllocatedObjectType },
     PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
     TopLevelReturn {},
     Todo {},

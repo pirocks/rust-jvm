@@ -2,12 +2,14 @@
 #![allow(unused_variables)]
 #![feature(destructuring_assignment)]
 #![feature(int_roundings)]
+#![feature(box_syntax)]
 
 use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ops::Range;
+use std::pin::Pin;
 use std::ptr::{NonNull, null_mut};
 use std::sync::{Mutex, MutexGuard};
 use std::thread::ThreadId;
@@ -74,6 +76,7 @@ impl AllocatedObjectType {
 pub struct RegionData {
     ptr: *mut c_void,
     used_bitmap: *mut c_void,
+    free_search_index: usize,
     current_elements_count: usize,
     region_type: AllocatedObjectType,
     region_max_elements: usize,
@@ -97,7 +100,7 @@ unsafe impl Send for MemoryRegions {}
 unsafe impl Sync for MemoryRegions {}
 
 pub struct MemoryRegions {
-    regions: HashMap<AllocatedObjectType, Vec<UnsafeCell<RegionData>>>,
+    regions: HashMap<AllocatedObjectType, Vec<Pin<Box<UnsafeCell<RegionData>>>>>,
     ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedObjectType>,
 }
 
@@ -106,11 +109,11 @@ impl MemoryRegions {
         MemoryRegions { regions: HashMap::new(), ptr_to_object_type: RangeMap::new() }
     }
 
-    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> &mut RegionData {
+    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> Pin<&mut UnsafeCell<RegionData>> {
         let mut new_allocated_range = None;
         let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
             let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), 1);
-            vec![UnsafeCell::new(region_data)]
+            vec![Pin::new(box UnsafeCell::new(region_data))]
         }).last_mut().unwrap();
         if let Some(new_allocated_range) = new_allocated_range {
             self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
@@ -128,7 +131,7 @@ impl MemoryRegions {
         if all_in_use {
             Self::push_new_region(self, to_allocate_type.clone());
         }
-        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().get_mut()
+        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().as_mut()
     }
 
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
@@ -160,7 +163,7 @@ impl MemoryRegions {
         let new_region_max_elements = *region_max_elements * 2;
         let (new_region, range) = Self::region(to_allocated_type.clone(), new_region_max_elements);
         self.ptr_to_object_type.insert(range, to_allocated_type.clone());
-        regions.push(UnsafeCell::new(new_region));
+        regions.push(Box::pin(UnsafeCell::new(new_region)));
     }
 }
 
