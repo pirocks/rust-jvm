@@ -144,8 +144,10 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     pub(crate) fn raw_write_target(target: *mut c_void, jv: jvalue) {
-        unsafe { assert_eq!(size_of::<jvalue>(), size_of::<u64>()); }
-        unsafe { (target as *mut u64).write(jv.j as u64); }
+        unsafe {
+            assert_eq!(size_of::<jvalue>(), size_of::<u64>());
+            (target as *mut u64).write(jv.j as u64);
+        }
     }
 
     pub(crate) fn write_target(target: *mut c_void, j: JavaValue<'gc_life>) {
@@ -558,7 +560,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
                     Some(x) => x,
                     None => {
                         panic!()
-                    },
+                    }
                 }
             }
         }

@@ -71,8 +71,8 @@ impl<'gc_life> GC<'gc_life> {
                     runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None)
                 }
             };
-            let memory_region = guard.find_or_new_region_for(allocated_object_type, None);
-            let allocation = memory_region.get_allocation();
+            let mut memory_region = guard.find_or_new_region_for(allocated_object_type, None);
+            let allocation = memory_region.deref_mut().get_mut().get_allocation();
             allocation
         });
         self.all_allocated_object.write().unwrap().insert(allocated);

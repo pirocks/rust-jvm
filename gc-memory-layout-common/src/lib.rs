@@ -74,12 +74,12 @@ impl AllocatedObjectType {
 
 #[repr(packed, C)]
 pub struct RegionData {
-    ptr: *mut c_void,
-    used_bitmap: *mut c_void,
-    free_search_index: usize,
-    current_elements_count: usize,
-    region_type: AllocatedObjectType,
-    region_max_elements: usize,
+    pub ptr: *mut c_void,
+    pub used_bitmap: *mut c_void,
+    pub free_search_index: usize,
+    pub current_elements_count: usize,
+    pub region_type: AllocatedObjectType,
+    pub region_max_elements: usize,
 }
 
 impl RegionData {
@@ -150,6 +150,7 @@ impl MemoryRegions {
             (RegionData {
                 ptr,
                 used_bitmap,
+                free_search_index: 0,
                 current_elements_count: 0,
                 region_type: to_allocate_type,
                 region_max_elements: 1,
