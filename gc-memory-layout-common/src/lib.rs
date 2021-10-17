@@ -20,6 +20,7 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use num_integer::Integer;
 use rangemap::RangeMap;
 
+use early_startup::Regions;
 use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -100,13 +101,14 @@ unsafe impl Send for MemoryRegions {}
 unsafe impl Sync for MemoryRegions {}
 
 pub struct MemoryRegions {
+    early_mmaped_regions: Regions,
     regions: HashMap<AllocatedObjectType, Vec<Pin<Box<UnsafeCell<RegionData>>>>>,
     ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedObjectType>,
 }
 
 impl MemoryRegions {
-    pub fn new() -> MemoryRegions {
-        MemoryRegions { regions: HashMap::new(), ptr_to_object_type: RangeMap::new() }
+    pub fn new(regions: Regions) -> MemoryRegions {
+        MemoryRegions { early_mmaped_regions: regions, regions: HashMap::new(), ptr_to_object_type: RangeMap::new() }
     }
 
     pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> Pin<&mut UnsafeCell<RegionData>> {

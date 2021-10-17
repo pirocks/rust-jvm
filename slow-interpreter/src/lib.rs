@@ -9,6 +9,7 @@
 #![feature(destructuring_assignment)]
 #![feature(asm)]
 #![feature(thread_id_value)]
+#![feature(unboxed_closures)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;

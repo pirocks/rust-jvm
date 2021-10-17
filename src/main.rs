@@ -16,6 +16,7 @@ use std::sync::Arc;
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
 
+use early_startup::{get_regions, Regions};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::java_values::GC;
 use slow_interpreter::jvm_state::{JVM, JVMState};
@@ -69,7 +70,7 @@ fn main() {
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
-    let gc = GC::new();
+    let gc = GC::new(get_regions());
     crossbeam::scope(|scope| {
         within_thread_scope(scope, jvm_options, &gc);
     }).expect("idk why this would happen")

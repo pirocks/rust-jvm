@@ -18,6 +18,7 @@ gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 threads = { path = "../threads" }
 type-safe-proc-macro-utils = { path = "../type-safe-proc-macro-utils" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
+early-startup = { path = "../early-startup" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }

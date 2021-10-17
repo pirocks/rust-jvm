@@ -25,7 +25,12 @@ pub struct JitCodeContext {
     //to jump back to when going back to native
     pub native_saved: SavedRegisters,
     pub java_saved: SavedRegisters,
-    pub exit_handler_ip: *mut c_void
+    pub exit_handler_ip: *mut c_void,
+    pub small_num_regions: usize,
+    pub small_region_index_to_type: *const c_void,
+    //indexed by method id then type
+    //virtual method id
+    pub this_thread_function_locations_by_method_id: *const c_void,
 }
 
 #[derive(Clone, Debug)]

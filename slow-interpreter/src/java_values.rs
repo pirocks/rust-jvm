@@ -15,6 +15,7 @@ use std::thread::LocalKey;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 
+use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -31,13 +32,13 @@ use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
 
-thread_local! {
-    static THIS_THREAD_MEMORY_REGIONS: RefCell<MemoryRegions> = RefCell::new(MemoryRegions::new());
-}
+// thread_local! {
+//     static THIS_THREAD_MEMORY_REGIONS: RefCell<MemoryRegions> = RefCell::new(MemoryRegions::new());
+// }
 
 pub struct GC<'gc_life> {
+    pub memory_region: Mutex<MemoryRegions>,
     //doesn't really need to be atomic usize
-    pub this_thread_memory_region: &'static LocalKey<RefCell<MemoryRegions>>,
     vm_temp_owned_roots: RwLock<HashMap<NonNull<c_void>, AtomicUsize>>,
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     phantom: PhantomData<&'gc_life ()>,
@@ -61,20 +62,17 @@ impl<'gc_life> GC<'gc_life> {
 
     pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: Object<'gc_life, 'l>) -> GcManagedObject<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
-        let allocated = self.this_thread_memory_region.with(|memory_regions| {
-            let mut guard = memory_regions.borrow_mut();
-            let allocated_object_type = match &object {
-                Object::Array(arr) => {
-                    todo!()
-                }
-                Object::Object(obj) => {
-                    runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None)
-                }
-            };
-            let mut memory_region = guard.find_or_new_region_for(allocated_object_type, None);
-            let allocation = memory_region.deref_mut().get_mut().get_allocation();
-            allocation
-        });
+        let mut guard = self.memory_region.lock().unwrap();
+        let allocated_object_type = match &object {
+            Object::Array(arr) => {
+                todo!()
+            }
+            Object::Object(obj) => {
+                runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None)
+            }
+        };
+        let mut memory_region = guard.find_or_new_region_for(allocated_object_type, None);
+        let allocated = memory_region.deref_mut().get_mut().get_allocation();
         self.all_allocated_object.write().unwrap().insert(allocated);
         self.register_root_reentrant(allocated);
         GcManagedObject {
@@ -229,9 +227,9 @@ impl<'gc_life> GC<'gc_life> {
         self.gc_with_roots(todo!()/*roots*/)
     }
 
-    pub fn new() -> Self {
+    pub fn new(regions: early_startup::Regions) -> Self {
         Self {
-            this_thread_memory_region: &THIS_THREAD_MEMORY_REGIONS,
+            memory_region: Mutex::new(MemoryRegions::new(regions)),
             vm_temp_owned_roots: RwLock::new(Default::default()),
             all_allocated_object: Default::default(),
             phantom: PhantomData::default(),
@@ -267,30 +265,28 @@ pub struct GcManagedObject<'gc_life> {
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc_life JVMState<'gc_life>) -> Self {
         jvm.gc.register_root_reentrant(raw_ptr);
-        jvm.gc.this_thread_memory_region.with(|memory_region| {
-            let guard = memory_region.borrow_mut();
-            let allocated_type = guard.find_object_allocated_type(raw_ptr);
-            let obj = match allocated_type {
-                AllocatedObjectType::Class { size, name, loader } => {
-                    let classes = jvm.classes.read().unwrap();
-                    let runtime_class = classes.loaded_classes_by_type.get(loader).unwrap().get(&(*name).into()).unwrap();
-                    let runtime_class_class = runtime_class.unwrap_class_class();
-                    let num_fields = runtime_class_class.recursive_num_fields;
-                    unsafe {
-                        Arc::new(Object::Object(NormalObject {
-                            objinfo: ObjectFieldsAndClass {
-                                fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc_life>, num_fields)),
-                                class_pointer: runtime_class.clone(),
-                            },
-                            obj_ptr: Some(raw_ptr.cast()),
-                        }))
-                    }
+        let guard = jvm.gc.memory_region.lock().unwrap();
+        let allocated_type = guard.find_object_allocated_type(raw_ptr);
+        let obj = match allocated_type {
+            AllocatedObjectType::Class { size, name, loader } => {
+                let classes = jvm.classes.read().unwrap();
+                let runtime_class = classes.loaded_classes_by_type.get(loader).unwrap().get(&(*name).into()).unwrap();
+                let runtime_class_class = runtime_class.unwrap_class_class();
+                let num_fields = runtime_class_class.recursive_num_fields;
+                unsafe {
+                    Arc::new(Object::Object(NormalObject {
+                        objinfo: ObjectFieldsAndClass {
+                            fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc_life>, num_fields)),
+                            class_pointer: runtime_class.clone(),
+                        },
+                        obj_ptr: Some(raw_ptr.cast()),
+                    }))
                 }
-                AllocatedObjectType::ObjectArray { .. } => todo!(),
-                AllocatedObjectType::PrimitiveArray { .. } => todo!(),
-            };
-            Self { obj, raw_ptr, gc: jvm.gc, jvm }
-        })
+            }
+            AllocatedObjectType::ObjectArray { .. } => todo!(),
+            AllocatedObjectType::PrimitiveArray { .. } => todo!(),
+        };
+        Self { obj, raw_ptr, gc: jvm.gc, jvm }
     }
 
     pub fn from_native_assert_already_registered(raw_ptr: NonNull<c_void>, gc: &'gc_life GC<'gc_life>) -> Self {
@@ -1225,8 +1221,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                }.unwrap() = jv.to_native();*/
+                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                        }.unwrap() = jv.to_native();*/
         todo!()
     }
 

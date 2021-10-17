@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, ebx, ecx, edx, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r8, r8d, r9, r9d, rbx, rcx, rdx};
 
 use gc_memory_layout_common::FramePointerOffset;
@@ -48,7 +50,6 @@ impl Register {
 }
 // pub struct FramePointerOffset(i16);
 
-#[derive(Debug)]
 pub enum IRInstr {
     LoadFPRelative {
         from: FramePointerOffset,
@@ -142,9 +143,11 @@ pub enum IRInstr {
     LoadSP {
         to: Register
     },
-    /*WithAssembler{
+    WithAssembler {
         function: Box<dyn FnOnce(&mut CodeAssembler) -> ()>
-    },*/
+    },
     FNOP,
     Label(IRLabel),
 }
+
+

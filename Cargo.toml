@@ -21,6 +21,7 @@ sketch-jvm-version-of-utf8 = { path = "./sketch-jvm-version-of-utf8" }
 argparse = "0.2.2"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 itertools = "0.10.0"
+early-startup = { path = "./early-startup" }
 
 
 [workspace]
@@ -42,5 +43,6 @@ members = [
     "jit-common",
     "add-only-static-vec",
     "jmm-bindings",
-    "method-table"
+    "method-table",
+    "early-startup"
 ]
