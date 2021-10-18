@@ -43,13 +43,13 @@ pub unsafe fn monitor_to_raw(monitor: &Monitor2) -> jrawMonitorID {
 /// JVMTI_ERROR_NULL_POINTER	monitor_ptr is NULL.
 pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_char, monitor_ptr: *mut jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "CreateRawMonitor");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "CreateRawMonitor");
     null_check!(name);
     null_check!(monitor_ptr);
     let monitor_name = CStr::from_ptr(name).to_str().unwrap().to_string();
     let res_monitor = jvm.thread_state.new_monitor(monitor_name);
     monitor_ptr.write(monitor_to_raw(&res_monitor));
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -80,13 +80,13 @@ pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_c
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
 pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorEnter");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorEnter");
     let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     monitor.lock(jvm, get_interpreter_state(env)).unwrap();
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -115,13 +115,13 @@ pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor_id: jrawM
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
 pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorExit");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorExit");
     let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     monitor.unlock(jvm, get_interpreter_state(env)).unwrap();
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -156,9 +156,9 @@ pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor_id: jrawMo
 pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMonitorID, millis: jlong) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorWait");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorWait");
     let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     let duration = if millis == 0 {
@@ -167,7 +167,7 @@ pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMo
         Some(Duration::from_millis(millis as u64))
     };//todo dup, everywhere we call wait
     monitor.wait(jvm, int_state, duration).unwrap();//todo handle interrupted waits at a later date
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
@@ -196,13 +196,13 @@ pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMo
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
 pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotify");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotify");
     let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     monitor.notify(jvm).unwrap();
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Raw Monitor Notify All
@@ -230,13 +230,13 @@ pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor_id: jraw
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
 pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotifyAll");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotifyAll");
     let monitor = match jvm.thread_state.try_get_monitor(monitor_id) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     monitor.notify_all(jvm).unwrap();
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Destroy Raw Monitor
@@ -265,9 +265,9 @@ pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: 
 /// JVMTI_ERROR_INVALID_MONITOR	monitor is not a jrawMonitorID.
 pub unsafe extern "C" fn destroy_raw_monitor(env: *mut jvmtiEnv, monitor: jrawMonitorID) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotifyAll");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RawMonitorNotifyAll");
     let monitor = match jvm.thread_state.try_get_monitor(monitor) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
     todo!()

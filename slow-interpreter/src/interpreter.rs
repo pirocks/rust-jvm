@@ -41,8 +41,8 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::{GcManagedObject, JavaValue};
-use crate::jit2::MethodResolver;
-use crate::jit2::state::JITedCodeState;
+use crate::jit::MethodResolver;
+use crate::jit::state::JITedCodeState;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
@@ -115,7 +115,7 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
     let method_desc = method.desc_str().to_str(&jvm.string_pool);
     let current_depth = interpreter_state.call_stack_depth();
     let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
-    let function_enter_guard = jvm.tracing.trace_function_enter(&jvm.string_pool, &class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
+    let function_enter_guard = jvm.config.tracing.trace_function_enter(&jvm.string_pool, &class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!interpreter_state.function_return());
     let current_frame = interpreter_state.current_frame();
     let class_pointer = current_frame.class_pointer(jvm);
@@ -215,7 +215,7 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
     // } else {
     //     JavaValue::Top
     // };
-    jvm.tracing.function_exit_guard(function_enter_guard, JavaValue::Top);//todo put actual res in here again
+    jvm.config.tracing.function_exit_guard(function_enter_guard, JavaValue::Top);//todo put actual res in here again
     if interpreter_state.throw().is_some() {
         return Err(WasException);
     }

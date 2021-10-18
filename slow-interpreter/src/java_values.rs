@@ -26,7 +26,7 @@ use crate::class_loading::check_resolved_class;
 use crate::gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::jit2::state::runtime_class_to_allocated_object_type;
+use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;

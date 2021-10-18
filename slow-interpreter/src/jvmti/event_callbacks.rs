@@ -270,7 +270,7 @@ pub trait DebuggerEventConsumer {
 #[allow(non_snake_case)]
 impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn VMInit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, vminit: VMInitEvent) {
-        jvm.tracing.trace_event_trigger("VMInit");
+        jvm.config.tracing.trace_event_trigger("VMInit");
         let VMInitEvent { thread } = vminit;
         let jvmti = get_jvmti_interface(jvm, int_state);
         let jni = get_interface(jvm, int_state);
@@ -307,7 +307,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     unsafe fn ThreadStart(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, event: ThreadStartEvent) {
-        jvm.tracing.trace_event_trigger("ThreadStart");
+        jvm.config.tracing.trace_event_trigger("ThreadStart");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let ThreadStartEvent { thread } = event;
@@ -366,7 +366,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     unsafe fn ClassPrepare(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, event: ClassPrepareEvent) {
-        jvm.tracing.trace_event_trigger("ClassPrepare");
+        jvm.config.tracing.trace_event_trigger("ClassPrepare");
         let jvmti_env = get_jvmti_interface(jvm, int_state);//todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
         let ClassPrepareEvent { thread, klass } = event;
@@ -410,7 +410,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     unsafe fn Breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, event: BreakpointEvent) {
-        jvm.tracing.trace_event_trigger("Breakpoint");
+        jvm.config.tracing.trace_event_trigger("Breakpoint");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
         let BreakpointEvent { thread, method, location } = event;
@@ -437,7 +437,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 
 
     unsafe fn FramePop(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, event: FramePopEvent) {
-        jvm.tracing.trace_event_trigger("FramePop");
+        jvm.config.tracing.trace_event_trigger("FramePop");
         //todo dup with above
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
@@ -513,7 +513,7 @@ impl SharedLibJVMTI {
 pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *const jvmtiEventCallbacks, _size_of_callbacks: jint) -> jvmtiError {
 //todo use size_of_callbacks ?
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventCallbacks");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetEventCallbacks");
     let mut callback_copy = jvmtiEventCallbacks {
         VMInit: None,
         VMDeath: None,
@@ -687,13 +687,13 @@ pub unsafe extern "C" fn set_event_callbacks(env: *mut jvmtiEnv, callbacks: *con
     if VMObjectAlloc.is_some() {
         unimplemented!()
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 impl SharedLibJVMTI {
     //todo these are essentially the same merge into one?
     fn disable_impl(jvm: &'gc_life JVMState<'gc_life>, java_thread: Option<Arc<JavaThread<'gc_life>>>, disabler: &dyn Fn(&mut ThreadJVMTIEnabledStatus), event_name: &str) {
-        jvm.tracing.trace_event_disable_global(event_name);
+        jvm.config.tracing.trace_event_disable_global(event_name);
         match java_thread {
             None => {
                 for java_thread in jvm.thread_state.all_java_threads.read().unwrap().values() {
@@ -707,7 +707,7 @@ impl SharedLibJVMTI {
     }
 
     fn enable_impl(jvm: &'gc_life JVMState<'gc_life>, java_thread: Option<Arc<JavaThread<'gc_life>>>, enabler: &dyn Fn(&mut ThreadJVMTIEnabledStatus), event_name: &str) {
-        jvm.tracing.trace_event_enable_global(event_name);
+        jvm.config.tracing.trace_event_enable_global(event_name);
         match java_thread {
             None => {
                 for java_thread in jvm.thread_state.all_java_threads.read().unwrap().values() {

@@ -74,7 +74,7 @@ mod resolvers;
 pub mod class_loading;
 #[macro_use]
 pub mod runtime_class;
-pub mod jit2;
+pub mod jit;
 pub mod gc_memory_layout_common;
 pub mod jit_common;
 

@@ -55,12 +55,12 @@ use crate::threading::JavaThread;
 pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
     let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => var,
-        Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
+        Err(err) => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match var {
         JavaValue::Top => value_ptr.write(null_mut()),//todo is this correct?
@@ -68,43 +68,43 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
             let possibly_object = var.try_unwrap_object();
             match possibly_object {
                 None => {
-                    return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
+                    return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
                 }
                 Some(obj) => value_ptr.write(new_local_ref_public(obj, int_state)),
             }
         }
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 unsafe fn get_local_primitive_type<'gc_life, T>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut T, unwrap_function: fn(JavaValue<'gc_life>) -> Option<T>) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
     let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => { var }
-        Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err),
+        Err(err) => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match unwrap_function(var) {
         None => {
-            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
+            return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
         }
         Some(unwrapped) => value_ptr.write(unwrapped)
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub(crate) unsafe fn set_local<'gc_life>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: JavaValue<'gc_life>) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(thread);
     if let Err(err) = set_local_t(jvm, thread, depth, slot, value) {
-        return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err);
+        return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err);
     };
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 

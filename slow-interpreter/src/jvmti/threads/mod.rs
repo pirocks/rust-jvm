@@ -56,7 +56,7 @@ pub mod thread_groups;
 /// JVMTI_ERROR_NULL_POINTER	threads_ptr is NULL.
 pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
     null_check!(threads_count_ptr);
     null_check!(threads_ptr);
     assert!(jvm.vm_live());
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         new_local_ref_public(object.into(), int_state)
     }).collect::<Vec<jobject>>();
     jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Thread Info
@@ -124,9 +124,9 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     let int_state = get_interpreter_state(env);
     null_check!(info_ptr);
     assert!(jvm.vm_live());
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
     let thread_object = match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).try_cast_thread() {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
         Some(thread) => thread,
     };
 
@@ -149,7 +149,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon(jvm) as u8;
     (*info_ptr).priority = thread_object.priority(jvm);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 /// Get Thread State
@@ -372,15 +372,15 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
 ///
 pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     null_check!(thread_state_ptr);
     assert!(jvm.vm_live());
     let jthread = match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).try_cast_thread() {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
         Some(thread) => thread,
     };
     let thread = jthread.get_java_thread(jvm);
     let state = thread.status_number();
     thread_state_ptr.write(state);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

@@ -26,7 +26,7 @@ unsafe impl Sync for ThreadArgWrapper {}
 pub unsafe extern "C" fn run_agent_thread<'gc_life>(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
     let java_thread = JavaThread::new(jvm, thread_object.clone(), todo!()/*jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string(jvm).into(),todo!())*/, true);
     let args = ThreadArgWrapper { proc_, arg };
@@ -56,5 +56,5 @@ pub unsafe extern "C" fn run_agent_thread<'gc_life>(env: *mut jvmtiEnv, thread: 
     }, box ());
 
     //todo handle join handles somehow
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

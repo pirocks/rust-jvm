@@ -10,7 +10,7 @@ use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetEventNotificationMode");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetEventNotificationMode");
     let thread_obj = if event_thread.is_null() {
         None
     } else {
@@ -41,8 +41,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
                 return jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT;//can't do jvminit on a per thread basis as per spec
             }
             match mode {
-                0 => jdwp_copy.deref().VMInit_disable(&jvm.tracing),//todo figure out why jvmtiEventMode_JVMTI_DISABLE causes warnings
-                1 => jdwp_copy.deref().VMInit_enable(&jvm.tracing),
+                0 => jdwp_copy.deref().VMInit_disable(&jvm.config.tracing),//todo figure out why jvmtiEventMode_JVMTI_DISABLE causes warnings
+                1 => jdwp_copy.deref().VMInit_enable(&jvm.config.tracing),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -68,8 +68,8 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             }
 
             match mode {
-                0 => jdwp_copy.deref().ThreadStart_disable(&jvm.tracing),
-                1 => jdwp_copy.deref().ThreadStart_enable(&jvm.tracing),
+                0 => jdwp_copy.deref().ThreadStart_disable(&jvm.config.tracing),
+                1 => jdwp_copy.deref().ThreadStart_enable(&jvm.config.tracing),
                 _ => unimplemented!()
             }
             jvmtiError_JVMTI_ERROR_NONE
@@ -135,6 +135,6 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
             unimplemented!();
         }
     };
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 

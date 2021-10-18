@@ -35,7 +35,7 @@ use crate::jvmti::get_state;
 /// JVMTI_ERROR_NULL_POINTER	tag_ptr is NULL.
 pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *mut jlong) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetTag");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetTag");
     null_check!(object);
     //todo handle capabilities
     let res = match jvm.jvmti_state.as_ref().unwrap().tags.read().unwrap().get(&object) {
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
             jvmtiError_JVMTI_ERROR_NONE
         }
     };
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
 pub unsafe extern "C" fn set_tag(env: *mut jvmtiEnv, object: jobject, tag: jlong) -> jvmtiError {
     let jvm = get_state(env);
     //todo handle capabilities
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "SetTag");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetTag");
     jvm.jvmti_state.as_ref().unwrap().tags.write().unwrap().insert(object, tag);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

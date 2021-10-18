@@ -36,7 +36,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressGcManagedObject, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
-use crate::jit2::state::{JITedCodeState, JITSTATE};
+use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
@@ -56,6 +56,8 @@ pub struct JVMConfig {
     pub store_generated_classes: bool,
     pub debug_print_exceptions: bool,
     pub assertions_enabled: bool,
+    pub tracing: TracingSettings,
+
 }
 
 pub struct JVMState<'gc_life> {
@@ -81,7 +83,6 @@ pub struct JVMState<'gc_life> {
 
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState<'gc_life>,
-    pub tracing: TracingSettings,
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub stack_frame_layouts: RwLock<HashMap<MethodId, FrameBackedStackframeMemoryLayout>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
@@ -180,6 +181,7 @@ impl<'gc_life> JVMState<'gc_life> {
                 debug_print_exceptions,
                 assertions_enabled,
                 compiled_mode_active: true,
+                tracing
             },
             libjava_path: libjava,
             properties,
@@ -198,7 +200,6 @@ impl<'gc_life> JVMState<'gc_life> {
             invoke_interface: RwLock::new(None),
             jvmti_state,
             thread_state,
-            tracing,
             method_table: RwLock::new(MethodTable::new()),
             stack_frame_layouts: RwLock::new(HashMap::new()),
             field_table: RwLock::new(FieldTable::new()),

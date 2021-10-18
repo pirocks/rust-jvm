@@ -6,7 +6,7 @@ use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut *mut ::std::os::raw::c_uchar) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "Allocate");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "Allocate");
     if size < 0 {
         return jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT;
     }
@@ -16,21 +16,21 @@ pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut
     } else {
         jvmtiError_JVMTI_ERROR_NONE
     };
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 pub unsafe extern "C" fn deallocate(env: *mut jvmtiEnv, mem: *mut ::std::os::raw::c_uchar) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "Deallocate");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "Deallocate");
     jvm.native_interface_allocations.free(mem as *mut c_void);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub unsafe extern "C" fn dispose_environment(env: *mut jvmtiEnv) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY)
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "DisposeEnvironment");
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY)
 }
 
 

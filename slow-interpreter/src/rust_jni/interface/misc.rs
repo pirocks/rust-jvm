@@ -171,7 +171,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
             let descriptor_str = method_info.desc_str();
             let current_name = method_info.name();
             if current_name == expected_name && descriptor == descriptor_str {
-                jvm.tracing.trace_jni_register(&ClassName::Str(class_name.0.to_str(&jvm.string_pool).to_string()), expected_name.0.to_str(&jvm.string_pool).as_str());
+                jvm.config.tracing.trace_jni_register(&ClassName::Str(class_name.0.to_str(&jvm.string_pool).to_string()), expected_name.0.to_str(&jvm.string_pool).as_str());
                 register_native_with_lib_java_loading(jni_context, &method, &runtime_class, i)
             }
         });

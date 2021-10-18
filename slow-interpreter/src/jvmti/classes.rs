@@ -22,17 +22,17 @@ pub unsafe extern "C" fn get_source_file_name(
     source_name_ptr: *mut *mut ::std::os::raw::c_char,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetSourceFileName");
     let class_obj = from_jclass(jvm, klass);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
     let sourcefile = class_view.sourcefile_attr();
     if let Some(file) = sourcefile {
         source_name_ptr.write(CString::new(file.file()).unwrap().into_raw());
-        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+        jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     } else {
         //todo this should validate if info actualy missing in accordance with doc comment
-        jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION)
+        jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION)
     }
 }
 
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(
 ) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetImplementedInterfaces");
     let class_obj = from_jclass(jvm, klass);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
@@ -61,13 +61,13 @@ pub unsafe extern "C" fn get_implemented_interfaces(
         let interface_class = new_local_ref_public(interface_obj.unwrap().into(), int_state);
         interfaces_ptr.read().add(i).write(interface_class)
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, status_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(jvm, klass as jobject).unwrap();//todo handle null
     let res = {
         let type_ = &JavaValue::Object(class.into()).cast_class().unwrap().as_type(jvm);
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     //     JVMTI_CLASS_STATUS_PRIMITIVE	32	Class is a primitive class (for example, java.lang.Integer.TYPE). If set, all other bits are zero.
     //todo actually implement this
 //todo handle primitive classes
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Loaded Classes
@@ -139,7 +139,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 pub unsafe extern "C" fn get_loaded_classes<'gc_life>(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
     let int_state: &'gc_life mut InterpreterStateGuard<'gc_life, '_> = get_interpreter_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 
     let classes: RwLockReadGuard<'_, Classes<'gc_life>> = jvm.classes.read().unwrap();
@@ -150,13 +150,13 @@ pub unsafe extern "C" fn get_loaded_classes<'gc_life>(env: *mut jvmtiEnv, class_
     }
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 
 pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(jvm, klass as jobject).unwrap();//todo handle npe
     let class_object_ptype = JavaValue::Object(todo!()/*notnull_class.into()*/).cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
@@ -174,7 +174,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
         generic_ptr.write(allocated_java_repr);
         libc::strcpy(allocated_java_repr, java_repr_ptr);
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Class Methods
@@ -218,10 +218,10 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
     let int_state = get_interpreter_state(env);
     assert!(jvm.vm_live());
     //todo capabilities
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassMethods");
     let class = match try_from_jclass(jvm, klass as jobject) {
         None => {
-            return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS);
+            return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS);
         }
         Some(class) => class,
     };
@@ -234,7 +234,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
         method_id as jmethodID
     }).collect::<Vec<_>>();
     jvm.native_interface_allocations.allocate_and_write_vec(res, method_count_ptr, methods_ptr);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 

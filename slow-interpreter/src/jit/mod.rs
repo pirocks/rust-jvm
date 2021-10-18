@@ -17,11 +17,11 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
-use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
 
-use crate::jit2::ir::{IRInstr, IRLabel, Register};
-use crate::jit2::state::{Labeler, NaiveStackframeLayout};
-use crate::jit2::state::birangemap::BiRangeMap;
+use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
+use crate::jit::ir::{IRInstr, IRLabel, Register};
+use crate::jit::state::{Labeler, NaiveStackframeLayout};
+use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;

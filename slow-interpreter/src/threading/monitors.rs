@@ -45,7 +45,7 @@ impl Monitor {
     }
 
     pub fn lock(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        jvm.tracing.trace_monitor_lock(self, jvm);
+        jvm.config.tracing.trace_monitor_lock(self, jvm);
         self.lock_impl(jvm)
     }
 
@@ -67,7 +67,7 @@ impl Monitor {
     }
 
     pub fn unlock(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        jvm.tracing.trace_monitor_unlock(self, jvm);
+        jvm.config.tracing.trace_monitor_unlock(self, jvm);
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner, Monitor::get_tid(jvm).into());
         current_owners_guard.count -= 1;
@@ -78,7 +78,7 @@ impl Monitor {
     }
 
     pub fn wait(&self, millis: i64, jvm: &'gc_life JVMState<'gc_life>) {
-        jvm.tracing.trace_monitor_wait(self, jvm);
+        jvm.config.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
             // in javaspace this throws an illegal monitor exception.
@@ -122,12 +122,12 @@ impl Monitor {
     }
 
     pub fn notify_all(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        jvm.tracing.trace_monitor_notify_all(self, jvm);
+        jvm.config.tracing.trace_monitor_notify_all(self, jvm);
         self.condvar.notify_all();
     }
 
     pub fn notify(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        jvm.tracing.trace_monitor_notify(self, jvm);
+        jvm.config.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }
 

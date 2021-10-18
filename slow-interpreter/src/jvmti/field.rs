@@ -58,7 +58,7 @@ pub unsafe extern "C" fn get_class_fields(
     fields_ptr: *mut *mut jfieldID,
 ) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassFields");
     let class_obj = from_jclass(jvm, klass as jobject);
     let runtime_class = class_obj.as_runtime_class(jvm);
     let class_view = runtime_class.view();
@@ -68,5 +68,5 @@ pub unsafe extern "C" fn get_class_fields(
     for i in 0..num_fields {
         fields_ptr.read().add(i).write(new_field_id(jvm, runtime_class.clone(), i))
     }
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
