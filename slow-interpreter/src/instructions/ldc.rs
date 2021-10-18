@@ -63,7 +63,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
         Err(_) => todo!()
     }
     let was_exception = interpreter_state.throw().is_some();
-    if !jvm.compiled_mode_active {
+    if !jvm.config.compiled_mode_active {
         interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
     }
     if interpreter_state.throw().is_some() {

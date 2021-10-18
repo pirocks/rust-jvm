@@ -244,7 +244,7 @@ pub fn initialize_class(
     let new_function_frame = int_state.push_frame(new_stack, jvm);
     match run_function(jvm, int_state) {
         Ok(()) => {
-            if !jvm.compiled_mode_active {
+            if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, new_function_frame, true);
             }
             if int_state.function_return() {

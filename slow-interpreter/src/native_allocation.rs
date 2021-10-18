@@ -89,7 +89,7 @@ impl NativeAllocator {
                 self.allocations.write().unwrap().remove(&(ptr as usize));
             }
             AllocationType::CString => {
-                CString::from_raw(ptr as *mut i8);
+                let _ = CString::from_raw(ptr as *mut i8);
             }
         }
     }

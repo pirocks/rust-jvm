@@ -61,7 +61,7 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
     let current_loader = int_state.current_loader();
 
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
-    if jvm.store_generated_classes {
+    if jvm.config.store_generated_classes {
         File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {

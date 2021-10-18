@@ -1,9 +1,9 @@
-#[macro_use]
-extern crate static_assertions;
+// #[macro_use]
+// extern crate static_assertions;
 
 use std::ffi::c_void;
 
-use assert_no_alloc::*;
+// use assert_no_alloc::*;
 use procmaps::Mappings;
 
 // #[cfg(debug_assertions)] // required when disable_release is set (default)

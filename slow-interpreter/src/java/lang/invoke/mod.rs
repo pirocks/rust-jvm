@@ -346,7 +346,7 @@ pub mod method_handles {
         }
 
         impl<'gc_life> Lookup<'gc_life> {
-            pub fn trusted_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Self {
+            pub fn trusted_lookup(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Self {
                 let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let static_vars = lookup.static_vars();
                 static_vars.get(&FieldName::field_IMPL_LOOKUP()).unwrap().cast_lookup()

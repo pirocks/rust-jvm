@@ -76,7 +76,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
                 assert!(!interpreter_state.throw().is_some());
-                if !jvm.compiled_mode_active {
+                if !jvm.config.compiled_mode_active {
                     interpreter_state.pop_frame(jvm, frame_for_function, false);
                 }
                 if interpreter_state.function_return() {

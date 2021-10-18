@@ -36,7 +36,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressGcManagedObject, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
-use crate::jit2::state::{JITState, JITSTATE};
+use crate::jit2::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
@@ -51,11 +51,16 @@ use crate::tracing::TracingSettings;
 pub static mut JVM: Option<&'static JVMState> = None;
 
 
-pub struct JVMState<'gc_life> {
-    // pub compiled_methods: RwLock<CompiledMethodTable>,
-    pub jit_state: &'static LocalKey<RefCell<JITState>>,
+pub struct JVMConfig {
     pub compiled_mode_active: bool,
+    pub store_generated_classes: bool,
+    pub debug_print_exceptions: bool,
+    pub assertions_enabled: bool,
+}
 
+pub struct JVMState<'gc_life> {
+    pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
+    pub config: JVMConfig,
     pub libjava_path: OsString,
     pub(crate) properties: Vec<String>,
     pub system_domain_loader: bool,
@@ -86,9 +91,7 @@ pub struct JVMState<'gc_life> {
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
 
     pub include_name_field: AtomicBool,
-    pub store_generated_classes: bool,
-    pub debug_print_exceptions: bool,
-    pub assertions_enabled: bool,
+
 
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
 
@@ -168,9 +171,16 @@ impl<'gc_life> JVMState<'gc_life> {
         let string_pool = CompressedClassfileStringPool::new();
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
+
+
         let jvm = Self {
             jit_state: &JITSTATE,
-            compiled_mode_active: true,
+            config: JVMConfig {
+                store_generated_classes,
+                debug_print_exceptions,
+                assertions_enabled,
+                compiled_mode_active: true,
+            },
             libjava_path: libjava,
             properties,
             system_domain_loader: true,
@@ -197,9 +207,6 @@ impl<'gc_life> JVMState<'gc_life> {
             unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
-            store_generated_classes,
-            debug_print_exceptions,
-            assertions_enabled,
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             monitors2: RwLock::new(vec![]),
             function_frame_type_data: Default::default(),

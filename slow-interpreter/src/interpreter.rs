@@ -44,7 +44,7 @@ use crate::instructions::switch::*;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit2::MethodResolver;
-use crate::jit2::state::JITState;
+use crate::jit2::state::JITedCodeState;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
@@ -58,7 +58,7 @@ static mut INSTRUCTION_COUNT: u64 = 0;
 static mut ITERATION_COUNT: u64 = 0;
 
 pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    if jvm.compiled_mode_active {
+    if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
         let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
@@ -69,7 +69,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
             jit_state.borrow_mut().add_function(code, method_id, resolver);//todo fix method id jankyness
             // todo!("copy current args over. ");
-            match JITState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
+            match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
                 Ok(res) => {
                     assert!(res.is_none());
                     return Ok(());

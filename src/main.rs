@@ -16,7 +16,7 @@ use std::sync::Arc;
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
 
-use early_startup::{get_regions, Regions};
+use early_startup::{get_regions};
 use rust_jvm_common::classnames::ClassName;
 use slow_interpreter::java_values::GC;
 use slow_interpreter::jvm_state::{JVM, JVMState};

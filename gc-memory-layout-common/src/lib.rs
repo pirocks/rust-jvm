@@ -10,7 +10,7 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::ops::Range;
 use std::pin::Pin;
-use std::ptr::{NonNull, null_mut};
+use std::ptr::{NonNull};
 use std::sync::{Mutex, MutexGuard};
 use std::thread::ThreadId;
 

@@ -53,7 +53,7 @@ pub fn invoke_special_impl(
         let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
-                if !jvm.compiled_mode_active {
+                if !jvm.config.compiled_mode_active {
                     interpreter_state.pop_frame(jvm, function_call_frame, false);
                 }
                 if interpreter_state.function_return() {

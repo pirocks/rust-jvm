@@ -50,13 +50,13 @@ use crate::method_table::MethodId;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 
 thread_local! {
-pub static JITSTATE : RefCell<JITState> = RefCell::new(JITState::new());
+pub static JITSTATE : RefCell<JITedCodeState> = RefCell::new(JITedCodeState::new());
 }
 
 //could be own crate
 pub mod birangemap;
 
-pub struct JITState {
+pub struct JITedCodeState {
     code: *mut c_void,
     current_max_compiled_code_id: CompiledCodeID,
     method_id_to_code: HashMap<usize, CompiledCodeID>,
@@ -72,7 +72,7 @@ pub struct JITState {
     address_to_byte_code_offset: HashMap<CompiledCodeID, BiRangeMap<*mut c_void, ByteCodeOffset>>,
 }
 
-impl JITState {
+impl JITedCodeState {
     pub fn new() -> Self {
         let thread_id_numeric = thread::current().id().as_u64();
         const BASE_CODE_ADDRESS: usize = 1024 * 1024 * 1024 * 1024;
@@ -215,7 +215,7 @@ impl JITState {
                     self.gen_code_putfield(layout, resolver, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count, name, target_class)
                 }
                 CompressedInstructionInfo::aconst_null => {
-                    JITState::gen_code_aconst_null(layout, &mut initial_ir, current_offset, next_byte_code_instr_count)
+                    JITedCodeState::gen_code_aconst_null(layout, &mut initial_ir, current_offset, next_byte_code_instr_count)
                 }
                 CompressedInstructionInfo::putstatic { name, desc, target_class } => {
                     self.gen_code_putstatic(layout, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count, name, desc, target_class)
@@ -227,7 +227,7 @@ impl JITState {
                     self.gen_code_new(layout, resolver, &mut labels, &mut initial_ir, current_offset, next_byte_code_instr_count, class_name)
                 }
                 CompressedInstructionInfo::dup => {
-                    JITState::gen_code_dup(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count);
+                    JITedCodeState::gen_code_dup(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count);
                 }
                 CompressedInstructionInfo::ldc(Either::Left(left_ldc)) => {
                     self.gen_code_left_ldc(&mut labels, &mut initial_ir, current_offset, left_ldc)
@@ -947,7 +947,7 @@ impl JITState {
         install_at
     }
 
-    pub fn recompile_method_and_restart(jit_state: &RefCell<JITState>,
+    pub fn recompile_method_and_restart(jit_state: &RefCell<JITedCodeState>,
                                         methodid: usize,
                                         jvm: &'gc_life JVMState<'gc_life>,
                                         int_state: &mut InterpreterStateGuard<'gc_life, 'l>,
@@ -973,10 +973,10 @@ impl JITState {
         unsafe { Self::resume_method(jit_state, restart_execution_at, jvm, int_state, methodid, new_code_id) }
     }
 
-    pub fn run_method_safe(jit_state: &RefCell<JITState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let res = unsafe {
             let code_id = jit_state.borrow().method_id_to_code[&methodid];
-            JITState::run_method(jit_state, jvm, int_state, methodid, code_id)
+            JITedCodeState::run_method(jit_state, jvm, int_state, methodid, code_id)
         };
         res
     }
@@ -996,7 +996,7 @@ impl JITState {
     }
 
     #[allow(named_asm_labels)]
-    unsafe fn resume_method(jit_state: &RefCell<JITState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
             let java_stack: &mut JavaStack = int_state.get_java_stack();
             let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
@@ -1082,7 +1082,7 @@ impl JITState {
             //todo exception handling
             eprintln!("going out ");
             let exit_type = jit_state.borrow().exits.get(&old_java_ip).unwrap().clone();
-            target_ip = match JITState::handle_exit(jit_state, exit_type, jvm, int_state, methodid, old_java_ip) {
+            target_ip = match JITedCodeState::handle_exit(jit_state, exit_type, jvm, int_state, methodid, old_java_ip) {
                 None => {
                     return Ok(None);
                 }
@@ -1092,12 +1092,12 @@ impl JITState {
     }
 
     #[allow(named_asm_labels)]
-    pub unsafe fn run_method(jitstate: &RefCell<JITState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub unsafe fn run_method(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let target_ip = jitstate.borrow().function_addresses.get_reverse(&compiled_id).unwrap().start;
         drop(jitstate.borrow_mut());
-        JITState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
+        JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
-    fn handle_exit(jitstate: &RefCell<JITState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
+    fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         match exit_type {
             VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
                 let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
