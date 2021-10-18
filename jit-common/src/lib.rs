@@ -2,7 +2,7 @@
 
 use std::ffi::c_void;
 
-use gc_memory_layout_common::FramePointerOffset;
+use gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
@@ -19,6 +19,7 @@ pub struct SavedRegisters {
 
 pub mod java_stack;
 
+
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
 pub struct JitCodeContext {
@@ -26,11 +27,30 @@ pub struct JitCodeContext {
     pub native_saved: SavedRegisters,
     pub java_saved: SavedRegisters,
     pub exit_handler_ip: *mut c_void,
+    pub runtime_type_info: RuntimeTypeInfo,
+}
+
+#[repr(C, packed)]
+#[derive(Copy, Clone, Debug)]
+pub struct RuntimeTypeInfo {
     pub small_num_regions: usize,
-    pub small_region_index_to_type: *const c_void,
-    //indexed by method id then type
-    //virtual method id
-    pub this_thread_function_locations_by_method_id: *const c_void,
+    pub medium_num_regions: usize,
+    pub large_num_regions: usize,
+    pub extra_large_num_regions: usize,
+    pub small_region_index_to_type: *const AllocatedTypeID,
+    pub medium_region_index_to_type: *const AllocatedTypeID,
+    pub large_region_index_to_type: *const AllocatedTypeID,
+    pub extra_large_region_index_to_type: *const AllocatedTypeID,
+
+    pub allocated_type_to_vtable: *const VTableRaw,
+}
+
+
+#[repr(C, packed)]
+#[derive(Copy, Clone, Debug)]
+pub struct VTableRaw {
+    vtable_size: usize,
+    vtable: *const *const c_void,
 }
 
 #[derive(Clone, Debug)]
@@ -46,12 +66,9 @@ pub enum VMExitData {
         native_start: *mut c_void,
         native_end: *mut c_void,
     },
-    InvokeVirtualResolveTarget {
-    },
-    InvokeSpecialResolveTarget {
-    },
-    InvokeInterfaceResolveTarget {
-    },
+    InvokeVirtualResolveTarget {},
+    InvokeSpecialResolveTarget {},
+    InvokeInterfaceResolveTarget {},
     MonitorEnter,
     MonitorExit,
     MultiNewArray,

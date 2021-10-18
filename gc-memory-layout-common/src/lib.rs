@@ -100,73 +100,99 @@ unsafe impl Send for MemoryRegions {}
 //work around thread locals requiring Sync, when not actually required
 unsafe impl Sync for MemoryRegions {}
 
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct AllocatedTypeID(u64);
+
 pub struct MemoryRegions {
-    early_mmaped_regions: Regions,
-    regions: HashMap<AllocatedObjectType, Vec<Pin<Box<UnsafeCell<RegionData>>>>>,
-    ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedObjectType>,
+    pub early_mmaped_regions: Regions,
+    pub small_region_types: Vec<AllocatedTypeID>,
+    pub medium_region_types: Vec<AllocatedTypeID>,
+    pub large_region_types: Vec<AllocatedTypeID>,
+    pub extra_large_region_types: Vec<AllocatedTypeID>,
+    pub regions: HashMap<AllocatedTypeID, Vec<Pin<Box<UnsafeCell<RegionData>>>>>,
+    pub types: HashMap<AllocatedTypeID, AllocatedObjectType>,
+    pub ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedTypeID>,
 }
 
 impl MemoryRegions {
     pub fn new(regions: Regions) -> MemoryRegions {
-        MemoryRegions { early_mmaped_regions: regions, regions: HashMap::new(), ptr_to_object_type: RangeMap::new() }
+        MemoryRegions { early_mmaped_regions: regions, small_region_types: vec![], medium_region_types: vec![], large_region_types: vec![], extra_large_region_types: vec![], regions: HashMap::new(), types: HashMap::new(), ptr_to_object_type: RangeMap::new() }
     }
 
     pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> Pin<&mut UnsafeCell<RegionData>> {
-        let mut new_allocated_range = None;
-        let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
-            let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), 1);
-            vec![Pin::new(box UnsafeCell::new(region_data))]
-        }).last_mut().unwrap();
-        if let Some(new_allocated_range) = new_allocated_range {
-            self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
-        }
-        let region_as_bytes = current_region.get_mut().used_bitmap as *const u8;
-        let mut all_in_use = true;
-        for i in 0..current_region.get_mut().region_max_elements {
-            let byte = unsafe { region_as_bytes.offset(i.div_floor(&8) as isize).read() };
-            let current_bit = (byte >> (i % 8)) & 0b1;
-            all_in_use |= current_bit == 1;
-        }
-        if let Some(expected_new_region) = expected_new_region {
-            assert_eq!(expected_new_region, all_in_use);
-        }
-        if all_in_use {
-            Self::push_new_region(self, to_allocate_type.clone());
-        }
-        self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().as_mut()
+        // let mut new_allocated_range = None;
+        // let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
+        //     let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), RegionToUse::smallest_which_fits(to_allocate_type.size()));
+        //     vec![Pin::new(box UnsafeCell::new(region_data))]
+        // }).last_mut().unwrap();
+        // if let Some(new_allocated_range) = new_allocated_range {
+        //     self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
+        // }
+        // let region_as_bytes = current_region.get_mut().used_bitmap as *const u8;
+        // let mut all_in_use = true;
+        // for i in 0..current_region.get_mut().region_max_elements {
+        //     let byte = unsafe { region_as_bytes.offset(i.div_floor(&8) as isize).read() };
+        //     let current_bit = (byte >> (i % 8)) & 0b1;
+        //     all_in_use |= current_bit == 1;
+        // }
+        // if let Some(expected_new_region) = expected_new_region {
+        //     assert_eq!(expected_new_region, all_in_use);
+        // }
+        // if all_in_use {
+        //     Self::push_new_region(self, to_allocate_type.clone());
+        // }
+        // self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().as_mut()
+        todo!()
     }
 
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
-        self.ptr_to_object_type.get(&ptr).unwrap()
+        // self.ptr_to_object_type.get(&ptr).unwrap()
+        todo!()
     }
 
-    fn region(to_allocate_type: AllocatedObjectType, region_max_elements: usize) -> (RegionData, Range<NonNull<c_void>>) {
-        let object_size: usize = to_allocate_type.size();
-        let read_and_write = ProtFlags::PROT_READ | ProtFlags::PROT_WRITE;
-        let map_flags = MapFlags::MAP_NORESERVE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE;
-        let region_len = object_size * region_max_elements;
-        let ptr = unsafe { mmap(null_mut(), region_len, read_and_write, map_flags, -1, 0).unwrap() };
-        let used_bitmap = unsafe { mmap(null_mut(), region_max_elements.div_ceil(&size_of::<u8>()), read_and_write, map_flags, -1, 0).unwrap() };
-        unsafe { libc::memset(used_bitmap, 0, region_len) };
-        unsafe {
-            (RegionData {
-                ptr,
-                used_bitmap,
-                free_search_index: 0,
-                current_elements_count: 0,
-                region_type: to_allocate_type,
-                region_max_elements: 1,
-            }, NonNull::new(ptr).unwrap()..NonNull::new(ptr.offset(region_len as isize)).unwrap())
-        }
+    fn region(to_allocate_type: AllocatedObjectType, to_use: RegionToUse) -> (RegionData, Range<NonNull<c_void>>) {
+        // let object_size: usize = to_allocate_type.size();
+        // let read_and_write = ProtFlags::PROT_READ | ProtFlags::PROT_WRITE;
+        // let map_flags = MapFlags::MAP_NORESERVE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE;
+        // let region_len = object_size * region_max_elements;
+        // let ptr = unsafe { mmap(null_mut(), region_len, read_and_write, map_flags, -1, 0).unwrap() };
+        // let used_bitmap = unsafe { mmap(null_mut(), region_max_elements.div_ceil(&size_of::<u8>()), read_and_write, map_flags, -1, 0).unwrap() };
+        // unsafe { libc::memset(used_bitmap, 0, region_len) };
+        // unsafe {
+        //     (RegionData {
+        //         ptr,
+        //         used_bitmap,
+        //         free_search_index: 0,
+        //         current_elements_count: 0,
+        //         region_type: to_allocate_type,
+        //         region_max_elements: 1,
+        //     }, NonNull::new(ptr).unwrap()..NonNull::new(ptr.offset(region_len as isize)).unwrap())
+        // }
+        todo!()
     }
 
     fn push_new_region(&mut self, to_allocated_type: AllocatedObjectType) {
-        let regions = self.regions.get_mut(&to_allocated_type).unwrap();
+        /*let regions = self.regions.get_mut(&to_allocated_type).unwrap();
         let RegionData { region_max_elements, .. } = regions.last_mut().unwrap().get_mut();
         let new_region_max_elements = *region_max_elements * 2;
-        let (new_region, range) = Self::region(to_allocated_type.clone(), new_region_max_elements);
+        let (new_region, range) = Self::region(to_allocated_type.clone(), todo!());
         self.ptr_to_object_type.insert(range, to_allocated_type.clone());
-        regions.push(Box::pin(UnsafeCell::new(new_region)));
+        regions.push(Box::pin(UnsafeCell::new(new_region)));*/
+        todo!()
+    }
+}
+
+pub enum RegionToUse {
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
+impl RegionToUse {
+    pub fn smallest_which_fits(size: usize) -> RegionToUse {
+        todo!()
     }
 }
 

@@ -10,7 +10,7 @@ use std::intrinsics::copy_nonoverlapping;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 use std::thread;
 use std::thread::LocalKey;
 
@@ -26,9 +26,9 @@ use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::HasAccessFlags;
-use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
+use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
 use gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FrameHeader, FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MemoryRegions, ObjectMemoryLayout, RegionData, StackframeMemoryLayout};
-use jit_common::{JitCodeContext, SavedRegisters};
+use jit_common::{JitCodeContext, RuntimeTypeInfo, SavedRegisters};
 use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jdouble, jlong, jobject, jvalue};
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
@@ -236,128 +236,137 @@ impl JITState {
                     self.gen_code_athrow(layout, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count);
                 }
                 CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                    let after_call_label = self.labeler.new_label(&mut labels);
-                    let code = resolver.get_compressed_code(method_id);
-                    let target_at = self.add_function(&code, method_id, resolver);
-                    let code_id = self.function_addresses.get(&target_at).unwrap();
-                    let function_start_label = self.function_starts.get(&code_id).unwrap();
-
-                    let callee_this_pointer_offset = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
-                    let this_pointer = Register(6);
-                    let region_elemant_size_size = Register(5);
-                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: callee_this_pointer_offset, to: this_pointer }));
-                    IRInstr::WithAssembler {
-                        function: box |assembler: &mut CodeAssembler| {
-                            let _reserved = Register(0);
-                            let small_region_base = Register(1).to_native_64();
-                            let medium_region_base = Register(2).to_native_64();
-                            let large_region_base = Register(3).to_native_64();
-                            let extra_large_region_base = Register(4).to_native_64();
-                            assembler.mov(small_region_base, SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.mov(medium_region_base, MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.mov(large_region_base, LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.mov(extra_large_region_base, EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.and(small_region_base, this_pointer).unwrap();
-                            assembler.and(medium_region_base, this_pointer).unwrap();
-                            assembler.and(large_region_base, this_pointer).unwrap();
-                            assembler.and(extra_large_region_base, this_pointer).unwrap();
-
-                            assembler.mov(region_elemant_size_size.to_native_64(), 1).unwrap();
-
-                            let mut after_size_calc_label = assembler.create_label();
-                            let mask_for_this_pointer = Register(5).to_native_64();
-                            //todo vectorize to get rid off branches
-                            assembler.cmp(small_region_base, 0).unwrap();
-                            assembler.je(after_size_calc_label).unwrap();
-                            assembler.shl(region_elemant_size_size.to_native_64(), SMALL_REGION_SIZE_SIZE).unwrap();
-                            assembler.mov(mask_for_this_pointer, SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.xor(this_pointer.to_native_64(), mask_for_this_pointer).unwrap();
-
-                            assembler.cmp(medium_region_base, 0).unwrap();
-                            assembler.je(after_size_calc_label).unwrap();
-                            assembler.shl(region_elemant_size_size.to_native_64(), MEDIUM_REGION_SIZE_SIZE).unwrap();
-                            assembler.mov(mask_for_this_pointer, MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.xor(this_pointer.to_native_64(), mask_for_this_pointer).unwrap();
-
-                            assembler.cmp(large_region_base, 0).unwrap();
-                            assembler.je(after_size_calc_label).unwrap();
-                            assembler.shl(region_elemant_size_size.to_native_64(), LARGE_REGION_SIZE_SIZE).unwrap();
-                            assembler.mov(mask_for_this_pointer, LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.xor(this_pointer.to_native_64(), mask_for_this_pointer).unwrap();
-
-                            assembler.cmp(extra_large_region_base, 0).unwrap();
-                            assembler.je(after_size_calc_label).unwrap();
-                            assembler.shl(region_elemant_size_size.to_native_64(), EXTRA_LARGE_REGION_SIZE_SIZE).unwrap();
-                            assembler.mov(mask_for_this_pointer, EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE).unwrap();
-                            assembler.xor(this_pointer.to_native_64(), mask_for_this_pointer).unwrap();
-
-
-                            assembler.set_label(&mut after_size_calc_label).unwrap();
-
-                            let region_index = this_pointer.to_native_64();
-                            assembler.shr(region_index, region_elemant_size_size.to_native_64()).unwrap();
-                            //todo lookup in r15 the method_table for this variable
-                            // means pointer is not from heap address
+                    match resolver.lookup_special(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
+                        None => {
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::ResolveInvokeSpecial { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
                         }
-                    };
+                        Some((method_id, is_native)) => {
+                            let after_call_label = self.labeler.new_label(&mut labels);
+                            let code = resolver.get_compressed_code(method_id);
+                            let target_at = self.add_function(&code, method_id, resolver);
+                            let code_id = self.function_addresses.get(&target_at).unwrap();
+                            let function_start_label = self.function_starts.get(&code_id).unwrap();
+
+                            let callee_this_pointer_offset = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
+                            let this_pointer = Register(6);
+                            let region_elemant_size_size = Register(5);
+                            initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: callee_this_pointer_offset, to: this_pointer }));
+                            let this_pointer = this_pointer.to_native_64();
+                            IRInstr::WithAssembler {
+                                function: box move |assembler: &mut CodeAssembler| {
+                                    let _reserved = Register(0);
+                                    let small_region_base = Register(1).to_native_64();
+                                    let medium_region_base = Register(2).to_native_64();
+                                    let large_region_base = Register(3).to_native_64();
+                                    let extra_large_region_base = Register(4).to_native_64();
+                                    assembler.mov(small_region_base, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(medium_region_base, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(large_region_base, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(extra_large_region_base, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.and(small_region_base, this_pointer).unwrap();
+                                    assembler.and(medium_region_base, this_pointer).unwrap();
+                                    assembler.and(large_region_base, this_pointer).unwrap();
+                                    assembler.and(extra_large_region_base, this_pointer).unwrap();
+
+                                    assembler.mov(region_elemant_size_size.to_native_64(), 1u64).unwrap();
+
+                                    let mut after_size_calc_label = assembler.create_label();
+                                    let mask_for_this_pointer = Register(5).to_native_64();
+                                    //todo vectorize to get rid off branches
+                                    assembler.cmp(small_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), SMALL_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(medium_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), MEDIUM_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(large_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), LARGE_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(extra_large_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), EXTRA_LARGE_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
 
 
-                    let next_rbp = Register(6);
-                    initial_ir.push((current_offset, IRInstr::LoadSP { to: next_rbp }));
-                    let next_function_layout = resolver.lookup_method_layout(method_id);
-                    initial_ir.push((current_offset, IRInstr::GrowStack { amount: next_function_layout.full_frame_size() }));
-                    let rip_register = Register(0);
-                    initial_ir.push((current_offset, IRInstr::LoadLabel { label: after_call_label, to: rip_register }));
-                    let prev_rip_position = layout.full_frame_size();
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: rip_register, to: FramePointerOffset(prev_rip_position) }));
-                    let prev_rbp_position = layout.full_frame_size() + size_of::<*mut c_void>();
-                    let prev_rbp_register = Register(1);
-                    initial_ir.push((current_offset, IRInstr::LoadRBP { to: prev_rbp_register }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: prev_rbp_register, to: FramePointerOffset(prev_rbp_position) }));
-                    let frame_info_ptr = layout.full_frame_size() + 2 * size_of::<*mut c_void>();
-                    let beafbeaf_register = Register(2);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
-                    let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
-                    let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
-                    let magic_1_register = Register(3);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_1_register, to: FramePointerOffset(magic_1) }));
-                    let magic_2 = layout.full_frame_size() + 5 * size_of::<*mut c_void>();
-                    let magic_2_register = Register(4);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_2_register, const_: MAGIC_2_EXPECTED }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_2_register, to: FramePointerOffset(magic_2) }));
-                    let local_vars_start = layout.full_frame_size() + 6 * size_of::<*mut c_void>();
-                    let temp_arg_register = Register(5);
-                    for i in local_vars_start..descriptor.arg_types.len() {
-                        let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, i as u16);
-                        let load_to_location = FramePointerOffset(local_vars_start + i * size_of::<jlong>());
-                        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
-                        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                    }
-                    //pop this last
-                    let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
-                    let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
-                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                    let one_element_skip = Register(7);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
-                    initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
-                    initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
-                    initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
-                    initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
-                    match descriptor.return_type {
-                        CompressedParsedDescriptorType::BooleanType => todo!(),
-                        CompressedParsedDescriptorType::ByteType => todo!(),
-                        CompressedParsedDescriptorType::ShortType => todo!(),
-                        CompressedParsedDescriptorType::CharType => todo!(),
-                        CompressedParsedDescriptorType::IntType => todo!(),
-                        CompressedParsedDescriptorType::LongType => todo!(),
-                        CompressedParsedDescriptorType::FloatType => todo!(),
-                        CompressedParsedDescriptorType::DoubleType => todo!(),
-                        CompressedParsedDescriptorType::VoidType => {}
-                        CompressedParsedDescriptorType::Ref(_) => todo!()
+                                    assembler.set_label(&mut after_size_calc_label).unwrap();
+
+                                    let region_index = this_pointer;
+                                    assembler.shlx(region_index, this_pointer, region_elemant_size_size.to_native_64()).unwrap();
+                                    //todo lookup in r15 the method_table for this variable
+                                    // means pointer is not from heap address
+                                }
+                            };
+
+
+                            let next_rbp = Register(6);
+                            initial_ir.push((current_offset, IRInstr::LoadSP { to: next_rbp }));
+                            let next_function_layout = resolver.lookup_method_layout(method_id);
+                            initial_ir.push((current_offset, IRInstr::GrowStack { amount: next_function_layout.full_frame_size() }));
+                            let rip_register = Register(0);
+                            initial_ir.push((current_offset, IRInstr::LoadLabel { label: after_call_label, to: rip_register }));
+                            let prev_rip_position = layout.full_frame_size();
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: rip_register, to: FramePointerOffset(prev_rip_position) }));
+                            let prev_rbp_position = layout.full_frame_size() + size_of::<*mut c_void>();
+                            let prev_rbp_register = Register(1);
+                            initial_ir.push((current_offset, IRInstr::LoadRBP { to: prev_rbp_register }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: prev_rbp_register, to: FramePointerOffset(prev_rbp_position) }));
+                            let frame_info_ptr = layout.full_frame_size() + 2 * size_of::<*mut c_void>();
+                            let beafbeaf_register = Register(2);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
+                            let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
+                            let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
+                            let magic_1_register = Register(3);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_1_register, to: FramePointerOffset(magic_1) }));
+                            let magic_2 = layout.full_frame_size() + 5 * size_of::<*mut c_void>();
+                            let magic_2_register = Register(4);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_2_register, const_: MAGIC_2_EXPECTED }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_2_register, to: FramePointerOffset(magic_2) }));
+                            let local_vars_start = layout.full_frame_size() + 6 * size_of::<*mut c_void>();
+                            let temp_arg_register = Register(5);
+                            for i in local_vars_start..descriptor.arg_types.len() {
+                                let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, i as u16);
+                                let load_to_location = FramePointerOffset(local_vars_start + i * size_of::<jlong>());
+                                initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
+                                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
+                            }
+                            //pop this last
+                            let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
+                            let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
+                            initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
+                            let one_element_skip = Register(7);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
+                            initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
+                            initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
+                            initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
+                            initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
+                            match descriptor.return_type {
+                                CompressedParsedDescriptorType::BooleanType => todo!(),
+                                CompressedParsedDescriptorType::ByteType => todo!(),
+                                CompressedParsedDescriptorType::ShortType => todo!(),
+                                CompressedParsedDescriptorType::CharType => todo!(),
+                                CompressedParsedDescriptorType::IntType => todo!(),
+                                CompressedParsedDescriptorType::LongType => todo!(),
+                                CompressedParsedDescriptorType::FloatType => todo!(),
+                                CompressedParsedDescriptorType::DoubleType => todo!(),
+                                CompressedParsedDescriptorType::VoidType => {}
+                                CompressedParsedDescriptorType::Ref(_) => todo!()
+                            }
+                        }
                     }
                 }
                 todo => todo!("{:?}", todo)
@@ -972,6 +981,20 @@ impl JITState {
         res
     }
 
+    fn runtime_type_info(memory_region: &MutexGuard<MemoryRegions>) -> RuntimeTypeInfo {
+        RuntimeTypeInfo {
+            small_num_regions: 0,
+            medium_num_regions: 0,
+            large_num_regions: 0,
+            extra_large_num_regions: 0,
+            small_region_index_to_type: memory_region.small_region_types.as_ptr(),
+            medium_region_index_to_type: memory_region.medium_region_types.as_ptr(),
+            large_region_index_to_type: memory_region.large_region_types.as_ptr(),
+            extra_large_region_index_to_type: memory_region.extra_large_region_types.as_ptr(),
+            allocated_type_to_vtable: todo!(),
+        }
+    }
+
     #[allow(named_asm_labels)]
     unsafe fn resume_method(jit_state: &RefCell<JITState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
@@ -980,7 +1003,7 @@ impl JITState {
             let rust_stack: u64 = stack_pointer as u64;
             let rust_frame: u64 = frame_pointer as u64;
             dbg!(frame_pointer);
-
+            let memory_region: MutexGuard<MemoryRegions> = jvm.gc.memory_region.lock().unwrap();
             let mut jit_code_context = JitCodeContext {
                 native_saved: SavedRegisters {
                     stack_pointer: 0xdeaddeaddeaddead as *mut c_void,
@@ -995,6 +1018,7 @@ impl JITState {
                     status_register,
                 },
                 exit_handler_ip: null_mut(),
+                runtime_type_info: Self::runtime_type_info(&memory_region),
             };
             eprintln!("going in");
             let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
