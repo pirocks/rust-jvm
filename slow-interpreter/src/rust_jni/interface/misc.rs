@@ -21,7 +21,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{GcManagedObject, JavaValue};
-use crate::jvm_state::{JVMState, LibJavaLoading};
+use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
@@ -144,7 +144,7 @@ pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: j
 pub unsafe extern "C" fn unregister_natives(env: *mut JNIEnv, clazz: jclass) -> jint {
     let jvm = get_state(env);
     let rc = from_jclass(jvm, clazz).as_runtime_class(jvm);
-    if let None = jvm.libjava.registered_natives.write().unwrap().remove(&ByAddress(rc)) {
+    if let None = jvm.native_libaries.registered_natives.write().unwrap().remove(&ByAddress(rc)) {
         return JNI_ERR;
     }
     JNI_OK as i32
@@ -166,7 +166,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
             Some(cn) => cn,
         };
         let view = runtime_class.view();
-        let jni_context = &jvm.libjava;
+        let jni_context = &jvm.native_libaries;
         view.methods().enumerate().for_each(|(i, method_info)| {
             let descriptor_str = method_info.desc_str();
             let current_name = method_info.name();
@@ -180,7 +180,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv,
 }
 
 
-fn register_native_with_lib_java_loading(jni_context: &LibJavaLoading<'gc_life>, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc_life>>, method_i: usize) {
+fn register_native_with_lib_java_loading(jni_context: &NativeLibraries<'gc_life>, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc_life>>, method_i: usize) {
     if jni_context.registered_natives.read().unwrap().contains_key(&ByAddress(runtime_class.clone())) {
         unsafe {
             jni_context.registered_natives

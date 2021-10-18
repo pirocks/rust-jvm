@@ -2,6 +2,7 @@ extern crate libc;
 extern crate libloading;
 
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::os::raw::c_void;
@@ -23,7 +24,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
-use crate::jvm_state::LibJavaLoading;
+use crate::jvm_state::NativeLibraries;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
@@ -32,9 +33,10 @@ use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 pub mod value_conversion;
 pub mod mangling;
 
-impl<'gc_life> LibJavaLoading<'gc_life> {
-    pub fn new() -> LibJavaLoading<'gc_life> {
-        LibJavaLoading {
+impl<'gc_life> NativeLibraries<'gc_life> {
+    pub fn new(libjava: OsString) -> NativeLibraries<'gc_life> {
+        NativeLibraries {
+            libjava_path: libjava,
             native_libs: Default::default(),
             registered_natives: RwLock::new(HashMap::new()),
         }
@@ -53,7 +55,7 @@ pub fn call<'gc_life>(
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern fn() = unsafe {
-        let libraries_guard = jvm.libjava.native_libs.read().unwrap();
+        let libraries_guard = jvm.native_libaries.native_libs.read().unwrap();
         let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());
         match possible_symbol {
             Some(symbol) => {

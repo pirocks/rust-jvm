@@ -176,9 +176,9 @@ impl<'gc_life> ThreadState<'gc_life> {
         let mut new_int_state = InterpreterStateGuard::new(jvm, bootstrap_thread.clone(), bootstrap_thread.interpreter_state.write().unwrap().into());
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
-            jvm.libjava.load(jvm, &mut new_int_state, &jvm.libjava_path, "java".to_string());
+            jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
             {
-                let native_libs_guard = jvm.libjava.native_libs.read().unwrap();
+                let native_libs_guard = jvm.native_libaries.native_libs.read().unwrap();
                 let libjava_native_lib = native_libs_guard.get("java").unwrap();
                 let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterface_)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
                 (*setup_hack_symbol.deref())(get_invoke_interface(jvm, &mut new_int_state))

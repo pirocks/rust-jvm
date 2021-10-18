@@ -57,34 +57,30 @@ pub struct JVMConfig {
     pub debug_print_exceptions: bool,
     pub assertions_enabled: bool,
     pub tracing: TracingSettings,
+    pub main_class_name: CClassName,
 
 }
 
 pub struct JVMState<'gc_life> {
-    pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
     pub config: JVMConfig,
-    pub libjava_path: OsString,
-    pub(crate) properties: Vec<String>,
+    pub gc: &'gc_life GC<'gc_life>,
+    pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
+    pub native_libaries: NativeLibraries<'gc_life>,
+    pub properties: Vec<String>,
     pub string_pool: CompressedClassfileStringPool,
-    pub method_descriptor_pool: CompressedMethodDescriptorsPool,
     pub string_internment: RwLock<StringInternment<'gc_life>>,
     pub start_instant: Instant,
-    pub libjava: LibJavaLoading<'gc_life>,
     pub classes: RwLock<Classes<'gc_life>>,
     pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<GcManagedObject<'gc_life>>>>,
-    pub gc: &'gc_life GC<'gc_life>,
     pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddress<GcManagedObject<'gc_life>>>>,
-    pub main_class_name: CClassName,
     pub classpath: Arc<Classpath>,
-    pub(crate) invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
+    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
-    pub stack_frame_layouts: RwLock<HashMap<MethodId, FrameBackedStackframeMemoryLayout>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
     pub native_interface_allocations: NativeAllocator,
-    pub(crate) live: AtomicBool,
-    pub unittest_mode: bool,
+    pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
@@ -171,30 +167,26 @@ impl<'gc_life> JVMState<'gc_life> {
                 debug_print_exceptions,
                 assertions_enabled,
                 compiled_mode_active: true,
-                tracing
+                tracing,
+                main_class_name
             },
-            libjava_path: libjava,
             properties,
-            libjava: LibJavaLoading::new(),
+            native_libaries: NativeLibraries::new(libjava),
             string_pool,
-            method_descriptor_pool: CompressedMethodDescriptorsPool::new(),
             string_internment: RwLock::new(StringInternment { strings: HashMap::new() }),
             start_instant: Instant::now(),
             classes,
             class_loaders: RwLock::new(BiMap::new()),
             gc,
             protection_domains: RwLock::new(BiMap::new()),
-            main_class_name,
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
             jvmti_state,
             thread_state,
             method_table: RwLock::new(MethodTable::new()),
-            stack_frame_layouts: RwLock::new(HashMap::new()),
             field_table: RwLock::new(FieldTable::new()),
             native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
             live: AtomicBool::new(false),
-            unittest_mode,
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
@@ -341,12 +333,13 @@ pub struct NativeLib {
 
 
 #[derive(Debug)]
-pub struct LibJavaLoading<'gc_life> {
+pub struct NativeLibraries<'gc_life> {
+    pub libjava_path: OsString,
     pub native_libs: RwLock<HashMap<String, NativeLib>>,
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, RwLock<HashMap<u16, unsafe extern fn()>>>>,
 }
 
-impl<'gc_life> LibJavaLoading<'gc_life> {
+impl<'gc_life> NativeLibraries<'gc_life> {
     pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);

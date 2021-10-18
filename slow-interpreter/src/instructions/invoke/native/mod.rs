@@ -75,12 +75,12 @@ pub fn run_native_method(
         m.lock(jvm, int_state).unwrap();
     }
 
-    let result = if jvm.libjava.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
-        jvm.libjava.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))
+    let result = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) &&
+        jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16))
     {
         //todo dup
         let res_fn = {
-            let reg_natives = jvm.libjava.registered_natives.read().unwrap();
+            let reg_natives = jvm.native_libaries.registered_natives.read().unwrap();
             let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
             *reg_natives_for_class.get(&(method_i as u16)).unwrap()
         };

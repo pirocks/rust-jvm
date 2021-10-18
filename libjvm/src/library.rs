@@ -38,7 +38,7 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
             }
         }
     };
-    let res = jvm.libjava.get_onload_ptr_and_add(&path, name);
+    let res = jvm.native_libaries.get_onload_ptr_and_add(&path, name);
     res as *mut c_void
 }
 
@@ -62,7 +62,7 @@ unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const
         return handle;
     }
     let jvm = get_state_invoke_interface(&mut INVOKE_INTERFACE);
-    match jvm.libjava.lookup_onload(name) {
+    match jvm.native_libaries.lookup_onload(name) {
         Ok(res) => res as *mut c_void,
         Err(_) => null_mut()
     }

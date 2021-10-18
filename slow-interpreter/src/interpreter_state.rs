@@ -321,7 +321,6 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                         for (i, local_var) in local_vars.into_iter().enumerate() {
                             self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
                         }
-                        jvm.stack_frame_layouts.write().unwrap().insert(method_id, memory_layout);
                     } else {
                         panic!()
                     }
