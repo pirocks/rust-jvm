@@ -11,13 +11,8 @@ use std::mem::size_of;
 use std::ops::Range;
 use std::pin::Pin;
 use std::ptr::{NonNull};
-use std::sync::{Mutex, MutexGuard};
-use std::thread::ThreadId;
 
 use itertools::{Either, Itertools};
-use lazy_static::lazy_static;
-use nix::sys::mman::{MapFlags, mmap, ProtFlags};
-use num_integer::Integer;
 use rangemap::RangeMap;
 
 use early_startup::Regions;
@@ -247,7 +242,7 @@ impl GCState {
             if !touched_pointers.contains(&new_pointer) {
                 touched_pointers.insert(new_pointer);
                 let new_layout = self.live_pointers.get(&new_pointer).expect("GC is in broken state");
-                self.gc_impl(new_pointer, &new_layout.clone(), touched_pointers)
+                self.gc_impl(new_pointer, &new_layout, touched_pointers)
             }
         }
     }
