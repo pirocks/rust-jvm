@@ -3,8 +3,8 @@ use std::hash::Hash;
 use std::ops::Range;
 use std::os::raw::c_void;
 
-use rangemap::RangeMap;
 use rangemap::map::IntoIter;
+use rangemap::RangeMap;
 
 #[derive(Debug)]
 pub struct BiRangeMap<K: Clone + Ord + Eq, V: Clone + Eq + Hash> {

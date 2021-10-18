@@ -65,22 +65,18 @@ pub struct JVMState<'gc_life> {
     pub config: JVMConfig,
     pub libjava_path: OsString,
     pub(crate) properties: Vec<String>,
-    pub system_domain_loader: bool,
     pub string_pool: CompressedClassfileStringPool,
     pub method_descriptor_pool: CompressedMethodDescriptorsPool,
     pub string_internment: RwLock<StringInternment<'gc_life>>,
     pub start_instant: Instant,
     pub libjava: LibJavaLoading<'gc_life>,
-
     pub classes: RwLock<Classes<'gc_life>>,
     pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<GcManagedObject<'gc_life>>>>,
     pub gc: &'gc_life GC<'gc_life>,
     pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddress<GcManagedObject<'gc_life>>>>,
     pub main_class_name: CClassName,
-
     pub classpath: Arc<Classpath>,
     pub(crate) invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
-
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
@@ -90,14 +86,8 @@ pub struct JVMState<'gc_life> {
     pub(crate) live: AtomicBool,
     pub unittest_mode: bool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
-
     pub include_name_field: AtomicBool,
-
-
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
-
-    pub monitors2: RwLock<Vec<Monitor2>>,
-
     pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<u16, Frame>>>,
 }
 
@@ -185,7 +175,6 @@ impl<'gc_life> JVMState<'gc_life> {
             },
             libjava_path: libjava,
             properties,
-            system_domain_loader: true,
             libjava: LibJavaLoading::new(),
             string_pool,
             method_descriptor_pool: CompressedMethodDescriptorsPool::new(),
@@ -209,7 +198,6 @@ impl<'gc_life> JVMState<'gc_life> {
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
-            monitors2: RwLock::new(vec![]),
             function_frame_type_data: Default::default(),
         };
         (args, jvm)
