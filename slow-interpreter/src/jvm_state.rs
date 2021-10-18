@@ -71,14 +71,12 @@ pub struct JVMState<'gc_life> {
     pub string_internment: RwLock<StringInternment<'gc_life>>,
     pub start_instant: Instant,
     pub classes: RwLock<Classes<'gc_life>>,
-    pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<GcManagedObject<'gc_life>>>>,
-    pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddress<GcManagedObject<'gc_life>>>>,
     pub classpath: Arc<Classpath>,
-    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
     pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
+    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
     pub native_interface_allocations: NativeAllocator,
     pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
@@ -95,6 +93,8 @@ pub struct Classes<'gc_life> {
     pub anon_classes: RwLock<Vec<Arc<RuntimeClass<'gc_life>>>>,
     pub anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc_life>>>>,
     pub class_class: Arc<RuntimeClass<'gc_life>>,
+    pub class_loaders: RwLock<BiMap<LoaderIndex, ByAddress<GcManagedObject<'gc_life>>>>,
+    pub protection_domains: RwLock<BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddress<GcManagedObject<'gc_life>>>>,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -176,9 +176,7 @@ impl<'gc_life> JVMState<'gc_life> {
             string_internment: RwLock::new(StringInternment { strings: HashMap::new() }),
             start_instant: Instant::now(),
             classes,
-            class_loaders: RwLock::new(BiMap::new()),
             gc,
-            protection_domains: RwLock::new(BiMap::new()),
             classpath: classpath_arc,
             invoke_interface: RwLock::new(None),
             jvmti_state,
@@ -265,6 +263,8 @@ impl<'gc_life> JVMState<'gc_life> {
             anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Arc::new(RwLock::new(Vec::new())),
             class_class,
+            class_loaders: Default::default(),
+            protection_domains: Default::default(),
         });
         classes
     }
@@ -300,7 +300,8 @@ impl<'gc_life> JVMState<'gc_life> {
     pub fn get_loader_obj(&self, loader: LoaderName) -> Option<ClassLoader> {
         match loader {
             LoaderName::UserDefinedLoader(loader_idx) => {
-                let guard = self.class_loaders.read().unwrap();
+                let classes_guard = self.classes.read().unwrap();
+                let guard = classes_guard.class_loaders.read().unwrap();
                 let jvalue = JavaValue::Object(todo!()/*guard.get_by_left(&loader_idx).unwrap().clone().0.into()*/);
                 Some(jvalue.cast_class_loader())
             }

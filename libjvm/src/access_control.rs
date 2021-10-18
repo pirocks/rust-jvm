@@ -71,7 +71,8 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let stack = int_state.cloned_stack_snapshot(jvm);
-    let protection_domains = jvm.protection_domains.read().unwrap();
+    let classes_guard = jvm.classes.read().unwrap();
+    let protection_domains = classes_guard.protection_domains.read().unwrap();
     let protection_domains = stack.iter().rev().flat_map(|entry| {
         match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
             None => None,

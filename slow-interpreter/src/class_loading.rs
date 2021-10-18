@@ -115,7 +115,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
         None => {
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
-                    let loader_obj = jvm.class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
+                    let loader_obj = jvm.classes.read().unwrap().class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
                     let class_loader: ClassLoader = JavaValue::Object(loader_obj.into()).cast_class_loader();
                     match ptype.clone() {
                         CPDType::ByteType => Arc::new(RuntimeClass::Byte),
@@ -299,7 +299,7 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
 pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
-            JavaValue::Object(jvm.class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
+            JavaValue::Object(jvm.classes.read().unwrap().class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
         }
         LoaderName::BootstrapLoader => {
             JavaValue::null()

@@ -379,7 +379,8 @@ pub mod class_loader {
 
     impl<'gc_life> ClassLoader<'gc_life> {
         pub fn to_jvm_loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
-            let mut loaders_guard = jvm.class_loaders.write().unwrap();
+            let classes_guard = jvm.classes.read().unwrap();
+            let mut loaders_guard = classes_guard.class_loaders.write().unwrap();
             let loader_index_lookup = loaders_guard.get_by_right(&ByAddress(self.normal_object.clone()));
             LoaderName::UserDefinedLoader(match loader_index_lookup {
                 Some(x) => *x,

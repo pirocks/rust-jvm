@@ -214,8 +214,8 @@ impl<'gc_life> GC<'gc_life> {
         }
         for root in jvm.classes.read().unwrap().class_object_pool.left_values().map(|by_address| by_address.0.clone()).chain(
             jvm.classes.read().unwrap().anon_class_live_object_ldc_pool.read().unwrap().iter().cloned()).chain(
-            jvm.class_loaders.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
-            jvm.protection_domains.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
+            jvm.classes.read().unwrap().class_loaders.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
+            jvm.classes.read().unwrap().protection_domains.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
             jvm.string_internment.read().unwrap().strings.values().cloned()).chain(
             jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned()).chain(
             jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())).chain(
