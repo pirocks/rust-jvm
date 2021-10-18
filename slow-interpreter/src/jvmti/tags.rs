@@ -38,7 +38,7 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetTag");
     null_check!(object);
     //todo handle capabilities
-    let res = match jvm.jvmti_state.as_ref().unwrap().tags.read().unwrap().get(&object) {
+    let res = match jvm.jvmti_state().unwrap().tags.read().unwrap().get(&object) {
         None => {
             tag_ptr.write(0);
             jvmtiError_JVMTI_ERROR_NONE
@@ -83,6 +83,6 @@ pub unsafe extern "C" fn set_tag(env: *mut jvmtiEnv, object: jobject, tag: jlong
     let jvm = get_state(env);
     //todo handle capabilities
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetTag");
-    jvm.jvmti_state.as_ref().unwrap().tags.write().unwrap().insert(object, tag);
+    jvm.jvmti_state().unwrap().tags.write().unwrap().insert(object, tag);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

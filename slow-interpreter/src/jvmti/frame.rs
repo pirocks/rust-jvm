@@ -261,9 +261,9 @@ pub unsafe extern "C" fn get_local_variable_table(
     entry_count_ptr.write(num_locals as i32);
     let res = local_vars.iter().map(|local_variable_view| {
         let name = local_variable_view.name();
-        let allocated_name = jvm.native_interface_allocations.allocate_string(name);
+        let allocated_name = jvm.native.native_interface_allocations.allocate_string(name);
         let signature = local_variable_view.desc_str();
-        let allocated_signature = jvm.native_interface_allocations.allocate_string(signature);
+        let allocated_signature = jvm.native.native_interface_allocations.allocate_string(signature);
         let slot = local_variable_view.local_var_slot() as i32;
         _jvmtiLocalVariableEntry {
             start_location: local_variable_view.variable_start_pc() as i64,
@@ -274,7 +274,7 @@ pub unsafe extern "C" fn get_local_variable_table(
             slot,
         }
     }).collect::<Vec<_>>();
-    jvm.native_interface_allocations.allocate_and_write_vec(res, entry_count_ptr, table_ptr);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(res, entry_count_ptr, table_ptr);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
@@ -351,7 +351,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
         Some(table) => table,
     }.line_number_table;
     entry_count_ptr.write(table.len() as i32);
-    let res_table = jvm.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len()) as *mut _jvmtiLineNumberEntry;
+    let res_table = jvm.native.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len()) as *mut _jvmtiLineNumberEntry;
     for (i, entry) in table.iter().enumerate() {
         let start = entry.start_pc;
         let line_number = entry.line_number;

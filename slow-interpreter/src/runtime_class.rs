@@ -176,7 +176,7 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
 }
 
 pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
-    if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+    if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Ref(ref_) = classfile.type_() {
             if let CPRefType::Class(cn) = ref_ {
                 jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)

@@ -45,8 +45,8 @@ pub unsafe extern "C" fn get_field_name(env: *mut jvmtiEnv, klass: jclass, field
     let name = field_view.field_name().0.to_str(&jvm.string_pool);
     let field_desc = field_view.field_desc();
     generic_ptr.write(null_mut());
-    name_ptr.write(jvm.native_interface_allocations.allocate_cstring(CString::new(name).unwrap()));
-    signature_ptr.write(jvm.native_interface_allocations.allocate_cstring(CString::new(field_desc).unwrap()));
+    name_ptr.write(jvm.native.native_interface_allocations.allocate_cstring(CString::new(name).unwrap()));
+    signature_ptr.write(jvm.native.native_interface_allocations.allocate_cstring(CString::new(field_desc).unwrap()));
     jvmtiError_JVMTI_ERROR_NONE
 }
 

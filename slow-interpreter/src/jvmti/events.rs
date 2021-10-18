@@ -6,6 +6,7 @@ use jvmti_jni_bindings::*;
 use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
 use crate::jvmti::get_state;
+use crate::rust_jni::native_util::from_jclass;
 use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
@@ -14,10 +15,10 @@ pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: j
     let thread_obj = if event_thread.is_null() {
         None
     } else {
-        JavaValue::Object(todo!()/*from_jclass(jvm,event_thread)*/).cast_thread().into()
+        JavaValue::Object(from_jclass(jvm, event_thread).object().into()).cast_thread().into()
     };
     let tid: Option<Arc<JavaThread>> = thread_obj.map(|it| it.get_java_thread(jvm));
-    let jdwp_copy = jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.clone();
+    let jdwp_copy = jvm.jvmti_state().unwrap().built_in_jdwp.clone();
     // does not support per thread notification
     // VMInit
     // VMStart

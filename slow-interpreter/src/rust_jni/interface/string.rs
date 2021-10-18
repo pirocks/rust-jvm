@@ -27,7 +27,7 @@ pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
         buf.push(0);//null terminator
         let jvm = get_state(env);
         let mut res = null_mut();
-        jvm.native_interface_allocations.allocate_and_write_vec(buf, null_mut(), &mut res as *mut *mut u8);
+        jvm.native.native_interface_allocations.allocate_and_write_vec(buf, null_mut(), &mut res as *mut *mut u8);
         if !is_copy.is_null() {
             is_copy.write(JNI_TRUE as u8);
         }
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv,
 
 pub unsafe extern "C" fn release_string_chars(env: *mut JNIEnv, _str: jstring, chars: *const jchar) {
     let jvm = get_state(env);
-    jvm.native_interface_allocations.free(chars as *mut c_void);
+    jvm.native.native_interface_allocations.free(chars as *mut c_void);
 }
 
 
@@ -168,5 +168,5 @@ pub unsafe extern "C" fn get_string_region(env: *mut JNIEnv, str: jstring, start
 
 pub unsafe extern "C" fn release_string_utfchars(env: *mut JNIEnv, _str: jstring, chars: *const c_char) {
     let jvm = get_state(env);
-    jvm.native_interface_allocations.free(chars as *mut c_void)
+    jvm.native.native_interface_allocations.free(chars as *mut c_void)
 }

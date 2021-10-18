@@ -65,7 +65,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         let object = thread.thread_object().object();
         new_local_ref_public(object.into(), int_state)
     }).collect::<Vec<jobject>>();
-    jvm.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
@@ -146,7 +146,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     // .expect("Expected thread class to have a class loader");
     let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object()), int_state);
     (*info_ptr).context_class_loader = context_class_loader;
-    (*info_ptr).name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
+    (*info_ptr).name = jvm.native.native_interface_allocations.allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon(jvm) as u8;
     (*info_ptr).priority = thread_object.priority(jvm);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

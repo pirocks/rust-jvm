@@ -233,7 +233,7 @@ pub unsafe extern "C" fn get_class_methods(env: *mut jvmtiEnv, klass: jclass, me
         let method_id = jvm.method_table.write().unwrap().get_method_id(loaded_class.clone(), mv.method_i() as u16);
         method_id as jmethodID
     }).collect::<Vec<_>>();
-    jvm.native_interface_allocations.allocate_and_write_vec(res, method_count_ptr, methods_ptr);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(res, method_count_ptr, methods_ptr);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

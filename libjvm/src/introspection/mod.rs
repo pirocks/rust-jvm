@@ -194,7 +194,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     let sketch_string = JVMString::from_regular_string(rust_string.as_str());
     let mut len = 0;
     let mut data_ptr: *mut u8 = null_mut();
-    jvm.native_interface_allocations.allocate_and_write_vec(sketch_string.buf.clone(), &mut len as *mut jint, &mut data_ptr as *mut *mut u8);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(sketch_string.buf.clone(), &mut len as *mut jint, &mut data_ptr as *mut *mut u8);
     data_ptr as *const c_char
 }
 

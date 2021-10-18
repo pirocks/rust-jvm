@@ -61,42 +61,42 @@ pub unsafe extern "C" fn get_system_property(
         unimplemented!()
     }
     if property_name == "java.vm.name" {
-        let leaked_name = jvm.native_interface_allocations.allocate_string("TODO: Get a better VM Name".to_string());//todo get better name
+        let leaked_name = jvm.native.native_interface_allocations.allocate_string("TODO: Get a better VM Name".to_string());//todo get better name
         value_ptr.write(leaked_name);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.vm.info" {
-        let leaked_name = jvm.native_interface_allocations.allocate_string("TODO: Get better VM Info".to_string());//todo
+        let leaked_name = jvm.native.native_interface_allocations.allocate_string("TODO: Get better VM Info".to_string());//todo
         value_ptr.write(leaked_name);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.library.path" || property_name == "sun.boot.library.path" {
-        let leaked_name = jvm.native_interface_allocations.allocate_string("/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/".to_string());//todo in future don't hardcode this
+        let leaked_name = jvm.native.native_interface_allocations.allocate_string("/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/".to_string());//todo in future don't hardcode this
         value_ptr.write(leaked_name);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);
     }
     if property_name == "java.class.path" || property_name == "sun.boot.class.path" {
         let jvm = get_state(env);
-        let leaked_str = jvm.native_interface_allocations.allocate_string(jvm.classpath.classpath_string());
+        let leaked_str = jvm.native.native_interface_allocations.allocate_string(jvm.classpath.classpath_string());
         value_ptr.write(leaked_str);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
     }
 
     if property_name == "java.version" {
-        let leaked_str = jvm.native_interface_allocations.allocate_string("1.8".to_string());
+        let leaked_str = jvm.native.native_interface_allocations.allocate_string("1.8".to_string());
         value_ptr.write(leaked_str);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
     }
 
     if property_name == "path.separator" {
-        let leaked_str = jvm.native_interface_allocations.allocate_string(":".to_string());
+        let leaked_str = jvm.native.native_interface_allocations.allocate_string(":".to_string());
         value_ptr.write(leaked_str);
         return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
     }
 
     if property_name == "user.dir" {
         if let Ok(dir) = std::env::current_dir() {
-            let leaked_str = jvm.native_interface_allocations.allocate_string(dir.to_string_lossy().to_string());
+            let leaked_str = jvm.native.native_interface_allocations.allocate_string(dir.to_string_lossy().to_string());
             value_ptr.write(leaked_str);
             return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE);//todo duplication
         };

@@ -79,18 +79,18 @@ impl<'gc_life> ThreadState<'gc_life> {
             let mut int_state = InterpreterStateGuard::new(jvm, main_thread.clone(), main_thread.interpreter_state.write().unwrap().into());
             main_thread.notify_alive(jvm);//is this too early?
             int_state.register_interpreter_state_guard(jvm);
-            jvm.jvmti_state.as_ref().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
+            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state));// technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
 
             assert!(!jvm.live.load(Ordering::SeqCst));
             jvm.live.store(true, Ordering::SeqCst);
-            if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+            if let Some(jvmti) = jvm.jvmti_state() {
                 jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone())
             }
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
             //from the jvmti spec:
             //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
-            if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+            if let Some(jvmti) = jvm.jvmti_state() {
                 jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
             }
             let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]), jvm);//todo think this is correct, check
@@ -269,7 +269,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let mut interpreter_state_guard: InterpreterStateGuard<'gc_life, '_> = InterpreterStateGuard::new(jvm, java_thread_clone, option);// { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
         interpreter_state_guard.register_interpreter_state_guard(jvm);
 
-        if let Some(jvmti) = jvm.jvmti_state.as_ref() {
+        if let Some(jvmti) = jvm.jvmti_state() {
             jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
         }
 

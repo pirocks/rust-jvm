@@ -407,7 +407,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     };
     let char_vec = string.value(jvm);
     let mut res = null_mut();
-    jvm.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
     res
 }
 

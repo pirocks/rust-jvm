@@ -11,8 +11,8 @@ use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 
+use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
@@ -367,7 +367,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             let runtime_class = stack_entry_ref.class_pointer(jvm);
             let method_i = self.current_method_i(jvm);
             let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
-            jvm.jvmti_state.as_ref().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
+            jvm.jvmti_state().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
         }
         match self.int_state.as_mut().unwrap().deref_mut() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {

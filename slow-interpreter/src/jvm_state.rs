@@ -61,6 +61,12 @@ pub struct JVMConfig {
 
 }
 
+pub struct Native {
+    pub jvmti_state: Option<JVMTIState>,
+    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
+    pub native_interface_allocations: NativeAllocator,
+}
+
 pub struct JVMState<'gc_life> {
     pub config: JVMConfig,
     pub gc: &'gc_life GC<'gc_life>,
@@ -72,12 +78,10 @@ pub struct JVMState<'gc_life> {
     pub start_instant: Instant,
     pub classes: RwLock<Classes<'gc_life>>,
     pub classpath: Arc<Classpath>,
-    pub jvmti_state: Option<JVMTIState>,
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
-    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
-    pub native_interface_allocations: NativeAllocator,
+    pub native: Native,
     pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
     pub include_name_field: AtomicBool,
@@ -178,12 +182,14 @@ impl<'gc_life> JVMState<'gc_life> {
             classes,
             gc,
             classpath: classpath_arc,
-            invoke_interface: RwLock::new(None),
-            jvmti_state,
             thread_state,
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
-            native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
+            native: Native {
+                jvmti_state,
+                invoke_interface: RwLock::new(None),
+                native_interface_allocations: NativeAllocator { allocations: RwLock::new(HashMap::new()) },
+            },
             live: AtomicBool::new(false),
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
@@ -311,6 +317,10 @@ impl<'gc_life> JVMState<'gc_life> {
 
     pub fn allocate_object(&'gc_life self, object: Object<'gc_life, 'l>) -> GcManagedObject<'gc_life> {
         self.gc.allocate_object(self, object)
+    }
+
+    pub fn jvmti_state(&self) -> Option<&JVMTIState> {
+        self.native.jvmti_state.as_ref()
     }
 }
 

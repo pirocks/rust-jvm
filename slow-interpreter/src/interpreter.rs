@@ -241,7 +241,7 @@ fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGua
 
 fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
-    let stop = match &jvm.jvmti_state {
+    let stop = match jvm.jvmti_state() {
         None => false,
         Some(jvmti) => {
             let breakpoints = &jvmti.break_points.read().unwrap();
@@ -252,7 +252,7 @@ fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         }
     };
     if stop {
-        let jdwp = &jvm.jvmti_state.as_ref().unwrap().built_in_jdwp;
+        let jdwp = &jvm.jvmti_state().unwrap().built_in_jdwp;
         jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state);
     }
 }

@@ -61,7 +61,7 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     };
     null_check!(info_ptr);
 
-    let name = jvm.native_interface_allocations.allocate_cstring(CString::new(thread_group.name(jvm).to_rust_string(jvm)).unwrap());
+    let name = jvm.native.native_interface_allocations.allocate_cstring(CString::new(thread_group.name(jvm).to_rust_string(jvm)).unwrap());
     let info_pointer_writer = info_ptr.as_mut().unwrap();
     info_pointer_writer.name = name;
     info_pointer_writer.is_daemon = thread_group.daemon(jvm);
@@ -113,6 +113,6 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     let thread_group_object = system_j_thread_group.object();
     let res = new_local_ref_public(thread_group_object.into(), int_state);
 
-    jvm.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
