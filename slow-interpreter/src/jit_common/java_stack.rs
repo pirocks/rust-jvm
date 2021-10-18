@@ -6,10 +6,10 @@ use std::ptr::null_mut;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::ptype_view::PTypeView;
-use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jvmti_jni_bindings::jobject;
+use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
+use crate::jit_common::SavedRegisters;
 
-use crate::SavedRegisters;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
@@ -170,5 +170,6 @@ impl JavaStack {
         }
     }
 }
+
 
 

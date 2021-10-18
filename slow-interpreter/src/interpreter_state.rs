@@ -7,15 +7,15 @@ use std::sync::{Arc, RwLockWriteGuard};
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
-use jit_common::java_stack::{JavaStack, JavaStatus};
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::java_values::{GcManagedObject, JavaValue};
+use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};

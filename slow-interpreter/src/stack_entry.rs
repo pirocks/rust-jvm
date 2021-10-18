@@ -11,14 +11,14 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use jit_common::java_stack::JavaStack;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;

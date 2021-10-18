@@ -19,7 +19,6 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView};
-use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
@@ -31,6 +30,7 @@ use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
+use crate::gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::class_loader::ClassLoader;

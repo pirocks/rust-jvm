@@ -7,8 +7,6 @@ use num::Zero;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
-use jit_common::VMExitData;
 use jvmti_jni_bindings::{jvalue, JVM_ACC_SYNCHRONIZED};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::CPDType;

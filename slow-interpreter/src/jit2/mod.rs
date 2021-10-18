@@ -13,18 +13,16 @@ use itertools::Itertools;
 use memoffset::offset_of;
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{AllocatedObjectType, FrameHeader, FramePointerOffset, StackframeMemoryLayout};
-use jit_common::java_stack::JavaStack;
-use jit_common::JitCodeContext;
-use jit_common::SavedRegisters;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
+use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
 
 use crate::jit2::ir::{IRInstr, IRLabel, Register};
 use crate::jit2::state::{Labeler, NaiveStackframeLayout};
 use crate::jit2::state::birangemap::BiRangeMap;
+use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;

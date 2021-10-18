@@ -15,7 +15,6 @@ use libloading::Symbol;
 use num::Integer;
 use wtf8::Wtf8Buf;
 
-use jit_common::java_stack::JavaStatus;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
@@ -32,6 +31,7 @@ use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
+use crate::jit_common::java_stack::JavaStatus;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stack_entry::StackEntry;
 use crate::threading::safepoints::{Monitor2, SafePoint};

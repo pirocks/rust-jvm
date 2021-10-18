@@ -2,11 +2,11 @@
 
 use std::ffi::c_void;
 
-use gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
+use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
+use crate::jit_common::java_stack::JavaStatus;
 
-use crate::java_stack::JavaStatus;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(C, packed)]
@@ -16,8 +16,6 @@ pub struct SavedRegisters {
     pub instruction_pointer: *mut c_void,
     pub status_register: *mut JavaStatus,
 }
-
-pub mod java_stack;
 
 
 #[repr(C, packed)]
@@ -79,3 +77,6 @@ pub enum VMExitData {
     },
     ExitDueToCompletion,
 }
+
+
+pub mod java_stack;
