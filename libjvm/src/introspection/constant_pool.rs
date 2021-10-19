@@ -87,7 +87,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
             let classes_guard = jvm.classes.read().unwrap();
-            match classes_guard.get_class_obj(rc.cpdtype()) {
+            match classes_guard.get_class_obj(rc.cpdtype(), None/*todo should there be something here*/) {
                 None => null_mut(),
                 Some(obj) => to_object(obj.into())
             }
@@ -110,7 +110,7 @@ fn get_class_from_type_maybe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ m
     Ok(if load_class {
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {
-        match jvm.classes.read().unwrap().get_class_obj(ptype) {
+        match jvm.classes.read().unwrap().get_class_obj(ptype, None/*todo should this be something*/) {
             None => return Ok(None),
             Some(rc) => Some(JavaValue::Object(todo!()/*rc.into()*/).cast_class().unwrap().as_runtime_class(jvm))
         }

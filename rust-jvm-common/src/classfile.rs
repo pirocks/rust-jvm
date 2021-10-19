@@ -4,6 +4,7 @@ use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
 
 use crate::classnames::class_name;
+use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::ptype::PType;
 
 #[derive(Debug)]
@@ -655,7 +656,7 @@ pub enum ConstantKind {
     MethodType(MethodType),
     InvokeDynamic(InvokeDynamic),
     InvalidConstant(InvalidConstant),
-    LiveObject(usize),//live object pool index
+    LiveObject(LiveObjectIndex),//live object pool index
 }
 
 

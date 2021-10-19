@@ -8,18 +8,19 @@ use wtf8::Wtf8Buf;
 
 use sketch_jvm_version_of_utf8::ValidationError;
 
+use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::compressed_classfile::CPRefType;
 use crate::compressed_classfile::names::CClassName;
 use crate::loading::ClassfileParsingError::UTFValidationError;
 
 pub trait LivePoolGetter {
-    fn elem_type(&self, idx: usize) -> CPRefType;
+    fn elem_type(&self, idx: LiveObjectIndex) -> CPRefType;
 }
 
 pub struct NoopLivePoolGetter {}
 
 impl LivePoolGetter for NoopLivePoolGetter {
-    fn elem_type(&self, _idx: usize) -> CPRefType {
+    fn elem_type(&self, _idx: LiveObjectIndex) -> CPRefType {
         panic!()
     }
 }
@@ -86,8 +87,9 @@ impl Display for ClassLoadingError {
 
 impl std::error::Error for ClassLoadingError {}
 
-
-pub type LoaderIndex = usize;
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct LoaderIndex(pub usize);
 
 #[derive(Debug)]
 #[derive(Eq)]
@@ -121,7 +123,7 @@ impl Display for LoaderName {
                 write!(f, "<bl>")
             }
             LoaderName::UserDefinedLoader(idx) => {
-                write!(f, "{}", *idx)
+                write!(f, "{}", idx.0)
             }
         }
     }

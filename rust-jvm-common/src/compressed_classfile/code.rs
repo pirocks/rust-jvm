@@ -496,6 +496,11 @@ impl CInstructionInfo {
     }
 }
 
+
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct LiveObjectIndex(pub usize);
+
 #[derive(Debug, Clone)]
 pub enum CompressedLdcW {
     String {
@@ -512,7 +517,7 @@ pub enum CompressedLdcW {
     },
     MethodType {},
     MethodHandle {},
-    LiveObject(usize),
+    LiveObject(LiveObjectIndex),
 }
 
 #[derive(Debug, Clone)]

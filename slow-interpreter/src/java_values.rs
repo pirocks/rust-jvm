@@ -212,16 +212,10 @@ impl<'gc_life> GC<'gc_life> {
         for (root, _) in self.vm_temp_owned_roots.read().unwrap().iter() {
             roots.insert(todo!()/*root.clone()*/);
         }
-        for root in jvm.classes.read().unwrap().class_object_pool.left_values().map(|by_address| by_address.0.clone()).chain(
-            jvm.classes.read().unwrap().anon_class_live_object_ldc_pool.read().unwrap().iter().cloned()).chain(
-            jvm.classes.read().unwrap().class_loaders.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
-            jvm.classes.read().unwrap().protection_domains.read().unwrap().right_values().map(|by_address| by_address.0.clone())).chain(
-            jvm.string_internment.read().unwrap().strings.values().cloned()).chain(
+        let classes_guard = jvm.classes.read().unwrap();
+        for root in jvm.string_internment.read().unwrap().strings.values().cloned().chain(
             jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned()).chain(
-            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())).chain(
-            jvm.classes.read().unwrap().initiating_loaders.values()
-                .flat_map(|(_loader, class)| { class.try_unwrap_class_class() })
-                .flat_map(|class| class.static_vars.read().unwrap().values().flat_map(|jv| jv.try_unwrap_object()).flatten().collect_vec())) {
+            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())).chain(classes_guard.classes_gc_roots()) {
             roots.insert(root.raw_ptr);
         }
         self.gc_with_roots(todo!()/*roots*/)
@@ -270,7 +264,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
         let obj = match allocated_type {
             AllocatedObjectType::Class { size, name, loader } => {
                 let classes = jvm.classes.read().unwrap();
-                let runtime_class = classes.loaded_classes_by_type.get(loader).unwrap().get(&(*name).into()).unwrap();
+                let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
                 let runtime_class_class = runtime_class.unwrap_class_class();
                 let num_fields = runtime_class_class.recursive_num_fields;
                 unsafe {

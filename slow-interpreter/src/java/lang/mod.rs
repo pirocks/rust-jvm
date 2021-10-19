@@ -282,7 +282,7 @@ pub mod class {
         }
 
         pub fn as_runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-            jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddressGcManagedObject(self.normal_object.clone())).unwrap().clone().0
+            jvm.classes.read().unwrap().object_to_runtime_class(self.normal_object.clone())//todo I can get rid of this clone since technically only a ref is needed for lookup
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
@@ -379,19 +379,8 @@ pub mod class_loader {
 
     impl<'gc_life> ClassLoader<'gc_life> {
         pub fn to_jvm_loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
-            let classes_guard = jvm.classes.read().unwrap();
-            let mut loaders_guard = classes_guard.class_loaders.write().unwrap();
-            let loader_index_lookup = loaders_guard.get_by_right(&ByAddress(self.normal_object.clone()));
-            LoaderName::UserDefinedLoader(match loader_index_lookup {
-                Some(x) => *x,
-                None => {
-                    let new_loader_id = loaders_guard.len();
-                    assert!(!loaders_guard.contains_left(&new_loader_id));
-                    loaders_guard.insert(new_loader_id, ByAddress(self.normal_object.clone()));
-                    //todo this whole mess needs a register class loader function which addes to approprate classes data structure
-                    new_loader_id
-                }
-            })
+            let mut classes_guard = jvm.classes.write().unwrap();
+            classes_guard.lookup_or_add_classloader(self.normal_object.clone())
         }
 
         pub fn load_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: JString<'gc_life>) -> Result<JClass<'gc_life>, WasException> {

@@ -709,7 +709,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     };
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
-    classes.anon_classes.write().unwrap().push(runtime_class.clone());
+    classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
     classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));

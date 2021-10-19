@@ -74,8 +74,8 @@ pub struct MethodResolver<'gc_life> {
 impl<'gc_life> MethodResolver<'gc_life> {
     pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.initiating_loaders.get(&on)?;
-        assert_eq!(loader_name, &self.loader);
+        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(method_view.is_static());
@@ -86,8 +86,8 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
     pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.initiating_loaders.get(&on)?;
-        assert_eq!(loader_name, &self.loader);
+        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         let mut method_table_guard = self.jvm.method_table.write().unwrap();

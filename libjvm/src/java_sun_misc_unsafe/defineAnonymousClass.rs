@@ -17,6 +17,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::class_loading::create_class_object;
@@ -84,7 +85,7 @@ fn patch_all(jvm: &'gc_life JVMState<'gc_life>, frame: StackEntryRef, args: &mut
     });
     let old_name_temp = class_name(&unpatched);
     let old_name = old_name_temp.get_referred_name();
-    let new_name = Wtf8Buf::from_string(format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.read().unwrap().len()));
+    let new_name = Wtf8Buf::from_string(format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.len()));
     let name_index = unpatched.constant_pool.len() as u16;
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
     unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
@@ -108,10 +109,10 @@ fn patch_single(
     let _kind = if class_name == CClassName::string().into() {
         unimplemented!()
     } else {
-        let classes_guard = state.classes.write().unwrap();
-        let mut anon_class_write_guard = classes_guard.anon_class_live_object_ldc_pool.write().unwrap();
+        let mut classes_guard = state.classes.write().unwrap();
+        let mut anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
         let live_object_i = anon_class_write_guard.len();
         anon_class_write_guard.push(patch.clone());
-        unpatched.constant_pool[i] = ConstantKind::LiveObject(live_object_i).into();
+        unpatched.constant_pool[i] = ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
     };
 }

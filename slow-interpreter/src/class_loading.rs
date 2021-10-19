@@ -11,6 +11,7 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
@@ -97,10 +98,7 @@ pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_stat
 }
 
 pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) -> Arc<RuntimeClass<'gc_life>> {
-    match jvm.classes.read().unwrap().initiating_loaders.get(&ptype) {
-        None => panic!(),
-        Some((_, res)) => res.clone()
-    }
+    jvm.classes.read().unwrap().is_loaded(&ptype).unwrap()
 }
 
 pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
@@ -111,12 +109,12 @@ pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
 pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
 // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
-    match guard.initiating_loaders.get(ptype) {
+    match guard.is_loaded(ptype) {
         None => {
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
-                    let loader_obj = jvm.classes.read().unwrap().class_loaders.write().unwrap().get_by_left(&loader_idx).unwrap().clone().0;
-                    let class_loader: ClassLoader = JavaValue::Object(loader_obj.into()).cast_class_loader();
+                    let loader_obj = jvm.classes.read().unwrap().lookup_class_loader(loader_idx).clone();
+                    let class_loader: ClassLoader = JavaValue::Object(loader_obj.clone().into()).cast_class_loader();
                     match ptype.clone() {
                         CPDType::ByteType => Arc::new(RuntimeClass::Byte),
                         CPDType::CharType => Arc::new(RuntimeClass::Char),
@@ -130,7 +128,6 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                     drop(guard);
                                     let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
                                     let res = class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm);
-                                    dbg!(int_state.current_loader());
                                     res
                                 }
                                 CPRefType::Array(sub_type) => {
@@ -159,7 +156,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
             guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.cpdtype(), res.clone());
             Ok(res)
         }
-        Some((_, res)) => Ok(res.clone())
+        Some(res) => Ok(res.clone())
     }
 }
 
@@ -185,7 +182,7 @@ impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
 pub struct DefaultLivePoolGetter {}
 
 impl LivePoolGetter for DefaultLivePoolGetter {
-    fn elem_type(&self, _idx: usize) -> CPRefType {
+    fn elem_type(&self, _idx: LiveObjectIndex) -> CPRefType {
         todo!()
     }
 }
@@ -299,7 +296,7 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
 pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => {
-            JavaValue::Object(jvm.classes.read().unwrap().class_loaders.read().unwrap().get_by_left(&idx).unwrap().clone().0.into())
+            JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().into())
         }
         LoaderName::BootstrapLoader => {
             JavaValue::null()

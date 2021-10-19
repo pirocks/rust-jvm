@@ -2,6 +2,7 @@ use wtf8::Wtf8Buf;
 
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::ptype::PType;
 
@@ -297,7 +298,7 @@ pub enum ConstantInfoView<'cl> {
     MethodHandle(MethodHandleView<'cl>),
     MethodType(MethodTypeView<'cl>),
     InvokeDynamic(InvokeDynamicView<'cl>),
-    LiveObject(usize),
+    LiveObject(LiveObjectIndex),
 }
 
 impl ConstantInfoView<'_> {
