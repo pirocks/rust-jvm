@@ -162,7 +162,14 @@ impl JITedCodeState {
                 CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
                     self.gen_code_invokestatic(resolver, &mut labels, &mut initial_ir, current_offset, method_name, descriptor, classname_ref_type)
                 }
+                CompressedInstructionInfo::goto_(offset) => {
+                    dbg!(offset);
+                    let branch_to_label = self.labeler.new_label(&mut labels);
+                    pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
+                    initial_ir.push((current_offset, IRInstr::BranchToLabel { label: branch_to_label }));
+                }
                 CompressedInstructionInfo::ifnull(offset) => {
+                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let possibly_null_register = Register(0);
@@ -176,6 +183,7 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::ifnonnull(offset) => {
                     //todo dup
+                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let possibly_null_register = Register(0);
@@ -188,6 +196,7 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
                 }
                 CompressedInstructionInfo::ifne(offset) => {
+                    dbg!(offset);
                     //todo dup
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
@@ -200,8 +209,23 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: register_with_null, const_: 0 }));
                     initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
                 }
+                CompressedInstructionInfo::ifeq(offset) => {
+                    //todo dup
+                    dbg!(offset);
+                    let branch_to_label = self.labeler.new_label(&mut labels);
+                    pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
+                    let possibly_null_register = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: possibly_null_register,
+                    }));
+                    let register_with_null = Register(1);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: register_with_null, const_: 0 }));
+                    initial_ir.push((current_offset, IRInstr::BranchEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
+                }
                 CompressedInstructionInfo::if_icmpne(offset) => {
                     //todo dup
+                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let value1 = Register(0);
@@ -218,6 +242,7 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::if_icmpeq(offset) => {
                     //todo dup
+                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let value1 = Register(0);
@@ -871,7 +896,9 @@ impl JITedCodeState {
                 IRInstr::Add { res, a } => {
                     assembler.add(res.to_native_64(), a.to_native_64()).unwrap();
                 }
-                IRInstr::Sub { .. } => todo!(),
+                IRInstr::Sub { res, to_subtract } => {
+                    assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap();
+                },
                 IRInstr::Div { .. } => todo!(),
                 IRInstr::Mod { .. } => todo!(),
                 IRInstr::Mul { .. } => todo!(),
@@ -895,6 +922,10 @@ impl JITedCodeState {
                 IRInstr::BranchEqual { label, a, b } => {
                     assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
                     assembler.je(iced_labels[&label]).unwrap();
+                }
+                IRInstr::BranchNotEqual { a, b, label } => {
+                    assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+                    assembler.jne(iced_labels[&label]).unwrap()
                 }
                 IRInstr::VMExit { exit_label, exit_type } => {
                     let native_stack_pointer = (offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)) as i64;
@@ -981,7 +1012,6 @@ impl JITedCodeState {
                 IRInstr::CopyRegister { .. } => todo!(),
                 IRInstr::BinaryBitAnd { .. } => todo!(),
                 IRInstr::ForwardBitScan { .. } => todo!(),
-                IRInstr::BranchNotEqual { .. } => todo!(),
                 IRInstr::WithAssembler { .. } => {}
             }
         }
@@ -1001,6 +1031,10 @@ impl JITedCodeState {
         let mut current_byte_code_offset = Some(ByteCodeOffset(0));
         let mut current_byte_code_start_address = Some(base_address);
         for (i, native_offset) in result.new_instruction_offsets.iter().enumerate() {
+            if *native_offset == u32::MAX {
+                continue
+            }
+            dbg!(native_offset);
             let current_instruction_address = unsafe { base_address.offset(*native_offset as isize) };
             loop {
                 match label_instruction_indexes.peek() {
@@ -1020,7 +1054,7 @@ impl JITedCodeState {
                 continue;
             }
             if let Some(new_byte_code_offset) = instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
-                assert!((current_byte_code_start_address.unwrap() as u64) < (current_instruction_address as u64));
+                assert!(((current_byte_code_start_address.unwrap()) as u64) < ((current_instruction_address) as u64));
                 bytecode_offset_to_address.insert_range(current_byte_code_start_address.unwrap()..current_instruction_address, current_byte_code_offset.unwrap());
                 current_byte_code_offset = Some(*new_byte_code_offset);
                 current_byte_code_start_address = Some(current_instruction_address);
