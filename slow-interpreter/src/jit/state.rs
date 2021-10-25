@@ -187,34 +187,91 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: register_with_null, const_: 0 }));
                     initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
                 }
+                CompressedInstructionInfo::ifne(offset) => {
+                    //todo dup
+                    let branch_to_label = self.labeler.new_label(&mut labels);
+                    pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
+                    let possibly_null_register = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: possibly_null_register,
+                    }));
+                    let register_with_null = Register(1);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: register_with_null, const_: 0 }));
+                    initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
+                }
+                CompressedInstructionInfo::if_icmpne(offset) => {
+                    //todo dup
+                    let branch_to_label = self.labeler.new_label(&mut labels);
+                    pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
+                    let value1 = Register(0);
+                    let value2 = Register(1);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: value2,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 1),
+                        to: value1,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: value1, b: value2, label: branch_to_label }))
+                }
+                CompressedInstructionInfo::if_icmpeq(offset) => {
+                    //todo dup
+                    let branch_to_label = self.labeler.new_label(&mut labels);
+                    pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
+                    let value1 = Register(0);
+                    let value2 = Register(1);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: value2,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 1),
+                        to: value1,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::BranchEqual { a: value1, b: value2, label: branch_to_label }))
+                }
                 CompressedInstructionInfo::return_ => {
                     initial_ir.push((current_offset, IRInstr::Return { return_val: None }));
                 }
+                CompressedInstructionInfo::iload_0 => {
+                    JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 0);
+                }
+                CompressedInstructionInfo::iload_1 => {
+                    JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 1);
+                }
+                CompressedInstructionInfo::iload_2 => {
+                    JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 2);
+                }
+                CompressedInstructionInfo::iload_3 => {
+                    JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 3);
+                }
                 CompressedInstructionInfo::aload_0 => {
-                    let temp = Register(0);
-                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
+                    JITedCodeState::gen_aload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 0);
                 }
                 CompressedInstructionInfo::aload_1 => {
-                    let temp = Register(0);
-                    initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, 0), to: temp }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
+                    JITedCodeState::gen_aload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 1);
                     //todo dup
+                }
+                CompressedInstructionInfo::istore_2 => {
+                    JITedCodeState::gen_istore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 2);
+                }
+                CompressedInstructionInfo::istore_3 => {
+                    JITedCodeState::gen_istore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 3);
                 }
                 CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                     self.gen_code_invokespecial(layout, resolver, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count, method_name, descriptor, classname_ref_type)
                     //todo need to not constantly call same.
                 }
                 CompressedInstructionInfo::iconst_0 => {
-                    let const_register = Register(0);
-                    initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 0 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+                    JITedCodeState::gen_iconst_n(layout, &mut initial_ir, current_offset, next_byte_code_instr_count, 0)
                 }
                 CompressedInstructionInfo::iconst_1 => {
-                    //todo dup
-                    let const_register = Register(0);
-                    initial_ir.push((current_offset, IRInstr::Const32bit { to: const_register, const_: 1 }));
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+                    JITedCodeState::gen_iconst_n(layout, &mut initial_ir, current_offset, next_byte_code_instr_count, 1)
+                }
+                CompressedInstructionInfo::iconst_2 => {
+                    JITedCodeState::gen_iconst_n(layout, &mut initial_ir, current_offset, next_byte_code_instr_count, 2)
                 }
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
                     self.gen_code_putfield(layout, resolver, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count, name, target_class)
@@ -374,6 +431,38 @@ impl JITedCodeState {
                         }
                     }
                 }
+                CompressedInstructionInfo::isub => {
+                    let value_2 = Register(0);
+                    let value_1 = Register(1);
+                    let res_value = value_1;
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: value_2,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 1),
+                        to: value_1,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::Sub {
+                        res: res_value,
+                        to_subtract: value_2,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative {
+                        from: res_value,
+                        to: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                    }));
+                }
+                CompressedInstructionInfo::bipush(byte) => {
+                    let temp_register = Register(0);
+                    initial_ir.push((current_offset, IRInstr::Const64bit {
+                        to: temp_register,
+                        const_: *byte as u64,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative {
+                        from: temp_register,
+                        to: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                    }));
+                }
                 todo => todo!("{:?}", todo)
             }
             initial_ir.push((current_offset, IRInstr::FNOP));
@@ -404,6 +493,31 @@ impl JITedCodeState {
             ir,
             function_start_label,
         })
+    }
+
+    fn gen_iconst_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, next_byte_code_instr_count: u16, n: u16) {
+        let const_register = Register(0);
+        initial_ir.push((current_offset, IRInstr::Const64bit { to: const_register, const_: n as i64 as u64 }));
+        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: const_register, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+    }
+
+    fn gen_istore_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, n: u16) {
+        let temp = Register(0);
+        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 0), to: temp }));
+        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.local_var_entry(current_byte_code_instr_count, n) }));
+    }
+
+    fn gen_aload_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, next_byte_code_instr_count: u16, n: u16) {
+        let temp = Register(0);
+        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, n), to: temp }));
+        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
+    }
+
+
+    fn gen_iload_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, next_byte_code_instr_count: u16, n: u16) {
+        let temp = Register(0);
+        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.local_var_entry(current_byte_code_instr_count, n), to: temp }));
+        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }));
     }
 
     fn gen_code_putfield(&mut self, layout: &dyn StackframeMemoryLayout, resolver: MethodResolver, mut labels: &mut Vec<IRLabel>, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, name: &FieldName, target_class: &CClassName) {
