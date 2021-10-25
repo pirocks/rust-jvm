@@ -68,11 +68,11 @@ impl<'gc_life> GC<'gc_life> {
                 todo!()
             }
             Object::Object(obj) => {
-                runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None)
+                runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid())
             }
         };
-        let mut memory_region = guard.find_or_new_region_for(allocated_object_type, None);
-        let allocated = memory_region.deref_mut().get_mut().get_allocation();
+        let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
+        let allocated = memory_region.get_allocation();
         self.all_allocated_object.write().unwrap().insert(allocated);
         self.register_root_reentrant(allocated);
         GcManagedObject {
@@ -262,7 +262,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
         let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
-            AllocatedObjectType::Class { size, name, loader } => {
+            AllocatedObjectType::Class { size, name, loader, .. } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
                 let runtime_class_class = runtime_class.unwrap_class_class();

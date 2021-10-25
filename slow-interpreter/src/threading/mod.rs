@@ -229,6 +229,17 @@ impl<'gc_life> ThreadState<'gc_life> {
         self.try_get_current_thread().unwrap()
     }
 
+    pub fn get_current_thread_tid_or_invalid(&self) -> jlong {
+        match self.try_get_current_thread() {
+            None => {
+                -1
+            }
+            Some(current_thread) => {
+                current_thread.java_tid
+            }
+        }
+    }
+
     pub fn get_monitor(&self, monitor: jrawMonitorID) -> Arc<Monitor2> {
         self.try_get_monitor(monitor).unwrap()
     }

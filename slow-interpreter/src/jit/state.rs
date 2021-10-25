@@ -7,12 +7,12 @@ use std::error::Error;
 use std::ffi::c_void;
 use std::fs::read_to_string;
 use std::intrinsics::copy_nonoverlapping;
-use std::mem::size_of;
+use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 use std::sync::{Arc, MutexGuard};
 use std::thread;
-use std::thread::LocalKey;
+use std::thread::{LocalKey, Thread};
 
 use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, Formatter, InstructionBlock};
@@ -24,10 +24,11 @@ use iced_x86::OpCodeOperandKind::cl;
 use itertools::{Either, Itertools};
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
+use thread_priority::ThreadId;
 
 use classfile_view::view::HasAccessFlags;
 use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
-use jvmti_jni_bindings::{jdouble, jlong, jobject, jvalue};
+use jvmti_jni_bindings::{jdouble, jint, jlong, jobject, jvalue};
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -51,6 +52,7 @@ use crate::jit_common::SavedRegisters;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::threading::JavaThreadId;
 
 thread_local! {
 pub static JITSTATE : RefCell<JITedCodeState> = RefCell::new(JITedCodeState::new());
@@ -610,7 +612,7 @@ impl JITedCodeState {
                 }))
             }
             Some((rc, loader)) => {
-                let allocated_type = runtime_class_to_allocated_object_type(rc.deref(), loader, None);
+                // let allocated_type = runtime_class_to_allocated_object_type(rc.deref(), loader, None,todo!());
                 let _todo_manual_allocation_closure = |assembler: &mut CodeAssembler| {
                     let mut start_label = assembler.create_label();
                     assembler.set_label(&mut start_label).unwrap();
@@ -622,9 +624,9 @@ impl JITedCodeState {
                     let bitmap_ptr = Register(6).to_native_64();
                     let current_bitmap_ptr = Register(7).to_native_64();
                     let bitscan_res = Register(8).to_native_64();
-                    assembler.mov(start_index, base + offset_of!(RegionData,free_search_index)).unwrap();
-                    assembler.mov(ptr, base + offset_of!(RegionData,ptr)).unwrap();
-                    assembler.mov(start_index, base + offset_of!(RegionData,used_bitmap)).unwrap();
+                    // assembler.mov(start_index, base + offset_of!(RegionData,free_search_index)).unwrap();
+                    // assembler.mov(ptr, base + offset_of!(RegionData,ptr)).unwrap();
+                    // assembler.mov(start_index, base + offset_of!(RegionData,used_bitmap)).unwrap();
                     assembler.mov(rax, start_index).unwrap();
                     // assembler.mul(allocated_type.size() as i32).unwrap();//todo
                     assembler.mov(start_index, rax).unwrap();
@@ -643,7 +645,7 @@ impl JITedCodeState {
                     // assembler.div(allocated_type.size()).unwrap(); //todo
                     assembler.mov(start_index, rax).unwrap();
                     assembler.add(start_index, 1).unwrap();
-                    assembler.mov(base + offset_of!(RegionData,free_search_index), start_index).unwrap();
+                    // assembler.mov(base + offset_of!(RegionData,free_search_index), start_index).unwrap();
                     //need to check overflow
                     assembler.jmp(start_label).unwrap();
                     todo!()
@@ -726,7 +728,7 @@ impl JITedCodeState {
                 //     },
                 // }));
                 let exit_label = self.labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Allocate { target_class: allocated_type, res: layout.operand_stack_entry(next_byte_code_instr_count, 0) } }));
+                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Allocate { ptypeview: rc.cpdtype(), loader, res: layout.operand_stack_entry(next_byte_code_instr_count, 0) } }));
             }
         }
     }
@@ -985,16 +987,19 @@ impl JITedCodeState {
     }
 
     fn runtime_type_info(memory_region: &MutexGuard<MemoryRegions>) -> RuntimeTypeInfo {
-        RuntimeTypeInfo {
-            small_num_regions: 0,
-            medium_num_regions: 0,
-            large_num_regions: 0,
-            extra_large_num_regions: 0,
-            small_region_index_to_type: memory_region.small_region_types.as_ptr(),
-            medium_region_index_to_type: memory_region.medium_region_types.as_ptr(),
-            large_region_index_to_type: memory_region.large_region_types.as_ptr(),
-            extra_large_region_index_to_type: memory_region.extra_large_region_types.as_ptr(),
-            allocated_type_to_vtable: todo!(),
+        unsafe {
+            RuntimeTypeInfo {
+                small_num_regions: 0,
+                medium_num_regions: 0,
+                large_num_regions: 0,
+                extra_large_num_regions: 0,
+                //todo can't do this b/c vecs might be realloced
+                small_region_index_to_region_data: memory_region.small_region_types.as_ptr(),
+                medium_region_index_to_region_data: memory_region.medium_region_types.as_ptr(),
+                large_region_index_to_region_data: memory_region.large_region_types.as_ptr(),
+                extra_large_region_index_to_region_data: memory_region.extra_large_region_types.as_ptr(),
+                allocated_type_to_vtable: transmute(0xDDDDDDDDusize),//major todo
+            }
         }
     }
 
@@ -1023,6 +1028,7 @@ impl JITedCodeState {
                 exit_handler_ip: null_mut(),
                 runtime_type_info: Self::runtime_type_info(&memory_region),
             };
+            drop(memory_region);
             eprintln!("going in");
             let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
             ///pub struct FrameHeader {
@@ -1177,10 +1183,10 @@ impl JITedCodeState {
             VMExitType::AllocateVariableSizeArrayANewArray { target_type_sub_type, len_offset, res_write_offset } => {
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_type_sub_type).unwrap();
                 let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
-                let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len));
+                let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len), jvm.thread_state.get_current_thread().java_tid);
                 let mut memory_region = jvm.gc.memory_region.lock().unwrap();
-                let mut region_data = memory_region.find_or_new_region_for(allocated_object_type, None);
-                let allocation = region_data.deref_mut().get_mut().get_allocation();
+                let mut region_data = memory_region.find_or_new_region_for(allocated_object_type);
+                let allocation = region_data.get_allocation();
                 let to_write = jvalue { l: allocation.as_ptr() as jobject };
                 int_state.raw_write_at_frame_pointer_offset(res_write_offset, to_write);
                 let jitstate_borrow = jitstate.borrow();
@@ -1208,7 +1214,7 @@ impl JITedCodeState {
     }
 }
 
-pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
+pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>, thread_id: JavaThreadId) -> AllocatedObjectType {
     match ref_type {
         RuntimeClass::Byte => panic!(),
         RuntimeClass::Boolean => panic!(),
@@ -1232,6 +1238,7 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 RuntimeClass::Void => panic!(),
                 RuntimeClass::Object(_) | RuntimeClass::Array(_) => {
                     return AllocatedObjectType::ObjectArray {
+                        thread: thread_id,
                         sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
                         len: arr_len.unwrap(),
                         sub_type_loader: loader,
@@ -1239,10 +1246,11 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 }
                 RuntimeClass::Top => panic!()
             };
-            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() }
+            AllocatedObjectType::PrimitiveArray { thread: thread_id, primitive_type, len: arr_len.unwrap() }
         }
         RuntimeClass::Object(class_class) => {
             AllocatedObjectType::Class {
+                thread: thread_id,
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
                 size: class_class.recursive_num_fields * size_of::<jlong>(),

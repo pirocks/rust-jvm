@@ -11,6 +11,7 @@
 #![feature(asm)]
 #![feature(thread_id_value)]
 #![feature(unboxed_closures)]
+#![feature(exclusive_range_pattern)]
 extern crate errno;
 extern crate futures_intrusive;
 extern crate libc;

@@ -31,11 +31,12 @@ pub const EXTRA_LARGE_REGION_SIZE_SIZE: usize = 34;
 pub const EXTRA_LARGE_REGION_SIZE: usize = 16 * GIGABYTE;
 static_assertions::const_assert_eq!(1 << EXTRA_LARGE_REGION_SIZE_SIZE, EXTRA_LARGE_REGION_SIZE);
 
+#[repr(packed, C)]
 pub struct Regions {
-    small_regions: *mut c_void,
-    medium_regions: *mut c_void,
-    large_regions: *mut c_void,
-    extra_large_regions: *mut c_void,
+    pub small_regions: *mut c_void,
+    pub medium_regions: *mut c_void,
+    pub large_regions: *mut c_void,
+    pub extra_large_regions: *mut c_void,
 }
 
 pub unsafe fn map_address(ptr: *mut c_void) {

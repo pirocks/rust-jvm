@@ -13,6 +13,7 @@ use itertools::Itertools;
 use memoffset::offset_of;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
@@ -42,7 +43,7 @@ pub enum VMExitType {
     InitClass { target_class: CPDType },
     NeedNewRegion { target_class: AllocatedObjectType },
     PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
-    Allocate { target_class: AllocatedObjectType, res: FramePointerOffset },
+    Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset },
     Throw { res: FramePointerOffset },
     TopLevelReturn {},
     Todo {},

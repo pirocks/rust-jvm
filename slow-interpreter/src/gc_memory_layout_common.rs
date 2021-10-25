@@ -10,12 +10,16 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::ops::Range;
 use std::pin::Pin;
-use std::ptr::{NonNull};
+use std::ptr::{NonNull, null_mut};
+use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::thread::ThreadId;
 
+use iced_x86::CpuidFeature::PADLOCK_RNG;
 use itertools::{Either, Itertools};
+use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use rangemap::RangeMap;
 
-use early_startup::Regions;
+use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -23,19 +27,24 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::Frame;
 
+use crate::threading::JavaThreadId;
+
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
     Class {
+        thread: JavaThreadId,
         name: CClassName,
         loader: LoaderName,
         size: usize,
     },
     ObjectArray {
+        thread: JavaThreadId,
         sub_type: CPRefType,
         sub_type_loader: LoaderName,
         len: usize,
     },
     PrimitiveArray {
+        thread: JavaThreadId,
         primitive_type: CPDType,
         len: usize,
     },
@@ -44,13 +53,13 @@ pub enum AllocatedObjectType {
 impl AllocatedObjectType {
     pub fn size(&self) -> usize {
         match self {
-            AllocatedObjectType::Class { size, name, loader } => {
+            AllocatedObjectType::Class { size, .. } => {
                 *size
             }
-            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
+            AllocatedObjectType::ObjectArray { len, .. } => {
                 *len * size_of::<jobject>() + size_of::<jint>()
             }
-            AllocatedObjectType::PrimitiveArray { len, primitive_type } => {
+            AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
                 *len * match primitive_type {
                     CPDType::BooleanType => 1,
                     CPDType::ByteType => 1,
@@ -68,20 +77,22 @@ impl AllocatedObjectType {
     }
 }
 
-#[repr(packed, C)]
+#[repr(C)]
 pub struct RegionData {
-    pub ptr: *mut c_void,
+    pub region_base: *mut c_void,
     pub used_bitmap: *mut c_void,
-    pub free_search_index: usize,
-    pub current_elements_count: usize,
-    pub region_type: AllocatedObjectType,
+    pub num_current_elements: AtomicUsize,
+    pub region_type: AllocatedTypeID,
+    pub region_elem_size: usize,
     pub region_max_elements: usize,
 }
 
 impl RegionData {
     pub fn get_allocation(&mut self) -> NonNull<c_void> {
-        let res = self.ptr;
-        self.current_elements_count += 1;
+        let region_base = self.region_base;
+        dbg!(region_base);
+        let current_index = self.num_current_elements.fetch_add(1, Ordering::SeqCst);
+        let res = unsafe { region_base.offset((current_index * self.region_elem_size) as isize) };
         NonNull::new(res).unwrap()
     }
 }
@@ -99,51 +110,120 @@ unsafe impl Sync for MemoryRegions {}
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct AllocatedTypeID(u64);
 
+
+//never directly accessed from native code to make syncing this somewhat sane.
+// instead native code should get a view of this
+// todo open question is what do about reallocs of the vecs, b/c this invalidates the native code view of this
+// I guess cloning entire region data is only option?
+//ideally I would just allocate a raw region to back the vecs
 pub struct MemoryRegions {
     pub early_mmaped_regions: Regions,
-    pub small_region_types: Vec<AllocatedTypeID>,
-    pub medium_region_types: Vec<AllocatedTypeID>,
-    pub large_region_types: Vec<AllocatedTypeID>,
-    pub extra_large_region_types: Vec<AllocatedTypeID>,
-    pub regions: HashMap<AllocatedTypeID, Vec<Pin<Box<UnsafeCell<RegionData>>>>>,
-    pub types: HashMap<AllocatedTypeID, AllocatedObjectType>,
-    pub ptr_to_object_type: RangeMap<NonNull<c_void>, AllocatedTypeID>,
+    //indexed by region num
+    //todo maybe there should be a more packed region to type.
+    pub small_region_types: Vec<RegionData>,
+    pub medium_region_types: Vec<RegionData>,
+    pub large_region_types: Vec<RegionData>,
+    pub extra_large_region_types: Vec<RegionData>,
+    //end indexed by region num
+    //indexed by allocated type id
+    pub types: Vec<AllocatedObjectType>,
+    pub current_region_type: Vec<RegionToUse>,
+    pub current_region_index: Vec<Option<usize>>,
+    //end indexed by allocated type id
+    pub types_reverse: HashMap<AllocatedObjectType, AllocatedTypeID>,
 }
 
 impl MemoryRegions {
     pub fn new(regions: Regions) -> MemoryRegions {
-        MemoryRegions { early_mmaped_regions: regions, small_region_types: vec![], medium_region_types: vec![], large_region_types: vec![], extra_large_region_types: vec![], regions: HashMap::new(), types: HashMap::new(), ptr_to_object_type: RangeMap::new() }
+        MemoryRegions {
+            early_mmaped_regions: regions,
+            small_region_types: vec![],
+            medium_region_types: vec![],
+            large_region_types: vec![],
+            extra_large_region_types: vec![],
+            types: vec![],
+            current_region_type: vec![],
+            current_region_index: vec![],
+            types_reverse: Default::default(),
+        }
     }
 
-    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType, expected_new_region: Option<bool>) -> Pin<&mut UnsafeCell<RegionData>> {
-        // let mut new_allocated_range = None;
-        // let current_region = self.regions.entry(to_allocate_type.clone()).or_insert_with(|| {
-        //     let (region_data, range) = MemoryRegions::region(to_allocate_type.clone(), RegionToUse::smallest_which_fits(to_allocate_type.size()));
-        //     vec![Pin::new(box UnsafeCell::new(region_data))]
-        // }).last_mut().unwrap();
-        // if let Some(new_allocated_range) = new_allocated_range {
-        //     self.ptr_to_object_type.insert(new_allocated_range, to_allocate_type.clone());
-        // }
-        // let region_as_bytes = current_region.get_mut().used_bitmap as *const u8;
-        // let mut all_in_use = true;
-        // for i in 0..current_region.get_mut().region_max_elements {
-        //     let byte = unsafe { region_as_bytes.offset(i.div_floor(&8) as isize).read() };
-        //     let current_bit = (byte >> (i % 8)) & 0b1;
-        //     all_in_use |= current_bit == 1;
-        // }
-        // if let Some(expected_new_region) = expected_new_region {
-        //     assert_eq!(expected_new_region, all_in_use);
-        // }
-        // if all_in_use {
-        //     Self::push_new_region(self, to_allocate_type.clone());
-        // }
-        // self.regions.get_mut(&to_allocate_type).unwrap().last_mut().unwrap().as_mut()
-        todo!()
+    fn lookup_or_add_type(&mut self, type_: &AllocatedObjectType) -> AllocatedTypeID {
+        let new_id = AllocatedTypeID(self.types_reverse.len() as u64);
+        let object_size = type_.size();
+        match self.types_reverse.get(type_) {
+            None => {
+                self.types.push(type_.clone());
+                let region_to_use = RegionToUse::smallest_which_fits(object_size);
+                self.current_region_type.push(region_to_use);
+                self.current_region_index.push(None);
+                new_id
+            }
+            Some(cur_id) => {
+                *cur_id
+            }
+        }
+    }
+
+    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType) -> &mut RegionData {
+        //todo doesn't actually find region
+        let type_id = self.lookup_or_add_type(&to_allocate_type);
+        let current_region_to_use = &self.current_region_type[type_id.0 as usize];
+        let to_push_to = match current_region_to_use {
+            RegionToUse::Small => {
+                &mut self.small_region_types
+            }
+            RegionToUse::Medium => {
+                &mut self.medium_region_types
+            }
+            RegionToUse::Large => {
+                &mut self.large_region_types
+            }
+            RegionToUse::ExtraLarge => {
+                &mut self.extra_large_region_types
+            }
+        };
+        let new_region_base = match to_push_to.last() {
+            Some(x) => unsafe { dbg!(x.region_base.offset(current_region_to_use.region_size() as isize)) },
+            None => {
+                dbg!(current_region_to_use.region_base(&self.early_mmaped_regions))
+            }
+        };
+        unsafe {
+            to_push_to.push(RegionData {
+                region_base: dbg!(new_region_base),
+                used_bitmap: mmap(
+                    null_mut(),
+                    (current_region_to_use.region_size() / to_allocate_type.size()) / 8,
+                    ProtFlags::PROT_WRITE | ProtFlags::PROT_READ,
+                    MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE,
+                    -1,
+                    0,
+                ).unwrap(),
+                num_current_elements: AtomicUsize::new(0),
+                region_type: type_id,
+                region_elem_size: to_allocate_type.size(),
+                region_max_elements: current_region_to_use.region_size() / to_allocate_type.size(),
+            })
+        }
+        to_push_to.last_mut().unwrap()
     }
 
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
-        // self.ptr_to_object_type.get(&ptr).unwrap()
-        todo!()
+        let num_zeros = (8 * TERABYTE).trailing_zeros();
+        let mask = !(!0u64 << num_zeros);
+        let region_base_masked_ptr = ptr.as_ptr() as u64 & !mask;
+        let region_type = if region_base_masked_ptr == self.early_mmaped_regions.small_regions as u64 {
+            todo!()
+        } else if region_base_masked_ptr == self.early_mmaped_regions.medium_regions as u64 {
+            let region_index = ((ptr.as_ptr() as u64 & mask) / MEDIUM_REGION_SIZE as u64) as usize;
+            let region_data = &self.medium_region_types[region_index];
+            region_data.region_type
+        } else {
+            dbg!(region_base_masked_ptr as *mut c_void);
+            todo!()
+        };
+        &self.types[region_type.0 as usize]
     }
 
     fn region(to_allocate_type: AllocatedObjectType, to_use: RegionToUse) -> (RegionData, Range<NonNull<c_void>>) {
@@ -178,6 +258,7 @@ impl MemoryRegions {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RegionToUse {
     Small,
     Medium,
@@ -187,7 +268,48 @@ pub enum RegionToUse {
 
 impl RegionToUse {
     pub fn smallest_which_fits(size: usize) -> RegionToUse {
-        todo!()
+        match size {
+            0..SMALL_REGION_SIZE => {
+                RegionToUse::Small
+            }
+            SMALL_REGION_SIZE..MEDIUM_REGION_SIZE => {
+                RegionToUse::Medium
+            }
+            MEDIUM_REGION_SIZE..LARGE_REGION_SIZE => {
+                RegionToUse::Large
+            }
+            LARGE_REGION_SIZE..=EXTRA_LARGE_REGION_SIZE => {
+                RegionToUse::ExtraLarge
+            }
+            _ => panic!("this is a rather large object")
+        }
+    }
+
+    pub fn region_size(&self) -> usize {
+        match self {
+            RegionToUse::Small => SMALL_REGION_SIZE,
+            RegionToUse::Medium => MEDIUM_REGION_SIZE,
+            RegionToUse::Large => LARGE_REGION_SIZE,
+            RegionToUse::ExtraLarge => EXTRA_LARGE_REGION_SIZE,
+        }
+    }
+
+    pub fn region_base(&self, regions: &Regions) -> *mut c_void {
+        dbg!(&self);
+        match self {
+            RegionToUse::Small => {
+                regions.small_regions
+            }
+            RegionToUse::Medium => {
+                regions.medium_regions
+            }
+            RegionToUse::Large => {
+                regions.large_regions
+            }
+            RegionToUse::ExtraLarge => {
+                regions.extra_large_regions
+            }
+        }
     }
 }
 

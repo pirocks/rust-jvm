@@ -4,9 +4,9 @@ use std::ffi::c_void;
 
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
-use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
-use crate::jit_common::java_stack::JavaStatus;
 
+use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset, RegionData};
+use crate::jit_common::java_stack::JavaStatus;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(C, packed)]
@@ -35,10 +35,10 @@ pub struct RuntimeTypeInfo {
     pub medium_num_regions: usize,
     pub large_num_regions: usize,
     pub extra_large_num_regions: usize,
-    pub small_region_index_to_type: *const AllocatedTypeID,
-    pub medium_region_index_to_type: *const AllocatedTypeID,
-    pub large_region_index_to_type: *const AllocatedTypeID,
-    pub extra_large_region_index_to_type: *const AllocatedTypeID,
+    pub small_region_index_to_region_data: *const RegionData,
+    pub medium_region_index_to_region_data: *const RegionData,
+    pub large_region_index_to_region_data: *const RegionData,
+    pub extra_large_region_index_to_region_data: *const RegionData,
 
     pub allocated_type_to_vtable: *const VTableRaw,
 }
