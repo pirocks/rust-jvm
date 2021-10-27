@@ -262,6 +262,14 @@ impl JITedCodeState {
                 CompressedInstructionInfo::return_ => {
                     initial_ir.push((current_offset, IRInstr::Return { return_val: None }));
                 }
+                CompressedInstructionInfo::areturn => {
+                    let temp = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: temp,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::Return { return_val: Some(temp) }));
+                }
                 CompressedInstructionInfo::iload_0 => {
                     JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 0);
                 }
@@ -302,6 +310,52 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
                     self.gen_code_putfield(layout, resolver, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count, name, target_class)
+                }
+                CompressedInstructionInfo::getfield { name, desc, target_class } => {
+                    let cpd_type = (*target_class).into();
+                    match resolver.lookup_type_loaded(&cpd_type) {
+                        None => {
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::InitClass { target_class: cpd_type } }));
+                        }
+                        Some((rc, _)) => {
+                            let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(name).unwrap();
+                            let class_ref_register = Register(0);
+                            let to_get_field = Register(1);
+                            let offset = Register(2);
+                            let null = Register(3);
+                            initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                                from: layout.operand_stack_entry(current_byte_code_instr_count, 1),
+                                to: class_ref_register,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: null, const_: 0 }));
+                            let npe_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::BranchEqual {
+                                a: class_ref_register,
+                                b: null,
+                                label: npe_label,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Const64bit {
+                                to: offset,
+                                const_: (field_number * size_of::<jlong>()) as u64,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Add {
+                                res: class_ref_register,
+                                a: offset,
+                            }));
+                            initial_ir.push((current_offset, IRInstr::Load { from_address: class_ref_register, to: to_get_field }));
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative {
+                                from: to_get_field,
+                                to: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                            }));
+                            let after_npe_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::BranchToLabel { label: after_npe_label }));
+                            initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: npe_label })));
+                            let npe_exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: VMExitType::Todo {} }));
+                            initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_npe_label })))
+                        }
+                    }
                 }
                 CompressedInstructionInfo::aconst_null => {
                     JITedCodeState::gen_code_aconst_null(layout, &mut initial_ir, current_offset, next_byte_code_instr_count)
@@ -453,7 +507,10 @@ impl JITedCodeState {
                                 CompressedParsedDescriptorType::FloatType => todo!(),
                                 CompressedParsedDescriptorType::DoubleType => todo!(),
                                 CompressedParsedDescriptorType::VoidType => {}
-                                CompressedParsedDescriptorType::Ref(_) => todo!()
+                                CompressedParsedDescriptorType::Ref(_) => {
+                                    let return_address = Register(0);
+                                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: return_address, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
+                                }
                             }
                         }
                     }
@@ -918,7 +975,9 @@ impl JITedCodeState {
                 IRInstr::StoreFPRelative { from, to } => {
                     assembler.mov(rbp + to.0, from.to_native_64()).unwrap();
                 }
-                IRInstr::Load { .. } => todo!(),
+                IRInstr::Load { from_address, to } => {
+                    assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap();
+                }
                 IRInstr::Store { from, to_address } => {
                     assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap();
                 }
