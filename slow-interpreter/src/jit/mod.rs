@@ -47,7 +47,7 @@ pub enum VMExitType {
     PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
     Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset, bytecode_size: u16 },
     LoadString { string: Wtf8Buf, res: FramePointerOffset },
-    LoadClass { class_type: CPDType, res: FramePointerOffset },
+    LoadClass { class_type: CPDType, res: FramePointerOffset, bytecode_size: u16 },
     Throw { res: FramePointerOffset },
     MonitorEnter { ref_offset: FramePointerOffset },
     MonitorExit { ref_offset: FramePointerOffset },

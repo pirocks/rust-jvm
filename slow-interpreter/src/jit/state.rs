@@ -720,7 +720,11 @@ impl JITedCodeState {
                 let exit_label = self.labeler.new_label(&mut labels);
                 initial_ir.push((current_offset, IRInstr::VMExit {
                     exit_label,
-                    exit_type: VMExitType::LoadClass { class_type: type_.clone(), res: layout.operand_stack_entry(next_byte_code_instr_count, 0) },
+                    exit_type: VMExitType::LoadClass {
+                        class_type: type_.clone(),
+                        res: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                        bytecode_size: 2,
+                    },
                 }))
             }
             CompressedLdcW::Float { .. } => todo!(),
@@ -1532,9 +1536,17 @@ impl JITedCodeState {
                 let string = JString::from_rust(jvm, int_state, string).unwrap();
                 todo!()
             }
-            VMExitType::LoadClass { class_type, res } => {
+            VMExitType::LoadClass { class_type, res, bytecode_size } => {
                 let class = JClass::from_type(jvm, int_state, class_type).unwrap();
-                todo!()
+                let to_write = jvalue { l: class.object().raw_ptr_usize() as jobject };
+                int_state.raw_write_at_frame_pointer_offset(res, to_write);
+                let jitstate_borrow = jitstate.borrow();
+                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
+                let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
+                let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size); //size of ldc
+                let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
+                Some(restart_address)
             }
             VMExitType::MonitorEnter { .. } => {
                 todo!()
