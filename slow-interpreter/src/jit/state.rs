@@ -270,6 +270,15 @@ impl JITedCodeState {
                     }));
                     initial_ir.push((current_offset, IRInstr::Return { return_val: Some(temp) }));
                 }
+                CompressedInstructionInfo::ireturn => {
+                    //todo dup
+                    let temp = Register(0);
+                    initial_ir.push((current_offset, IRInstr::LoadFPRelative {
+                        from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
+                        to: temp,
+                    }));
+                    initial_ir.push((current_offset, IRInstr::Return { return_val: Some(temp) }));
+                }
                 CompressedInstructionInfo::iload_0 => {
                     JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 0);
                 }
@@ -287,7 +296,21 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::aload_1 => {
                     JITedCodeState::gen_aload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 1);
-                    //todo dup
+                }
+                CompressedInstructionInfo::aload_2 => {
+                    JITedCodeState::gen_aload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 2);
+                }
+                CompressedInstructionInfo::aload_3 => {
+                    JITedCodeState::gen_aload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 3);
+                }
+                CompressedInstructionInfo::astore_1 => {
+                    JITedCodeState::gen_astore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 1);
+                }
+                CompressedInstructionInfo::astore_2 => {
+                    JITedCodeState::gen_astore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 2);
+                }
+                CompressedInstructionInfo::astore_3 => {
+                    JITedCodeState::gen_astore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 3);
                 }
                 CompressedInstructionInfo::istore_2 => {
                     JITedCodeState::gen_istore_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, 2);
@@ -498,7 +521,6 @@ impl JITedCodeState {
                             initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
                             match descriptor.return_type {
-                                CompressedParsedDescriptorType::BooleanType => todo!(),
                                 CompressedParsedDescriptorType::ByteType => todo!(),
                                 CompressedParsedDescriptorType::ShortType => todo!(),
                                 CompressedParsedDescriptorType::CharType => todo!(),
@@ -507,6 +529,7 @@ impl JITedCodeState {
                                 CompressedParsedDescriptorType::FloatType => todo!(),
                                 CompressedParsedDescriptorType::DoubleType => todo!(),
                                 CompressedParsedDescriptorType::VoidType => {}
+                                CompressedParsedDescriptorType::BooleanType |
                                 CompressedParsedDescriptorType::Ref(_) => {
                                     let return_address = Register(0);
                                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: return_address, to: layout.operand_stack_entry(next_byte_code_instr_count, 0) }))
@@ -545,6 +568,24 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative {
                         from: temp_register,
                         to: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                    }));
+                }
+                CompressedInstructionInfo::monitorenter => {
+                    let exit_label = self.labeler.new_label(&mut labels);
+                    initial_ir.push((current_offset, IRInstr::VMExit {
+                        exit_label,
+                        exit_type: VMExitType::MonitorEnter {
+                            ref_offset: layout.operand_stack_entry(current_byte_code_instr_count, 0)
+                        },
+                    }));
+                }
+                CompressedInstructionInfo::monitorexit => {
+                    let exit_label = self.labeler.new_label(&mut labels);
+                    initial_ir.push((current_offset, IRInstr::VMExit {
+                        exit_label,
+                        exit_type: VMExitType::MonitorExit {
+                            ref_offset: layout.operand_stack_entry(current_byte_code_instr_count, 0)
+                        },
                     }));
                 }
                 todo => todo!("{:?}", todo)
@@ -586,6 +627,12 @@ impl JITedCodeState {
     }
 
     fn gen_istore_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, n: u16) {
+        let temp = Register(0);
+        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 0), to: temp }));
+        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.local_var_entry(current_byte_code_instr_count, n) }));
+    }
+
+    fn gen_astore_n(layout: &dyn StackframeMemoryLayout, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16, n: u16) {
         let temp = Register(0);
         initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: layout.operand_stack_entry(current_byte_code_instr_count, 0), to: temp }));
         initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp, to: layout.local_var_entry(current_byte_code_instr_count, n) }));
@@ -729,68 +776,80 @@ impl JITedCodeState {
                 initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::ResolveInvokeSpecial { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
             }
             Some((method_id, is_native)) => {
-                assert!(!is_native);
-                let after_call_label = self.labeler.new_label(&mut labels);
-                let code = resolver.get_compressed_code(method_id);
-                let target_at = self.add_function(&code, method_id, resolver);
-                let code_id = self.function_addresses.get(&target_at).unwrap();
-                let function_start_label = self.function_starts.get(&code_id).unwrap();
-                let rip_register = Register(0);
-                let next_rbp = Register(6);
-                initial_ir.push((current_offset, IRInstr::LoadSP { to: next_rbp }));
-                let next_function_layout = resolver.lookup_method_layout(method_id);
-                initial_ir.push((current_offset, IRInstr::GrowStack { amount: next_function_layout.full_frame_size() }));
-                initial_ir.push((current_offset, IRInstr::LoadLabel { label: after_call_label, to: rip_register }));
-                let prev_rip_position = layout.full_frame_size();
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: rip_register, to: FramePointerOffset(prev_rip_position) }));
-                let prev_rbp_position = layout.full_frame_size() + size_of::<*mut c_void>();
-                let prev_rbp_register = Register(1);
-                initial_ir.push((current_offset, IRInstr::LoadRBP { to: prev_rbp_register }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: prev_rbp_register, to: FramePointerOffset(prev_rbp_position) }));
-                let frame_info_ptr = layout.full_frame_size() + 2 * size_of::<*mut c_void>();
-                let beafbeaf_register = Register(2);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
-                let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
-                let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
-                let magic_1_register = Register(3);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_1_register, to: FramePointerOffset(magic_1) }));
-                let magic_2 = layout.full_frame_size() + 5 * size_of::<*mut c_void>();
-                let magic_2_register = Register(4);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_2_register, const_: MAGIC_2_EXPECTED }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_2_register, to: FramePointerOffset(magic_2) }));
-                let local_vars_start = layout.full_frame_size() + 6 * size_of::<*mut c_void>();
-                let temp_arg_register = Register(5);
-                for i in local_vars_start..descriptor.arg_types.len() {
-                    let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, i as u16);
-                    let load_to_location = FramePointerOffset(local_vars_start + i * size_of::<jlong>());
+                if is_native {
+                    let exit_label = self.labeler.new_label(&mut labels);
+                    initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::InvokeSpecialNative { method_name: *method_name, desc: descriptor.clone(), target_class: CPDType::Ref(classname_ref_type.clone()) } }));
+                } else {
+                    let jvm_method_table = resolver.jvm.method_table.read().unwrap();
+                    let (rc, method_i) = jvm_method_table.try_lookup(method_id).unwrap();
+                    let view = rc.view();
+                    let method_view = view.method_view_i(method_i);
+                    dbg!(method_view.name().0.to_str(&resolver.jvm.string_pool));
+                    dbg!(view.name().unwrap_name().0.to_str(&resolver.jvm.string_pool));
+                    // assert!(!is_native);
+                    let after_call_label = self.labeler.new_label(&mut labels);
+                    let code = resolver.get_compressed_code(method_id);
+                    drop(jvm_method_table);
+                    let target_at = self.add_function(&code, method_id, resolver);
+                    let code_id = self.function_addresses.get(&target_at).unwrap();
+                    let function_start_label = self.function_starts.get(&code_id).unwrap();
+                    let rip_register = Register(0);
+                    let next_rbp = Register(6);
+                    initial_ir.push((current_offset, IRInstr::LoadSP { to: next_rbp }));
+                    let next_function_layout = resolver.lookup_method_layout(method_id);
+                    initial_ir.push((current_offset, IRInstr::GrowStack { amount: next_function_layout.full_frame_size() }));
+                    initial_ir.push((current_offset, IRInstr::LoadLabel { label: after_call_label, to: rip_register }));
+                    let prev_rip_position = layout.full_frame_size();
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: rip_register, to: FramePointerOffset(prev_rip_position) }));
+                    let prev_rbp_position = layout.full_frame_size() + size_of::<*mut c_void>();
+                    let prev_rbp_register = Register(1);
+                    initial_ir.push((current_offset, IRInstr::LoadRBP { to: prev_rbp_register }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: prev_rbp_register, to: FramePointerOffset(prev_rbp_position) }));
+                    let frame_info_ptr = layout.full_frame_size() + 2 * size_of::<*mut c_void>();
+                    let beafbeaf_register = Register(2);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
+                    let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
+                    let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
+                    let magic_1_register = Register(3);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_1_register, to: FramePointerOffset(magic_1) }));
+                    let magic_2 = layout.full_frame_size() + 5 * size_of::<*mut c_void>();
+                    let magic_2_register = Register(4);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_2_register, const_: MAGIC_2_EXPECTED }));
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: magic_2_register, to: FramePointerOffset(magic_2) }));
+                    let local_vars_start = layout.full_frame_size() + 6 * size_of::<*mut c_void>();
+                    let temp_arg_register = Register(5);
+                    for i in local_vars_start..descriptor.arg_types.len() {
+                        let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, i as u16);
+                        let load_to_location = FramePointerOffset(local_vars_start + i * size_of::<jlong>());
+                        initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
+                        initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
+                    }
+                    //pop this last
+                    let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
+                    let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
                     initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                }
-                //pop this last
-                let load_from_location = layout.operand_stack_entry(current_byte_code_instr_count, descriptor.arg_types.len() as u16);
-                let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
-                initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
-                initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                let one_element_skip = Register(7);
-                initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
-                initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
-                initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
-                initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
-                initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
-                match descriptor.return_type {
-                    CompressedParsedDescriptorType::BooleanType => todo!(),
-                    CompressedParsedDescriptorType::ByteType => todo!(),
-                    CompressedParsedDescriptorType::ShortType => todo!(),
-                    CompressedParsedDescriptorType::CharType => todo!(),
-                    CompressedParsedDescriptorType::IntType => todo!(),
-                    CompressedParsedDescriptorType::LongType => todo!(),
-                    CompressedParsedDescriptorType::FloatType => todo!(),
-                    CompressedParsedDescriptorType::DoubleType => todo!(),
-                    CompressedParsedDescriptorType::VoidType => {}
-                    CompressedParsedDescriptorType::Ref(_) => todo!()
+                    let one_element_skip = Register(7);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
+                    initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
+                    initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
+                    initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
+                    initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
+                    match descriptor.return_type {
+                        CompressedParsedDescriptorType::BooleanType => todo!(),
+                        CompressedParsedDescriptorType::ByteType => todo!(),
+                        CompressedParsedDescriptorType::ShortType => todo!(),
+                        CompressedParsedDescriptorType::CharType => todo!(),
+                        CompressedParsedDescriptorType::IntType => todo!(),
+                        CompressedParsedDescriptorType::LongType => todo!(),
+                        CompressedParsedDescriptorType::FloatType => todo!(),
+                        CompressedParsedDescriptorType::DoubleType => todo!(),
+                        CompressedParsedDescriptorType::VoidType => {}
+                        CompressedParsedDescriptorType::Ref(_) => todo!()
+                    }
                 }
             }
         }
@@ -1477,6 +1536,15 @@ impl JITedCodeState {
                 let class = JClass::from_type(jvm, int_state, class_type).unwrap();
                 todo!()
             }
+            VMExitType::MonitorEnter { .. } => {
+                todo!()
+            }
+            VMExitType::InvokeSpecialNative { .. } => {
+                todo!()
+            }
+            VMExitType::MonitorExit { .. } => {
+                todo!()
+            }
         }
     }
 }
@@ -1676,8 +1744,6 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 
     fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
-        dbg!(&self.stack_depth);
-        dbg!(current_count);
         FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
     }
 
