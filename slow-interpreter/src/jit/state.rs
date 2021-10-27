@@ -348,7 +348,7 @@ impl JITedCodeState {
                             let offset = Register(2);
                             let null = Register(3);
                             initial_ir.push((current_offset, IRInstr::LoadFPRelative {
-                                from: layout.operand_stack_entry(current_byte_code_instr_count, 1),
+                                from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
                                 to: class_ref_register,
                             }));
                             initial_ir.push((current_offset, IRInstr::Const64bit { to: null, const_: 0 }));
@@ -683,7 +683,7 @@ impl JITedCodeState {
                 initial_ir.push((current_offset, IRInstr::BranchToLabel { label: after_npe_label }));
                 initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: npe_label })));
                 let npe_exit_label = self.labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: VMExitType::Todo {} }));
+                initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: VMExitType::NPE {} }));
                 initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_npe_label })))
             }
         }
@@ -1440,6 +1440,7 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::Todo { .. } => {
+                dbg!(int_state.get_java_stack().top);
                 todo!()
             }
             VMExitType::RunNativeStatic { method_name, desc, target_class } => {
@@ -1555,6 +1556,9 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::MonitorExit { .. } => {
+                todo!()
+            }
+            VMExitType::NPE { .. } => {
                 todo!()
             }
         }

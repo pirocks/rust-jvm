@@ -53,6 +53,7 @@ pub enum VMExitType {
     MonitorExit { ref_offset: FramePointerOffset },
     TopLevelReturn {},
     Todo {},
+    NPE {},
     AllocateVariableSizeArrayANewArray { target_type_sub_type: CPDType, len_offset: FramePointerOffset, res_write_offset: FramePointerOffset },
 }
 
