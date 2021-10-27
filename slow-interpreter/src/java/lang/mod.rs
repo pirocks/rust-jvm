@@ -441,11 +441,12 @@ pub mod string {
             push_new_object(jvm, int_state, &string_class);
             let string_object = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
 
-            let vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
+            let mut vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
             let array_object = ArrayObject {
-                // elems: UnsafeCell::new(vec1),
-                len: todo!(),
-                elems: todo!(),
+                whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
+                loader: int_state.current_loader(),
+                len: vec1.len() as i32,
+                elems: vec1.as_mut_slice(),
                 phantom_data: Default::default(),
                 elem_type: CPDType::CharType,
                 // monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),

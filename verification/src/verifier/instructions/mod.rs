@@ -107,7 +107,7 @@ fn offset_stack_frame(env: &Environment, offset: u16) -> Result<Frame, TypeSafet
     }) {
         None => {
             return Err(TypeSafetyError::Java5Maybe);
-            panic!()/*Result::Err(unknown_error_verifying!())*/
+            // panic!()/*Result::Err(unknown_error_verifying!())*/
         }
         Some(f) => Result::Ok(f),
     }

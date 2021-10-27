@@ -35,14 +35,16 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassNa
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
+use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class, check_loaded_class_force_loader};
 use crate::gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MemoryRegions, ObjectMemoryLayout, StackframeMemoryLayout};
 use crate::gc_memory_layout_common::FrameHeader;
 use crate::gc_memory_layout_common::RegionData;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::JavaValue;
+use crate::java::lang::class::JClass;
+use crate::java::lang::string::JString;
+use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::{ByteCodeOffset, CompiledCodeID, IRInstructionIndex, LabelName, MethodResolver, NotSupported, ToIR, ToNative, transition_stack_frame, TransitionType, VMExitType};
 use crate::jit::ir::{IRInstr, IRLabel, Register};
 use crate::jit::state::birangemap::BiRangeMap;
@@ -137,7 +139,7 @@ impl JITedCodeState {
             stack_map_table
         } = code;
         let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
-        let layout = NaiveStackframeLayout::new(&cinstructions, *max_locals, *max_stack);
+        let layout = resolver.lookup_method_layout(methodid);
         let ir = self.to_ir(cinstructions, &layout, resolver).unwrap();
         let (current_rc, method_i) = resolver.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = current_rc.unwrap_class_class().class_view.clone();
@@ -317,7 +319,7 @@ impl JITedCodeState {
                     JITedCodeState::gen_code_dup(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count);
                 }
                 CompressedInstructionInfo::ldc(Either::Left(left_ldc)) => {
-                    self.gen_code_left_ldc(&mut labels, &mut initial_ir, current_offset, left_ldc)
+                    self.gen_code_left_ldc(&mut labels, &mut initial_ir, layout, current_offset, next_byte_code_instr_count, left_ldc)
                 }
                 CompressedInstructionInfo::athrow => {
                     self.gen_code_athrow(layout, &mut labels, &mut initial_ir, current_offset, current_byte_code_instr_count);
@@ -583,21 +585,40 @@ impl JITedCodeState {
         }
     }
 
-    fn gen_code_athrow(&mut self, layout: &dyn StackframeMemoryLayout, mut labels: &mut Vec<IRLabel>, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, current_byte_code_instr_count: u16) {
+    fn gen_code_athrow(&mut self,
+                       layout: &dyn StackframeMemoryLayout,
+                       mut labels: &mut Vec<IRLabel>,
+                       initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>,
+                       current_offset: ByteCodeOffset,
+                       current_byte_code_instr_count: u16,
+    ) {
         let exit_label = self.labeler.new_label(&mut labels);
         initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Throw { res: layout.operand_stack_entry(current_byte_code_instr_count, 0) } }));
     }
 
-    fn gen_code_left_ldc(&mut self, mut labels: &mut Vec<IRLabel>, initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>, current_offset: ByteCodeOffset, left_ldc: &CompressedLdcW) {
+    fn gen_code_left_ldc(&mut self,
+                         mut labels: &mut Vec<IRLabel>,
+                         initial_ir: &mut Vec<(ByteCodeOffset, IRInstr)>,
+                         layout: &dyn StackframeMemoryLayout,
+                         current_offset: ByteCodeOffset,
+                         next_byte_code_instr_count: u16,
+                         left_ldc: &CompressedLdcW,
+    ) {
         match left_ldc {
             CompressedLdcW::String { str } => {
                 let exit_label = self.labeler.new_label(&mut labels);
                 initial_ir.push((current_offset, IRInstr::VMExit {
                     exit_label,
-                    exit_type: VMExitType::Todo {},
+                    exit_type: VMExitType::LoadString { string: str.clone(), res: layout.operand_stack_entry(next_byte_code_instr_count, 0) },
                 }))
             }
-            CompressedLdcW::Class { .. } => todo!(),
+            CompressedLdcW::Class { type_ } => {
+                let exit_label = self.labeler.new_label(&mut labels);
+                initial_ir.push((current_offset, IRInstr::VMExit {
+                    exit_label,
+                    exit_type: VMExitType::LoadClass { class_type: type_.clone(), res: layout.operand_stack_entry(next_byte_code_instr_count, 0) },
+                }))
+            }
             CompressedLdcW::Float { .. } => todo!(),
             CompressedLdcW::Integer { .. } => todo!(),
             CompressedLdcW::MethodType { .. } => todo!(),
@@ -867,7 +888,15 @@ impl JITedCodeState {
                 //     },
                 // }));
                 let exit_label = self.labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Allocate { ptypeview: rc.cpdtype(), loader, res: layout.operand_stack_entry(next_byte_code_instr_count, 0) } }));
+                initial_ir.push((current_offset, IRInstr::VMExit {
+                    exit_label,
+                    exit_type: VMExitType::Allocate {
+                        ptypeview: rc.cpdtype(),
+                        loader,
+                        res: layout.operand_stack_entry(next_byte_code_instr_count, 0),
+                        bytecode_size: 3,
+                    },
+                }));
             }
         }
     }
@@ -898,7 +927,7 @@ impl JITedCodeState {
                 }
                 IRInstr::Sub { res, to_subtract } => {
                     assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap();
-                },
+                }
                 IRInstr::Div { .. } => todo!(),
                 IRInstr::Mod { .. } => todo!(),
                 IRInstr::Mul { .. } => todo!(),
@@ -1032,9 +1061,8 @@ impl JITedCodeState {
         let mut current_byte_code_start_address = Some(base_address);
         for (i, native_offset) in result.new_instruction_offsets.iter().enumerate() {
             if *native_offset == u32::MAX {
-                continue
+                continue;
             }
-            dbg!(native_offset);
             let current_instruction_address = unsafe { base_address.offset(*native_offset as isize) };
             loop {
                 match label_instruction_indexes.peek() {
@@ -1114,8 +1142,6 @@ impl JITedCodeState {
         let compiled_code_id = *dbg!(&jit_state.borrow().function_addresses).get(&instruct_pointer).unwrap();
         let temp = jit_state.borrow();
         let compiled_code = temp.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
-        dbg!(compiled_code);
-        dbg!(instruct_pointer);
         // problem here is that a function call overwrites the old old ip
         let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
         drop(temp);
@@ -1158,7 +1184,6 @@ impl JITedCodeState {
             let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
             let rust_stack: u64 = stack_pointer as u64;
             let rust_frame: u64 = frame_pointer as u64;
-            dbg!(frame_pointer);
             let memory_region: MutexGuard<MemoryRegions> = jvm.gc.memory_region.lock().unwrap();
             let mut jit_code_context = JitCodeContext {
                 native_saved: SavedRegisters {
@@ -1352,12 +1377,47 @@ impl JITedCodeState {
                 let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
                 let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
                 let code = method_view.code_attribute().unwrap();
-                Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
-                todo!()
+                let instruct_pointer = int_state.get_java_stack().saved_registers().instruction_pointer;
+                assert_eq!(instruct_pointer, old_java_ip);
+                let mut jit_state = jitstate.borrow_mut();
+                let compiled_code_id = jit_state.function_addresses.get(&instruct_pointer).unwrap();
+                let compiled_code = jit_state.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
+                // problem here is that a function call overwrites the old old ip
+                let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
+                let new_base_address = jit_state.add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader() });
+                let new_code_id = *jit_state.function_addresses.get(&new_base_address).unwrap();
+                let start_byte_code_addresses = jit_state.address_to_byte_code_offset.get(&new_code_id).unwrap().get_reverse(&return_to_byte_code_offset).unwrap().clone();
+                let restart_execution_at = start_byte_code_addresses.start;
+                Some(restart_execution_at)
             }
             VMExitType::NeedNewRegion { .. } => todo!(),
-            VMExitType::Allocate { .. } => todo!(),
-            VMExitType::Throw { .. } => todo!()
+            VMExitType::Allocate { ptypeview, loader, res, bytecode_size } => {
+                let rc = check_loaded_class_force_loader(jvm, int_state, &ptypeview, loader).unwrap();
+                let allocated = match rc.deref() {
+                    RuntimeClass::Array(_) => todo!(),
+                    RuntimeClass::Object(obj) => {
+                        JavaValue::new_object(jvm, rc).unwrap()
+                    }
+                    _ => panic!()
+                };
+                int_state.raw_write_at_frame_pointer_offset(res, jvalue { l: allocated.raw_ptr_usize() as jobject });
+                let jitstate_borrow = jitstate.borrow();
+                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
+                let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
+                let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size);
+                let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
+                Some(restart_address)
+            }
+            VMExitType::Throw { .. } => todo!(),
+            VMExitType::LoadString { string, res } => {
+                let string = JString::from_rust(jvm, int_state, string).unwrap();
+                todo!()
+            }
+            VMExitType::LoadClass { class_type, res } => {
+                let class = JClass::from_type(jvm, int_state, class_type).unwrap();
+                todo!()
+            }
         }
     }
 }
@@ -1431,12 +1491,21 @@ pub struct NaiveStackframeLayout {
 }
 
 impl NaiveStackframeLayout {
+    pub fn from_stack_depth(stack_depth: HashMap<u16, u16>, max_locals: u16, max_stack: u16) -> Self {
+        Self {
+            max_locals,
+            max_stack,
+            stack_depth,
+        }
+    }
+
     pub fn new(instructions: &Vec<&CInstruction>, max_locals: u16, max_stack: u16) -> Self {
         let mut stack_depth = HashMap::new();
         let mut current_depth = 0;
         for (i, instruct) in instructions.iter().enumerate() {
             stack_depth.insert(i as u16, current_depth);
-            match &instruct.info {
+            dbg!(current_depth);
+            match dbg!(&instruct.info) {
                 CompressedInstructionInfo::invokestatic { descriptor, .. } => {
                     current_depth -= descriptor.arg_types.len() as u16;
                     match &descriptor.return_type {
@@ -1447,10 +1516,12 @@ impl NaiveStackframeLayout {
                     }
                 }
                 CompressedInstructionInfo::return_ => {}
-                CompressedInstructionInfo::aload_0 => {
-                    current_depth += 1;
+                CompressedInstructionInfo::ireturn => {
+                    current_depth -= 1;
                 }
-                CompressedInstructionInfo::aload_1 => {
+                CompressedInstructionInfo::aload_0 |
+                CompressedInstructionInfo::aload_1 |
+                CompressedInstructionInfo::aload_2 => {
                     current_depth += 1;
                 }
                 CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
@@ -1463,6 +1534,7 @@ impl NaiveStackframeLayout {
                 CompressedInstructionInfo::putfield { name, desc, target_class } => {
                     current_depth -= 2;
                 }
+                CompressedInstructionInfo::getfield { name, desc, target_class } => {}
                 CompressedInstructionInfo::aconst_null => {
                     current_depth += 1;
                 }
@@ -1483,6 +1555,7 @@ impl NaiveStackframeLayout {
                 CompressedInstructionInfo::ldc(Either::Left(_)) => {
                     current_depth += 1;
                 }
+                CompressedInstructionInfo::ifnull(_) |
                 CompressedInstructionInfo::ifnonnull(_) => {
                     current_depth -= 1;
                 }
@@ -1497,6 +1570,13 @@ impl NaiveStackframeLayout {
                         }
                     }
                 }
+                CompressedInstructionInfo::monitorexit |
+                CompressedInstructionInfo::monitorenter => {
+                    current_depth -= 1;
+                }
+                CompressedInstructionInfo::astore_1 |
+                CompressedInstructionInfo::astore_2 |
+                CompressedInstructionInfo::astore_3 |
                 CompressedInstructionInfo::istore_3 |
                 CompressedInstructionInfo::istore_2 => {
                     current_depth -= 1;
@@ -1537,6 +1617,8 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 
     fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
+        dbg!(&self.stack_depth);
+        dbg!(current_count);
         FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
     }
 

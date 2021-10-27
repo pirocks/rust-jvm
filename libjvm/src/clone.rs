@@ -22,6 +22,8 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                     // let cloned_arr: Vec<_> = /*a.elems.get().as_ref().unwrap().iter().map(|elem| elem.clone()).collect_vec()*/todo!();
                     Some(jvm.allocate_object(Object::Array(ArrayObject {
                         // elems: UnsafeCell::new(cloned_arr),
+                        whole_array_runtime_class: a.whole_array_runtime_class.clone(),
+                        loader: a.loader.clone(),
                         len: todo!(),
                         elems: todo!(),
                         phantom_data: Default::default(),

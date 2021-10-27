@@ -131,6 +131,8 @@ pub mod method_type {
             let ptypes_arr = JavaValue::Object(Some(jvm.allocate_object(
                 Object::Array(ArrayObject {
                     // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
+                    whole_array_runtime_class: todo!(),
+                    loader: todo!(),
                     len: todo!(),
                     elems: todo!(),
                     phantom_data: Default::default(),

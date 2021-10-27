@@ -65,7 +65,7 @@ impl<'gc_life> GC<'gc_life> {
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
             Object::Array(arr) => {
-                todo!()
+                runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, arr.loader, Some(arr.len as usize), jvm.thread_state.get_current_thread_tid_or_invalid())
             }
             Object::Object(obj) => {
                 runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid())
@@ -78,6 +78,8 @@ impl<'gc_life> GC<'gc_life> {
         GcManagedObject {
             obj: match object {
                 Object::Array(ArrayObject {
+                                  whole_array_runtime_class,
+                                  loader,
                                   len,
                                   elems,
                                   phantom_data,
@@ -90,6 +92,8 @@ impl<'gc_life> GC<'gc_life> {
                             new_elems[i] = *elem;
                         }
                         Arc::new(Object::Array(ArrayObject {
+                            whole_array_runtime_class,
+                            loader,
                             len,
                             elems: new_elems,
                             phantom_data,
@@ -733,6 +737,8 @@ impl<'gc_life> JavaValue<'gc_life> {
 
     pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> JavaValue<'gc_life> {
         JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject {
+            whole_array_runtime_class: todo!(),
+            loader: todo!(),
             len: todo!(),
             elems: todo!(),
             phantom_data: Default::default(),
@@ -976,7 +982,7 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
             Object::Array(a) => {
                 // let sub_array = a.array_iterator(jvm).map(|x| x.deep_clone(jvm).to_native()).collect();//todo
                 todo!();
-                Object::Array(ArrayObject { len: todo!(), elems: todo!(), phantom_data: Default::default(), elem_type: a.elem_type.clone() })
+                Object::Array(ArrayObject { whole_array_runtime_class: a.whole_array_runtime_class.clone(), loader: a.loader, len: todo!(), elems: todo!(), phantom_data: Default::default(), elem_type: a.elem_type.clone() })
             }
             Object::Object(o) => {
                 todo!()
@@ -1019,12 +1025,12 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
 }
 
 pub struct ArrayObject<'gc_life, 'l> {
-    // pub elems: UnsafeCell<Vec<NativeJavaValue<'gc_life>>>,
+    pub whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
+    pub loader: LoaderName,
     pub len: jint,
     pub elems: &'l mut [NativeJavaValue<'gc_life>],
     pub phantom_data: PhantomData<&'gc_life ()>,
     pub elem_type: CPDType,
-    // pub monitor: Arc<Monitor2>,
 }
 
 pub struct ArrayIterator<'gc_life, 'l, 'k> {
@@ -1077,6 +1083,8 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
     pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
         check_resolved_class(jvm, int_state, CPDType::Ref(CPRefType::Array(box type_.clone())))?;
         Ok(Self {
+            whole_array_runtime_class: todo!(),
+            loader: todo!(),
             len: todo!(),
             elems: todo!(),
             phantom_data: Default::default(),

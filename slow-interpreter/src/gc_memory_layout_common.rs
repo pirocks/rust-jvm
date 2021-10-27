@@ -54,24 +54,36 @@ impl AllocatedObjectType {
     pub fn size(&self) -> usize {
         match self {
             AllocatedObjectType::Class { size, .. } => {
+                if *size == 0 {
+                    return 1
+                }
                 *size
             }
             AllocatedObjectType::ObjectArray { len, .. } => {
-                *len * size_of::<jobject>() + size_of::<jint>()
+                let res = *len * size_of::<jobject>() + size_of::<jint>();
+                if res == 0 {
+                    return 1;
+                } else {
+                    res
+                }
             }
             AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
-                *len * match primitive_type {
-                    CPDType::BooleanType => 1,
-                    CPDType::ByteType => 1,
-                    CPDType::ShortType => 2,
-                    CPDType::CharType => 2,
-                    CPDType::IntType => 4,
-                    CPDType::LongType => 8,
-                    CPDType::FloatType => 4,
-                    CPDType::DoubleType => 8,
-                    CPDType::VoidType => panic!(),
-                    CPDType::Ref(_) => panic!()
-                } + size_of::<jint>()
+                if *len == 0 {
+                    return 1;
+                } else {
+                    *len * match primitive_type {
+                        CPDType::BooleanType => 1,
+                        CPDType::ByteType => 1,
+                        CPDType::ShortType => 2,
+                        CPDType::CharType => 2,
+                        CPDType::IntType => 4,
+                        CPDType::LongType => 8,
+                        CPDType::FloatType => 4,
+                        CPDType::DoubleType => 8,
+                        CPDType::VoidType => panic!(),
+                        CPDType::Ref(_) => panic!()
+                    } + size_of::<jint>()
+                }
             }
         }
     }

@@ -11,6 +11,7 @@ use iced_x86::BlockEncoderOptions;
 use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
 use itertools::Itertools;
 use memoffset::offset_of;
+use wtf8::Wtf8Buf;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
@@ -43,7 +44,9 @@ pub enum VMExitType {
     InitClass { target_class: CPDType },
     NeedNewRegion { target_class: AllocatedObjectType },
     PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
-    Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset },
+    Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset, bytecode_size: u16 },
+    LoadString { string: Wtf8Buf, res: FramePointerOffset },
+    LoadClass { class_type: CPDType, res: FramePointerOffset },
     Throw { res: FramePointerOffset },
     TopLevelReturn {},
     Todo {},
@@ -106,9 +109,15 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
-        let CompressedCode { instructions, max_locals, max_stack, .. } = method_view.code_attribute().unwrap();
-        let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
-        NaiveStackframeLayout::new(&cinstructions, *max_locals, *max_stack)
+        let function_frame_type = self.jvm.function_frame_type_data.read().unwrap();
+        let frames = function_frame_type.get(&methodid).unwrap();
+        let stack_depth = frames.iter()
+            .sorted_by_key(|(offset, _)| *offset)
+            .enumerate()
+            .map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16))
+            .collect();
+        let code = method_view.code_attribute().unwrap();
+        NaiveStackframeLayout::from_stack_depth(stack_depth, code.max_locals, code.max_stack)
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
@@ -133,7 +142,6 @@ pub struct ToNative {
     exits: HashMap<LabelName, VMExitType>,
     function_start_label: LabelName,
 }
-
 
 
 pub enum TransitionType {
