@@ -44,6 +44,7 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
         &parsed,
         method_i,
         class.clone(),
+        todo!()
     ) {
         return null_mut();
     };

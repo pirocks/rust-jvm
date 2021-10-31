@@ -57,16 +57,10 @@ pub fn run_constructor<'gc_life>(
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     target_classfile: Arc<RuntimeClass<'gc_life>>,
     full_args: Vec<JavaValue<'gc_life>>,
-    descriptor: &CMethodDescriptor,
+    descriptor: &CMethodDescriptor
 ) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    let this_ptr = full_args[0].clone();
-    let actual_args = &full_args[1..];
-    int_state.push_current_operand_stack(this_ptr);
-    for arg in actual_args {
-        int_state.push_current_operand_stack(arg.clone());
-    }
-    invoke_special_impl(jvm, int_state, &md, method_view.method_i(), target_classfile.clone())
+    invoke_special_impl(jvm, int_state, &md, method_view.method_i(), target_classfile.clone(), full_args)
 }

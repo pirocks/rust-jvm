@@ -151,6 +151,33 @@ pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc
 }
 
 
+pub fn setup_virtual_args2<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<JavaValue<'gc_life>>) {
+    let mut current_frame = int_state.current_frame_mut();
+    for _ in 0..max_locals {
+        args.push(JavaValue::Top);
+    }
+    let mut i = 1;
+    for input_arg in input_args[1..].iter().rev() {
+        let value = input_arg.clone();
+        match value.clone() {
+            JavaValue::Long(_) | JavaValue::Double(_) => {
+                args[i] = JavaValue::Top;
+                args[i + 1] = value;
+                i += 2
+            }
+            _ => {
+                args[i] = value;
+                i += 1
+            }
+        };
+    }
+    if !expected_descriptor.arg_types.is_empty() {
+        args[1..i].reverse();
+    }
+    args[0] = input_args[0].clone();
+}
+
+
 /*
 args should be on the stack
 */
