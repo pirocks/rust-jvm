@@ -6,7 +6,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
 use crate::interpreter::WasException;
-use crate::interpreter_util::push_new_object;
+use crate::interpreter_util::new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
 pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classname: CClassName) {
@@ -18,7 +18,8 @@ pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
             return;
         },
     };
-    push_new_object(jvm, int_state, &target_classfile);
+    let obj = new_object(jvm, int_state, &target_classfile);
+    int_state.push_current_operand_stack(obj);
 }
 
 

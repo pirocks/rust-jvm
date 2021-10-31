@@ -15,8 +15,8 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, j
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
+use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
@@ -60,12 +60,17 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         unsafe { self.get_header().frame_info_ptr.as_mut() }.unwrap()
     }
 
-    pub fn loader(&self) -> LoaderName {
-        *match self.get_frame_info() {
-            FrameInfo::FullyOpaque { loader, .. } => loader,
-            FrameInfo::Native { loader, .. } => loader,
-            FrameInfo::JavaFrame { loader, .. } => loader
+    pub fn loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
+        let method_id = self.get_header().methodid;
+        if method_id == MethodId::MAX {
+            //frame loader unknown b/c opaque frame
+            eprintln!("WARN: opaque frame loader");
+            return LoaderName::BootstrapLoader;
         }
+        let method_table = jvm.method_table.read().unwrap();
+        dbg!(method_id);
+        let (rc, method_i) = method_table.try_lookup(method_id).unwrap();
+        jvm.classes.read().unwrap().get_initiating_loader(&rc)
     }
 
     pub fn method_id(&self) -> Option<MethodId> {
@@ -76,12 +81,13 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         })
     }
 
-    pub fn pc(&self) -> u16 {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { .. } => panic!(),
-            FrameInfo::JavaFrame { java_pc, .. } => *java_pc
-        }
+    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
+        let saved_instruction_pointer = self.call_stack.saved_registers.unwrap().instruction_pointer;
+        let methodid = self.get_header().methodid;
+        let byte_code_offset = jvm.jit_state.with(|jit_state| {
+            jit_state.borrow().ip_to_bytecode_pc(saved_instruction_pointer)
+        });
+        byte_code_offset.0
     }
 
     pub fn pc_mut(&mut self) -> &mut u16 {
@@ -109,12 +115,14 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
-    pub fn operand_stack_length(&self) -> u16 {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { operand_stack_depth, .. } => *operand_stack_depth,
-            FrameInfo::Native { operand_stack_depth, .. } => *operand_stack_depth,
-            FrameInfo::JavaFrame { operand_stack_depth, .. } => *operand_stack_depth
+    pub fn operand_stack_length(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
+        let methodid = self.get_header().methodid;
+        if methodid == usize::MAX {
+            panic!()
         }
+        let pc = self.pc(jvm);
+        let function_frame_type = jvm.function_frame_type_data.read().unwrap();
+        function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map.len() as u16
     }
 
     pub fn is_native(&self) -> bool {
@@ -260,7 +268,6 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn push_operand_stack(&mut self, j: JavaValue<'gc_life>) {
         let frame_info = self.get_frame_info_mut();
         frame_info.push_operand_stack(j.to_type());
-        // dbg!(self.get_frame_ptrs());
         let operand_stack_depth = frame_info.operand_stack_depth_mut();
         let current_depth = *operand_stack_depth;
         *operand_stack_depth += 1;
@@ -315,7 +322,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
             FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types
         };
-        assert_eq!(self.operand_stack_length() as usize, operand_stack_types.len());
+        assert_eq!(self.operand_stack_length(jvm) as usize, operand_stack_types.len());
         let operand_stack = operand_stack_types.iter().enumerate().map(|(i, ptype)| {
             self.get_operand_stack(jvm, i as u16, ptype.clone())
         }).rev().collect_vec();
@@ -684,8 +691,8 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     pub fn len(&self) -> u16 {
         match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackRef::Jit { frame_view, .. } => {
-                frame_view.operand_stack_length()
+            OperandStackRef::Jit { frame_view, jvm } => {
+                frame_view.operand_stack_length(jvm)
             }
         }
     }
@@ -770,7 +777,7 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
     pub fn len(&self) -> usize {
         (match self {
             /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackMut::Jit { frame_view, .. } => frame_view.operand_stack_length()
+            OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm)
         }) as usize
     }
 }
@@ -787,13 +794,13 @@ pub enum StackEntryRef<'gc_life, 'l> {
 
 
 impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
-    pub fn loader(&self) -> LoaderName {
+    pub fn loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
         match self {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => {
                 entry.loader()
             }*/
             StackEntryRef::Jit { frame_view, .. } => {
-                frame_view.loader()
+                frame_view.loader(jvm)
             }
         }
     }
@@ -815,13 +822,13 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         self.try_class_pointer(jvm).unwrap()
     }
 
-    pub fn pc(&self) -> u16 {
+    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
         match self {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => {
                 entry.pc()
             }*/
             StackEntryRef::Jit { frame_view, .. } => {
-                frame_view.pc()
+                frame_view.pc(jvm)
             }
         }
     }

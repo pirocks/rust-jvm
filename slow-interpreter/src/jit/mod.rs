@@ -71,7 +71,7 @@ pub struct NotSupported;
 
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct ByteCodeOffset(u16);
+pub struct ByteCodeOffset(pub(crate) u16);
 
 #[derive(Clone, Copy)]
 pub struct MethodResolver<'gc_life> {

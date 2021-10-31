@@ -126,7 +126,7 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
 
     while !interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let current_frame = interpreter_state.current_frame();
-        let current = code.instructions.get(&(current_frame.pc() as u16)).unwrap();
+        let current = code.instructions.get(&(current_frame.pc(jvm) as u16)).unwrap();
         let (instruct, instruction_size) = (current, current.instruction_size as usize);
         interpreter_state.set_current_pc_offset(instruction_size as i32);
         breakpoint_check(jvm, interpreter_state, method_id);
@@ -558,7 +558,7 @@ fn f2l(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let current_pc = current_frame.to_ref().pc();
+    let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();

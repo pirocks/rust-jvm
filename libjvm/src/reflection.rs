@@ -15,7 +15,7 @@ use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter::WasException;
-use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::boolean::Boolean;
 use slow_interpreter::java::lang::byte::Byte;
 use slow_interpreter::java::lang::char::Char;
@@ -202,8 +202,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),//todo use from_leaacy instead
     };
-    push_new_object(jvm, int_state, &clazz);
-    let obj = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+    let obj = new_object(jvm, int_state, &clazz);
     let mut full_args = vec![obj.clone()];
     full_args.extend(args.iter().cloned());
     // dbg!(&full_args);

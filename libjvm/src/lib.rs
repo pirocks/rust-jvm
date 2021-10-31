@@ -28,7 +28,7 @@ use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::rust_jni::native_util::{from_object, get_state, to_object};
 use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
 

@@ -7,9 +7,10 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jobject;
+
 use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use crate::jit_common::SavedRegisters;
-
+use crate::method_table::MethodId;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
@@ -129,8 +130,8 @@ impl JavaStack {
         let new_header = (new_rbp as *mut FrameHeader).as_mut().unwrap();
         new_header.magic_part_1 = MAGIC_1_EXPECTED;
         new_header.magic_part_2 = MAGIC_2_EXPECTED;
+        new_header.methodid = frame_info.methodid();
         new_header.frame_info_ptr = Box::into_raw(box frame_info);//leak dealt with in frame pop
-        new_header.debug_ptr = null_mut();
         new_header.prev_rip = match prev_rip {
             None => transmute(0xDEADDEADDEADDEADusize),
             Some(prev_rip) => prev_rip
@@ -141,7 +142,6 @@ impl JavaStack {
     pub unsafe fn pop_frame(&mut self) {
         let current_header = self.current_frame_ptr() as *const FrameHeader;
         let current_frame_info = (*current_header).frame_info_ptr;
-        dbg!(current_frame_info);
         drop(Box::from_raw(current_frame_info));
         let new_rbp = (*current_header).prev_rpb;
         let new_sp = self.current_frame_ptr();

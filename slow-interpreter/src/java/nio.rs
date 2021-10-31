@@ -6,7 +6,7 @@ pub mod heap_byte_buffer {
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
 
@@ -23,8 +23,7 @@ pub mod heap_byte_buffer {
     impl<'gc_life> HeapByteBuffer<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
-            push_new_object(jvm, int_state, &heap_byte_buffer_class);
-            let object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+            let object = new_object(jvm, int_state, &heap_byte_buffer_class);
 
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();
             let array_object = ArrayObject::new_array(jvm, int_state, elems, CPDType::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;

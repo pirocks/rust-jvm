@@ -12,7 +12,7 @@ use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;

@@ -13,17 +13,17 @@ use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object<'gc_life>(
+pub fn new_object<'gc_life>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
     runtime_class: &'_ Arc<RuntimeClass<'gc_life>>,
-) {
+) -> JavaValue<'gc_life> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
-    int_state.current_frame_mut().push(new_obj);
+    new_obj
 }
 
 fn default_init_fields<'gc_life>(

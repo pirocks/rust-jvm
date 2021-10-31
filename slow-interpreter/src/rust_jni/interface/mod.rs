@@ -29,7 +29,7 @@ use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::field_table::FieldId;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
-use crate::interpreter_util::push_new_object;
+use crate::interpreter_util::new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::reflect::field::Field;
@@ -107,7 +107,7 @@ fn get_interface_impl(state: &JVMState, int_state: &'_ mut InterpreterStateGuard
         NewLocalRef: Some(new_local_ref),
         EnsureLocalCapacity: Some(ensure_local_capacity),
         AllocObject: Some(alloc_object),
-        NewObject: Some(new_object),
+        NewObject: Some(jni_new_object),
         NewObjectV: Some(unsafe { transmute(new_object_v as *mut c_void) }),
         NewObjectA: Some(new_object_a),
         GetObjectClass: Some(get_object_class),
@@ -438,8 +438,8 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
 unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    push_new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm));
-    to_object(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object())
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).unwrap_object();
+    to_object(res_object)
 }
 
 ///ToReflectedMethod

@@ -9,7 +9,7 @@ pub mod method_type {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
-    use crate::interpreter_util::push_new_object;
+    use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
@@ -126,8 +126,7 @@ pub mod method_type {
             method_descriptor: JavaValue<'gc_life>,
         ) -> MethodType<'gc_life> {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            push_new_object(jvm, int_state, &method_type);
-            let res = int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type();
+            let res = new_object(jvm, int_state, &method_type).cast_method_type();
             let ptypes_arr = JavaValue::Object(Some(jvm.allocate_object(
                 Object::Array(ArrayObject {
                     // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
@@ -159,7 +158,7 @@ pub mod method_type_form {
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::push_new_object;
+    use crate::interpreter_util::new_object;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
@@ -219,8 +218,7 @@ pub mod method_type_form {
                    method_handles: JavaValue<'gc_life>,
                    lambda_forms: JavaValue<'gc_life>) -> MethodTypeForm<'gc_life> {
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            push_new_object(jvm, int_state, &method_type_form);
-            let res = int_state.pop_current_operand_stack(Some(CClassName::method_type_form().into())).cast_method_type_form();
+            let res = new_object(jvm, int_state, &method_type_form).cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
             res.set_slot_to_arg_table(slot_to_arg_table);
             res.set_arg_counts(arg_counts);

@@ -21,7 +21,7 @@ pub fn dup_x1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
 }
 
 pub fn dup_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let current_pc = current_frame.to_ref().pc();
+    let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     /*let value2_vtype = data[1].clone();*/
@@ -45,7 +45,7 @@ pub fn dup_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut curren
 
 
 pub fn dup2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let current_pc = current_frame.to_ref().pc();
+    let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     /*let value1_vtype = if matches!(data[0].clone(),VType::TopType) {
@@ -76,7 +76,7 @@ pub fn dup2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_
 
 pub fn dup2_x1(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let (rc, count) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-    let current_pc = current_frame.to_ref().pc();
+    let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
     let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
     let value1_vtype = data[0].clone();

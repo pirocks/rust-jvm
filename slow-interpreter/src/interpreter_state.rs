@@ -100,7 +100,11 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_loader(&self) -> LoaderName {
-        self.current_frame().loader()
+        match self.int_state.as_ref().unwrap().deref() {
+            InterpreterState::Jit { jvm, .. } => {
+                self.current_frame().loader(jvm)
+            }
+        }
     }
 
     pub fn current_class_view(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<dyn ClassView> {
@@ -394,7 +398,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_pc(&self) -> u16 {
-        self.current_frame().pc()
+        self.current_frame().pc(todo!())
     }
 
     pub fn set_current_pc_offset(&mut self, new_offset: i32) {

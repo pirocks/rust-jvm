@@ -10,7 +10,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter::{run_function, WasException};
-use crate::interpreter_util::push_new_object;
+use crate::interpreter_util::new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
@@ -43,8 +43,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     );
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
-    push_new_object(jvm, interpreter_state, &string_class);
-    let string_object = interpreter_state.pop_current_operand_stack(Some(CClassName::string().into()));
+    let string_object = new_object(jvm, interpreter_state, &string_class);
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
         jvm,

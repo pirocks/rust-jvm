@@ -15,7 +15,7 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::interpreter_util::{push_new_object, run_constructor};
+use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::java::lang::reflect::method::Method;

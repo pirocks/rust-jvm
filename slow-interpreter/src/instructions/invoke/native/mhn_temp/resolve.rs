@@ -10,7 +10,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter::WasException;
-use crate::interpreter_util::push_new_object;
+use crate::interpreter_util::new_object;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
@@ -232,8 +232,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 
 fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
-    push_new_object(jvm, int_state, &linkage_error);
-    let object = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
+    let object = new_object(jvm, int_state, &linkage_error).unwrap_object();
     int_state.set_throw(object);
     return Err(WasException);
 }

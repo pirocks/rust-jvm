@@ -107,6 +107,17 @@ impl JITedCodeState {
     }
 
 
+    pub fn ip_to_bytecode_pc(&self, instruct_pointer: *mut c_void) -> ByteCodeOffset {
+        let compiled_code_id = self.function_addresses.get(&instruct_pointer).unwrap();
+        let address_to_bytecode_for_this_method = self.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
+        let bytecode_offset = address_to_bytecode_for_this_method.get(&instruct_pointer).unwrap();
+        *bytecode_offset
+    }
+
+    pub fn ip_to_methodid(&self) -> MethodId {
+        todo!()
+    }
+
     fn add_top_level_exit_code(&mut self) -> *mut c_void {
         let mut labels = vec![];
         let start_label = self.labeler.new_label(&mut labels);
@@ -491,8 +502,10 @@ impl JITedCodeState {
                             let beafbeaf_register = Register(2);
                             initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
                             initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
-                            let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
-                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
+                            let method_id_register = Register(2);
+                            initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: method_id as u64 }));
+                            let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();//todo should use offset of
+                            initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: method_id_register, to: FramePointerOffset(debug_ptr) }));
                             let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
                             let magic_1_register = Register(3);
                             initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
@@ -813,8 +826,10 @@ impl JITedCodeState {
                     let beafbeaf_register = Register(2);
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
-                    let debug_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
-                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(debug_ptr) }));
+                    let method_id_register = Register(2);
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: method_id as u64 }));
+                    let method_id_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
+                    initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: method_id_register, to: FramePointerOffset(method_id_ptr) }));
                     let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
                     let magic_1_register = Register(3);
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: magic_1_register, const_: MAGIC_1_EXPECTED }));
@@ -1021,7 +1036,6 @@ impl JITedCodeState {
         }
     }
 
-
     pub fn ir_to_native(&self, ir: ToIR, base_address: *mut c_void, method_log_info: String) -> ToNative {
         let ToIR { labels: ir_labels, ir, function_start_label } = ir;
         let mut exits = HashMap::new();
@@ -1214,7 +1228,6 @@ impl JITedCodeState {
         ToNative { code: result.code_buffer, new_labels, bytecode_offset_to_address, exits, function_start_label }
     }
 
-
     fn add_from_ir(&mut self, method_log_info: String, current_code_id: CompiledCodeID, ir: ToIR) -> *mut c_void {
         let ToNative {
             code,
@@ -1261,7 +1274,7 @@ impl JITedCodeState {
         transition_stack_frame(transition_type, int_state.get_java_stack());
         let instruct_pointer = int_state.get_java_stack().saved_registers().instruction_pointer;
         assert_eq!(instruct_pointer, old_java_ip);
-        let compiled_code_id = *dbg!(&jit_state.borrow().function_addresses).get(&instruct_pointer).unwrap();
+        let compiled_code_id = *jit_state.borrow().function_addresses.get(&instruct_pointer).unwrap();
         let temp = jit_state.borrow();
         let compiled_code = temp.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
         // problem here is that a function call overwrites the old old ip
@@ -1401,6 +1414,7 @@ impl JITedCodeState {
         drop(jitstate.borrow_mut());
         JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
+
     fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         match exit_type {
             VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
@@ -1440,7 +1454,6 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::Todo { .. } => {
-                dbg!(int_state.get_java_stack().top);
                 todo!()
             }
             VMExitType::RunNativeStatic { method_name, desc, target_class } => {

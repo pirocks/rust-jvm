@@ -19,7 +19,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::interpreter::{run_function, WasException};
-use slow_interpreter::interpreter_util::push_new_object;
+use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::invoke_interface::get_env;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::lang::thread::JThread;

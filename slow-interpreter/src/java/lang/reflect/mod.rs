@@ -131,7 +131,7 @@ pub mod method {
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
@@ -197,8 +197,7 @@ pub mod method {
                           annotation_default: JavaValue<'gc_life>,
         ) -> Result<Method<'gc_life>, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
-            push_new_object(jvm, int_state, &method_class);
-            let method_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+            let method_object = new_object(jvm, int_state, &method_class);
             let full_args = vec![method_object.clone(),
                                  clazz.java_value(),
                                  name.java_value(),
@@ -289,7 +288,7 @@ pub mod constructor {
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
@@ -338,8 +337,7 @@ pub mod constructor {
             signature: JString<'gc_life>,
         ) -> Result<Constructor<'gc_life>, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
-            push_new_object(jvm, int_state, &constructor_class);
-            let constructor_object = int_state.pop_current_operand_stack(Some(CClassName::constructor().into()));
+            let constructor_object = new_object(jvm, int_state, &constructor_class);
 
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
@@ -408,7 +406,7 @@ pub mod field {
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
-    use crate::interpreter_util::{push_new_object, run_constructor};
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
@@ -436,8 +434,7 @@ pub mod field {
             annotations: Vec<JavaValue<'gc_life>>,
         ) -> Result<Self, WasException> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
-            push_new_object(jvm, int_state, &field_classfile);
-            let field_object = int_state.pop_current_operand_stack(Some(CClassName::field().into()));
+            let field_object = new_object(jvm, int_state, &field_classfile);
 
 
             let modifiers = JavaValue::Int(modifiers);
@@ -480,7 +477,7 @@ pub mod constant_pool {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::push_new_object;
+    use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
@@ -498,8 +495,7 @@ pub mod constant_pool {
     impl<'gc_life> ConstantPool<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
-            push_new_object(jvm, int_state, &constant_pool_classfile);
-            let constant_pool_object = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+            let constant_pool_object = new_object(jvm, int_state, &constant_pool_classfile);
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(class);
             Ok(res)

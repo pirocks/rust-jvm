@@ -27,6 +27,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::Frame;
 
+use crate::method_table::MethodId;
 use crate::threading::JavaThreadId;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -448,7 +449,7 @@ pub struct FrameHeader {
     pub prev_rip: *mut c_void,
     pub prev_rpb: *mut c_void,
     pub frame_info_ptr: *mut FrameInfo,
-    pub debug_ptr: *mut c_void,
+    pub methodid: MethodId,
     pub magic_part_1: u64,
     pub magic_part_2: u64,
 }
@@ -543,7 +544,7 @@ impl FrameInfo {
         match self {
             FrameInfo::FullyOpaque { operand_stack_depth, .. } => operand_stack_depth,
             FrameInfo::Native { operand_stack_depth, .. } => operand_stack_depth,
-            FrameInfo::JavaFrame { operand_stack_depth, .. } => operand_stack_depth,
+            FrameInfo::JavaFrame { operand_stack_depth, .. } => todo!(),
         }
     }
 
@@ -576,6 +577,14 @@ impl FrameInfo {
             FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types.clone(),
             FrameInfo::Native { operand_stack_types, .. } => operand_stack_types.clone(),
             FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types.clone()
+        }
+    }
+
+    pub fn methodid(&self) -> MethodId {
+        match self {
+            FrameInfo::FullyOpaque { .. } => usize::MAX,
+            FrameInfo::Native { method_id, .. } => *method_id,
+            FrameInfo::JavaFrame { method_id, .. } => *method_id,
         }
     }
 }
