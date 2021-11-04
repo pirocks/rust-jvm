@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::fmt::Debug;
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
+use itertools::Itertools;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::jobject;
 
-use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
+use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, NativeStackframeMemoryLayout, StackframeMemoryLayout};
+use crate::jit::state::NaiveStackframeLayout;
 use crate::jit_common::SavedRegisters;
+use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
 
 #[derive(Copy, Clone)]
@@ -120,9 +124,28 @@ impl JavaStack {
         self.saved_registers.as_mut().unwrap().frame_pointer = fp;
     }
 
-    pub unsafe fn push_frame(&mut self, layout: &dyn StackframeMemoryLayout, frame_info: FrameInfo, prev_rip: Option<*mut c_void>) {
+    pub unsafe fn push_frame(&mut self, layout: &(dyn StackframeMemoryLayout), frame_info: FrameInfo, prev_rip: Option<*mut c_void>, jvm: &'gc_life JVMState<'gc_life>) {
         let prev_rbp = self.frame_pointer();
+        let prev_header = (prev_rbp as *mut FrameHeader).as_ref().unwrap();
         let prev_sp = self.stack_pointer();
+        if prev_header.prev_rpb != self.top && prev_header.prev_rpb != null_mut() {
+            assert_eq!(prev_header.magic_part_1, MAGIC_1_EXPECTED);
+            assert_eq!(prev_header.magic_part_2, MAGIC_2_EXPECTED);
+            let method_id = prev_header.methodid as MethodId;
+            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(dbg!(method_id)).unwrap();
+            let class_view = rc.view();
+            let method_view = class_view.method_view_i(method_i);
+            let code = method_view.code_attribute().unwrap();
+            let function_frame_type = jvm.function_frame_type_data.read().unwrap();
+            let frames = function_frame_type.get(&method_id).unwrap();
+            let stack_depth = frames.iter()
+                .sorted_by_key(|(offset, _)| *offset)
+                .enumerate()
+                .map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16))
+                .collect();//todo major dup
+            let current_layout = NaiveStackframeLayout::from_stack_depth(stack_depth, code.max_locals, code.max_stack);
+            assert_eq!(dbg!(current_layout.full_frame_size()), prev_sp.offset_from(prev_rbp) as usize);
+        }
         let new_rbp = prev_sp;
         let new_sp = new_rbp.offset(layout.full_frame_size() as isize);
         self.set_stack_pointer(new_sp);
@@ -140,7 +163,9 @@ impl JavaStack {
     }
 
     pub unsafe fn pop_frame(&mut self) {
-        let current_header = self.current_frame_ptr() as *const FrameHeader;
+        let current_header = (self.current_frame_ptr() as *const FrameHeader).as_ref().unwrap();
+        assert_eq!(current_header.magic_part_1, MAGIC_1_EXPECTED);
+        assert_eq!(current_header.magic_part_2, MAGIC_2_EXPECTED);
         let current_frame_info = (*current_header).frame_info_ptr;
         drop(Box::from_raw(current_frame_info));
         let new_rbp = (*current_header).prev_rpb;
@@ -170,6 +195,3 @@ impl JavaStack {
         }
     }
 }
-
-
-

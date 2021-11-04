@@ -103,7 +103,6 @@ pub struct RegionData {
 impl RegionData {
     pub fn get_allocation(&mut self) -> NonNull<c_void> {
         let region_base = self.region_base;
-        dbg!(region_base);
         let current_index = self.num_current_elements.fetch_add(1, Ordering::SeqCst);
         let res = unsafe { region_base.offset((current_index * self.region_elem_size) as isize) };
         NonNull::new(res).unwrap()
@@ -197,14 +196,14 @@ impl MemoryRegions {
             }
         };
         let new_region_base = match to_push_to.last() {
-            Some(x) => unsafe { dbg!(x.region_base.offset(current_region_to_use.region_size() as isize)) },
+            Some(x) => unsafe { x.region_base.offset(current_region_to_use.region_size() as isize) },
             None => {
-                dbg!(current_region_to_use.region_base(&self.early_mmaped_regions))
+                current_region_to_use.region_base(&self.early_mmaped_regions)
             }
         };
         unsafe {
             to_push_to.push(RegionData {
-                region_base: dbg!(new_region_base),
+                region_base: new_region_base,
                 used_bitmap: mmap(
                     null_mut(),
                     (current_region_to_use.region_size() / to_allocate_type.size()) / 8,
@@ -308,7 +307,6 @@ impl RegionToUse {
     }
 
     pub fn region_base(&self, regions: &Regions) -> *mut c_void {
-        dbg!(&self);
         match self {
             RegionToUse::Small => {
                 regions.small_regions
@@ -505,7 +503,7 @@ impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
     }
 
     fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + self.max_stack * size_of::<jlong>() + self.max_locals * size_of::<jlong>()
+        size_of::<FrameHeader>() + (self.max_locals + self.max_stack + 1) * size_of::<jlong>()
     }
 
     fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
@@ -650,4 +648,3 @@ impl StackframeMemoryLayout for NativeStackframeMemoryLayout {
         todo!()
     }
 }
-

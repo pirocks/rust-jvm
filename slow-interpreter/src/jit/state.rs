@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::max;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::current_exe;
 use std::error::Error;
 use std::ffi::c_void;
@@ -66,11 +66,12 @@ pub mod birangemap;
 pub struct JITedCodeState {
     code: *mut c_void,
     current_max_compiled_code_id: CompiledCodeID,
-    method_id_to_code: HashMap<usize, CompiledCodeID>,
+    method_id_to_code: BiHashMap<usize, CompiledCodeID>,
     current_end: *mut c_void,
     // indexed by compiled id:
     function_addresses: BiRangeMap<*mut c_void, CompiledCodeID>,
     function_starts: HashMap<CompiledCodeID, LabelName>,
+    opaque: HashSet<CompiledCodeID>,
     current_jit_instr: IRInstructionIndex,
     exits: HashMap<*mut c_void, VMExitType>,
     labels: HashMap<LabelName, *mut c_void>,
@@ -78,6 +79,10 @@ pub struct JITedCodeState {
     pub top_level_exit_code: *mut c_void,
     address_to_byte_code_offset: HashMap<CompiledCodeID, BiRangeMap<*mut c_void, ByteCodeOffset>>,
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Opaque {}
+
 
 impl JITedCodeState {
     pub fn new() -> Self {
@@ -101,17 +106,22 @@ impl JITedCodeState {
             top_level_exit_code: null_mut(),
             address_to_byte_code_offset: HashMap::new(),
             function_starts: HashMap::new(),
+            opaque: HashSet::new(),
         };
         res.top_level_exit_code = res.add_top_level_exit_code();
         res
     }
 
 
-    pub fn ip_to_bytecode_pc(&self, instruct_pointer: *mut c_void) -> ByteCodeOffset {
+    pub fn ip_to_bytecode_pc(&self, instruct_pointer: *mut c_void) -> Result<ByteCodeOffset, Opaque> {
+        //todo track opaque funcitons
         let compiled_code_id = self.function_addresses.get(&instruct_pointer).unwrap();
+        if self.opaque.contains(compiled_code_id) {
+            return Err(Opaque {});
+        }
         let address_to_bytecode_for_this_method = self.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
         let bytecode_offset = address_to_bytecode_for_this_method.get(&instruct_pointer).unwrap();
-        *bytecode_offset
+        Ok(*bytecode_offset)
     }
 
     pub fn ip_to_methodid(&self) -> MethodId {
@@ -129,13 +139,14 @@ impl JITedCodeState {
         };
 
         let current_code_id = self.next_code_id((-1isize) as usize);
+        self.opaque.insert(current_code_id);
         self.add_from_ir("top level exit wrapper function".to_string(), current_code_id, ir)
     }
 
     fn next_code_id(&mut self, method_id: MethodId) -> CompiledCodeID {
         let next_code_id = CompiledCodeID(self.current_max_compiled_code_id.0 + 1);
         self.current_max_compiled_code_id = next_code_id;
-        assert!(!self.method_id_to_code.values().contains(&next_code_id));
+        assert!(!self.method_id_to_code.contains_right(&next_code_id));
         self.method_id_to_code.insert(method_id, next_code_id);
         next_code_id
     }
@@ -157,7 +168,7 @@ impl JITedCodeState {
         let method_view = view.method_view_i(method_i);
         let method_name = method_view.name().0.to_str(&resolver.jvm.string_pool);
         let class_name = view.name().unwrap_name().0.to_str(&resolver.jvm.string_pool);
-        let res_ptr = self.add_from_ir(format!("{} {}", class_name, method_name), current_code_id, ir);
+        let res_ptr = self.add_from_ir(format!("{} {} {:?}", class_name, method_name, current_code_id), current_code_id, ir);
         res_ptr
     }
 
@@ -176,13 +187,11 @@ impl JITedCodeState {
                     self.gen_code_invokestatic(resolver, &mut labels, &mut initial_ir, current_offset, method_name, descriptor, classname_ref_type)
                 }
                 CompressedInstructionInfo::goto_(offset) => {
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     initial_ir.push((current_offset, IRInstr::BranchToLabel { label: branch_to_label }));
                 }
                 CompressedInstructionInfo::ifnull(offset) => {
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let possibly_null_register = Register(0);
@@ -196,7 +205,6 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::ifnonnull(offset) => {
                     //todo dup
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let possibly_null_register = Register(0);
@@ -209,7 +217,6 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::BranchNotEqual { a: register_with_null, b: possibly_null_register, label: branch_to_label }))
                 }
                 CompressedInstructionInfo::ifne(offset) => {
-                    dbg!(offset);
                     //todo dup
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
@@ -224,7 +231,6 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::ifeq(offset) => {
                     //todo dup
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let possibly_null_register = Register(0);
@@ -238,7 +244,6 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::if_icmpne(offset) => {
                     //todo dup
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let value1 = Register(0);
@@ -255,7 +260,6 @@ impl JITedCodeState {
                 }
                 CompressedInstructionInfo::if_icmpeq(offset) => {
                     //todo dup
-                    dbg!(offset);
                     let branch_to_label = self.labeler.new_label(&mut labels);
                     pending_labels.push((ByteCodeOffset((current_offset.0 as i32 + *offset as i32) as u16), branch_to_label));
                     let value1 = Register(0);
@@ -801,8 +805,6 @@ impl JITedCodeState {
                     let (rc, method_i) = jvm_method_table.try_lookup(method_id).unwrap();
                     let view = rc.view();
                     let method_view = view.method_view_i(method_i);
-                    dbg!(method_view.name().0.to_str(&resolver.jvm.string_pool));
-                    dbg!(view.name().unwrap_name().0.to_str(&resolver.jvm.string_pool));
                     // assert!(!is_native);
                     let after_call_label = self.labeler.new_label(&mut labels);
                     let code = resolver.get_compressed_code(method_id);
@@ -827,7 +829,7 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: 0xbeafbeafbeafbeaf }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: beafbeaf_register, to: FramePointerOffset(frame_info_ptr) }));
                     let method_id_register = Register(2);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: beafbeaf_register, const_: method_id as u64 }));
+                    initial_ir.push((current_offset, IRInstr::Const64bit { to: method_id_register, const_: method_id as u64 }));
                     let method_id_ptr = layout.full_frame_size() + 3 * size_of::<*mut c_void>();
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: method_id_register, to: FramePointerOffset(method_id_ptr) }));
                     let magic_1 = layout.full_frame_size() + 4 * size_of::<*mut c_void>();
@@ -851,9 +853,9 @@ impl JITedCodeState {
                     let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
                     initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
                     initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                    let one_element_skip = Register(7);
-                    initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
-                    initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
+                    // let one_element_skip = Register(7);
+                    // initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
+                    // initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
                     initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
                     initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
                     initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
@@ -1050,7 +1052,7 @@ impl JITedCodeState {
                     assembler.mov(to.to_native_64(), rbp + from.0).unwrap();
                 }
                 IRInstr::StoreFPRelative { from, to } => {
-                    assembler.mov(rbp + to.0, from.to_native_64()).unwrap();
+                    assembler.mov(qword_ptr(rbp + to.0), from.to_native_64()).unwrap();
                 }
                 IRInstr::Load { from_address, to } => {
                     assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap();
@@ -1188,7 +1190,7 @@ impl JITedCodeState {
             formatter.format(instruction, &mut formatted_instructions);
             formatted_instructions.push('\n');
         }
-        eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
+        // eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
         let result = BlockEncoder::encode(assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let mut bytecode_offset_to_address = BiRangeMap::new();
         let mut new_labels: HashMap<LabelName, *mut c_void> = Default::default();
@@ -1289,7 +1291,9 @@ impl JITedCodeState {
 
     pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let res = unsafe {
-            let code_id = jit_state.borrow().method_id_to_code[&methodid];
+            let jit_state_ = jit_state.borrow();
+            let code_id = *jit_state_.method_id_to_code.get_by_left(&methodid).unwrap();
+            drop(jit_state_);
             JITedCodeState::run_method(jit_state, jvm, int_state, methodid, code_id)
         };
         res
@@ -1315,6 +1319,7 @@ impl JITedCodeState {
     #[allow(named_asm_labels)]
     unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
+            //todo reacrchited pushing/popping of frames storing sp.
             let java_stack: &mut JavaStack = int_state.get_java_stack();
             let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
             let rust_stack: u64 = stack_pointer as u64;
@@ -1337,7 +1342,16 @@ impl JITedCodeState {
                 runtime_type_info: Self::runtime_type_info(&memory_region),
             };
             drop(memory_region);
-            eprintln!("going in");
+            eprint!("going in sp:{:?} fp:{:?} ip: {:?}", jit_code_context.java_saved.stack_pointer, jit_code_context.java_saved.frame_pointer, jit_code_context.java_saved.instruction_pointer);
+            let mut jit_state_ = jit_state.borrow();
+            let compiled_code_id = jit_state_.function_addresses.get(&target_ip).unwrap();
+            let method_id = jit_state_.method_id_to_code.get_by_right(compiled_code_id).unwrap();
+            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+            let view = rc.view();
+            let method_view = view.method_view_i(method_i);
+            let string_pool = &jvm.string_pool;
+            eprintln!("@ {:?}:{:?}", view.name().unwrap_object_name().0.to_str(string_pool), method_view.name().0.to_str(string_pool));
+            drop(jit_state_);
             let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
             ///pub struct FrameHeader {
             //     pub prev_rip: *mut c_void,
@@ -1348,7 +1362,6 @@ impl JITedCodeState {
             //     pub magic_part_2: u64,
             // }
             let old_java_ip: *mut c_void;
-            drop(jit_state.borrow_mut());
             asm!(
             "push rbx",
             "push rbp",
@@ -1397,8 +1410,8 @@ impl JITedCodeState {
             jit_code_context.java_saved.instruction_pointer = old_java_ip;
             java_stack.saved_registers = Some(jit_code_context.java_saved.clone());
             //todo exception handling
-            eprintln!("going out ");
             let exit_type = jit_state.borrow().exits.get(&old_java_ip).unwrap().clone();
+            eprintln!("going out sp:{:?} fp:{:?} ip:{:?} {:?}", java_stack.saved_registers.unwrap().stack_pointer, java_stack.saved_registers.unwrap().frame_pointer, java_stack.saved_registers.unwrap().instruction_pointer, exit_type);
             target_ip = match JITedCodeState::handle_exit(jit_state, exit_type, jvm, int_state, methodid, old_java_ip) {
                 None => {
                     return Ok(None);
@@ -1418,7 +1431,9 @@ impl JITedCodeState {
     fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         match exit_type {
             VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                int_state.get_java_stack().saved_registers = save;
                 let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
                 let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
                 if method_view.is_native() {
@@ -1438,12 +1453,13 @@ impl JITedCodeState {
                 }
             }
             VMExitType::TopLevelReturn { .. } => {
-                dbg!(int_state.current_loader());
                 int_state.set_function_return(true);
                 None
             }
             VMExitType::ResolveInvokeSpecial { method_name, desc, target_class } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                int_state.get_java_stack().saved_registers = save;
                 let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
                 let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
                 jitstate.borrow_mut().add_function(method_view.code_attribute().unwrap(), to_call_function_method_id, MethodResolver { jvm, loader: int_state.current_loader() });
@@ -1457,10 +1473,11 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::RunNativeStatic { method_name, desc, target_class } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let inited = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
+                int_state.get_java_stack().saved_registers = save;
                 let method_i = inited.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap().method_i();
                 let res = run_native_method(jvm, int_state, inited, method_i).unwrap();
-                dbg!(&res);
                 match res {
                     None => {}
                     Some(_) => {
@@ -1468,7 +1485,7 @@ impl JITedCodeState {
                     }
                 }
                 let jit_state = jitstate.borrow();
-                let code_id = jit_state.method_id_to_code[&methodid];
+                let code_id = jit_state.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jit_state.address_to_byte_code_offset.get(&code_id).unwrap();
                 let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
                 let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3);// call static is 3 bytes
@@ -1476,13 +1493,14 @@ impl JITedCodeState {
                 Some(restart_address)
             }
             VMExitType::PutStatic { target_type, target_class, name, frame_pointer_offset_of_to_put } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let target_class_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                // dbg!(target_type.clone());
+                int_state.get_java_stack().saved_registers = save;
                 // let _target_type_rc = assert_loaded_class(jvm, target_type.clone());
                 target_class_rc.static_vars().insert(name, int_state.raw_read_at_frame_pointer_offset(frame_pointer_offset_of_to_put, target_type.to_runtime_type().unwrap()));
                 //todo dup
                 let jitstate_borrow = jitstate.borrow();
-                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
                 let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
                 let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3);// put static is 3 bytes
@@ -1490,7 +1508,16 @@ impl JITedCodeState {
                 Some(restart_address)
             }
             VMExitType::AllocateVariableSizeArrayANewArray { target_type_sub_type, len_offset, res_write_offset } => {
+                // dbg!(int_state.get_java_stack().saved_registers.unwrap().frame_pointer);
+                // dbg!(int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
+                let before_stack = int_state.get_java_stack().saved_registers.unwrap().stack_pointer;
+                let save = int_state.get_java_stack().saved_registers;
                 let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_type_sub_type).unwrap();
+                int_state.get_java_stack().saved_registers = save;
+                assert_eq!(before_stack, int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
+                // dbg!(int_state.get_java_stack().saved_registers.unwrap().frame_pointer);
+                // dbg!(int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
+                int_state.debug_print_stack_trace(jvm);
                 let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
                 let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len), jvm.thread_state.get_current_thread().java_tid);
                 let mut memory_region = jvm.gc.memory_region.lock().unwrap();
@@ -1499,7 +1526,7 @@ impl JITedCodeState {
                 let to_write = jvalue { l: allocation.as_ptr() as jobject };
                 int_state.raw_write_at_frame_pointer_offset(res_write_offset, to_write);
                 let jitstate_borrow = jitstate.borrow();
-                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
                 let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
                 let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3);// anewarray is 3 bytes
@@ -1528,7 +1555,9 @@ impl JITedCodeState {
             }
             VMExitType::NeedNewRegion { .. } => todo!(),
             VMExitType::Allocate { ptypeview, loader, res, bytecode_size } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let rc = check_loaded_class_force_loader(jvm, int_state, &ptypeview, loader).unwrap();
+                int_state.get_java_stack().saved_registers = save;
                 let allocated = match rc.deref() {
                     RuntimeClass::Array(_) => todo!(),
                     RuntimeClass::Object(obj) => {
@@ -1538,7 +1567,7 @@ impl JITedCodeState {
                 };
                 int_state.raw_write_at_frame_pointer_offset(res, jvalue { l: allocated.raw_ptr_usize() as jobject });
                 let jitstate_borrow = jitstate.borrow();
-                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
                 let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
                 let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size);
@@ -1551,11 +1580,13 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::LoadClass { class_type, res, bytecode_size } => {
+                let save = int_state.get_java_stack().saved_registers;
                 let class = JClass::from_type(jvm, int_state, class_type).unwrap();
+                int_state.get_java_stack().saved_registers = save;
                 let to_write = jvalue { l: class.object().raw_ptr_usize() as jobject };
                 int_state.raw_write_at_frame_pointer_offset(res, to_write);
                 let jitstate_borrow = jitstate.borrow();
-                let code_id = jitstate_borrow.method_id_to_code[&methodid];
+                let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
                 let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
                 let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size); //size of ldc
@@ -1639,7 +1670,7 @@ impl Labeler {
     }
 }
 
-
+#[derive(Debug)]
 pub struct NaiveStackframeLayout {
     pub(crate) max_locals: u16,
     pub(crate) max_stack: u16,
@@ -1656,12 +1687,12 @@ impl NaiveStackframeLayout {
     }
 
     pub fn new(instructions: &Vec<&CInstruction>, max_locals: u16, max_stack: u16) -> Self {
-        let mut stack_depth = HashMap::new();
+        todo!()
+        /*let mut stack_depth = HashMap::new();
         let mut current_depth = 0;
         for (i, instruct) in instructions.iter().enumerate() {
             stack_depth.insert(i as u16, current_depth);
-            dbg!(current_depth);
-            match dbg!(&instruct.info) {
+            match &instruct.info {
                 CompressedInstructionInfo::invokestatic { descriptor, .. } => {
                     current_depth -= descriptor.arg_types.len() as u16;
                     match &descriptor.return_type {
@@ -1763,7 +1794,7 @@ impl NaiveStackframeLayout {
             max_locals,
             max_stack,
             stack_depth,
-        }
+        }*/
     }
 }
 
@@ -1792,4 +1823,3 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
         todo!()
     }
 }
-

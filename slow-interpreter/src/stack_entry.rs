@@ -15,9 +15,11 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, j
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use rust_jvm_common::vtype::VType;
 
 use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
@@ -64,11 +66,10 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let method_id = self.get_header().methodid;
         if method_id == MethodId::MAX {
             //frame loader unknown b/c opaque frame
-            eprintln!("WARN: opaque frame loader");
+            // eprintln!("WARN: opaque frame loader");
             return LoaderName::BootstrapLoader;
         }
         let method_table = jvm.method_table.read().unwrap();
-        dbg!(method_id);
         let (rc, method_i) = method_table.try_lookup(method_id).unwrap();
         jvm.classes.read().unwrap().get_initiating_loader(&rc)
     }
@@ -81,13 +82,13 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         })
     }
 
-    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
+    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<u16, Opaque> {
         let saved_instruction_pointer = self.call_stack.saved_registers.unwrap().instruction_pointer;
         let methodid = self.get_header().methodid;
         let byte_code_offset = jvm.jit_state.with(|jit_state| {
             jit_state.borrow().ip_to_bytecode_pc(saved_instruction_pointer)
-        });
-        byte_code_offset.0
+        })?;
+        Ok(byte_code_offset.0)
     }
 
     pub fn pc_mut(&mut self) -> &mut u16 {
@@ -115,14 +116,29 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
-    pub fn operand_stack_length(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
+    pub fn operand_stack_length(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<u16, Opaque> {
         let methodid = self.get_header().methodid;
         if methodid == usize::MAX {
             panic!()
         }
-        let pc = self.pc(jvm);
+        let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map.len() as u16
+        Ok(function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map.len() as u16)
+    }
+
+    pub fn stack_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Vec<RuntimeType>, Opaque> {
+        let methodid = self.get_header().methodid;
+        if methodid == usize::MAX {
+            panic!()
+        }
+        let pc = self.pc(jvm)?;
+        let function_frame_type = jvm.function_frame_type_data.read().unwrap();
+        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map;
+        let mut res = vec![];
+        for vtype in &stack_map.data {
+            res.push(vtype.to_runtime_type());
+        }
+        Ok(res)
     }
 
     pub fn is_native(&self) -> bool {
@@ -222,6 +238,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                     JavaValue::Float((target as *const jfloat).read())
                 }
                 RuntimeType::IntType => {
+                    dbg!((target as *const jint).read());
                     assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Int((target as *const jint).read())
                 }
@@ -317,12 +334,15 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     }
 
     pub fn as_stack_entry_partially_correct(&self, jvm: &'gc_life JVMState<'gc_life>) -> StackEntry<'gc_life> {
-        let operand_stack_types = match self.get_frame_info() {
-            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types
-        };
-        assert_eq!(self.operand_stack_length(jvm) as usize, operand_stack_types.len());
+        match self.operand_stack_length(jvm) {
+            Ok(_) => {}
+            Err(_) => {
+                return StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
+            }
+        }
+
+        let operand_stack_types = self.stack_types(jvm).unwrap();
+        assert_eq!(self.operand_stack_length(jvm).unwrap() as usize, operand_stack_types.len());
         let operand_stack = operand_stack_types.iter().enumerate().map(|(i, ptype)| {
             self.get_operand_stack(jvm, i as u16, ptype.clone())
         }).rev().collect_vec();
@@ -692,7 +712,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
             OperandStackRef::Jit { frame_view, jvm } => {
-                frame_view.operand_stack_length(jvm)
+                frame_view.operand_stack_length(jvm).unwrap()
             }
         }
     }
@@ -777,7 +797,7 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
     pub fn len(&self) -> usize {
         (match self {
             /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm)
+            OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm).unwrap()
         }) as usize
     }
 }
@@ -828,7 +848,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
                 entry.pc()
             }*/
             StackEntryRef::Jit { frame_view, .. } => {
-                frame_view.pc(jvm)
+                frame_view.pc(jvm).unwrap()
             }
         }
     }
@@ -909,12 +929,16 @@ impl<'gc_life> StackEntry<'gc_life> {
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
         let mut guard = jvm.method_table.write().unwrap();
         let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
+        let class_view = class_pointer.view();
+        let method_view = class_view.method_view_i(method_i);
+        let code = method_view.code_attribute().unwrap();
+        let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
         Self {
             loader,
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
             local_vars: args,
-            operand_stack: vec![],
+            operand_stack,
             native_local_refs: vec![],
         }
     }

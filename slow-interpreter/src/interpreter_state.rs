@@ -309,7 +309,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                             Some(frame_vtype) => frame_vtype
                         };//TODO MAKE SAFE TYPE WRAPPERS FOR METHOD ID AND I
                         let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
-                        assert!(operand_stack.is_empty());//todo setup operand stack
+                        // assert!(operand_stack.is_empty());//todo setup operand stack
                         unsafe {
                             call_stack.push_frame(&memory_layout, FrameInfo::JavaFrame {
                                 method_id,
@@ -317,10 +317,10 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                                 loader,
                                 java_pc: pc,
                                 pc_offset,
-                                operand_stack_depth: 0,
-                                operand_stack_types: vec![],
+                                operand_stack_depth: operand_stack.len() as u16,
+                                operand_stack_types: operand_stack.iter().map(|t| t.to_type()).collect_vec(),
                                 locals_types: vec![RuntimeType::TopType; code.max_locals as usize],
-                            }, return_to_rip);
+                            }, return_to_rip, jvm);
                         }
                         for (i, local_var) in local_vars.into_iter().enumerate() {
                             self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
@@ -337,16 +337,16 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                             operand_stack_depth: 0,
                             native_local_refs,
                             operand_stack_types: vec![],
-                        }, return_to_rip)
+                        }, return_to_rip, jvm)
                     }
                 } else {
                     unsafe {
-                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] }, return_to_rip)
+                        call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] }, return_to_rip, jvm)
                     }
                 }
-                for operand in operand_stack {
+                /*for operand in operand_stack {
                     self.current_frame_mut().operand_stack_mut().push(operand);
-                }
+                }*/
             }
         };
         FramePushGuard::default()

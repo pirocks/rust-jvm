@@ -45,7 +45,6 @@ pub fn run_native_method(
                      "findLoadedClass0", "getStackTraceElement", "objectFieldOffset", "getDeclaringClass0",
                      "getEnclosingMethod0", "isArray", "init", "isPrimitive", "isInterface"].into_iter().collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
-        dbg!(&method_as_string);
         int_state.debug_print_stack_trace(jvm);
     }
     let parsed = method.desc();
@@ -68,8 +67,6 @@ pub fn run_native_method(
     }
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()), jvm);
     assert!(int_state.current_frame().is_native());
-    dbg!(int_state.get_java_stack().stack_pointer());
-    dbg!(int_state.get_java_stack().frame_pointer());
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm, int_state).unwrap();
