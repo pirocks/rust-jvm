@@ -30,7 +30,7 @@ use classfile_view::view::HasAccessFlags;
 use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
 use jvmti_jni_bindings::{jdouble, jint, jlong, jobject, jvalue};
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -78,6 +78,8 @@ pub struct JITedCodeState {
     labeler: Labeler,
     pub top_level_exit_code: *mut c_void,
     address_to_byte_code_offset: HashMap<CompiledCodeID, BiRangeMap<*mut c_void, ByteCodeOffset>>,
+    address_to_byte_code_index: HashMap<CompiledCodeID, BiRangeMap<*mut c_void, u16>>,
+    address_to_byte_code_compressed_code: HashMap<CompiledCodeID, BiRangeMap<*mut c_void, CInstruction>>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -107,21 +109,40 @@ impl JITedCodeState {
             address_to_byte_code_offset: HashMap::new(),
             function_starts: HashMap::new(),
             opaque: HashSet::new(),
+            address_to_byte_code_index: HashMap::new(),
+            address_to_byte_code_compressed_code: HashMap::new(),
         };
         res.top_level_exit_code = res.add_top_level_exit_code();
         res
     }
 
 
-    pub fn ip_to_bytecode_pc(&self, instruct_pointer: *mut c_void) -> Result<ByteCodeOffset, Opaque> {
+    pub fn ip_to_bytecode_pc(&self, instruct_pointer: *mut c_void) -> Result<(u16, ByteCodeOffset), Opaque> {
         //todo track opaque funcitons
         let compiled_code_id = self.function_addresses.get(&instruct_pointer).unwrap();
         if self.opaque.contains(compiled_code_id) {
             return Err(Opaque {});
         }
         let address_to_bytecode_for_this_method = self.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
+        let address_to_bytecode_index_for_this_method = self.address_to_byte_code_index.get(&compiled_code_id).unwrap();
         let bytecode_offset = address_to_bytecode_for_this_method.get(&instruct_pointer).unwrap();
-        Ok(*bytecode_offset)
+        let index_offset = address_to_bytecode_index_for_this_method.get(&instruct_pointer).unwrap();
+        Ok((*index_offset, *bytecode_offset))
+    }
+
+    pub fn ip_to_bytecode_pcs(&self, instruct_pointer: *mut c_void) -> Result<Vec<ByteCodeOffset>, Opaque> {
+        //todo track opaque funcitons
+        let compiled_code_id = self.function_addresses.get(&instruct_pointer).unwrap();
+        if self.opaque.contains(compiled_code_id) {
+            return Err(Opaque {});
+        }
+        let address_to_bytecode_for_this_method = self.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
+        let address_to_bytecode_index_for_this_method = self.address_to_byte_code_index.get(&compiled_code_id).unwrap();
+        let address_to_code = self.address_to_byte_code_compressed_code.get(&compiled_code_id).unwrap();
+        dbg!(address_to_code);
+        dbg!(address_to_code.get(&instruct_pointer).unwrap());
+        let bytecode_offset = address_to_bytecode_for_this_method.values().cloned().collect_vec();
+        Ok(bytecode_offset)
     }
 
     pub fn ip_to_methodid(&self) -> MethodId {
@@ -132,9 +153,14 @@ impl JITedCodeState {
         let mut labels = vec![];
         let start_label = self.labeler.new_label(&mut labels);
         let exit_label = self.labeler.new_label(&mut labels);
+        let nop = CompressedInstruction {
+            offset: 0,
+            instruction_size: 0,
+            info: CompressedInstructionInfo::nop,
+        };
         let ir = ToIR {
             labels,
-            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }), (ByteCodeOffset(0), IRInstr::VMExit { exit_label, exit_type: VMExitType::TopLevelReturn {} })],
+            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { exit_label, exit_type: VMExitType::TopLevelReturn {} }, nop)],
             function_start_label: start_label,
         };
 
@@ -619,7 +645,12 @@ impl JITedCodeState {
                     None => break,
                     Some((label_offset, label)) => {
                         if label_offset == &offset {
-                            ir.push((*label_offset, IRInstr::Label(IRLabel { name: *label })));
+                            let nop = CompressedInstruction {
+                                offset: 0,
+                                instruction_size: 0,
+                                info: CompressedInstructionInfo::nop,
+                            };
+                            ir.push((*label_offset, IRInstr::Label(IRLabel { name: *label }), nop));
                             let _ = pending_labels.next();
                             continue;
                         }
@@ -627,7 +658,7 @@ impl JITedCodeState {
                 }
                 break;
             }
-            ir.push((offset, ir_instr));
+            ir.push((offset, ir_instr, byte_code.iter().find(|instr| instr.offset == offset.0).unwrap().clone().clone()));
         }
 
         Ok(ToIR {
@@ -1044,9 +1075,10 @@ impl JITedCodeState {
         let mut assembler: CodeAssembler = CodeAssembler::new(64).unwrap();
         let mut iced_labels = ir_labels.into_iter().map(|label| (label.name, assembler.create_label())).collect::<HashMap<_, _>>();
         let mut label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
-        let mut instruction_index_to_bytecode_offset_start: HashMap<u32, ByteCodeOffset> = HashMap::new();
-        for (bytecode_offset, ir_instr) in ir {
-            instruction_index_to_bytecode_offset_start.insert(assembler.instructions().len() as u32, bytecode_offset);
+        let mut instruction_index_to_bytecode_offset_start: HashMap<u32, (ByteCodeOffset, CInstruction)> = HashMap::new();
+        for (bytecode_offset, ir_instr, cinstruction) in ir {
+            let cinstruction: CInstruction = cinstruction;
+            instruction_index_to_bytecode_offset_start.insert(assembler.instructions().len() as u32, (bytecode_offset, cinstruction));
             match ir_instr {
                 IRInstr::LoadFPRelative { from, to } => {
                     assembler.mov(to.to_native_64(), rbp + from.0).unwrap();
@@ -1186,16 +1218,22 @@ impl JITedCodeState {
         let mut formatted_instructions = String::new();
         let mut formatter = IntelFormatter::default();
         for (i, instruction) in assembler.instructions().iter().enumerate() {
-            formatted_instructions.push_str(format!("#{}:", i).as_str());
-            formatter.format(instruction, &mut formatted_instructions);
-            formatted_instructions.push('\n');
+            let mut temp = "".to_string();
+            formatter.format(instruction, &mut temp);
+            let instruction_info_as_string = &match instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
+                Some((_, x)) => x.info.instruction_to_string_without_meta(),
+                None => {
+                    "Unknown".to_string()
+                }
+            };
+            formatted_instructions.push_str(format!("#{}: {:<35}{}\n", i, temp, instruction_info_as_string).as_str());
         }
-        // eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
+        eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
         let result = BlockEncoder::encode(assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let mut bytecode_offset_to_address = BiRangeMap::new();
         let mut new_labels: HashMap<LabelName, *mut c_void> = Default::default();
         let mut label_instruction_indexes = label_instruction_offsets.into_iter().peekable();
-        let mut current_byte_code_offset = Some(ByteCodeOffset(0));
+        let mut current_byte_code_offset = Some((0, ByteCodeOffset(0)));
         let mut current_byte_code_start_address = Some(base_address);
         for (i, native_offset) in result.new_instruction_offsets.iter().enumerate() {
             if *native_offset == u32::MAX {
@@ -1219,10 +1257,10 @@ impl JITedCodeState {
             if i == 0 {
                 continue;
             }
-            if let Some(new_byte_code_offset) = instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
+            if let Some((new_byte_code_offset, cinstr)) = instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
                 assert!(((current_byte_code_start_address.unwrap()) as u64) < ((current_instruction_address) as u64));
-                bytecode_offset_to_address.insert_range(current_byte_code_start_address.unwrap()..current_instruction_address, current_byte_code_offset.unwrap());
-                current_byte_code_offset = Some(*new_byte_code_offset);
+                bytecode_offset_to_address.insert_range(current_byte_code_start_address.unwrap()..current_instruction_address, (current_byte_code_offset.unwrap().0, current_byte_code_offset.unwrap().1, cinstr.clone()));
+                current_byte_code_offset = Some((i as u16, *new_byte_code_offset));
                 current_byte_code_start_address = Some(current_instruction_address);
             }
         }
@@ -1237,7 +1275,7 @@ impl JITedCodeState {
             bytecode_offset_to_address,
             exits,
             function_start_label
-        } = self.ir_to_native(ir, self.current_end, method_log_info);
+        } = self.ir_to_native(ir, self.current_end, method_log_info.clone());
         self.function_starts.insert(current_code_id, function_start_label);
         let install_at = self.current_end;
         unsafe { self.current_end = install_at.offset(code.len() as isize); }
@@ -1251,8 +1289,11 @@ impl JITedCodeState {
             self.exits.insert(new_labels[&label_name], exit_type);
         }
         self.labels.extend(new_labels.into_iter());
+        let bytecode_offset_to_address: BiRangeMap<*mut c_void, (_, _, _)> = bytecode_offset_to_address;
         for (address_range, offset) in bytecode_offset_to_address {
-            self.address_to_byte_code_offset.entry(current_code_id).or_insert(BiRangeMap::new()).insert_range(address_range, offset);
+            self.address_to_byte_code_index.entry(current_code_id).or_insert(BiRangeMap::new()).insert_range(address_range.clone(), offset.0);
+            self.address_to_byte_code_offset.entry(current_code_id).or_insert(BiRangeMap::new()).insert_range(address_range.clone(), offset.1);
+            self.address_to_byte_code_compressed_code.entry(current_code_id).or_insert(BiRangeMap::new()).insert_range(address_range, offset.2);
         }
         unsafe {
             copy_nonoverlapping(
@@ -1429,6 +1470,7 @@ impl JITedCodeState {
     }
 
     fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
+        int_state.debug_print_stack_trace(jvm);
         match exit_type {
             VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
                 let save = int_state.get_java_stack().saved_registers;
@@ -1517,7 +1559,6 @@ impl JITedCodeState {
                 assert_eq!(before_stack, int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
                 // dbg!(int_state.get_java_stack().saved_registers.unwrap().frame_pointer);
                 // dbg!(int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
-                int_state.debug_print_stack_trace(jvm);
                 let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
                 let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len), jvm.thread_state.get_current_thread().java_tid);
                 let mut memory_region = jvm.gc.memory_region.lock().unwrap();

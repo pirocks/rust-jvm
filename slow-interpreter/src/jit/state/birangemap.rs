@@ -39,9 +39,13 @@ impl<K: Clone + Ord + Eq + SingleElementRangeable<K>, V: Clone + Eq + Hash> BiRa
     pub fn get_reverse(&self, key: &V) -> Option<&Range<K>> {
         self.right_to_left.get(key)
     }
+
+    pub fn values(&self) -> impl Iterator<Item=&V> {
+        self.right_to_left.keys()
+    }
 }
 
-impl<K: Clone + Ord + Eq, V: Clone + Ord + Eq + Hash> IntoIterator for BiRangeMap<K, V> {
+impl<K: Clone + Ord + Eq, V: Clone + Eq + Hash> IntoIterator for BiRangeMap<K, V> {
     type Item = (Range<K>, V);
     type IntoIter = IntoIter<K, V>;
 

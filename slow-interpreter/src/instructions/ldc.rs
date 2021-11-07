@@ -16,15 +16,13 @@ use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryMut;
 
-fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType) -> Result<(), WasException> {
-    load_class_constant_by_type(jvm, int_state, type_)?;
-    Ok(())
+fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
+    load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: &CPDType) -> Result<(), WasException> {
+pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, res_class_type: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
-    int_state.current_frame_mut().push(JavaValue::Object(object.into()));
-    Ok(())
+    Ok(JavaValue::Object(object.into()))
 }
 
 fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, s: &StringView) {

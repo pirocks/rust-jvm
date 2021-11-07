@@ -134,7 +134,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
 pub struct ToIR {
     labels: Vec<IRLabel>,
-    ir: Vec<(ByteCodeOffset, IRInstr)>,
+    ir: Vec<(ByteCodeOffset, IRInstr, CInstruction)>,
     pub function_start_label: LabelName,
 }
 
@@ -142,7 +142,7 @@ pub struct ToIR {
 pub struct ToNative {
     code: Vec<u8>,
     new_labels: HashMap<LabelName, *mut c_void>,
-    bytecode_offset_to_address: BiRangeMap<*mut c_void, ByteCodeOffset>,
+    bytecode_offset_to_address: BiRangeMap<*mut c_void, (u16, ByteCodeOffset, CInstruction)>,
     exits: HashMap<LabelName, VMExitType>,
     function_start_label: LabelName,
 }
@@ -157,7 +157,3 @@ pub fn transition_stack_frame(transition_type: TransitionType, frame_to_fix: &mu
         TransitionType::ResolveCalls => {}
     }
 }
-
-
-
-

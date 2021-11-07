@@ -155,8 +155,7 @@ pub mod method {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, &field_class_type)?;
-                int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, &field_class_type)?.cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
@@ -312,8 +311,7 @@ pub mod constructor {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, &field_class_type)?;
-                int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, &field_class_type)?.cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;

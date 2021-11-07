@@ -490,7 +490,7 @@ pub struct Annotation {
 
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct IInc {
     pub index: u16,
@@ -710,7 +710,7 @@ pub struct InvokeInterface {
 
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Clone)]
 pub struct LookupSwitch {
     pub pairs: Vec<(i32, i32)>,
@@ -728,7 +728,7 @@ pub struct MultiNewArray {
 
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[repr(u8)]
 #[derive(Copy, Clone)]
 #[derive(FromPrimitive)]
@@ -745,7 +745,7 @@ pub enum Atype {
 
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Clone)]
 pub struct TableSwitch {
     pub default: i32,
@@ -756,7 +756,7 @@ pub struct TableSwitch {
 
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub enum Wide {
     Iload(WideIload),
@@ -776,7 +776,7 @@ pub enum Wide {
 // lstore, dstore, or ret
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideIload {
     pub index: u16,
@@ -784,7 +784,7 @@ pub struct WideIload {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideFload {
     pub index: u16,
@@ -792,7 +792,7 @@ pub struct WideFload {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideAload {
     pub index: u16,
@@ -800,7 +800,7 @@ pub struct WideAload {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideLload {
     pub index: u16,
@@ -808,7 +808,7 @@ pub struct WideLload {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideDload {
     pub index: u16,
@@ -816,7 +816,7 @@ pub struct WideDload {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideIstore {
     pub index: u16,
@@ -824,7 +824,7 @@ pub struct WideIstore {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideFstore {
     pub index: u16,
@@ -832,7 +832,7 @@ pub struct WideFstore {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideAstore {
     pub index: u16,
@@ -840,7 +840,7 @@ pub struct WideAstore {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideLstore {
     pub index: u16,
@@ -848,7 +848,7 @@ pub struct WideLstore {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideDstore {
     pub index: u16,
@@ -856,7 +856,7 @@ pub struct WideDstore {
 }
 
 #[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Hash)]
 #[derive(Copy, Clone)]
 pub struct WideRet {
     pub index: u16,

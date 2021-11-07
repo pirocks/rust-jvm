@@ -10,7 +10,7 @@ use crate::stack_entry::StackEntryMut;
 pub fn pop2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-    let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[&current_pc];
+    let Frame { stack_map: OperandStack { data }, .. } = todo!();//&stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     let value1 = current_frame.pop(Some(RuntimeType::LongType));
     match value1.to_type() {

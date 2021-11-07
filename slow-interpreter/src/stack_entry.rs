@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::intrinsics::size_of;
@@ -19,6 +20,7 @@ use rust_jvm_common::vtype::VType;
 
 use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::jit::ByteCodeOffset;
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
@@ -33,14 +35,16 @@ pub struct FrameView<'gc_life, 'l> {
     frame_ptr: *mut c_void,
     call_stack: &'l JavaStack,
     phantom_data: PhantomData<&'gc_life ()>,
+    current_ip: *mut c_void
 }
 
 impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
-    pub fn new(ptr: *mut c_void, call_stack: &'l JavaStack) -> Self {
+    pub fn new(ptr: *mut c_void, call_stack: &'l JavaStack, current_ip: *mut c_void) -> Self {
         let res = Self {
             frame_ptr: ptr,
             call_stack,
             phantom_data: PhantomData::default(),
+            current_ip,
         };
         let _header = res.get_header();
         res
@@ -82,7 +86,25 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         })
     }
 
-    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<u16, Opaque> {
+    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<ByteCodeOffset, Opaque> {
+        let saved_instruction_pointer = self.call_stack.saved_registers.unwrap().instruction_pointer;
+        let methodid = self.get_header().methodid;
+        let byte_code_offset = jvm.jit_state.with(|jit_state| {
+            jit_state.borrow().ip_to_bytecode_pc(saved_instruction_pointer)
+        })?;
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        // dbg!(method_view.name().0.to_str(&jvm.string_pool));
+        // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
+        // dbg!(method_view.code_attribute().unwrap().instructions.iter().sorted_by_key(|(offset, _)| *offset).collect_vec());
+        // jvm.jit_state.with(|jit_state|{
+        //     dbg!(jit_state.borrow().ip_to_bytecode_pcs(saved_instruction_pointer));
+        // });
+        Ok(byte_code_offset.1)
+    }
+
+    pub fn bytecode_index(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<u16, Opaque> {
         let saved_instruction_pointer = self.call_stack.saved_registers.unwrap().instruction_pointer;
         let methodid = self.get_header().methodid;
         let byte_code_offset = jvm.jit_state.with(|jit_state| {
@@ -122,8 +144,14 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             panic!()
         }
         let pc = self.pc(jvm)?;
+        // jvm.jit_state.with(|jit_state| {
+        //     dbg!(jit_state.borrow().ip_to_bytecode_pcs(self.call_stack.saved_registers.unwrap().instruction_pointer).unwrap().into_iter().map(|ByteCodeOffset(offset)|offset).sorted());
+        // });
+
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        Ok(function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map.len() as u16)
+        let this_function = function_frame_type.get(&methodid).unwrap();
+        //todo issue here is that we can't use instruct pointer b/c we might have iterated up through vm call and instruct pointer will be saved.
+        Ok(this_function.get(&pc.0).unwrap().stack_map.len() as u16)
     }
 
     pub fn stack_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Vec<RuntimeType>, Opaque> {
@@ -133,7 +161,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map;
+        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc.0).unwrap().stack_map;
         let mut res = vec![];
         for vtype in &stack_map.data {
             res.push(vtype.to_runtime_type());
@@ -238,7 +266,6 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                     JavaValue::Float((target as *const jfloat).read())
                 }
                 RuntimeType::IntType => {
-                    dbg!((target as *const jint).read());
                     assert_eq!((target as *const u64).read() >> 32, 0);
                     JavaValue::Int((target as *const jint).read())
                 }
@@ -260,8 +287,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                     }
                 }
                 RuntimeType::TopType => {
-                    dbg!(&expected_type);
-                    todo!()
+                    JavaValue::Top
                 }
             }
         }
@@ -443,6 +469,7 @@ pub struct StackIter<'vm_life, 'l> {
     current_frame: *mut c_void,
     java_stack: &'l JavaStack,
     top: *mut c_void,
+    current_ip: Option<*mut c_void>
 }
 
 impl<'l, 'k> StackIter<'l, 'k> {
@@ -452,6 +479,7 @@ impl<'l, 'k> StackIter<'l, 'k> {
             current_frame: java_stack.current_frame_ptr(),
             java_stack,
             top: java_stack.top,
+            current_ip: None
         }
     }
 }
@@ -460,9 +488,11 @@ impl<'vm_life> Iterator for StackIter<'vm_life, '_> {
     type Item = StackEntry<'vm_life>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_frame != self.top {
-            let frame_view = FrameView::new(self.current_frame, self.java_stack);
-            let _ = frame_view.get_header();
+        if self.current_frame != self.top && self.current_ip != Some(0x0000010080000000 as *mut c_void) { //todo cnstant
+            dbg!(self.current_ip);
+            let frame_view = FrameView::new(self.current_frame, self.java_stack, self.current_ip.unwrap_or(self.java_stack.saved_registers.unwrap().instruction_pointer));
+            let header = frame_view.get_header();
+            self.current_ip = Some(header.prev_rip);
             let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));
             self.current_frame = frame_view.get_header().prev_rpb;
             res
@@ -842,7 +872,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         self.try_class_pointer(jvm).unwrap()
     }
 
-    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
+    pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> ByteCodeOffset {
         match self {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => {
                 entry.pc()

@@ -101,7 +101,7 @@ fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr(), call_stack).set_local_refs_top_frame(new)
+            FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).set_local_refs_top_frame(new)
         }
     }
 }
@@ -110,7 +110,7 @@ fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuar
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr(), call_stack).pop_local_refs()
+            FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs()
         }
     }
 }
@@ -119,7 +119,7 @@ fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGua
     match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr(), call_stack).push_local_refs(to_push)
+            FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push)
         }
     }
 }
@@ -128,7 +128,7 @@ fn current_native_local_refs<'l>(interpreter_state: &'l InterpreterStateGuard) -
     match interpreter_state.int_state.as_ref().unwrap().deref() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => {
-            FrameView::new(call_stack.current_frame_ptr(), call_stack).get_local_refs()
+            FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).get_local_refs()
         }
     }
 }

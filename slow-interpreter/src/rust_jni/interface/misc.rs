@@ -38,10 +38,12 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, &CPDType::from_ptype(&type_, &jvm.string_pool)) {
-        return null_mut();
+    let obj = match load_class_constant_by_type(jvm, int_state, &CPDType::from_ptype(&type_, &jvm.string_pool)) {
+        Err(WasException {}) => {
+            return null_mut();
+        }
+        Ok(res) => res.unwrap_object()
     };
-    let obj = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(obj, int_state)
 }
 
@@ -54,10 +56,13 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
-    if let Err(WasException {}) = load_class_constant_by_type(jvm, int_state, &CPDType::Ref(CPRefType::Class(super_name))) {
-        return null_mut();
+    let obj = match load_class_constant_by_type(jvm, int_state, &CPDType::Ref(CPRefType::Class(super_name))) {
+        Err(WasException {}) => {
+            return null_mut();
+        }
+        Ok(res) => res.unwrap_object()
     };
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
+    new_local_ref_public(obj, int_state)
 }
 
 
@@ -267,4 +272,3 @@ fn get_all_fields_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Int
     }
     Ok(())
 }
-

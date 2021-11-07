@@ -227,8 +227,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    load_class_constant_by_type(jvm, int_state, &type_);
-    let jclass = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
+    let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap().unwrap_object();
     new_local_ref_public(jclass, int_state)
 }
 
@@ -290,4 +289,3 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let full_name = PTypeView::from_compressed(&obj.cpdtype(), &jvm.string_pool).class_name_representation();
     new_string_with_string(env, full_name.to_string())
 }
-

@@ -98,14 +98,13 @@ impl VType {
             VType::VoidType => panic!(),
             VType::TopType => RuntimeType::TopType,
             VType::NullType => RuntimeType::Ref(RuntimeRefType::NullType),
-            VType::Uninitialized(_) => panic!(),
-            VType::UninitializedThis => panic!(),
-            VType::UninitializedThisOrClass(_) => panic!(),
+            VType::Uninitialized(_) => RuntimeType::TopType,
+            VType::UninitializedThis => RuntimeType::TopType,
+            VType::UninitializedThisOrClass(_) => RuntimeType::TopType,
             VType::TwoWord => panic!(),
             VType::OneWord => panic!(),
             VType::Reference => panic!(),
-            VType::UninitializedEmpty => panic!(),
+            VType::UninitializedEmpty => RuntimeType::TopType,
         }
     }
 }
-

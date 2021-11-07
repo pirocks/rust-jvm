@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
+use std::ptr::null_mut;
 use std::sync::{Arc, RwLockWriteGuard};
 
 use itertools::Itertools;
@@ -119,7 +120,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 StackEntryRef::LegacyInterpreter { entry: call_stack.last().unwrap() }
             }*/
             InterpreterState::Jit { call_stack, jvm } => {
-                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack) }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack, call_stack.saved_registers.unwrap().instruction_pointer) }
             }
         }
     }
@@ -131,7 +132,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
             }*/
             InterpreterState::Jit { call_stack, jvm } => {
-                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack), jvm }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack, call_stack.saved_registers.unwrap().instruction_pointer), jvm }
             }
         }
     }
@@ -177,7 +178,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 StackEntryMut::LegacyInterpreter { entry: &mut call_stack[len - 2] }
             }*/
             InterpreterState::Jit { call_stack, jvm } => {
-                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack), jvm }
+                StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack, null_mut()), jvm }
             }
         }
     }
@@ -189,7 +190,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 StackEntryRef::LegacyInterpreter { entry: &call_stack[len - 2] }
             }*/
             InterpreterState::Jit { call_stack, jvm } => {
-                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack) }
+                StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack, null_mut()) }
             }
         }
     }
@@ -398,7 +399,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_pc(&self) -> u16 {
-        self.current_frame().pc(todo!())
+        todo!()
+        /*self.current_frame().pc(todo!())*/
     }
 
     pub fn set_current_pc_offset(&mut self, new_offset: i32) {

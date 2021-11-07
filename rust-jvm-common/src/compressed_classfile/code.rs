@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU8;
 
 use itertools::Either;
@@ -11,7 +12,7 @@ use crate::vtype::VType;
 
 pub type CInstruction = CompressedInstruction;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CompressedInstruction {
     pub offset: u16,
     pub instruction_size: u16,
@@ -21,7 +22,7 @@ pub struct CompressedInstruction {
 pub type CInstructionInfo = CompressedInstructionInfo;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompressedInstructionInfo {
     aaload,
     aastore,
@@ -494,6 +495,214 @@ impl CInstructionInfo {
             CompressedInstructionInfo::EndOfCode => 0,
         }
     }
+
+    pub fn instruction_to_string_without_meta(&self) -> String {
+        match self {
+            CInstructionInfo::aaload => "aaload".to_string(),
+            CInstructionInfo::aastore => "aastore".to_string(),
+            CInstructionInfo::aconst_null => "aconst_null".to_string(),
+            CInstructionInfo::aload(_) => "aload".to_string(),
+            CInstructionInfo::aload_0 => "aload_0".to_string(),
+            CInstructionInfo::aload_1 => "aload_1".to_string(),
+            CInstructionInfo::aload_2 => "aload_2".to_string(),
+            CInstructionInfo::aload_3 => "aload_3".to_string(),
+            CInstructionInfo::anewarray(_) => "anewarray".to_string(),
+            CInstructionInfo::areturn => "areturn".to_string(),
+            CInstructionInfo::arraylength => "arraylength".to_string(),
+            CInstructionInfo::astore(_) => "astore".to_string(),
+            CInstructionInfo::astore_0 => "astore_0".to_string(),
+            CInstructionInfo::astore_1 => "astore_1".to_string(),
+            CInstructionInfo::astore_2 => "astore_2".to_string(),
+            CInstructionInfo::astore_3 => "astore_3".to_string(),
+            CInstructionInfo::athrow => "athrow".to_string(),
+            CInstructionInfo::baload => "baload".to_string(),
+            CInstructionInfo::bastore => "bastore".to_string(),
+            CInstructionInfo::bipush(_) => "bipush".to_string(),
+            CInstructionInfo::caload => "caload".to_string(),
+            CInstructionInfo::castore => "castore".to_string(),
+            CInstructionInfo::checkcast(_) => "checkcast".to_string(),
+            CInstructionInfo::d2f => "d2f".to_string(),
+            CInstructionInfo::d2i => "d2i".to_string(),
+            CInstructionInfo::d2l => "d2l".to_string(),
+            CInstructionInfo::dadd => "dadd".to_string(),
+            CInstructionInfo::daload => "daload".to_string(),
+            CInstructionInfo::dastore => "dastore".to_string(),
+            CInstructionInfo::dcmpg => "dcmpg".to_string(),
+            CInstructionInfo::dcmpl => "dcmpl".to_string(),
+            CInstructionInfo::dconst_0 => "dconst_0".to_string(),
+            CInstructionInfo::dconst_1 => "dconst_1".to_string(),
+            CInstructionInfo::ddiv => "ddiv".to_string(),
+            CInstructionInfo::dload(_) => "dload".to_string(),
+            CInstructionInfo::dload_0 => "dload_0".to_string(),
+            CInstructionInfo::dload_1 => "dload_1".to_string(),
+            CInstructionInfo::dload_2 => "dload_2".to_string(),
+            CInstructionInfo::dload_3 => "dload_3".to_string(),
+            CInstructionInfo::dmul => "dmul".to_string(),
+            CInstructionInfo::dneg => "dneg".to_string(),
+            CInstructionInfo::drem => "drem".to_string(),
+            CInstructionInfo::dreturn => "dreturn".to_string(),
+            CInstructionInfo::dstore(_) => "dstore".to_string(),
+            CInstructionInfo::dstore_0 => "dstore_0".to_string(),
+            CInstructionInfo::dstore_1 => "dstore_1".to_string(),
+            CInstructionInfo::dstore_2 => "dstore_2".to_string(),
+            CInstructionInfo::dstore_3 => "dstore_3".to_string(),
+            CInstructionInfo::dsub => "dsub".to_string(),
+            CInstructionInfo::dup => "dup".to_string(),
+            CInstructionInfo::dup_x1 => "dup_x1".to_string(),
+            CInstructionInfo::dup_x2 => "dup_x2".to_string(),
+            CInstructionInfo::dup2 => "dup2".to_string(),
+            CInstructionInfo::dup2_x1 => "dup2_x1".to_string(),
+            CInstructionInfo::dup2_x2 => "dup2_x2".to_string(),
+            CInstructionInfo::f2d => "f2d".to_string(),
+            CInstructionInfo::f2i => "f2i".to_string(),
+            CInstructionInfo::f2l => "f2l".to_string(),
+            CInstructionInfo::fadd => "fadd".to_string(),
+            CInstructionInfo::faload => "faload".to_string(),
+            CInstructionInfo::fastore => "fastore".to_string(),
+            CInstructionInfo::fcmpg => "fcmpg".to_string(),
+            CInstructionInfo::fcmpl => "fcmpl".to_string(),
+            CInstructionInfo::fconst_0 => "fconst_0".to_string(),
+            CInstructionInfo::fconst_1 => "fconst_1".to_string(),
+            CInstructionInfo::fconst_2 => "fconst_2".to_string(),
+            CInstructionInfo::fdiv => "fdiv".to_string(),
+            CInstructionInfo::fload(_) => "fload".to_string(),
+            CInstructionInfo::fload_0 => "fload_0".to_string(),
+            CInstructionInfo::fload_1 => "fload_1".to_string(),
+            CInstructionInfo::fload_2 => "fload_2".to_string(),
+            CInstructionInfo::fload_3 => "fload_3".to_string(),
+            CInstructionInfo::fmul => "fmul".to_string(),
+            CInstructionInfo::fneg => "fneg".to_string(),
+            CInstructionInfo::frem => "frem".to_string(),
+            CInstructionInfo::freturn => "freturn".to_string(),
+            CInstructionInfo::fstore(_) => "fstore".to_string(),
+            CInstructionInfo::fstore_0 => "fstore_0".to_string(),
+            CInstructionInfo::fstore_1 => "fstore_1".to_string(),
+            CInstructionInfo::fstore_2 => "fstore_2".to_string(),
+            CInstructionInfo::fstore_3 => "fstore_3".to_string(),
+            CInstructionInfo::fsub => "fsub".to_string(),
+            CInstructionInfo::getfield { .. } => "getfield".to_string(),
+            CInstructionInfo::getstatic { .. } => "getstatic".to_string(),
+            CInstructionInfo::goto_(_) => "goto_".to_string(),
+            CInstructionInfo::goto_w(_) => "goto_w".to_string(),
+            CInstructionInfo::i2b => "i2b".to_string(),
+            CInstructionInfo::i2c => "i2c".to_string(),
+            CInstructionInfo::i2d => "i2d".to_string(),
+            CInstructionInfo::i2f => "i2f".to_string(),
+            CInstructionInfo::i2l => "i2l".to_string(),
+            CInstructionInfo::i2s => "i2s".to_string(),
+            CInstructionInfo::iadd => "iadd".to_string(),
+            CInstructionInfo::iaload => "iaload".to_string(),
+            CInstructionInfo::iand => "iand".to_string(),
+            CInstructionInfo::iastore => "iastore".to_string(),
+            CInstructionInfo::iconst_m1 => "iconst_m1".to_string(),
+            CInstructionInfo::iconst_0 => "iconst_0".to_string(),
+            CInstructionInfo::iconst_1 => "iconst_1".to_string(),
+            CInstructionInfo::iconst_2 => "iconst_2".to_string(),
+            CInstructionInfo::iconst_3 => "iconst_3".to_string(),
+            CInstructionInfo::iconst_4 => "iconst_4".to_string(),
+            CInstructionInfo::iconst_5 => "iconst_5".to_string(),
+            CInstructionInfo::idiv => "idiv".to_string(),
+            CInstructionInfo::if_acmpeq(_) => "if_acmpeq".to_string(),
+            CInstructionInfo::if_acmpne(_) => "if_acmpne".to_string(),
+            CInstructionInfo::if_icmpeq(_) => "if_icmpeq".to_string(),
+            CInstructionInfo::if_icmpne(_) => "if_icmpne".to_string(),
+            CInstructionInfo::if_icmplt(_) => "if_icmplt".to_string(),
+            CInstructionInfo::if_icmpge(_) => "if_icmpge".to_string(),
+            CInstructionInfo::if_icmpgt(_) => "if_icmpgt".to_string(),
+            CInstructionInfo::if_icmple(_) => "if_icmple".to_string(),
+            CInstructionInfo::ifeq(_) => "ifeq".to_string(),
+            CInstructionInfo::ifne(_) => "ifne".to_string(),
+            CInstructionInfo::iflt(_) => "iflt".to_string(),
+            CInstructionInfo::ifge(_) => "ifge".to_string(),
+            CInstructionInfo::ifgt(_) => "ifgt".to_string(),
+            CInstructionInfo::ifle(_) => "ifle".to_string(),
+            CInstructionInfo::ifnonnull(_) => "ifnonnull".to_string(),
+            CInstructionInfo::ifnull(_) => "ifnull".to_string(),
+            CInstructionInfo::iinc(_) => "iinc".to_string(),
+            CInstructionInfo::iload(_) => "iload".to_string(),
+            CInstructionInfo::iload_0 => "iload_0".to_string(),
+            CInstructionInfo::iload_1 => "iload_1".to_string(),
+            CInstructionInfo::iload_2 => "iload_2".to_string(),
+            CInstructionInfo::iload_3 => "iload_3".to_string(),
+            CInstructionInfo::imul => "imul".to_string(),
+            CInstructionInfo::ineg => "ineg".to_string(),
+            CInstructionInfo::instanceof(_) => "instanceof".to_string(),
+            CInstructionInfo::invokedynamic(_) => "invokedynamic".to_string(),
+            CInstructionInfo::invokeinterface { .. } => "invokeinterface".to_string(),
+            CInstructionInfo::invokespecial { .. } => "invokespecial".to_string(),
+            CInstructionInfo::invokestatic { .. } => "invokestatic".to_string(),
+            CInstructionInfo::invokevirtual { .. } => "invokevirtual".to_string(),
+            CInstructionInfo::ior => "ior".to_string(),
+            CInstructionInfo::irem => "irem".to_string(),
+            CInstructionInfo::ireturn => "ireturn".to_string(),
+            CInstructionInfo::ishl => "ishl".to_string(),
+            CInstructionInfo::ishr => "ishr".to_string(),
+            CInstructionInfo::istore(_) => "istore".to_string(),
+            CInstructionInfo::istore_0 => "istore_0".to_string(),
+            CInstructionInfo::istore_1 => "istore_1".to_string(),
+            CInstructionInfo::istore_2 => "istore_2".to_string(),
+            CInstructionInfo::istore_3 => "istore_3".to_string(),
+            CInstructionInfo::isub => "isub".to_string(),
+            CInstructionInfo::iushr => "iushr".to_string(),
+            CInstructionInfo::ixor => "ixor".to_string(),
+            CInstructionInfo::jsr(_) => "jsr".to_string(),
+            CInstructionInfo::jsr_w(_) => "jsr_w".to_string(),
+            CInstructionInfo::l2d => "l2d".to_string(),
+            CInstructionInfo::l2f => "l2f".to_string(),
+            CInstructionInfo::l2i => "l2i".to_string(),
+            CInstructionInfo::ladd => "ladd".to_string(),
+            CInstructionInfo::laload => "laload".to_string(),
+            CInstructionInfo::land => "land".to_string(),
+            CInstructionInfo::lastore => "lastore".to_string(),
+            CInstructionInfo::lcmp => "lcmp".to_string(),
+            CInstructionInfo::lconst_0 => "lconst_0".to_string(),
+            CInstructionInfo::lconst_1 => "lconst_1".to_string(),
+            CInstructionInfo::ldc(_) => "ldc".to_string(),
+            CInstructionInfo::ldc_w(_) => "ldc_w".to_string(),
+            CInstructionInfo::ldc2_w(_) => "ldc2_w".to_string(),
+            CInstructionInfo::ldiv => "ldiv".to_string(),
+            CInstructionInfo::lload(_) => "lload".to_string(),
+            CInstructionInfo::lload_0 => "lload_0".to_string(),
+            CInstructionInfo::lload_1 => "lload_1".to_string(),
+            CInstructionInfo::lload_2 => "lload_2".to_string(),
+            CInstructionInfo::lload_3 => "lload_3".to_string(),
+            CInstructionInfo::lmul => "lmul".to_string(),
+            CInstructionInfo::lneg => "lneg".to_string(),
+            CInstructionInfo::lookupswitch(_) => "lookupswitch".to_string(),
+            CInstructionInfo::lor => "lor".to_string(),
+            CInstructionInfo::lrem => "lrem".to_string(),
+            CInstructionInfo::lreturn => "lreturn".to_string(),
+            CInstructionInfo::lshl => "lshl".to_string(),
+            CInstructionInfo::lshr => "lshr".to_string(),
+            CInstructionInfo::lstore(_) => "lstore".to_string(),
+            CInstructionInfo::lstore_0 => "lstore_0".to_string(),
+            CInstructionInfo::lstore_1 => "lstore_1".to_string(),
+            CInstructionInfo::lstore_2 => "lstore_2".to_string(),
+            CInstructionInfo::lstore_3 => "lstore_3".to_string(),
+            CInstructionInfo::lsub => "lsub".to_string(),
+            CInstructionInfo::lushr => "lushr".to_string(),
+            CInstructionInfo::lxor => "lxor".to_string(),
+            CInstructionInfo::monitorenter => "monitorenter".to_string(),
+            CInstructionInfo::monitorexit => "monitorexit".to_string(),
+            CInstructionInfo::multianewarray { .. } => "multianewarray".to_string(),
+            CInstructionInfo::new(_) => "new".to_string(),
+            CInstructionInfo::newarray(_) => "newarray".to_string(),
+            CInstructionInfo::nop => "nop".to_string(),
+            CInstructionInfo::pop => "pop".to_string(),
+            CInstructionInfo::pop2 => "pop2".to_string(),
+            CInstructionInfo::putfield { .. } => "putfield".to_string(),
+            CInstructionInfo::putstatic { .. } => "putstatic".to_string(),
+            CInstructionInfo::ret(_) => "ret".to_string(),
+            CInstructionInfo::return_ => "return_".to_string(),
+            CInstructionInfo::saload => "saload".to_string(),
+            CInstructionInfo::sastore => "sastore".to_string(),
+            CInstructionInfo::sipush(_) => "sipush".to_string(),
+            CInstructionInfo::swap => "swap".to_string(),
+            CInstructionInfo::tableswitch(_) => "tableswitch".to_string(),
+            CInstructionInfo::wide(_) => "wide".to_string(),
+            CInstructionInfo::EndOfCode => "EndOfCode".to_string(),
+        }
+    }
 }
 
 
@@ -501,7 +710,7 @@ impl CInstructionInfo {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct LiveObjectIndex(pub usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompressedLdcW {
     String {
         str: Wtf8Buf
@@ -520,11 +729,49 @@ pub enum CompressedLdcW {
     LiveObject(LiveObjectIndex),
 }
 
-#[derive(Debug, Clone)]
+impl Hash for CompressedLdcW {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            CompressedLdcW::String { str } => {
+                str.hash(state)
+            }
+            CompressedLdcW::Class { type_ } => {
+                type_.hash(state)
+            }
+            CompressedLdcW::Float { float } => {
+                state.write_u32(float.to_bits())
+            }
+            CompressedLdcW::Integer { integer } => {
+                state.write_i32(*integer)
+            }
+            CompressedLdcW::MethodType {} => {
+                state.write_usize(1);
+            }
+            CompressedLdcW::MethodHandle {} => {
+                state.write_usize(0);
+            }
+            CompressedLdcW::LiveObject(LiveObjectIndex(_0)) => {
+                state.write_usize(*_0)
+            }
+        }
+    }
+}
+
+impl Eq for CompressedLdcW {}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompressedLdc2W {
     Long(i64),
     Double(f64),
 }
+
+impl Hash for CompressedLdc2W {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        todo!()
+    }
+}
+
+impl Eq for CompressedLdc2W {}
 
 pub struct CompressedInvokeInterface {}
 

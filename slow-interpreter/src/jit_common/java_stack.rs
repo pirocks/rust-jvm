@@ -144,7 +144,7 @@ impl JavaStack {
                 .map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16))
                 .collect();//todo major dup
             let current_layout = NaiveStackframeLayout::from_stack_depth(stack_depth, code.max_locals, code.max_stack);
-            assert_eq!(dbg!(current_layout.full_frame_size()), prev_sp.offset_from(prev_rbp) as usize);
+            // assert_eq!(dbg!(current_layout.full_frame_size()), prev_sp.offset_from(prev_rbp) as usize);
         }
         let new_rbp = prev_sp;
         let new_sp = new_rbp.offset(layout.full_frame_size() as isize);
