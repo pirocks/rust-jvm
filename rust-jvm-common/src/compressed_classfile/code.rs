@@ -766,7 +766,7 @@ pub enum CompressedLdc2W {
 }
 
 impl Hash for CompressedLdc2W {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
         todo!()
     }
 }

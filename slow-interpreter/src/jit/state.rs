@@ -527,6 +527,8 @@ impl JITedCodeState {
                             let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
                             initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
                             initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
+                            let exit_label = self.labeler.new_label(&mut labels);
+                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: VMExitType::Trace { values: vec![("obj pointer".to_string(), load_to_location)] } }));
                             initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
                             initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
@@ -1471,7 +1473,7 @@ impl JITedCodeState {
     }
 
     fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
-        int_state.debug_print_stack_trace(jvm);
+        // int_state.debug_print_stack_trace(jvm);
         match exit_type {
             VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
                 let save = int_state.get_java_stack().saved_registers;
