@@ -103,7 +103,7 @@ pub fn invoke_static_impl(
             }
         }
     } else {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i) {
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, todo!()) {
             Ok(_) => todo!(),
             Err(_) => todo!()
         }

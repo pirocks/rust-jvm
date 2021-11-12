@@ -32,7 +32,7 @@ pub fn invoke_special_impl(
     parsed_descriptor: &CMethodDescriptor,
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc_life>>,
-    input_args: Vec<JavaValue<'gc_life>>
+    input_args: Vec<JavaValue<'gc_life>>,
 ) -> Result<(), WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
@@ -41,7 +41,7 @@ pub fn invoke_special_impl(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        match run_native_method(jvm, interpreter_state, final_target_class, target_m_i) {
+        match run_native_method(jvm, interpreter_state, final_target_class, target_m_i, input_args) {
             Ok(_) => todo!(),
             Err(_) => todo!()
         }

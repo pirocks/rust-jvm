@@ -28,10 +28,9 @@ pub mod properties {
             int_state.push_current_operand_stack(key.java_value());
             int_state.push_current_operand_stack(value.java_value());
             let desc = CMethodDescriptor { arg_types: vec![CClassName::string().into(), CClassName::string().into()], return_type: CPDType::object() };
-            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), &desc)?;
+            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), &desc, todo!())?;
             int_state.pop_current_operand_stack(Some(CClassName::object().into()));
             Ok(())
         }
     }
 }
-

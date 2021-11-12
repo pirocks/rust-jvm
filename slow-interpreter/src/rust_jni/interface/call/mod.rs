@@ -35,7 +35,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
+    invoke_virtual_method_i(jvm, int_state, parsed, class, &method, todo!())?;
     assert!(int_state.throw().is_none());
     Ok(if method.desc().return_type == CPDType::VoidType {
         None

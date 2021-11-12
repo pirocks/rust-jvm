@@ -25,7 +25,9 @@ pub fn run_native_method(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
     class: Arc<RuntimeClass<'gc_life>>,
-    method_i: u16) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    method_i: u16,
+    args: Vec<JavaValue<'gc_life>>,
+) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let view = &class.view();
     let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -48,7 +50,7 @@ pub fn run_native_method(
         int_state.debug_print_stack_trace(jvm);
     }
     let parsed = method.desc();
-    let mut args = vec![];
+    /*let mut args = vec![];
     if method.is_static() {
         for parameter_type in parsed.arg_types.iter().rev() {
             let rtpye = parameter_type.to_runtime_type().unwrap();
@@ -64,7 +66,7 @@ pub fn run_native_method(
         args.insert(0, int_state.pop_current_operand_stack(Some(CClassName::object().into())));
     } else {
         panic!();
-    }
+    }*/
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()), jvm);
     assert!(int_state.current_frame().is_native());
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);

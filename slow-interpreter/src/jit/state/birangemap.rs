@@ -43,6 +43,10 @@ impl<K: Clone + Ord + Eq + SingleElementRangeable<K>, V: Clone + Eq + Hash> BiRa
     pub fn values(&self) -> impl Iterator<Item=&V> {
         self.right_to_left.keys()
     }
+
+    pub fn keys(&self) -> impl Iterator<Item=&Range<K>> {
+        self.right_to_left.values()
+    }
 }
 
 impl<K: Clone + Ord + Eq, V: Clone + Eq + Hash> IntoIterator for BiRangeMap<K, V> {

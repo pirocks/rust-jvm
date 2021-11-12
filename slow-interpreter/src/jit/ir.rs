@@ -130,7 +130,12 @@ pub enum IRInstr {
         label: LabelName,
     },
     Return {
-        return_val: Option<Register>
+        return_val: Option<Register>,
+        temp_register_1: Register,
+        temp_register_2: Register,
+        temp_register_3: Register,
+        temp_register_4: Register,
+        frame_size: usize,
     },
     VMExit {
         exit_label: LabelName,
@@ -148,5 +153,3 @@ pub enum IRInstr {
     FNOP,
     Label(IRLabel),
 }
-
-

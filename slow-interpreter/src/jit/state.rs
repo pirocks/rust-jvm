@@ -24,6 +24,7 @@ use iced_x86::OpCodeOperandKind::cl;
 use itertools::{Either, Itertools};
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
+use num::Integer;
 use thread_priority::ThreadId;
 
 use classfile_view::view::HasAccessFlags;
@@ -32,6 +33,7 @@ use jvmti_jni_bindings::{jdouble, jint, jlong, jobject, jvalue};
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -301,7 +303,15 @@ impl JITedCodeState {
                     initial_ir.push((current_offset, IRInstr::BranchEqual { a: value1, b: value2, label: branch_to_label }))
                 }
                 CompressedInstructionInfo::return_ => {
-                    initial_ir.push((current_offset, IRInstr::Return { return_val: None }));
+                    let frame_size = layout.full_frame_size() - 2 * size_of::<*mut c_void>();
+                    initial_ir.push((current_offset, IRInstr::Return {
+                        return_val: None,
+                        temp_register_1: Register(1),
+                        temp_register_2: Register(2),
+                        temp_register_3: Register(3),
+                        temp_register_4: Register(4),
+                        frame_size,
+                    }));
                 }
                 CompressedInstructionInfo::areturn => {
                     let temp = Register(0);
@@ -309,7 +319,15 @@ impl JITedCodeState {
                         from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
                         to: temp,
                     }));
-                    initial_ir.push((current_offset, IRInstr::Return { return_val: Some(temp) }));
+                    let frame_size = layout.full_frame_size() - 2 * size_of::<*mut c_void>();
+                    initial_ir.push((current_offset, IRInstr::Return {
+                        return_val: Some(temp),
+                        temp_register_1: Register(1),
+                        temp_register_2: Register(2),
+                        temp_register_3: Register(3),
+                        temp_register_4: Register(4),
+                        frame_size,
+                    }));
                 }
                 CompressedInstructionInfo::ireturn => {
                     //todo dup
@@ -318,7 +336,15 @@ impl JITedCodeState {
                         from: layout.operand_stack_entry(current_byte_code_instr_count, 0),
                         to: temp,
                     }));
-                    initial_ir.push((current_offset, IRInstr::Return { return_val: Some(temp) }));
+                    let frame_size = layout.full_frame_size() - 2 * size_of::<*mut c_void>();
+                    initial_ir.push((current_offset, IRInstr::Return {
+                        return_val: Some(temp),
+                        temp_register_1: Register(1),
+                        temp_register_2: Register(2),
+                        temp_register_3: Register(3),
+                        temp_register_4: Register(4),
+                        frame_size,
+                    }));
                 }
                 CompressedInstructionInfo::iload_0 => {
                     JITedCodeState::gen_iload_n(layout, &mut initial_ir, current_offset, current_byte_code_instr_count, next_byte_code_instr_count, 0);
@@ -460,62 +486,6 @@ impl JITedCodeState {
                             let region_elemant_size_size = Register(5);
                             initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: callee_this_pointer_offset, to: this_pointer }));
                             let this_pointer = this_pointer.to_native_64();
-                            IRInstr::WithAssembler {
-                                function: box move |assembler: &mut CodeAssembler| {
-                                    let _reserved = Register(0);
-                                    let small_region_base = Register(1).to_native_64();
-                                    let medium_region_base = Register(2).to_native_64();
-                                    let large_region_base = Register(3).to_native_64();
-                                    let extra_large_region_base = Register(4).to_native_64();
-                                    assembler.mov(small_region_base, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.mov(medium_region_base, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.mov(large_region_base, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.mov(extra_large_region_base, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.and(small_region_base, this_pointer).unwrap();
-                                    assembler.and(medium_region_base, this_pointer).unwrap();
-                                    assembler.and(large_region_base, this_pointer).unwrap();
-                                    assembler.and(extra_large_region_base, this_pointer).unwrap();
-
-                                    assembler.mov(region_elemant_size_size.to_native_64(), 1u64).unwrap();
-
-                                    let mut after_size_calc_label = assembler.create_label();
-                                    let mask_for_this_pointer = Register(5).to_native_64();
-                                    //todo vectorize to get rid off branches
-                                    assembler.cmp(small_region_base, 0).unwrap();
-                                    assembler.je(after_size_calc_label).unwrap();
-                                    assembler.shl(region_elemant_size_size.to_native_64(), SMALL_REGION_SIZE_SIZE as i32).unwrap();
-                                    assembler.mov(mask_for_this_pointer, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
-
-                                    assembler.cmp(medium_region_base, 0).unwrap();
-                                    assembler.je(after_size_calc_label).unwrap();
-                                    assembler.shl(region_elemant_size_size.to_native_64(), MEDIUM_REGION_SIZE_SIZE as i32).unwrap();
-                                    assembler.mov(mask_for_this_pointer, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
-
-                                    assembler.cmp(large_region_base, 0).unwrap();
-                                    assembler.je(after_size_calc_label).unwrap();
-                                    assembler.shl(region_elemant_size_size.to_native_64(), LARGE_REGION_SIZE_SIZE as i32).unwrap();
-                                    assembler.mov(mask_for_this_pointer, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
-
-                                    assembler.cmp(extra_large_region_base, 0).unwrap();
-                                    assembler.je(after_size_calc_label).unwrap();
-                                    assembler.shl(region_elemant_size_size.to_native_64(), EXTRA_LARGE_REGION_SIZE_SIZE as i32).unwrap();
-                                    assembler.mov(mask_for_this_pointer, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
-                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
-
-
-                                    assembler.set_label(&mut after_size_calc_label).unwrap();
-
-                                    let region_index = this_pointer;
-                                    assembler.shlx(region_index, this_pointer, region_elemant_size_size.to_native_64()).unwrap();
-                                    //todo lookup in r15 the method_table for this variable
-                                    // means pointer is not from heap address
-                                }
-                            };
-
-
                             let next_rbp = Register(6);
                             initial_ir.push((current_offset, IRInstr::LoadSP { to: next_rbp }));
                             let next_function_layout = resolver.lookup_method_layout(method_id);
@@ -557,9 +527,6 @@ impl JITedCodeState {
                             let load_to_location = FramePointerOffset(local_vars_start + descriptor.arg_types.len() * size_of::<jlong>());
                             initial_ir.push((current_offset, IRInstr::LoadFPRelative { from: load_from_location, to: temp_arg_register }));
                             initial_ir.push((current_offset, IRInstr::StoreFPRelative { from: temp_arg_register, to: load_to_location }));
-                            let one_element_skip = Register(7);
-                            initial_ir.push((current_offset, IRInstr::Const64bit { to: one_element_skip, const_: size_of::<*mut c_void>() as u64 }));
-                            initial_ir.push((current_offset, IRInstr::Add { res: next_rbp, a: one_element_skip }));
                             initial_ir.push((current_offset, IRInstr::WriteRBP { from: next_rbp }));
                             initial_ir.push((current_offset, IRInstr::BranchToLabel { label: *function_start_label }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_call_label })));
@@ -1177,13 +1144,30 @@ impl JITedCodeState {
                     assembler.set_label(iced_label).unwrap();
                     assembler.nop().unwrap();
                 }
-                IRInstr::Return { return_val } => {
+                IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
                     if let Some(return_register) = return_val {
                         assembler.mov(rax, return_register.to_native_64()).unwrap();
                     }
-                    //rsp is now equal is to prev rbp + 1, so that we can pop the previous rip in ret
+                    let index = temp_register_2.to_native_64();
+                    let (div, rem) = frame_size.div_rem(&8);
+                    assert_eq!(rem, 0);
+                    assembler.mov(index, div as u64).unwrap();
+                    let address_base = temp_register_3.to_native_64();
+                    assembler.lea(address_base, rbp + size_of::<*mut c_void>() * 2).unwrap();// skip saved rip and saved rbp
+                    let m1 = temp_register_1.to_native_64();
+                    let mut branch_back = assembler.create_label();
+                    assembler.set_label(&mut branch_back);
+                    assembler.mov(m1, -1i64 as u64).unwrap();
+                    let address = temp_register_4.to_native_64();
+                    assembler.lea(address, address_base + index * size_of::<*mut c_void>()).unwrap();
+                    assembler.mov(qword_ptr(address), m1).unwrap();
+                    assembler.add(index, -1i32).unwrap();
+                    assembler.mov(m1, 0u64).unwrap();
+                    assembler.cmp(index, m1).unwrap();
+                    assembler.jne(branch_back).unwrap();
+
+                    //rsp is now equal is to prev rbp + 1 qword, so that we can pop the previous rip in ret
                     assembler.mov(rsp, rbp).unwrap();
-                    // assembler.add(rsp,size_of::<*mut c_void>() as i32).unwrap();
                     assert_eq!(offset_of!(FrameHeader,prev_rip), 0);
                     //load prev fram pointer
                     assembler.mov(rbp, rbp + offset_of!(FrameHeader,prev_rpb)).unwrap();
@@ -1223,7 +1207,7 @@ impl JITedCodeState {
             let instruction_info_as_string = &match instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
                 Some((_, x)) => x.info.instruction_to_string_without_meta(),
                 None => {
-                    "Unknown".to_string()
+                    "".to_string()
                 }
             };
             formatted_instructions.push_str(format!("#{}: {:<35}{}\n", i, temp, instruction_info_as_string).as_str());
@@ -1449,10 +1433,27 @@ impl JITedCodeState {
             new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
             );
             jit_code_context.java_saved.instruction_pointer = old_java_ip;
+            //major todo java_stack is mutably borrowed multiple times here b/c recursive exits
             java_stack.saved_registers = Some(jit_code_context.java_saved.clone());
             //todo exception handling
             let exit_type = jit_state.borrow().exits.get(&old_java_ip).unwrap().clone();
-            eprintln!("going out sp:{:?} fp:{:?} ip:{:?} {:?}", java_stack.saved_registers.unwrap().stack_pointer, java_stack.saved_registers.unwrap().frame_pointer, java_stack.saved_registers.unwrap().instruction_pointer, exit_type);
+            let (method_name_str, class_name_str) = (|| {
+                let current_frame = int_state.current_frame();
+                let frame_view = current_frame.frame_view(jvm);
+                let methodid = frame_view.method_id().unwrap_or(usize::MAX);
+                let (rc, method_i) = match jvm.method_table.read().unwrap().try_lookup(methodid) {
+                    Some(x) => x,
+                    None => { return ("unknown".to_string(), "unknown".to_string()) },
+                };
+                let view = rc.view();
+                let method_view = view.method_view_i(method_i);
+                let method_name_str = method_view.name().0.to_str(&jvm.string_pool);
+                let class_name_str = view.name().unwrap_name().0.to_str(&jvm.string_pool);
+                (method_name_str, class_name_str)
+            })();
+
+            let java_stack: &mut JavaStack = int_state.get_java_stack();
+            eprintln!("going out sp:{:?} fp:{:?} ip:{:?} {} {} {:?}", java_stack.saved_registers.unwrap().stack_pointer, java_stack.saved_registers.unwrap().frame_pointer, java_stack.saved_registers.unwrap().instruction_pointer, class_name_str, method_name_str, exit_type);
             target_ip = match JITedCodeState::handle_exit(jit_state, exit_type, jvm, int_state, methodid, old_java_ip) {
                 None => {
                     return Ok(None);
@@ -1479,7 +1480,7 @@ impl JITedCodeState {
                 let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
                 let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
                 if method_view.is_native() {
-                    match run_native_method(jvm, int_state, inited_class.clone(), method_view.method_i()) {
+                    match run_native_method(jvm, int_state, inited_class.clone(), method_view.method_i(), todo!()) {
                         Ok(Some(res)) => int_state.current_frame_mut().push(res),
                         Ok(None) => {}
                         Err(WasException {}) => todo!(),
@@ -1515,17 +1516,21 @@ impl JITedCodeState {
                 todo!()
             }
             VMExitType::RunNativeStatic { method_name, desc, target_class } => {
+                let method_name_str = method_name.0.to_str(&jvm.string_pool);
+                dbg!(method_name_str);
+                let args = setup_args_from_current_frame(jvm, int_state, &desc, false);
                 let save = int_state.get_java_stack().saved_registers;
                 let inited = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                int_state.get_java_stack().saved_registers = save;
                 let method_i = inited.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap().method_i();
-                let res = run_native_method(jvm, int_state, inited, method_i).unwrap();
+                int_state.get_java_stack().saved_registers = save;
+                let res = run_native_method(jvm, int_state, inited, method_i, args).unwrap();
                 match res {
                     None => {}
                     Some(_) => {
                         todo!()
                     }
                 }
+                int_state.get_java_stack().saved_registers = save;
                 let jit_state = jitstate.borrow();
                 let code_id = jit_state.method_id_to_code.get_by_left(&methodid).unwrap();
                 let address_to_bytecode_for_this_method = jit_state.address_to_byte_code_offset.get(&code_id).unwrap();
@@ -1624,7 +1629,9 @@ impl JITedCodeState {
                 let save = int_state.get_java_stack().saved_registers;
                 let class = JClass::from_type(jvm, int_state, class_type).unwrap();
                 int_state.get_java_stack().saved_registers = save;
+                dbg!(save.unwrap().frame_pointer);
                 let to_write = jvalue { l: class.object().raw_ptr_usize() as jobject };
+                unsafe { dbg!(to_write.l) };
                 int_state.raw_write_at_frame_pointer_offset(res, to_write);
                 let jitstate_borrow = jitstate.borrow();
                 let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
@@ -1645,6 +1652,23 @@ impl JITedCodeState {
             }
             VMExitType::NPE { .. } => {
                 todo!()
+            }
+            VMExitType::Trace { values } => {
+                let save = int_state.get_java_stack().saved_registers;
+                let frame_pointer = save.unwrap().frame_pointer;
+                unsafe {
+                    for (name, value) in values {
+                        let ptr = frame_pointer.offset(value.0 as isize) as *mut *const c_void;
+                        println!("{} {:?}", name, ptr.read())
+                    }
+                }
+                let jitstate_borrow = jitstate.borrow();
+                let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
+                let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
+                let next_java_ip: *mut c_void = address_to_bytecode_for_this_method.keys().map(|key| key.start).sorted().filter(|pointer| pointer > &old_java_ip).next().unwrap();
+                let restart_bytecode_offset = address_to_bytecode_for_this_method.get(&next_java_ip).unwrap();
+                let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
+                Some(restart_address)
             }
         }
     }
@@ -1864,3 +1888,79 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
         todo!()
     }
 }
+
+
+pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<JavaValue<'gc_life>> {
+    if is_virtual {
+        todo!()
+    }
+    let java_stack = int_state.get_java_stack();
+    let mut args = vec![];
+    for (i, _) in desc.arg_types.iter().enumerate() {
+        let current_frame = int_state.current_frame();
+        let operand_stack = current_frame.operand_stack(jvm);
+        let types_ = operand_stack.types();
+        dbg!(&types_);
+        let operand_stack_i = types_.len() - 1 - i;
+        let jv = operand_stack.get(operand_stack_i as u16, types_[operand_stack_i].clone());
+        args.push(jv);
+    }
+    args
+}
+/*
+IRInstr::WithAssembler {
+                                function: box move |assembler: &mut CodeAssembler| {
+                                    let _reserved = Register(0);
+                                    let small_region_base = Register(1).to_native_64();
+                                    let medium_region_base = Register(2).to_native_64();
+                                    let large_region_base = Register(3).to_native_64();
+                                    let extra_large_region_base = Register(4).to_native_64();
+                                    assembler.mov(small_region_base, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(medium_region_base, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(large_region_base, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.mov(extra_large_region_base, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.and(small_region_base, this_pointer).unwrap();
+                                    assembler.and(medium_region_base, this_pointer).unwrap();
+                                    assembler.and(large_region_base, this_pointer).unwrap();
+                                    assembler.and(extra_large_region_base, this_pointer).unwrap();
+
+                                    assembler.mov(region_elemant_size_size.to_native_64(), 1u64).unwrap();
+
+                                    let mut after_size_calc_label = assembler.create_label();
+                                    let mask_for_this_pointer = Register(5).to_native_64();
+                                    //todo vectorize to get rid off branches
+                                    assembler.cmp(small_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), SMALL_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(medium_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), MEDIUM_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(large_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), LARGE_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+                                    assembler.cmp(extra_large_region_base, 0).unwrap();
+                                    assembler.je(after_size_calc_label).unwrap();
+                                    assembler.shl(region_elemant_size_size.to_native_64(), EXTRA_LARGE_REGION_SIZE_SIZE as i32).unwrap();
+                                    assembler.mov(mask_for_this_pointer, (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as u64).unwrap();
+                                    assembler.xor(this_pointer, mask_for_this_pointer).unwrap();
+
+
+                                    assembler.set_label(&mut after_size_calc_label).unwrap();
+
+                                    let region_index = this_pointer;
+                                    assembler.shlx(region_index, this_pointer, region_elemant_size_size.to_native_64()).unwrap();
+                                    //todo lookup in r15 the method_table for this variable
+                                    // means pointer is not from heap address
+                                }
+                            };
+
+*/

@@ -28,7 +28,7 @@ pub mod reflection {
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value());//I hope these are in the right order, but it shouldn't matter
             let desc = CMethodDescriptor { arg_types: vec![CClassName::class().into(), CClassName::class().into()], return_type: CPDType::BooleanType };
-            run_static_or_virtual(jvm, int_state, &reflection, MethodName::method_isSameClassPackage(), &desc)?;
+            run_static_or_virtual(jvm, int_state, &reflection, MethodName::method_isSameClassPackage(), &desc, todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean())
         }
 

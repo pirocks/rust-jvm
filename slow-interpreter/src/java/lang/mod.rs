@@ -27,7 +27,7 @@ pub mod throwable {
         pub fn print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType))?;
+            run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), todo!())?;
             Ok(())
         }
         as_object_or_java_value!();
@@ -113,14 +113,14 @@ pub mod member_name {
         pub fn get_name_func(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JString<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()))?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())
         }
 
         pub fn is_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<bool, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType))?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)
         }
 
@@ -204,14 +204,14 @@ pub mod member_name {
         pub fn get_method_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<MethodType<'gc_life>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()))?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
         pub fn get_field_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JClass<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()))?;
+            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class())
         }
 
@@ -289,6 +289,7 @@ pub mod class {
                 &self.normal_object.unwrap_normal_object().objinfo.class_pointer,
                 MethodName::method_getClassLoader(),
                 &CMethodDescriptor::empty_args(CClassName::classloader().into()),
+                todo!()
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into()))
                 .unwrap_object()
@@ -329,6 +330,7 @@ pub mod class {
                 &class_class,
                 MethodName::method_getName(),
                 &CMethodDescriptor::empty_args(CClassName::string().into()),
+                todo!()
             )?;
             let result_popped_from_operand_stack: JavaValue<'gc_life> = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
             Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))
@@ -386,6 +388,7 @@ pub mod class_loader {
                 &class_loader,
                 MethodName::method_loadClass(),
                 &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() },
+                todo!()
             )?;
             assert!(int_state.throw().is_none());
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap())
@@ -459,6 +462,7 @@ pub mod string {
                 &string_class,
                 MethodName::method_intern(),
                 &CMethodDescriptor::empty_args(CClassName::string().into()),
+                todo!()
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string().expect("error interning strinng"))
         }
@@ -479,7 +483,8 @@ pub mod string {
                 int_state,
                 &string_class,
                 MethodName::method_length(),
-                &CMethodDescriptor::empty_args(CPDType::IntType)
+                &CMethodDescriptor::empty_args(CPDType::IntType),
+                todo!(),
             )?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_int())
         }
@@ -610,13 +615,13 @@ pub mod thread {
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType))
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), todo!())
         }
 
         pub fn exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType))
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), todo!())
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
@@ -671,6 +676,7 @@ pub mod thread {
                 &thread_class,
                 MethodName::method_isAlive(),
                 &CompressedMethodDescriptor::empty_args(CPDType::BooleanType),
+                todo!()
             )?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType))
                 .unwrap_boolean())
@@ -686,6 +692,7 @@ pub mod thread {
                 &thread_class,
                 MethodName::method_getContextClassLoader(),
                 &CompressedMethodDescriptor::empty_args(CClassName::classloader().into()),
+                todo!()
             )?;
             let res = int_state.pop_current_operand_stack(Some(CClassName::classloader().into()));
             if res.unwrap_object().is_none() {

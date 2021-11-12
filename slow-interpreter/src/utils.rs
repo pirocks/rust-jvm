@@ -129,7 +129,7 @@ pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: 
     })
 }
 
-pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: MethodName, desc: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: &Arc<RuntimeClass<'gc_life>>, method_name: MethodName, desc: &CMethodDescriptor, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
     let view = class.view();
     let res_fun = view.lookup_method(method_name, desc);
     let method_view = match res_fun {
@@ -139,7 +139,7 @@ pub fn run_static_or_virtual<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, in
     if method_view.is_static() {
         invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view)
     } else {
-        invoke_virtual_method_i(jvm, int_state, desc, class.clone(), &method_view)
+        invoke_virtual_method_i(jvm, int_state, desc, class.clone(), &method_view, args)
     }
 }
 

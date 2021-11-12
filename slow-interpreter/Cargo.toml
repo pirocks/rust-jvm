@@ -41,7 +41,7 @@ memoffset = "0.6.4"
 
 
 [dependencies.iced-x86]
-version = "1.14.0"
+version = "1.15.0"
 features = ["code_asm"]
 
 [build-dependencies]

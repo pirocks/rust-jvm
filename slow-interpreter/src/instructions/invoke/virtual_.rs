@@ -31,8 +31,8 @@ pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: 
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView) -> Result<(), WasException> {
-    invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method)
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+    invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
 fn invoke_virtual_method_i_impl<'gc_life>(
@@ -41,6 +41,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
     expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc_life>>,
     target_method: &MethodView,
+    args: Vec<JavaValue<'gc_life>>
 ) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
@@ -63,7 +64,7 @@ fn invoke_virtual_method_i_impl<'gc_life>(
         return Ok(());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i) {
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(_) => todo!(),
             Err(_) => todo!()
         }
@@ -115,7 +116,7 @@ pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
         let res_method = class_view.method_view_i(method_i);
-        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc())?;
+        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc(), todo!())?;
         assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack(Some(CClassName::object().into()));
         Ok(res)
@@ -232,7 +233,7 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method)
+    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, todo!())
 }
 
 pub fn virtual_method_lookup(

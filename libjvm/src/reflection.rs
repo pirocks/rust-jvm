@@ -123,7 +123,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     if is_virtual {
         invoke_virtual(jvm, int_state, method_name, &parsed_md);
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md);
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, todo!());
     }
 
     new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
@@ -209,4 +209,3 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     run_constructor(jvm, int_state, clazz, full_args, &signature);
     new_local_ref_public(obj.unwrap_object(), int_state)
 }
-

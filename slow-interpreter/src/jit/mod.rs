@@ -51,6 +51,7 @@ pub enum VMExitType {
     Throw { res: FramePointerOffset },
     MonitorEnter { ref_offset: FramePointerOffset },
     MonitorExit { ref_offset: FramePointerOffset },
+    Trace { values: Vec<(String, FramePointerOffset)> },
     TopLevelReturn {},
     Todo {},
     NPE {},

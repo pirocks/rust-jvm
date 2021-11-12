@@ -127,7 +127,7 @@ pub mod dynamic {
         assert_eq!(lookup_res.len(), 1);
         let invoke = lookup_res.iter().next().unwrap();
         //todo theres a MHN native for this upcall
-        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool), method_handle_class.clone(), invoke)?;
+        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool), method_handle_class.clone(), invoke, todo!())?;
         let call_site = int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_call_site();
         let target = call_site.get_target(jvm, int_state)?;
         let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact());//todo need safe java wrapper way of doing this
@@ -151,7 +151,7 @@ pub mod dynamic {
         // int_state.print_stack_trace();
         dbg!(&args);
         dbg!(int_state.current_frame().operand_stack(jvm).types());
-        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) }, method_handle_class, invoke)?;
+        invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) }, method_handle_class, invoke, todo!())?;
 
         assert!(int_state.throw().is_none());
 
