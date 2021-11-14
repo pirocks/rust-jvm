@@ -5,16 +5,16 @@
 // have another layer above this which gets rid of native points and does everytthing in terms of IR
 // have java layer above that
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
-use std::ops::{Deref, DerefMut, Range};
+use std::ops::Range;
 use std::ptr::null_mut;
-use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister64, CodeAssembler, CodeLabel, ptr, r15};
 use iced_x86::{Code, Instruction, MemoryOperand, Register};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, r15};
+use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_SHARED, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
@@ -34,11 +34,15 @@ pub struct VMStateInner<T: Sized> {
 pub struct VMState<T: Sized> {
     inner: RwLock<VMStateInner<T>>,
     mmaped_code_region_base: *mut c_void,
+    mmaped_code_size: usize,
 }
 
 impl<T> Drop for VMState<T> {
     fn drop(&mut self) {
-        todo!()
+        let res = unsafe { libc::munmap(self.mmaped_code_region_base, self.mmaped_code_size) };
+        if res != 0 {
+            panic!();
+        }
     }
 }
 
@@ -70,6 +74,12 @@ pub struct SavedRegistersWithoutIP {
     xsave_area: [u64; 64],
 }
 
+impl SavedRegistersWithoutIP {
+    pub fn new_with_all_zero() -> Self {
+        todo!()
+    }
+}
+
 pub struct VMExitEvent {
     saved_guest_registers: SavedRegistersWithIP,
 }
@@ -87,6 +97,24 @@ struct JITContext {
 
 impl<T> VMState<T> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
+    pub fn new() -> VMState<T> {
+        const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
+        unsafe {
+            let mmaped_code_region_base = libc::mmap(null_mut(), DEFAULT_CODE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0) as *mut c_void;
+            VMState {
+                inner: RwLock::new(VMStateInner {
+                    method_id_max: MethodImplementationID(0),
+                    exit_handlers: Default::default(),
+                    code_regions: Default::default(),
+                    code_regions_to_method: Default::default(),
+                    max_ptr: mmaped_code_region_base,
+                }),
+                mmaped_code_region_base,
+                mmaped_code_size: DEFAULT_CODE_SIZE,
+            }
+        }
+    }
+
 
     pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> T {
         let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
@@ -297,16 +325,16 @@ impl<T> VMState<T> {
         }
     }
 
-    pub fn gen_vm_exit(assembler: &mut CodeAssembler) -> VMExitLabel{
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler) -> VMExitLabel {
         let mut before_exit_label = assembler.create_label();
         let mut after_exit_label = assembler.create_label();
         assembler.set_label(&mut before_exit_label).unwrap();
         assembler.add_instruction(Instruction::with2(Code::Mov_rm64_r64, MemoryOperand::with_base_displ(Register::R15, RIP_GUEST_OFFSET_CONST as i64), Register::RIP).unwrap()).unwrap();
         assembler.jmp(r15 + RIP_NATIVE_OFFSET_CONST).unwrap();
         assembler.set_label(&mut after_exit_label).unwrap();
-        VMExitLabel{
+        VMExitLabel {
             before_exit_label,
-            after_exit_label
+            after_exit_label,
         }
     }
 
@@ -329,14 +357,14 @@ impl<T> VMState<T> {
     }
 }
 
-pub struct VMExitLabel{
+pub struct VMExitLabel {
     before_exit_label: CodeLabel,
-    after_exit_label: CodeLabel
+    after_exit_label: CodeLabel,
 }
 
 pub struct Method<T: Sized> {
-    code: Vec<u8>,
-    exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>,
+    pub code: Vec<u8>,
+    pub exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>,
 }
 
 

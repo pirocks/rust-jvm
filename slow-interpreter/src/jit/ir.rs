@@ -74,6 +74,10 @@ pub enum IRInstr {
     GrowStack { amount: usize },
     LoadSP { to: Register },
     WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
+    IRNewFrame {
+        current_frame_size: usize,
+        return_to_rip: Register,
+    },
     FNOP,
     Label(IRLabel),
 }
