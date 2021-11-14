@@ -1317,6 +1317,7 @@ impl JITedCodeState {
     }
 
     #[allow(named_asm_labels)]
+    #[allow(unaligned_references)]
     unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
             //todo reacrchited pushing/popping of frames storing sp.
@@ -1440,6 +1441,7 @@ impl JITedCodeState {
         JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
 
+    #[allow(unaligned_references)]
     fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         // int_state.debug_print_stack_trace(jvm);
         match exit_type {

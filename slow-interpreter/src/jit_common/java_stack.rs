@@ -121,13 +121,13 @@ impl JavaStack {
 
     pub unsafe fn push_frame(&mut self, layout: &(dyn StackframeMemoryLayout), frame_info: FrameInfo, prev_rip: Option<*mut c_void>, jvm: &'gc_life JVMState<'gc_life>) {
         let prev_rbp = self.frame_pointer();
-        let prev_header = (prev_rbp as *mut FrameHeader).as_ref().unwrap();
+        let FrameHeader { prev_rip: _, prev_rpb, frame_info_ptr: _, methodid, magic_part_1, magic_part_2 } = *(prev_rbp as *mut FrameHeader).as_ref().unwrap();
         let prev_sp = self.stack_pointer();
-        if prev_header.prev_rpb != self.top && prev_header.prev_rpb != null_mut() {
-            assert_eq!(prev_header.magic_part_1, MAGIC_1_EXPECTED);
-            assert_eq!(prev_header.magic_part_2, MAGIC_2_EXPECTED);
-            let method_id = prev_header.methodid as MethodId;
-            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(dbg!(method_id)).unwrap();
+        if prev_rpb != self.top && prev_rpb != null_mut() {
+            assert_eq!(magic_part_1, MAGIC_1_EXPECTED);
+            assert_eq!(magic_part_2, MAGIC_2_EXPECTED);
+            let method_id = methodid as MethodId;
+            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
             let class_view = rc.view();
             let method_view = class_view.method_view_i(method_i);
             let code = method_view.code_attribute().unwrap();
@@ -154,12 +154,12 @@ impl JavaStack {
     }
 
     pub unsafe fn pop_frame(&mut self) {
-        let current_header = (self.current_frame_ptr() as *const FrameHeader).as_ref().unwrap();
-        assert_eq!(current_header.magic_part_1, MAGIC_1_EXPECTED);
-        assert_eq!(current_header.magic_part_2, MAGIC_2_EXPECTED);
-        let current_frame_info = (*current_header).frame_info_ptr;
+        let FrameHeader { prev_rip, prev_rpb, frame_info_ptr, methodid, magic_part_1, magic_part_2 } = *(self.current_frame_ptr() as *const FrameHeader).as_ref().unwrap();
+        assert_eq!(magic_part_1, MAGIC_1_EXPECTED);
+        assert_eq!(magic_part_2, MAGIC_2_EXPECTED);
+        let current_frame_info = frame_info_ptr;
         drop(Box::from_raw(current_frame_info));
-        let new_rbp = (*current_header).prev_rpb;
+        let new_rbp = prev_rpb;
         let new_sp = self.current_frame_ptr();
         self.set_frame_pointer(new_rbp);
         self.set_stack_pointer(new_sp);

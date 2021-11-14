@@ -7,22 +7,31 @@
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
-use std::ops::Range;
+use std::intrinsics::copy_nonoverlapping;
+use std::ops::{Deref, Range};
 use std::ptr::null_mut;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
 use iced_x86::code_asm::{CodeAssembler, r15};
 use memoffset::offset_of;
+use rangemap::RangeMap;
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct MethodImplementationID(usize);
 
 pub struct MethodOffset(usize);
 
+pub struct VMStateInner<T: Sized> {
+    method_id_max: MethodImplementationID,
+    exit_handlers: HashMap<MethodImplementationID, Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>>,
+    code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
+    code_regions_to_method: RangeMap<*mut c_void, MethodImplementationID>,
+    max_ptr: *mut c_void,
+}
+
 pub struct VMState<T: Sized> {
-    method_id_max: AtomicUsize,
-    exit_handlers: RwLock<HashMap<MethodImplementationID, HashMap<MethodOffset, Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>>>>,
-    code_regions: RwLock<HashMap<MethodImplementationID, Range<*mut c_void>>>,
+    inner: RwLock<VMStateInner<T>>,
     mmaped_code_region_base: *mut c_void,
 }
 
@@ -75,46 +84,13 @@ struct JITContext {
     vm_native_saved_registers: SavedRegistersWithIP,
 }
 
-pub const RIP_GUEST_OFFSET_CONST: usize = 0;
-pub const RAX_GUEST_OFFSET_CONST: usize = 0 + 8;
-pub const RBX_GUEST_OFFSET_CONST: usize = 8 + 8;
-pub const RCX_GUEST_OFFSET_CONST: usize = 16 + 8;
-pub const RDX_GUEST_OFFSET_CONST: usize = 24 + 8;
-pub const RSI_GUEST_OFFSET_CONST: usize = 32 + 8;
-pub const RDI_GUEST_OFFSET_CONST: usize = 40 + 8;
-pub const RBP_GUEST_OFFSET_CONST: usize = 48 + 8;
-pub const RSP_GUEST_OFFSET_CONST: usize = 56 + 8;
-pub const R8_GUEST_OFFSET_CONST: usize = 64 + 8;
-pub const R9_GUEST_OFFSET_CONST: usize = 72 + 8;
-pub const R10_GUEST_OFFSET_CONST: usize = 80 + 8;
-pub const R11_GUEST_OFFSET_CONST: usize = 88 + 8;
-pub const R12_GUEST_OFFSET_CONST: usize = 96 + 8;
-pub const R13_GUEST_OFFSET_CONST: usize = 104 + 8;
-pub const R14_GUEST_OFFSET_CONST: usize = 112 + 8;
-pub const XSAVE_AREA_GUEST_OFFSET_CONST: usize = 120 + 8;
-
-pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096;
-pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + 120 + 4096;
-pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + 120 + 4096;
-pub const RDX_NATIVE_OFFSET_CONST: usize = 24 + 120 + 4096;
-pub const RSI_NATIVE_OFFSET_CONST: usize = 32 + 120 + 4096;
-pub const RDI_NATIVE_OFFSET_CONST: usize = 40 + 120 + 4096;
-pub const RBP_NATIVE_OFFSET_CONST: usize = 48 + 120 + 4096;
-pub const RSP_NATIVE_OFFSET_CONST: usize = 56 + 120 + 4096;
-pub const R8_NATIVE_OFFSET_CONST: usize = 64 + 120 + 4096;
-pub const R9_NATIVE_OFFSET_CONST: usize = 72 + 120 + 4096;
-pub const R10_NATIVE_OFFSET_CONST: usize = 80 + 120 + 4096;
-pub const R11_NATIVE_OFFSET_CONST: usize = 88 + 120 + 4096;
-pub const R12_NATIVE_OFFSET_CONST: usize = 96 + 120 + 4096;
-pub const R13_NATIVE_OFFSET_CONST: usize = 104 + 120 + 4096;
-pub const R14_NATIVE_OFFSET_CONST: usize = 112 + 120 + 4096;
-pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = 120 + 120 + 4096;
-
 impl<T> VMState<T> {
+    //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
+
     pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> T {
-        let code_region: &Range<*mut c_void> = self.code_regions.get(&method_id).unwrap();
+        let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
-        let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, registers_to_copy_in) + offset_of!(JITContext, guest_registers);
+        let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, guest_registers);
         assert_eq!(rip_guest_offset, RIP_GUEST_OFFSET_CONST);
         let rax_guest_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
         assert_eq!(rax_guest_offset, RAX_GUEST_OFFSET_CONST);
@@ -148,37 +124,39 @@ impl<T> VMState<T> {
         assert_eq!(r14_guest_offset, R14_GUEST_OFFSET_CONST);
         let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
         assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
-        let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(JITContext, vm_native_saved_registers);
+        let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
+        assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET);
+        let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rax_native_offset, RAX_NATIVE_OFFSET_CONST);
-        let rbx_native_offset = offset_of!(SavedRegistersWithoutIP, rbx) + offset_of!(JITContext, vm_native_saved_registers);
+        let rbx_native_offset = offset_of!(SavedRegistersWithoutIP, rbx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rbx_native_offset, RBX_NATIVE_OFFSET_CONST);
-        let rcx_native_offset = offset_of!(SavedRegistersWithoutIP, rcx) + offset_of!(JITContext, vm_native_saved_registers);
+        let rcx_native_offset = offset_of!(SavedRegistersWithoutIP, rcx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rcx_native_offset, RCX_NATIVE_OFFSET_CONST);
-        let rdx_native_offset = offset_of!(SavedRegistersWithoutIP, rdx) + offset_of!(JITContext, vm_native_saved_registers);
+        let rdx_native_offset = offset_of!(SavedRegistersWithoutIP, rdx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rdx_native_offset, RDX_NATIVE_OFFSET_CONST);
-        let rsi_native_offset = offset_of!(SavedRegistersWithoutIP, rsi) + offset_of!(JITContext, vm_native_saved_registers);
+        let rsi_native_offset = offset_of!(SavedRegistersWithoutIP, rsi) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rsi_native_offset, RSI_NATIVE_OFFSET_CONST);
-        let rdi_native_offset = offset_of!(SavedRegistersWithoutIP, rdi) + offset_of!(JITContext, vm_native_saved_registers);
+        let rdi_native_offset = offset_of!(SavedRegistersWithoutIP, rdi) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rdi_native_offset, RDI_NATIVE_OFFSET_CONST);
-        let rbp_native_offset = offset_of!(SavedRegistersWithoutIP, rbp) + offset_of!(JITContext, vm_native_saved_registers);
+        let rbp_native_offset = offset_of!(SavedRegistersWithoutIP, rbp) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rbp_native_offset, RBP_NATIVE_OFFSET_CONST);
-        let rsp_native_offset = offset_of!(SavedRegistersWithoutIP, rsp) + offset_of!(JITContext, vm_native_saved_registers);
+        let rsp_native_offset = offset_of!(SavedRegistersWithoutIP, rsp) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rsp_native_offset, RSP_NATIVE_OFFSET_CONST);
-        let r8_native_offset = offset_of!(SavedRegistersWithoutIP, r8) + offset_of!(JITContext, vm_native_saved_registers);
+        let r8_native_offset = offset_of!(SavedRegistersWithoutIP, r8) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r8_native_offset, R8_NATIVE_OFFSET_CONST);
-        let r9_native_offset = offset_of!(SavedRegistersWithoutIP, r9) + offset_of!(JITContext, vm_native_saved_registers);
+        let r9_native_offset = offset_of!(SavedRegistersWithoutIP, r9) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r9_native_offset, R9_NATIVE_OFFSET_CONST);
-        let r10_native_offset = offset_of!(SavedRegistersWithoutIP, r10) + offset_of!(JITContext, vm_native_saved_registers);
+        let r10_native_offset = offset_of!(SavedRegistersWithoutIP, r10) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r10_native_offset, R10_NATIVE_OFFSET_CONST);
-        let r11_native_offset = offset_of!(SavedRegistersWithoutIP, r11) + offset_of!(JITContext, vm_native_saved_registers);
+        let r11_native_offset = offset_of!(SavedRegistersWithoutIP, r11) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r11_native_offset, R11_NATIVE_OFFSET_CONST);
-        let r12_native_offset = offset_of!(SavedRegistersWithoutIP, r12) + offset_of!(JITContext, vm_native_saved_registers);
+        let r12_native_offset = offset_of!(SavedRegistersWithoutIP, r12) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r12_native_offset, R12_NATIVE_OFFSET_CONST);
-        let r13_native_offset = offset_of!(SavedRegistersWithoutIP, r13) + offset_of!(JITContext, vm_native_saved_registers);
+        let r13_native_offset = offset_of!(SavedRegistersWithoutIP, r13) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r13_native_offset, R13_NATIVE_OFFSET_CONST);
-        let r14_native_offset = offset_of!(SavedRegistersWithoutIP, r14) + offset_of!(JITContext, vm_native_saved_registers);
+        let r14_native_offset = offset_of!(SavedRegistersWithoutIP, r14) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r14_native_offset, R14_NATIVE_OFFSET_CONST);
-        let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(JITContext, vm_native_saved_registers);
+        let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
         let mut jit_context = JITContext {
             guest_registers: SavedRegistersWithIP { rip: branch_to, saved_registers_without_ip: initial_registers },
@@ -204,6 +182,12 @@ impl<T> VMState<T> {
                 },
             },
         };
+        loop {
+            self.run_method_impl(&mut jit_context)
+        }
+    }
+
+    fn run_method_impl(&self, mut jit_context: &mut JITContext) {
         let jit_context_pointer = (&mut jit_context) as *mut c_void;
         unsafe {
             asm!(
@@ -225,7 +209,7 @@ impl<T> VMState<T> {
             "mov [r15 + r14_native_offset_const], r14",
             "xstor [r15 + xsave_area_native_offset_const]",
             "lea rax, [rip+after_enter]",
-            "mov [r15 + ], rax",
+            "mov [r15 + rip_guest_offset_const], rax",
             //load expected register values
             "mov rax,[r15 + rax_guest_offset_const]",
             "mov rbx,[r15 + rbx_guest_offset_const]",
@@ -245,6 +229,7 @@ impl<T> VMState<T> {
             "call qword [r15 + rdi_guest_offset_const]",
             "after_enter:"
             in(reg) jit_context_pointer,
+            rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
             rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
             rbx_guest_offset_const = const RBX_GUEST_OFFSET_CONST,
             rcx_guest_offset_const = const RCX_GUEST_OFFSET_CONST,
@@ -261,6 +246,7 @@ impl<T> VMState<T> {
             r13_guest_offset_const = const R13_GUEST_OFFSET_CONST,
             r14_guest_offset_const = const R14_GUEST_OFFSET_CONST,
             xsave_area_guest_offset_const = const XSAVE_AREA_GUEST_OFFSET_CONST,
+            rip_native_offset_const = const RIP_NATIVE_OFFSET_CONST,
             rax_native_offset_const = const RAX_NATIVE_OFFSET_CONST,
             rbx_native_offset_const = const RBX_NATIVE_OFFSET_CONST,
             rcx_native_offset_const = const RCX_NATIVE_OFFSET_CONST,
@@ -277,23 +263,97 @@ impl<T> VMState<T> {
             r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
             r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
             xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
-            );
+            )
         }
+        let vm_exit_action = self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers);
+        match vm_exit_action {
+            VMExitAction::ExitVMCompletely { return_data } => {
+                return return_data;
+            }
+            VMExitAction::ReturnTo { return_register_state } => {
+                jit_context.guest_registers = return_register_state;
+            }
+        }
+    }
+
+    fn handle_vm_exit(&self, guest_rip: *mut c_void, guest_registers: SavedRegistersWithIP) -> VMExitAction<T> {
+        let method_implementation = self.inner.read().unwrap().code_regions_to_method.get(&guest_rip);
+        match method_implementation {
+            None => {
+                todo!()
+            }
+            Some(method_implementation) => {
+                let handler = self.inner.read().unwrap().exit_handlers.get(&method_implementation).unwrap();
+                let vm_exit_event = VMExitEvent {
+                    saved_guest_registers: guest_registers
+                };
+                return handler.deref()(&vm_exit_event);
+            }
+        }
+    }
+
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler) {
+        assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, rip).unwrap();
+        assembler.jmp(r15 + RIP_NATIVE_OFFSET).unwrap();
+    }
+
+    pub fn add_method_implementation(&self, method: Method<T>) {
+        let mut inner_guard = self.inner.write().unwrap();
+        let current_method_id = inner_guard.method_id_max;
+        inner_guard.method_id_max.0 += 1;
+        let Method { code, exit_handler } = method;
+        inner_guard.exit_handlers.insert(current_method_id, exit_handler);
+        let new_method_base = inner_guard.max_ptr;
+        let code_len = code.len();
+        let end_of_new_method = unsafe {
+            inner_guard.max_ptr.offset(code_len as isize)
+        };
+        let method_range = new_method_base..end_of_new_method;
+        inner_guard.code_regions.insert(current_method_id, method_range.clone());
+        inner_guard.code_regions_to_method.insert(method_range, current_method_id);
+        inner_guard.max_ptr = end_of_new_method;
+        unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base, code_len); }
     }
 }
 
-pub fn gen_vm_exit(assembler: &mut CodeAssembler) {
-    assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, rip).unwrap();
-    // assembler.jmp(r15 +)
+pub struct Method<T: Sized> {
+    code: Vec<u8>,
+    exit_handler: Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>,
 }
 
-//
-// pub struct NativeStack {
-//     mmaped_stack_base: *mut c_void,
-// }
-//
-// impl Drop for NativeStack {
-//     fn drop(&mut self) {
-//         todo!()
-//     }
-// }
+
+pub const RIP_GUEST_OFFSET_CONST: usize = 0;
+pub const RAX_GUEST_OFFSET_CONST: usize = 0 + 8;
+pub const RBX_GUEST_OFFSET_CONST: usize = 8 + 8;
+pub const RCX_GUEST_OFFSET_CONST: usize = 16 + 8;
+pub const RDX_GUEST_OFFSET_CONST: usize = 24 + 8;
+pub const RSI_GUEST_OFFSET_CONST: usize = 32 + 8;
+pub const RDI_GUEST_OFFSET_CONST: usize = 40 + 8;
+pub const RBP_GUEST_OFFSET_CONST: usize = 48 + 8;
+pub const RSP_GUEST_OFFSET_CONST: usize = 56 + 8;
+pub const R8_GUEST_OFFSET_CONST: usize = 64 + 8;
+pub const R9_GUEST_OFFSET_CONST: usize = 72 + 8;
+pub const R10_GUEST_OFFSET_CONST: usize = 80 + 8;
+pub const R11_GUEST_OFFSET_CONST: usize = 88 + 8;
+pub const R12_GUEST_OFFSET_CONST: usize = 96 + 8;
+pub const R13_GUEST_OFFSET_CONST: usize = 104 + 8;
+pub const R14_GUEST_OFFSET_CONST: usize = 112 + 8;
+pub const XSAVE_AREA_GUEST_OFFSET_CONST: usize = 120 + 8;
+
+pub const RIP_NATIVE_OFFSET: usize = 0 + 120 + 4096 + 0;
+pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096 + 8;
+pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + 120 + 4096 + 8;
+pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + 120 + 4096 + 8;
+pub const RDX_NATIVE_OFFSET_CONST: usize = 24 + 120 + 4096 + 8;
+pub const RSI_NATIVE_OFFSET_CONST: usize = 32 + 120 + 4096 + 8;
+pub const RDI_NATIVE_OFFSET_CONST: usize = 40 + 120 + 4096 + 8;
+pub const RBP_NATIVE_OFFSET_CONST: usize = 48 + 120 + 4096 + 8;
+pub const RSP_NATIVE_OFFSET_CONST: usize = 56 + 120 + 4096 + 8;
+pub const R8_NATIVE_OFFSET_CONST: usize = 64 + 120 + 4096 + 8;
+pub const R9_NATIVE_OFFSET_CONST: usize = 72 + 120 + 4096 + 8;
+pub const R10_NATIVE_OFFSET_CONST: usize = 80 + 120 + 4096 + 8;
+pub const R11_NATIVE_OFFSET_CONST: usize = 88 + 120 + 4096 + 8;
+pub const R12_NATIVE_OFFSET_CONST: usize = 96 + 120 + 4096 + 8;
+pub const R13_NATIVE_OFFSET_CONST: usize = 104 + 120 + 4096 + 8;
+pub const R14_NATIVE_OFFSET_CONST: usize = 112 + 120 + 4096 + 8;
+pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = 120 + 120 + 4096 + 8;

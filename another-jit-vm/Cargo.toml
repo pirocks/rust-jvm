@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 memoffset = "0.6.4"
 iced-x86 = "1.15.0"
+rangemap = "0.1.13"
