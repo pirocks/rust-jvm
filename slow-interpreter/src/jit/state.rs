@@ -1110,6 +1110,7 @@ impl JITedCodeState {
                     // restore_old_frame
                     assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
                     // call_to_old
+                    //todo this clobbers existing data
                     assembler.call(qword_ptr(r15 + native_instruction_pointer)).unwrap();
                     exits.insert(exit_label, exit_type);
                     label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));

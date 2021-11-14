@@ -78,6 +78,7 @@ pub mod runtime_class;
 pub mod gc_memory_layout_common;
 pub mod jit;
 pub mod jit_common;
+pub mod native_to_ir_layer;
 
 pub mod native_tracing {
     use std::ffi::c_void;

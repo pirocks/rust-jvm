@@ -1,19 +1,20 @@
 #![feature(asm)]
-// save all registers when entering and exiting vm
+// save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
-// exit handling has registered handling but actual handling is seperate
+// exit handling has registered handling but actual handling is seperate -
 // have another layer above this which gets rid of native points and does everytthing in terms of IR
 // have java layer above that
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
-use std::ops::{Deref, Range};
+use std::ops::{Deref, DerefMut, Range};
 use std::ptr::null_mut;
 use std::sync::atomic::AtomicUsize;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{CodeAssembler, r15};
+use iced_x86::code_asm::{AsmRegister64, CodeAssembler, CodeLabel, ptr, r15};
+use iced_x86::{Code, Instruction, MemoryOperand, Register};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
@@ -24,7 +25,7 @@ pub struct MethodOffset(usize);
 
 pub struct VMStateInner<T: Sized> {
     method_id_max: MethodImplementationID,
-    exit_handlers: HashMap<MethodImplementationID, Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>>,
+    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>>,
     code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
     code_regions_to_method: RangeMap<*mut c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
@@ -125,7 +126,7 @@ impl<T> VMState<T> {
         let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
         assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
         let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
-        assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET);
+        assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET_CONST);
         let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rax_native_offset, RAX_NATIVE_OFFSET_CONST);
         let rbx_native_offset = offset_of!(SavedRegistersWithoutIP, rbx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
@@ -183,53 +184,64 @@ impl<T> VMState<T> {
             },
         };
         loop {
-            self.run_method_impl(&mut jit_context)
+            let vm_exit_action = self.run_method_impl(&mut jit_context);
+            match vm_exit_action {
+                VMExitAction::ExitVMCompletely { return_data } => {
+                    return return_data;
+                }
+                VMExitAction::ReturnTo { return_register_state } => {
+                    jit_context.guest_registers = return_register_state;
+                }
+            }
         }
     }
 
-    fn run_method_impl(&self, mut jit_context: &mut JITContext) {
-        let jit_context_pointer = (&mut jit_context) as *mut c_void;
+    #[allow(named_asm_labels)]
+    fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitAction<T> {
+        let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
             //save all registers to avoid breaking stuff
             "mov r15, {0}",
-            "mov [r15 + rax_native_offset_const], rax",
-            "mov [r15 + rbx_native_offset_const], rbx",
-            "mov [r15 + rcx_native_offset_const], rcx",
-            "mov [r15 + rdx_native_offset_const], rdx",
-            "mov [r15 + rsi_native_offset_const], rsi",
-            "mov [r15 + rbp_native_offset_const], rbp",
-            "mov [r15 + rsp_native_offset_const], rsp",
-            "mov [r15 + r8_native_offset_const], r8",
-            "mov [r15 + r9_native_offset_const], r9",
-            "mov [r15 + r10_native_offset_const], r10",
-            "mov [r15 + r11_native_offset_const], r11",
-            "mov [r15 + r12_native_offset_const], r12",
-            "mov [r15 + r13_native_offset_const], r13",
-            "mov [r15 + r14_native_offset_const], r14",
-            "xstor [r15 + xsave_area_native_offset_const]",
-            "lea rax, [rip+after_enter]",
-            "mov [r15 + rip_guest_offset_const], rax",
+            "mov [r15 + {rax_native_offset_const}], rax",
+            "mov [r15 + {rbx_native_offset_const}], rbx",
+            "mov [r15 + {rcx_native_offset_const}], rcx",
+            "mov [r15 + {rdx_native_offset_const}], rdx",
+            "mov [r15 + {rsi_native_offset_const}], rsi",
+            "mov [r15 + {rdi_native_offset_const}], rdi",
+            "mov [r15 + {rbp_native_offset_const}], rbp",
+            "mov [r15 + {rsp_native_offset_const}], rsp",
+            "mov [r15 + {r8_native_offset_const}], r8",
+            "mov [r15 + {r9_native_offset_const}], r9",
+            "mov [r15 + {r10_native_offset_const}], r10",
+            "mov [r15 + {r11_native_offset_const}], r11",
+            "mov [r15 + {r12_native_offset_const}], r12",
+            "mov [r15 + {r13_native_offset_const}], r13",
+            "mov [r15 + {r14_native_offset_const}], r14",
+            "xstor [r15 + {xsave_area_native_offset_const}]",
+            "lea rax, [rip+__rust_jvm_internal_after_enter]",
+            "mov [r15 + {rip_native_offset_const}], rax",
             //load expected register values
-            "mov rax,[r15 + rax_guest_offset_const]",
-            "mov rbx,[r15 + rbx_guest_offset_const]",
-            "mov rcx,[r15 + rcx_guest_offset_const]",
-            "mov rdx,[r15 + rdx_guest_offset_const]",
-            "mov rsi,[r15 + rsi_guest_offset_const]",
-            "mov rbp,[r15 + rbp_guest_offset_const]",
-            "mov rsp,[r15 + rsp_guest_offset_const]",
-            "mov r8,[r15 + r8_guest_offset_const]",
-            "mov r9,[r15 + r9_guest_offset_const]",
-            "mov r10,[r15 + r10_guest_offset_const]",
-            "mov r11,[r15 + r11_guest_offset_const]",
-            "mov r12,[r15 + r12_guest_offset_const]",
-            "mov r13,[r15 + r13_guest_offset_const]",
-            "mov r14,[r15 + r14_guest_offset_const]",
-            "xrstor [r15 + xsave_area_guest_offset_const]",
+            "mov rax,[r15 + {rax_guest_offset_const}]",
+            "mov rbx,[r15 + {rbx_guest_offset_const}]",
+            "mov rcx,[r15 + {rcx_guest_offset_const}]",
+            "mov rdx,[r15 + {rdx_guest_offset_const}]",
+            "mov rsi,[r15 + {rsi_guest_offset_const}]",
+            "mov rdi,[r15 + {rdi_guest_offset_const}]",
+            "mov rbp,[r15 + {rbp_guest_offset_const}]",
+            "mov rsp,[r15 + {rsp_guest_offset_const}]",
+            "mov r8,[r15 + {r8_guest_offset_const}]",
+            "mov r9,[r15 + {r9_guest_offset_const}]",
+            "mov r10,[r15 + {r10_guest_offset_const}]",
+            "mov r11,[r15 + {r11_guest_offset_const}]",
+            "mov r12,[r15 + {r12_guest_offset_const}]",
+            "mov r13,[r15 + {r13_guest_offset_const}]",
+            "mov r14,[r15 + {r14_guest_offset_const}]",
+            "xrstor [r15 + {xsave_area_guest_offset_const}]",
             "call qword [r15 + rdi_guest_offset_const]",
-            "after_enter:"
+            "__rust_jvm_internal_after_enter:",
             in(reg) jit_context_pointer,
-            rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
+            // rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
             rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
             rbx_guest_offset_const = const RBX_GUEST_OFFSET_CONST,
             rcx_guest_offset_const = const RCX_GUEST_OFFSET_CONST,
@@ -265,36 +277,37 @@ impl<T> VMState<T> {
             xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
             )
         }
-        let vm_exit_action = self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers);
-        match vm_exit_action {
-            VMExitAction::ExitVMCompletely { return_data } => {
-                return return_data;
-            }
-            VMExitAction::ReturnTo { return_register_state } => {
-                jit_context.guest_registers = return_register_state;
-            }
-        }
+        self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers)
     }
 
     fn handle_vm_exit(&self, guest_rip: *mut c_void, guest_registers: SavedRegistersWithIP) -> VMExitAction<T> {
-        let method_implementation = self.inner.read().unwrap().code_regions_to_method.get(&guest_rip);
+        let inner_read_guard = self.inner.read().unwrap();
+        let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
         match method_implementation {
             None => {
                 todo!()
             }
             Some(method_implementation) => {
-                let handler = self.inner.read().unwrap().exit_handlers.get(&method_implementation).unwrap();
+                let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap();
                 let vm_exit_event = VMExitEvent {
                     saved_guest_registers: guest_registers
                 };
-                return handler.deref()(&vm_exit_event);
+                return handler(&vm_exit_event);
             }
         }
     }
 
-    pub fn gen_vm_exit(assembler: &mut CodeAssembler) {
-        assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, rip).unwrap();
-        assembler.jmp(r15 + RIP_NATIVE_OFFSET).unwrap();
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler) -> VMExitLabel{
+        let mut before_exit_label = assembler.create_label();
+        let mut after_exit_label = assembler.create_label();
+        assembler.set_label(&mut before_exit_label).unwrap();
+        assembler.add_instruction(Instruction::with2(Code::Mov_rm64_r64, MemoryOperand::with_base_displ(Register::R15, RIP_GUEST_OFFSET_CONST as i64), Register::RIP).unwrap()).unwrap();
+        assembler.jmp(r15 + RIP_NATIVE_OFFSET_CONST).unwrap();
+        assembler.set_label(&mut after_exit_label).unwrap();
+        VMExitLabel{
+            before_exit_label,
+            after_exit_label
+        }
     }
 
     pub fn add_method_implementation(&self, method: Method<T>) {
@@ -316,9 +329,14 @@ impl<T> VMState<T> {
     }
 }
 
+pub struct VMExitLabel{
+    before_exit_label: CodeLabel,
+    after_exit_label: CodeLabel
+}
+
 pub struct Method<T: Sized> {
     code: Vec<u8>,
-    exit_handler: Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>,
+    exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>,
 }
 
 
@@ -340,7 +358,7 @@ pub const R13_GUEST_OFFSET_CONST: usize = 104 + 8;
 pub const R14_GUEST_OFFSET_CONST: usize = 112 + 8;
 pub const XSAVE_AREA_GUEST_OFFSET_CONST: usize = 120 + 8;
 
-pub const RIP_NATIVE_OFFSET: usize = 0 + 120 + 4096 + 0;
+pub const RIP_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096 + 0;
 pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096 + 8;
 pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + 120 + 4096 + 8;
 pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + 120 + 4096 + 8;
