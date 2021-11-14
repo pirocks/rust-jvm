@@ -2,26 +2,37 @@ use by_address::ByAddress;
 use itertools::Either;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
+use jvmti_jni_bindings::{
+    JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual,
+};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
+use crate::instructions::invoke::native::mhn_temp::{
+    IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT,
+};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter::WasException;
 use crate::interpreter_util::new_object;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::JavaValue;
-use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
+use crate::resolvers::methods::{
+    ResolutionError, resolve_invoke_interface, resolve_invoke_special,
+    resolve_invoke_static, resolve_invoke_virtual,
+};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
-//so as far as I can find this is undocumented.
-//so as far as I can figure out we have a method name and a class
-//we lookup for a matching method, throw various kinds of exceptions if it doesn't work
-// and return a brand new object
+pub fn MHN_resolve(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    args: Vec<JavaValue<'gc_life>>,
+) -> Result<JavaValue<'gc_life>, WasException> {
+    //so as far as I can find this is undocumented.
+    //so as far as I can figure out we have a method name and a class
+    //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
+    // and return a brand new object
     let member_name = args[0].cast_member_name();
     resolve_impl(jvm, int_state, member_name)
 }
@@ -81,7 +92,11 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+fn resolve_impl(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    member_name: MemberName<'gc_life>,
+) -> Result<JavaValue<'gc_life>, WasException> {
     let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" &&
         member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == CClassName::class() &&
         member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual"
@@ -120,18 +135,28 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).as_runtime_class(jvm), true)?;
+            let all_fields = get_all_fields(
+                jvm,
+                int_state,
+                member_name.get_clazz(jvm).as_runtime_class(jvm),
+                true,
+            )?;
 
-            let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false));
+            let name = FieldName(
+                jvm.string_pool
+                    .add_name(member_name.get_name(jvm).to_rust_string(jvm), false),
+            );
 
             let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type(jvm).cast_class())?;
             let target_ptype = typejclass.as_type(jvm);
-            let (res_c, res_i) = all_fields.iter().find(|(c, i)| {
-                let view = c.view();
-                let field = view.field(*i);
-                field.field_name() == name &&
-                    field.field_type() == target_ptype
-            }).unwrap();
+            let (res_c, res_i) = all_fields
+                .iter()
+                .find(|(c, i)| {
+                    let view = c.view();
+                    let field = view.field(*i);
+                    field.field_name() == name && field.field_type() == target_ptype
+                })
+                .unwrap();
 
             let correct_flags = res_c.view().field(*res_i).access_flags();
             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
@@ -141,57 +166,100 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let (resolve_result, method_i, class) = match resolve_invoke_virtual(jvm, int_state, member_name.clone())? {
-                    Ok(ok) => ok,
-                    Err(err) => match err {
-                        ResolutionError::Linkage => {
-                            throw_linkage_error(jvm, int_state)?;
-                            unreachable!()
-                        }
-                    }
-                };
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
+                let (resolve_result, method_i, class) =
+                    match resolve_invoke_virtual(jvm, int_state, member_name.clone())? {
+                        Ok(ok) => ok,
+                        Err(err) => match err {
+                            ResolutionError::Linkage => {
+                                throw_linkage_error(jvm, int_state)?;
+                                unreachable!()
+                            }
+                        },
+                    };
+                init(
+                    jvm,
+                    int_state,
+                    member_name.clone(),
+                    resolve_result.java_value(),
+                    Either::Left(Some(&class.view().method_view_i(method_i))),
+                    false,
+                )?;
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
-                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic)? {
+                let (resolve_result, method_i, class) = match resolve_invoke_static(
+                    jvm,
+                    int_state,
+                    member_name.clone(),
+                    &mut synthetic,
+                )? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
                             throw_linkage_error(jvm, int_state)?;
                             unreachable!()
                         }
-                    }
+                    },
                 };
-                let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i);
-                jvm.resolved_method_handles.write().unwrap().insert(ByAddress(member_name.clone().object()), method_id);
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
+                let method_id = jvm
+                    .method_table
+                    .write()
+                    .unwrap()
+                    .get_method_id(class.clone(), method_i);
+                jvm.resolved_method_handles
+                    .write()
+                    .unwrap()
+                    .insert(ByAddress(member_name.clone().object()), method_id);
+                init(
+                    jvm,
+                    int_state,
+                    member_name.clone(),
+                    resolve_result.java_value(),
+                    Either::Left(Some(&class.view().method_view_i(method_i))),
+                    synthetic,
+                )?;
             } else if ref_kind == JVM_REF_invokeInterface {
-                let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {
-                    Ok(ok) => ok,
-                    Err(err) => match err {
-                        ResolutionError::Linkage => {
-                            throw_linkage_error(jvm, int_state)?;
-                            unreachable!()
-                        }
-                    }
-                };
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
+                let (resolve_result, method_i, class) =
+                    match resolve_invoke_interface(jvm, int_state, member_name.clone())? {
+                        Ok(ok) => ok,
+                        Err(err) => match err {
+                            ResolutionError::Linkage => {
+                                throw_linkage_error(jvm, int_state)?;
+                                unreachable!()
+                            }
+                        },
+                    };
+                init(
+                    jvm,
+                    int_state,
+                    member_name.clone(),
+                    resolve_result.java_value(),
+                    Either::Left(Some(&class.view().method_view_i(method_i))),
+                    false,
+                )?;
             } else if ref_kind == JVM_REF_invokeSpecial {
-                let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, int_state, member_name.clone())? {
-                    Ok(ok) => ok,
-                    Err(err) => match err {
-                        ResolutionError::Linkage => {
-                            throw_linkage_error(jvm, int_state)?;
-                            unreachable!()
-                        }
-                    }
-                };
-                init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
+                let (resolve_result, method_i, class) =
+                    match resolve_invoke_special(jvm, int_state, member_name.clone())? {
+                        Ok(ok) => ok,
+                        Err(err) => match err {
+                            ResolutionError::Linkage => {
+                                throw_linkage_error(jvm, int_state)?;
+                                unreachable!()
+                            }
+                        },
+                    };
+                init(
+                    jvm,
+                    int_state,
+                    member_name.clone(),
+                    resolve_result.java_value(),
+                    Either::Left(Some(&class.view().method_view_i(method_i))),
+                    false,
+                )?;
             } else {
                 panic!()
             }
         }
-        _ => panic!()
+        _ => panic!(),
     }
     let clazz = member_name.get_clazz(jvm);
     let _clazz_as_runtime_class = clazz.as_runtime_class(jvm);
@@ -200,23 +268,47 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     if let Some(assertion_case) = assertion_case {
         match assertion_case {
             ResolveAssertionCase::LINK_TO_STATIC => {
-                assert_eq!(&member_name.get_name(jvm).to_rust_string(jvm), "linkToStatic");
+                assert_eq!(
+                    &member_name.get_name(jvm).to_rust_string(jvm),
+                    "linkToStatic"
+                );
                 assert_eq!(member_name.get_flags(jvm), 100733208);
                 assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
+                assert_eq!(
+                    member_name
+                        .get_resolution(jvm)
+                        .cast_member_name()
+                        .get_flags(jvm),
+                    100728832
+                );
             }
             ResolveAssertionCase::ZERO_L => {}
             ResolveAssertionCase::LINK_TO_SPECIAL => {
-                assert_eq!(&member_name.get_name(jvm).to_rust_string(jvm), "linkToSpecial");
+                assert_eq!(
+                    &member_name.get_name(jvm).to_rust_string(jvm),
+                    "linkToSpecial"
+                );
                 assert_eq!(member_name.get_flags(jvm), 100733208);
                 assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
+                assert_eq!(
+                    member_name
+                        .get_resolution(jvm)
+                        .cast_member_name()
+                        .get_flags(jvm),
+                    100728832
+                );
             }
             ResolveAssertionCase::MAKE => {
                 assert_eq!(&member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
                 assert_eq!(member_name.get_flags(jvm), 100728840);
                 assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
-                assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
+                assert_eq!(
+                    member_name
+                        .get_resolution(jvm)
+                        .cast_member_name()
+                        .get_flags(jvm),
+                    100728832
+                );
             }
             ResolveAssertionCase::ARG_L0 => {
                 assert_eq!(member_name.get_flags(jvm), 17039376);
@@ -230,8 +322,12 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     Ok(member_name.java_value())
 }
 
-fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
+fn throw_linkage_error(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+) -> Result<(), WasException> {
+    let linkage_error =
+        check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
     let object = new_object(jvm, int_state, &linkage_error).unwrap_object();
     int_state.set_throw(object);
     return Err(WasException);

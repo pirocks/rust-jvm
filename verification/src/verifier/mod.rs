@@ -10,7 +10,9 @@ use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;
 use crate::verifier::codecorrectness::{Environment, method_is_type_safe};
-use crate::verifier::filecorrectness::{class_is_final, get_class_methods, is_bootstrap_loader, super_class_chain};
+use crate::verifier::filecorrectness::{
+    class_is_final, get_class_methods, is_bootstrap_loader, super_class_chain,
+};
 use crate::verifier::filecorrectness::different_runtime_package;
 use crate::verifier::filecorrectness::is_protected;
 use crate::verifier::filecorrectness::loaded_class;
@@ -19,14 +21,17 @@ use crate::VerifierContext;
 
 macro_rules! unknown_error_verifying {
     () => {
-        TypeSafetyError::NotSafe(format!("An unknown error occurred while verifying:{}:{}", file!(), line!()))
+        TypeSafetyError::NotSafe(format!(
+            "An unknown error occurred while verifying:{}:{}",
+            file!(),
+            line!()
+        ))
     };
 }
 
-
-pub mod instructions;
-pub mod filecorrectness;
 pub mod codecorrectness;
+pub mod filecorrectness;
+pub mod instructions;
 
 pub struct InternalFrame {
     pub locals: Vec<VType>,
@@ -36,15 +41,20 @@ pub struct InternalFrame {
 }
 
 //todo impl on VerifierContext
-pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+pub fn get_class(
+    verifier_context: &VerifierContext,
+    class: &ClassWithLoader,
+) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
     let mut guard = verifier_context.class_view_cache.lock().unwrap();
     match guard.get(class) {
         None => {
-            let res = verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())?;
+            let res = verifier_context
+                .classfile_getter
+                .get_classfile(class.loader, class.class_name.clone())?;
             guard.insert(class.clone(), res.clone());
             Ok(res)
         }
-        Some(res) => Ok(res.clone())
+        Some(res) => Ok(res.clone()),
     }
     // Arc::new(ClassView::from(verifier_context.classes.pre_load(class.class_name.clone(), class.loader.clone()).unwrap()))
 
@@ -71,8 +81,7 @@ pub struct ClassWithLoaderMethod {
     pub method_index: usize,
 }
 
-#[derive(Eq, PartialEq)]
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Frame {
     pub locals: Rc<Vec<VType>>,
     pub stack_map: OperandStack,
@@ -90,7 +99,6 @@ impl Clone for Frame {
     }
 }
 
-
 #[derive(Debug)]
 pub enum TypeSafetyError {
     NotSafe(String),
@@ -104,68 +112,96 @@ impl From<ClassLoadingError> for TypeSafetyError {
     }
 }
 
-pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
+pub fn class_is_type_safe(
+    vf: &mut VerifierContext,
+    class: &ClassWithLoader,
+) -> Result<(), TypeSafetyError> {
     if class.class_name == CClassName::object() {
         if !is_bootstrap_loader(&class.loader) {
-            return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
+            return Result::Err(TypeSafetyError::NotSafe(
+                "Loading object with something other than bootstrap loader".to_string(),
+            ));
         }
     } else {
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
         if chain.is_empty() {
-            return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
+            return Result::Err(TypeSafetyError::NotSafe(
+                "No superclass but object is not Object".to_string(),
+            ));
         }
         let super_class_name = get_class(vf, class)?.super_name();
-        let super_class = loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
+        let super_class =
+            loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
         if class_is_final(vf, &super_class)? {
             return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
         }
     }
     let methods = get_class_methods(vf, class.clone())?;
-    let method_type_safety: Result<Vec<()>, _> = methods.iter().map(|m| {
-        method_is_type_safe(vf, class, m)
-    }).collect();
+    let method_type_safety: Result<Vec<()>, _> = methods
+        .iter()
+        .map(|m| method_is_type_safe(vf, class, m))
+        .collect();
     method_type_safety?;
     Ok(())
 }
 
-pub fn passes_protected_check(_env: &Environment, _member_class_name: CClassName, _member_name: CCString, _member_descriptor: Descriptor, _stack_frame: &Frame) -> Result<(), TypeSafetyError> {
-// todo waiting on stackoverflow / further clarification
+pub fn passes_protected_check(
+    _env: &Environment,
+    _member_class_name: CClassName,
+    _member_name: CCString,
+    _member_descriptor: Descriptor,
+    _stack_frame: &Frame,
+) -> Result<(), TypeSafetyError> {
+    // todo waiting on stackoverflow / further clarification
     Result::Ok(())
-//    let mut chain = vec![];
-//    super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
-//    if chain.iter().any(|x| {
-//        &x.class_name == member_class_name
-//    }) {
-//        //not my descriptive variable name
-//        //the spec's name not mine
-//        dbg!(&chain);
-//        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
-//        dbg!(&list);
-//        if list.is_empty() {
-//            Result::Ok(())
-//        } else {
-//            let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
-//            let protected = is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor);
-//            dbg!(protected);
-//            if protected {
-//                is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
-//            }else {
-//                Result::Ok(())
-//            }
-//        }
-//    } else {
-//        Result::Ok(())
-//    }
+    //    let mut chain = vec![];
+    //    super_class_chain(&env.vf, env.method.prolog_class, env.class_loader.clone(), &mut chain)?;//todo is this strictly correct?
+    //    if chain.iter().any(|x| {
+    //        &x.class_name == member_class_name
+    //    }) {
+    //        //not my descriptive variable name
+    //        //the spec's name not mine
+    //        dbg!(&chain);
+    //        let list = classes_in_other_pkg_with_protected_member(&env.vf, env.method.prolog_class, member_name.clone(), &member_descriptor, member_class_name.clone(), chain)?;
+    //        dbg!(&list);
+    //        if list.is_empty() {
+    //            Result::Ok(())
+    //        } else {
+    //            let referenced_class = loaded_class(&env.vf, member_class_name.clone(), env.class_loader.clone())?;
+    //            let protected = is_protected(&env.vf, &referenced_class, member_name.clone(), &member_descriptor);
+    //            dbg!(protected);
+    //            if protected {
+    //                is_assignable(&env.vf,&stack_frame.stack_map.peek(),&UnifiedType::Class(env.method.prolog_class.clone()))
+    //            }else {
+    //                Result::Ok(())
+    //            }
+    //        }
+    //    } else {
+    //        Result::Ok(())
+    //    }
 }
 
-
-pub fn classes_in_other_pkg_with_protected_member(vf: &VerifierContext, class: &ClassWithLoader, member_name: CCString, member_descriptor: &Descriptor, member_class_name: CClassName, chain: Vec<ClassWithLoader>) -> Result<Vec<ClassWithLoader>, TypeSafetyError> {
+pub fn classes_in_other_pkg_with_protected_member(
+    vf: &VerifierContext,
+    class: &ClassWithLoader,
+    member_name: CCString,
+    member_descriptor: &Descriptor,
+    member_class_name: CClassName,
+    chain: Vec<ClassWithLoader>,
+) -> Result<Vec<ClassWithLoader>, TypeSafetyError> {
     let mut res = vec![];
-    classes_in_other_pkg_with_protected_member_impl(vf, class, member_name, member_descriptor, member_class_name, chain.as_slice(), &mut res)?;
+    classes_in_other_pkg_with_protected_member_impl(
+        vf,
+        class,
+        member_name,
+        member_descriptor,
+        member_class_name,
+        chain.as_slice(),
+        &mut res,
+    )?;
     Result::Ok(res)
 }
-
 
 fn classes_in_other_pkg_with_protected_member_impl(
     vf: &VerifierContext,
@@ -174,7 +210,8 @@ fn classes_in_other_pkg_with_protected_member_impl(
     member_descriptor: &Descriptor,
     member_class_name: CClassName,
     chain: &[ClassWithLoader],
-    res: &mut Vec<ClassWithLoader>) -> Result<(), TypeSafetyError> {
+    res: &mut Vec<ClassWithLoader>,
+) -> Result<(), TypeSafetyError> {
     if !chain.is_empty() {
         let first = &chain[0];
         let rest = &chain[1..];
@@ -197,16 +234,22 @@ fn classes_in_other_pkg_with_protected_member_impl(
             member_descriptor,
             member_class_name,
             rest,
-            res)?;
+            res,
+        )?;
     }
     Result::Ok(())
 }
 
-
-pub fn standard_exception_frame(stack_frame_locals: Rc<Vec<VType>>, stack_frame_flag: bool, next_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn standard_exception_frame(
+    stack_frame_locals: Rc<Vec<VType>>,
+    stack_frame_flag: bool,
+    next_frame: Frame,
+) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let exception_frame = exception_stack_frame(stack_frame_locals, stack_frame_flag);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+    Result::Ok(InstructionTypeSafe::Safe(ResultFrames {
+        next_frame,
+        exception_frame,
+    }))
 }
-
 
 pub mod stackmapframes;

@@ -17,7 +17,8 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)
-        .generate().unwrap();
+        .generate()
+        .unwrap();
 
     let out_path = PathBuf::from("gen/");
     if !out_path.clone().into_boxed_path().exists() {

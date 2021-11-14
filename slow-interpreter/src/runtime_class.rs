@@ -41,13 +41,11 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Float => CPDType::FloatType,
             RuntimeClass::Double => CPDType::DoubleType,
             RuntimeClass::Void => CPDType::VoidType,
-            RuntimeClass::Array(arr) => {
-                CPDType::Ref(CPRefType::Array(box arr.sub_class.cpdtype()))
-            }
+            RuntimeClass::Array(arr) => CPDType::Ref(CPRefType::Array(box arr.sub_class.cpdtype())),
             RuntimeClass::Object(o) => {
                 CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name()))
             }
-            RuntimeClass::Top => panic!()
+            RuntimeClass::Top => panic!(),
         }
     }
     pub fn view(&self) -> Arc<dyn ClassView> {
@@ -61,13 +59,11 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Float => Arc::new(PrimitiveView::Float),
             RuntimeClass::Double => Arc::new(PrimitiveView::Double),
             RuntimeClass::Void => Arc::new(PrimitiveView::Void),
-            RuntimeClass::Array(arr) => {
-                Arc::new(ArrayView {
-                    sub: arr.sub_class.view()
-                })
-            }
+            RuntimeClass::Array(arr) => Arc::new(ArrayView {
+                sub: arr.sub_class.view(),
+            }),
             RuntimeClass::Object(o) => o.class_view.clone(),
-            RuntimeClass::Top => panic!()
+            RuntimeClass::Top => panic!(),
         }
     }
 
@@ -84,10 +80,9 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Void => panic!(),
             RuntimeClass::Array(_) => panic!(),
             RuntimeClass::Object(o) => o.static_vars.write().unwrap(),
-            RuntimeClass::Top => panic!()
+            RuntimeClass::Top => panic!(),
         }
     }
-
 
     pub fn status(&self) -> ClassStatus {
         match self {
@@ -102,7 +97,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Void => ClassStatus::INITIALIZED,
             RuntimeClass::Array(a) => a.sub_class.status(),
             RuntimeClass::Object(o) => *o.status.read().unwrap(),
-            RuntimeClass::Top => panic!()
+            RuntimeClass::Top => panic!(),
         }
     }
 
@@ -121,11 +116,10 @@ impl<'gc_life> RuntimeClass<'gc_life> {
     pub fn try_unwrap_class_class(&self) -> Option<&RuntimeClassClass<'gc_life>> {
         match self {
             RuntimeClass::Object(classclass) => Some(classclass),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct RuntimeClassArray<'gc_life> {
@@ -143,16 +137,18 @@ pub struct RuntimeClassClass<'gc_life> {
     pub status: RwLock<ClassStatus>,
 }
 
-//todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static 
+//todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
-    pub fn new(class_view: Arc<dyn ClassView>,
-               field_numbers: HashMap<FieldName, (usize, CPDType)>,
-               recursive_num_fields: usize,
-               static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
-               parent: Option<Arc<RuntimeClass<'gc_life>>>,
-               interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
-               status: RwLock<ClassStatus>) -> Self {
+    pub fn new(
+        class_view: Arc<dyn ClassView>,
+        field_numbers: HashMap<FieldName, (usize, CPDType)>,
+        recursive_num_fields: usize,
+        static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
+        parent: Option<Arc<RuntimeClass<'gc_life>>>,
+        interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
+        status: RwLock<ClassStatus>,
+    ) -> Self {
         Self {
             class_view,
             field_numbers,
@@ -165,7 +161,15 @@ impl<'gc_life> RuntimeClassClass<'gc_life> {
     }
 
     pub fn num_vars(&self) -> usize {
-        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
+        self.class_view
+            .fields()
+            .filter(|field| !field.is_static())
+            .count()
+            + self
+            .parent
+            .as_ref()
+            .map(|parent| parent.unwrap_class_class().num_vars())
+            .unwrap_or(0)
     }
 }
 
@@ -175,7 +179,12 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     }
 }
 
-pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
+pub fn prepare_class<'vm_life>(
+    jvm: &'vm_life JVMState<'vm_life>,
+    int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>,
+    classfile: Arc<dyn ClassView>,
+    res: &mut HashMap<FieldName, JavaValue<'vm_life>>,
+) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Ref(ref_) = classfile.type_() {
             if let CPRefType::Class(cn) = ref_ {
@@ -191,7 +200,6 @@ pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_
         }
     }
 }
-
 
 impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<'gc_life> {
     fn from(rcc: RuntimeClassClass<'gc_life>) -> Self {
@@ -225,7 +233,7 @@ pub fn initialize_class(
     }
     //todo detecting if assertions are enabled?
     let view = &runtime_class.view();
-    let lookup_res = view.lookup_method_name(MethodName::constructor_clinit());// todo constant for clinit
+    let lookup_res = view.lookup_method_name(MethodName::constructor_clinit()); // todo constant for clinit
     assert!(lookup_res.len() <= 1);
     let clinit = match lookup_res.get(0) {
         None => return Ok(runtime_class),
@@ -239,7 +247,8 @@ pub fn initialize_class(
         locals.push(JavaValue::Top);
     }
 
-    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
+    let new_stack =
+        StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
     let new_function_frame = int_state.push_frame(new_stack, jvm);
     match run_function(jvm, int_state) {
@@ -261,4 +270,3 @@ pub fn initialize_class(
         }
     };
 }
-

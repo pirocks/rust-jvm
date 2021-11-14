@@ -16,15 +16,18 @@ use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state
 unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let class_name_string = JavaValue::Object(from_object(jvm, name)).cast_string().unwrap().to_rust_string(jvm);
-    let mut elements = class_name_string.split(|char_| char_ == '.' || char_ == '/').collect_vec();
+    let class_name_string = JavaValue::Object(from_object(jvm, name))
+        .cast_string()
+        .unwrap()
+        .to_rust_string(jvm);
+    let mut elements = class_name_string
+        .split(|char_| char_ == '.' || char_ == '/')
+        .collect_vec();
     elements.pop();
     let res_string = elements.iter().join(".");
     let jstring = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(res_string)) {
         Ok(jstring) => jstring,
-        Err(WasException {}) => {
-            return null_mut()
-        }
+        Err(WasException {}) => return null_mut(),
     };
     new_local_ref_public(jstring.object().into(), int_state)
 }

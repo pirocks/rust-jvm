@@ -1,10 +1,15 @@
 use std::sync::Arc;
 
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
+use rust_jvm_common::classfile::{
+    AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile,
+};
 use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};
-use crate::view::constant_info_view::{ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView, MethodTypeView, StringView};
+use crate::view::constant_info_view::{
+    ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView,
+    MethodTypeView, StringView,
+};
 use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Clone)]
@@ -20,7 +25,10 @@ impl<'cl> Iterator for BootstrapMethodIterator<'cl> {
         if self.i >= self.view.get_bootstrap_methods_raw().len() {
             return None;
         }
-        let res = BootstrapMethodView { backing: self.view.clone(), i: self.i };
+        let res = BootstrapMethodView {
+            backing: self.view.clone(),
+            i: self.i,
+        };
         self.i += 1;
         res.into()
     }
@@ -35,15 +43,16 @@ pub struct BootstrapMethodsView<'cl> {
 impl BootstrapMethodsView<'_> {
     fn get_bootstrap_methods_raw(&self) -> &Vec<BootstrapMethod> {
         match &self.backing_class.underlying_class.attributes[self.attr_i].attribute_type {
-            AttributeType::BootstrapMethods(bm) => {
-                &bm.bootstrap_methods
-            }
-            _ => panic!()
+            AttributeType::BootstrapMethods(bm) => &bm.bootstrap_methods,
+            _ => panic!(),
         }
     }
 
     pub fn bootstrap_methods(&self) -> BootstrapMethodIterator {
-        BootstrapMethodIterator { view: self.clone(), i: 0 }
+        BootstrapMethodIterator {
+            view: self.clone(),
+            i: 0,
+        }
     }
 }
 
@@ -63,8 +72,8 @@ impl BootstrapMethodView<'_> {
         let i = self.get_raw().bootstrap_method_ref;
         let res = self.backing.backing_class.constant_pool_view(i as usize);
         match res {
-            ConstantInfoView::MethodHandle(mh) => { mh }
-            _ => panic!()
+            ConstantInfoView::MethodHandle(mh) => mh,
+            _ => panic!(),
         }
     }
 
@@ -84,7 +93,6 @@ pub struct BootstrapArgViewIterator<'cl> {
     i: usize,
 }
 
-
 impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
     type Item = BootstrapArgView<'cl>;
 
@@ -98,7 +106,8 @@ impl<'cl> Iterator for BootstrapArgViewIterator<'cl> {
             _other => {
                 unimplemented!()
             }
-        }.into();
+        }
+            .into();
         self.i += 1;
         res
     }
@@ -117,7 +126,6 @@ pub enum BootstrapArgView<'cl> {
     MethodType(MethodTypeView<'cl>),
 }
 
-
 #[allow(dead_code)]
 pub struct EnclosingMethodView<'l> {
     pub(crate) backing_class: &'l ClassBackedView,
@@ -132,13 +140,16 @@ pub struct InnerClassesView {
 impl InnerClassesView {
     fn raw(&self) -> &InnerClasses {
         match &self.backing_class.underlying_class.attributes[self.i].attribute_type {
-            AttributeType::InnerClasses(ic) => { ic }
-            _ => panic!()
+            AttributeType::InnerClasses(ic) => ic,
+            _ => panic!(),
         }
     }
 
     pub fn classes(&self) -> impl Iterator<Item=InnerClassView> {
-        self.raw().classes.iter().map(move |class| InnerClassView { backing_class: &self.backing_class, class })
+        self.raw().classes.iter().map(move |class| InnerClassView {
+            backing_class: &self.backing_class,
+            class,
+        })
     }
 }
 
@@ -153,10 +164,18 @@ impl InnerClassView<'_> {
         if inner_name_index == 0 {
             return None;
         }
-        PTypeView::from_ptype(&parse_class_name(&self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo"))).unwrap_ref_type().clone().into()
+        PTypeView::from_ptype(&parse_class_name(
+            &self.backing_class.underlying_class.constant_pool[inner_name_index]
+                .extract_string_from_utf8()
+                .clone()
+                .into_string()
+                .expect("should have validated this earlier maybe todo"),
+        ))
+            .unwrap_ref_type()
+            .clone()
+            .into()
     }
 }
-
 
 pub struct SourceFileView<'l> {
     pub(crate) backing_class: &'l ClassBackedView,
@@ -173,6 +192,9 @@ impl SourceFileView<'_> {
 
     pub fn file(&self) -> String {
         let si = self.source_file_attr().sourcefile_index;
-        self.backing_class.underlying_class.constant_pool[si as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
+        self.backing_class.underlying_class.constant_pool[si as usize]
+            .extract_string_from_utf8()
+            .into_string()
+            .expect("should have validated this earlier maybe todo")
     }
 }

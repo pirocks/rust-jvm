@@ -9,10 +9,10 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 #[macro_export]
 macro_rules! get_thread_or_error {
     ($jvm: expr,$raw_thread: expr) => {
-    match crate::JavaValue::Object(from_object($jvm,$raw_thread)).try_cast_thread() {
-        None => return jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_INVALID_THREAD,
-        Some(jt) => jt
-    }
+        match crate::JavaValue::Object(from_object($jvm, $raw_thread)).try_cast_thread() {
+            None => return jvmti_jni_bindings::jvmtiError_JVMTI_ERROR_INVALID_THREAD,
+            Some(jt) => jt,
+        }
     };
 }
 
@@ -54,19 +54,35 @@ pub mod thread_groups;
 /// Error 	Description
 /// JVMTI_ERROR_NULL_POINTER	threads_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	threads_ptr is NULL.
-pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: *mut jint, threads_ptr: *mut *mut jthread) -> jvmtiError {
+pub unsafe extern "C" fn get_all_threads(
+    env: *mut jvmtiEnv,
+    threads_count_ptr: *mut jint,
+    threads_ptr: *mut *mut jthread,
+) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetAllThreads");
+    let tracing_guard = jvm
+        .config
+        .tracing
+        .trace_jdwp_function_enter(jvm, "GetAllThreads");
     null_check!(threads_count_ptr);
     null_check!(threads_ptr);
     assert!(jvm.vm_live());
     let int_state = get_interpreter_state(env);
-    let res_ptrs = jvm.thread_state.get_all_alive_threads().into_iter().map(|thread| {
-        let object = thread.thread_object().object();
-        new_local_ref_public(object.into(), int_state)
-    }).collect::<Vec<jobject>>();
-    jvm.native.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
-    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    let res_ptrs = jvm
+        .thread_state
+        .get_all_alive_threads()
+        .into_iter()
+        .map(|thread| {
+            let object = thread.thread_object().object();
+            new_local_ref_public(object.into(), int_state)
+        })
+        .collect::<Vec<jobject>>();
+    jvm.native
+        .native_interface_allocations
+        .allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
+    jvm.config
+        .tracing
+        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Thread Info
@@ -119,37 +135,56 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
 /// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
 /// JVMTI_ERROR_NULL_POINTER	info_ptr is NULL.
 ///
-pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, info_ptr: *mut jvmtiThreadInfo) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_info(
+    env: *mut jvmtiEnv,
+    thread: jthread,
+    info_ptr: *mut jvmtiThreadInfo,
+) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     null_check!(info_ptr);
     assert!(jvm.vm_live());
-    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadInfo");
-    let thread_object = match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).try_cast_thread() {
-        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
-        Some(thread) => thread,
-    };
+    let tracing_guard = jvm
+        .config
+        .tracing
+        .trace_jdwp_function_enter(jvm, "GetThreadInfo");
+    let thread_object =
+        match JavaValue::Object(todo!() /*from_jclass(jvm,thread)*/).try_cast_thread() {
+            None => {
+                return jvm
+                    .config
+                    .tracing
+                    .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD)
+            }
+            Some(thread) => thread,
+        };
 
     //todo get thread groups other than system thread group working at some point
-    (*info_ptr).thread_group = new_local_ref_public(jvm.thread_state.get_system_thread_group().object().into(), int_state);
+    (*info_ptr).thread_group = new_local_ref_public(
+        jvm.thread_state.get_system_thread_group().object().into(),
+        int_state,
+    );
     //todo deal with this whole context loader situation
-    let thread_class_object = match thread_object
-        .get_class(jvm, int_state) {
+    let thread_class_object = match thread_object.get_class(jvm, int_state) {
         Ok(thread_class_object) => thread_class_object,
-        Err(_) => return universal_error()
+        Err(_) => return universal_error(),
     };
-    let class_loader = match thread_class_object
-        .get_class_loader(jvm, int_state) {
+    let class_loader = match thread_class_object.get_class_loader(jvm, int_state) {
         Ok(class_loader) => class_loader,
-        Err(_) => return universal_error()
+        Err(_) => return universal_error(),
     };
     // .expect("Expected thread class to have a class loader");
     let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object()), int_state);
     (*info_ptr).context_class_loader = context_class_loader;
-    (*info_ptr).name = jvm.native.native_interface_allocations.allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
+    (*info_ptr).name = jvm
+        .native
+        .native_interface_allocations
+        .allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon(jvm) as u8;
     (*info_ptr).priority = thread_object.priority(jvm);
-    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config
+        .tracing
+        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 /// Get Thread State
@@ -370,17 +405,31 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
 /// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
 /// JVMTI_ERROR_NULL_POINTER	thread_state_ptr is NULL.
 ///
-pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, thread_state_ptr: *mut jint) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_state(
+    env: *mut jvmtiEnv,
+    thread: jthread,
+    thread_state_ptr: *mut jint,
+) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
+    let tracing_guard = jvm
+        .config
+        .tracing
+        .trace_jdwp_function_enter(jvm, "GetThreadState");
     null_check!(thread_state_ptr);
     assert!(jvm.vm_live());
-    let jthread = match JavaValue::Object(todo!()/*from_jclass(jvm,thread)*/).try_cast_thread() {
-        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
+    let jthread = match JavaValue::Object(todo!() /*from_jclass(jvm,thread)*/).try_cast_thread() {
+        None => {
+            return jvm
+                .config
+                .tracing
+                .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD)
+        }
         Some(thread) => thread,
     };
     let thread = jthread.get_java_thread(jvm);
     let state = thread.status_number();
     thread_state_ptr.write(state);
-    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config
+        .tracing
+        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

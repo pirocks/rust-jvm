@@ -19,7 +19,10 @@ use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use rangemap::RangeMap;
 
-use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, TERABYTE};
+use early_startup::{
+    EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_BASE,
+    SMALL_REGION_SIZE, TERABYTE,
+};
 use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -56,7 +59,7 @@ impl AllocatedObjectType {
         match self {
             AllocatedObjectType::Class { size, .. } => {
                 if *size == 0 {
-                    return 1
+                    return 1;
                 }
                 *size
             }
@@ -68,7 +71,11 @@ impl AllocatedObjectType {
                     res
                 }
             }
-            AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
+            AllocatedObjectType::PrimitiveArray {
+                len,
+                primitive_type,
+                ..
+            } => {
                 if *len == 0 {
                     return 1;
                 } else {
@@ -82,7 +89,7 @@ impl AllocatedObjectType {
                         CPDType::FloatType => 4,
                         CPDType::DoubleType => 8,
                         CPDType::VoidType => panic!(),
-                        CPDType::Ref(_) => panic!()
+                        CPDType::Ref(_) => panic!(),
                     } + size_of::<jint>()
                 }
             }
@@ -109,11 +116,9 @@ impl RegionData {
     }
 }
 
-
 unsafe impl Send for RegionData {}
 
 unsafe impl Send for MemoryRegions {}
-
 
 //work around thread locals requiring Sync, when not actually required
 unsafe impl Sync for MemoryRegions {}
@@ -121,7 +126,6 @@ unsafe impl Sync for MemoryRegions {}
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct AllocatedTypeID(u64);
-
 
 //never directly accessed from native code to make syncing this somewhat sane.
 // instead native code should get a view of this
@@ -171,35 +175,29 @@ impl MemoryRegions {
                 self.current_region_index.push(None);
                 new_id
             }
-            Some(cur_id) => {
-                *cur_id
-            }
+            Some(cur_id) => *cur_id,
         }
     }
 
-    pub fn find_or_new_region_for(&mut self, to_allocate_type: AllocatedObjectType) -> &mut RegionData {
+    pub fn find_or_new_region_for(
+        &mut self,
+        to_allocate_type: AllocatedObjectType,
+    ) -> &mut RegionData {
         //todo doesn't actually find region
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let current_region_to_use = &self.current_region_type[type_id.0 as usize];
         let to_push_to = match current_region_to_use {
-            RegionToUse::Small => {
-                &mut self.small_region_types
-            }
-            RegionToUse::Medium => {
-                &mut self.medium_region_types
-            }
-            RegionToUse::Large => {
-                &mut self.large_region_types
-            }
-            RegionToUse::ExtraLarge => {
-                &mut self.extra_large_region_types
-            }
+            RegionToUse::Small => &mut self.small_region_types,
+            RegionToUse::Medium => &mut self.medium_region_types,
+            RegionToUse::Large => &mut self.large_region_types,
+            RegionToUse::ExtraLarge => &mut self.extra_large_region_types,
         };
         let new_region_base = match to_push_to.last() {
-            Some(x) => unsafe { x.region_base.offset(current_region_to_use.region_size() as isize) },
-            None => {
-                current_region_to_use.region_base(&self.early_mmaped_regions)
-            }
+            Some(x) => unsafe {
+                x.region_base
+                    .offset(current_region_to_use.region_size() as isize)
+            },
+            None => current_region_to_use.region_base(&self.early_mmaped_regions),
         };
         unsafe {
             to_push_to.push(RegionData {
@@ -211,7 +209,8 @@ impl MemoryRegions {
                     MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE,
                     -1,
                     0,
-                ).unwrap(),
+                )
+                    .unwrap(),
                 num_current_elements: AtomicUsize::new(0),
                 region_type: type_id,
                 region_elem_size: to_allocate_type.size(),
@@ -225,7 +224,9 @@ impl MemoryRegions {
         let num_zeros = (8 * TERABYTE).trailing_zeros();
         let mask = !(!0u64 << num_zeros);
         let region_base_masked_ptr = ptr.as_ptr() as u64 & !mask;
-        let region_type = if region_base_masked_ptr == self.early_mmaped_regions.small_regions as u64 {
+        let region_type = if region_base_masked_ptr
+            == self.early_mmaped_regions.small_regions as u64
+        {
             todo!()
         } else if region_base_masked_ptr == self.early_mmaped_regions.medium_regions as u64 {
             let region_index = ((ptr.as_ptr() as u64 & mask) / MEDIUM_REGION_SIZE as u64) as usize;
@@ -238,7 +239,10 @@ impl MemoryRegions {
         &self.types[region_type.0 as usize]
     }
 
-    fn region(to_allocate_type: AllocatedObjectType, to_use: RegionToUse) -> (RegionData, Range<NonNull<c_void>>) {
+    fn region(
+        to_allocate_type: AllocatedObjectType,
+        to_use: RegionToUse,
+    ) -> (RegionData, Range<NonNull<c_void>>) {
         // let object_size: usize = to_allocate_type.size();
         // let read_and_write = ProtFlags::PROT_READ | ProtFlags::PROT_WRITE;
         // let map_flags = MapFlags::MAP_NORESERVE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE;
@@ -281,19 +285,11 @@ pub enum RegionToUse {
 impl RegionToUse {
     pub fn smallest_which_fits(size: usize) -> RegionToUse {
         match size {
-            0..SMALL_REGION_SIZE => {
-                RegionToUse::Small
-            }
-            SMALL_REGION_SIZE..MEDIUM_REGION_SIZE => {
-                RegionToUse::Medium
-            }
-            MEDIUM_REGION_SIZE..LARGE_REGION_SIZE => {
-                RegionToUse::Large
-            }
-            LARGE_REGION_SIZE..=EXTRA_LARGE_REGION_SIZE => {
-                RegionToUse::ExtraLarge
-            }
-            _ => panic!("this is a rather large object")
+            0..SMALL_REGION_SIZE => RegionToUse::Small,
+            SMALL_REGION_SIZE..MEDIUM_REGION_SIZE => RegionToUse::Medium,
+            MEDIUM_REGION_SIZE..LARGE_REGION_SIZE => RegionToUse::Large,
+            LARGE_REGION_SIZE..=EXTRA_LARGE_REGION_SIZE => RegionToUse::ExtraLarge,
+            _ => panic!("this is a rather large object"),
         }
     }
 
@@ -308,22 +304,13 @@ impl RegionToUse {
 
     pub fn region_base(&self, regions: &Regions) -> *mut c_void {
         match self {
-            RegionToUse::Small => {
-                regions.small_regions
-            }
-            RegionToUse::Medium => {
-                regions.medium_regions
-            }
-            RegionToUse::Large => {
-                regions.large_regions
-            }
-            RegionToUse::ExtraLarge => {
-                regions.extra_large_regions
-            }
+            RegionToUse::Small => regions.small_regions,
+            RegionToUse::Medium => regions.medium_regions,
+            RegionToUse::Large => regions.large_regions,
+            RegionToUse::ExtraLarge => regions.extra_large_regions,
         }
     }
 }
-
 
 pub struct GCState {
     roots: HashMap<*mut c_void, PointerMemoryLayout>,
@@ -333,9 +320,7 @@ pub struct GCState {
 impl GCState {
     pub fn allocate(&mut self, layout: PointerMemoryLayout) -> *mut c_void {
         let total_size = layout.total_size();
-        let res: *mut c_void = unsafe {
-            libc::malloc(total_size * size_of::<u8>())
-        };
+        let res: *mut c_void = unsafe { libc::malloc(total_size * size_of::<u8>()) };
         assert!(!self.live_pointers.contains_key(&res));
         self.live_pointers.insert(res, layout);
         res
@@ -354,27 +339,42 @@ impl GCState {
     pub fn gc(&mut self) {
         let mut touched_pointers: HashSet<*mut c_void> = HashSet::new();
         for (root, layout) in &self.roots {
-            unsafe { self.gc_impl(*root, layout, &mut touched_pointers); }
-        }
-        let (new_live_pointers, to_free): (Vec<(_, _)>, Vec<_>) = self.live_pointers.iter().partition_map(|(pointer, layout)| {
-            if touched_pointers.contains(pointer) {
-                Either::Left((*pointer, layout.clone()))
-            } else {
-                Either::Right(pointer)
+            unsafe {
+                self.gc_impl(*root, layout, &mut touched_pointers);
             }
-        });
-        self.live_pointers = new_live_pointers.into_iter().collect::<HashMap<*mut c_void, PointerMemoryLayout>>();
+        }
+        let (new_live_pointers, to_free): (Vec<(_, _)>, Vec<_>) = self
+            .live_pointers
+            .iter()
+            .partition_map(|(pointer, layout)| {
+                if touched_pointers.contains(pointer) {
+                    Either::Left((*pointer, layout.clone()))
+                } else {
+                    Either::Right(pointer)
+                }
+            });
+        self.live_pointers = new_live_pointers
+            .into_iter()
+            .collect::<HashMap<*mut c_void, PointerMemoryLayout>>();
         for to_free_pointer in to_free {
             unsafe { self.free(to_free_pointer) }
         }
     }
 
-    unsafe fn gc_impl(&self, pointer: *mut c_void, layout: &PointerMemoryLayout, touched_pointers: &mut HashSet<*mut c_void>) {
+    unsafe fn gc_impl(
+        &self,
+        pointer: *mut c_void,
+        layout: &PointerMemoryLayout,
+        touched_pointers: &mut HashSet<*mut c_void>,
+    ) {
         for offset in layout.get_gc_pointer_offsets() {
             let new_pointer = (pointer.offset(offset as isize) as *mut *mut c_void).read();
             if !touched_pointers.contains(&new_pointer) {
                 touched_pointers.insert(new_pointer);
-                let new_layout = self.live_pointers.get(&new_pointer).expect("GC is in broken state");
+                let new_layout = self
+                    .live_pointers
+                    .get(&new_pointer)
+                    .expect("GC is in broken state");
                 self.gc_impl(new_pointer, &new_layout, touched_pointers)
             }
         }
@@ -410,9 +410,8 @@ impl PointerMemoryLayout {
     }
 }
 
-
 pub struct ObjectMemoryLayout {
-    elems: HashMap<usize/*filed id*/, usize>,
+    elems: HashMap<usize /*filed id*/, usize>,
 }
 
 impl ObjectMemoryLayout {
@@ -435,10 +434,8 @@ impl ArrayMemoryLayout {
     }
 }
 
-
 pub const MAGIC_1_EXPECTED: u64 = 0xDEADBEEFDEADBEAF;
 pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
-
 
 //todo frane info will need to be reworked to be based of rip
 #[repr(C, packed)]
@@ -451,7 +448,6 @@ pub struct FrameHeader {
     pub magic_part_1: u64,
     pub magic_part_2: u64,
 }
-
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FramePointerOffset(pub usize);
@@ -483,8 +479,9 @@ impl FrameBackedStackframeMemoryLayout {
 
 impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
     fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
-        let locals = self.method_frames.get(&pc).unwrap().locals.clone();//todo this rc could cross threads
-        FramePointerOffset(locals.iter().take(i as usize).map(|_local_type| 8).sum())//for now everything is 8 bytes
+        let locals = self.method_frames.get(&pc).unwrap().locals.clone(); //todo this rc could cross threads
+        FramePointerOffset(locals.iter().take(i as usize).map(|_local_type| 8).sum())
+        //for now everything is 8 bytes
     }
 
     fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
@@ -540,41 +537,79 @@ pub enum FrameInfo {
 impl FrameInfo {
     pub fn operand_stack_depth_mut(&mut self) -> &mut u16 {
         match self {
-            FrameInfo::FullyOpaque { operand_stack_depth, .. } => operand_stack_depth,
-            FrameInfo::Native { operand_stack_depth, .. } => operand_stack_depth,
-            FrameInfo::JavaFrame { operand_stack_depth, .. } => todo!(),
+            FrameInfo::FullyOpaque {
+                operand_stack_depth,
+                ..
+            } => operand_stack_depth,
+            FrameInfo::Native {
+                operand_stack_depth,
+                ..
+            } => operand_stack_depth,
+            FrameInfo::JavaFrame {
+                operand_stack_depth,
+                ..
+            } => todo!(),
         }
     }
 
     pub fn push_operand_stack(&mut self, ptype: RuntimeType) {
         match self {
-            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types,
-        }.push(ptype);
+            FrameInfo::FullyOpaque {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+            FrameInfo::Native {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+            FrameInfo::JavaFrame {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+        }
+            .push(ptype);
     }
 
     pub fn pop_operand_stack(&mut self) -> Option<RuntimeType> {
         match self {
-            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types,
-            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types,
-        }.pop()
+            FrameInfo::FullyOpaque {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+            FrameInfo::Native {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+            FrameInfo::JavaFrame {
+                operand_stack_types,
+                ..
+            } => operand_stack_types,
+        }
+            .pop()
     }
 
     pub fn set_local_var_type(&mut self, ptype: RuntimeType, i: usize) {
         match self {
             FrameInfo::FullyOpaque { .. } => panic!(),
             FrameInfo::Native { .. } => panic!(),
-            FrameInfo::JavaFrame { locals_types, .. } => { locals_types[i] = ptype }
+            FrameInfo::JavaFrame { locals_types, .. } => locals_types[i] = ptype,
         };
     }
 
     pub fn operand_stack_types(&self) -> Vec<RuntimeType> {
         match self {
-            FrameInfo::FullyOpaque { operand_stack_types, .. } => operand_stack_types.clone(),
-            FrameInfo::Native { operand_stack_types, .. } => operand_stack_types.clone(),
-            FrameInfo::JavaFrame { operand_stack_types, .. } => operand_stack_types.clone()
+            FrameInfo::FullyOpaque {
+                operand_stack_types,
+                ..
+            } => operand_stack_types.clone(),
+            FrameInfo::Native {
+                operand_stack_types,
+                ..
+            } => operand_stack_types.clone(),
+            FrameInfo::JavaFrame {
+                operand_stack_types,
+                ..
+            } => operand_stack_types.clone(),
         }
     }
 
@@ -612,14 +647,15 @@ impl StackframeMemoryLayout for FullyOpaqueFrame {
     }
 
     fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION + size_of::<jlong>()
+        size_of::<FrameHeader>()
+            + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION
+            + size_of::<jlong>()
     }
 
     fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
         todo!()
     }
 }
-
 
 pub struct NativeStackframeMemoryLayout {}
 
@@ -641,7 +677,9 @@ impl StackframeMemoryLayout for NativeStackframeMemoryLayout {
     }
 
     fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION + size_of::<jlong>()
+        size_of::<FrameHeader>()
+            + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION
+            + size_of::<jlong>()
     }
 
     fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {

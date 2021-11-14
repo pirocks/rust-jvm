@@ -21,4 +21,3 @@ unsafe extern "system" fn JVM_MaxMemory() -> jlong {
     //so far this seems only used in rng.
     1000000000000
 }
-

@@ -13,8 +13,11 @@ use std::path::PathBuf;
 // }
 
 fn main() {
-    let jmm_include_path = env::var("JMM_H").unwrap_or("/home/francis/build/openjdk-debug/jdk8u/jdk/src/share/javavm/export/".to_string());
-    let jni_md_include_path = env::var("JNI_MD_H").unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/linux/".to_string());
+    let jmm_include_path = env::var("JMM_H").unwrap_or(
+        "/home/francis/build/openjdk-debug/jdk8u/jdk/src/share/javavm/export/".to_string(),
+    );
+    let jni_md_include_path = env::var("JNI_MD_H")
+        .unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/linux/".to_string());
     // println!("cargo:rerun-if-changed={}", path_join(jvm_include_path, "/jvm.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jvm_md_include_path, "/jvm_md.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jni_include_path, "/jni.h"));

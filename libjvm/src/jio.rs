@@ -10,7 +10,6 @@ unsafe extern "system" fn jio_vsnprintf(
     vsnprintf(str, count as u64, fmt, args)
 }
 
-
 #[no_mangle]
 unsafe extern "C" fn jio_snprintf(
     str: *mut ::std::os::raw::c_char,
@@ -21,7 +20,6 @@ unsafe extern "C" fn jio_snprintf(
     libc::snprintf(str, count, fmt, args)
 }
 
-
 #[no_mangle]
 unsafe extern "C" fn jio_fprintf(
     stream: *mut FILE,
@@ -31,7 +29,6 @@ unsafe extern "C" fn jio_fprintf(
     libc::fprintf(stream as *mut libc::FILE, fmt, args)
 }
 
-
 #[no_mangle]
 unsafe extern "system" fn jio_vfprintf(
     arg1: *mut FILE,
@@ -40,4 +37,3 @@ unsafe extern "system" fn jio_vfprintf(
 ) -> ::std::os::raw::c_int {
     vfprintf(arg1, fmt, args)
 }
-

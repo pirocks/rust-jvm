@@ -1,2 +1,2 @@
-pub mod methods;
 mod fields;
+pub mod methods;

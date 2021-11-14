@@ -10,12 +10,16 @@ use lazy_static::lazy_static;
 use wtf8::Wtf8Buf;
 
 use jmm_bindings::jmmInterface_1_;
-use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
+use jvmti_jni_bindings::{
+    _jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info,
+};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{
+    from_object, get_interpreter_state, get_state, to_object,
+};
 
 use crate::jvm_management::management_impl::get_jmm_interface;
 
@@ -23,7 +27,6 @@ use crate::jvm_management::management_impl::get_jmm_interface;
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
     JVM_INTERFACE_VERSION as jint
 }
-
 
 lazy_static! {
     static ref ON_EXIT: RwLock<Vec<Option<unsafe extern "C" fn()>>> = RwLock::new(Vec::new());
@@ -38,14 +41,16 @@ unsafe extern "system" fn JVM_OnExit(func: Option<unsafe extern "C" fn()>) {
 unsafe extern "system" fn JVM_Exit(code: jint) {
     //todo run finalizers blocking on gc
     for func in ON_EXIT.read().unwrap().iter() {
-        if let Some(func) = func.as_ref() { func(); };
+        if let Some(func) = func.as_ref() {
+            func();
+        };
     }
     exit(code);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Halt(code: jint) {
-    exit(code);// halt means that no cleanup is desired
+    exit(code); // halt means that no cleanup is desired
 }
 
 #[no_mangle]
@@ -59,11 +64,9 @@ unsafe extern "system" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
     true as jboolean
 }
 
-
 thread_local! {
     static JMM: RefCell<Option<*const jmmInterface_1_>> = RefCell::new(None)
 }
-
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void {
@@ -79,53 +82,52 @@ unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::ra
 pub mod management_impl {
     use std::ptr::null_mut;
 
-    use jmm_bindings::{JMM_VERSION_1_2_2, jmmInterface_1_, jmmLongAttribute, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_COUNT, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_TIME_MS, jmmLongAttribute_JMM_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_CLASS_LOADED_COUNT,
-                       jmmLongAttribute_JMM_CLASS_UNLOADED_BYTES,
-                       jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT,
-                       jmmLongAttribute_JMM_CLASS_VERIFY_TOTAL_TIME_MS,
-                       jmmLongAttribute_JMM_COMPILE_TOTAL_TIME_MS,
-                       jmmLongAttribute_JMM_GC_COUNT,
-                       jmmLongAttribute_JMM_GC_EXT_ATTRIBUTE_INFO_SIZE,
-                       jmmLongAttribute_JMM_GC_TIME_MS,
-                       jmmLongAttribute_JMM_INTERNAL_ATTRIBUTE_INDEX,
-                       jmmLongAttribute_JMM_JVM_INIT_DONE_TIME_MS,
-                       jmmLongAttribute_JMM_JVM_UPTIME_MS,
-                       jmmLongAttribute_JMM_METHOD_DATA_SIZE_BYTES,
-                       jmmLongAttribute_JMM_OS_ATTRIBUTE_INDEX,
-                       jmmLongAttribute_JMM_OS_MEM_TOTAL_PHYSICAL_BYTES,
-                       jmmLongAttribute_JMM_OS_PROCESS_ID,
-                       jmmLongAttribute_JMM_SAFEPOINT_COUNT,
-                       jmmLongAttribute_JMM_SHARED_CLASS_LOADED_BYTES,
-                       jmmLongAttribute_JMM_SHARED_CLASS_LOADED_COUNT,
-                       jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_BYTES,
-                       jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT,
-                       jmmLongAttribute_JMM_THREAD_DAEMON_COUNT,
-                       jmmLongAttribute_JMM_THREAD_LIVE_COUNT,
-                       jmmLongAttribute_JMM_THREAD_PEAK_COUNT,
-                       jmmLongAttribute_JMM_THREAD_TOTAL_COUNT,
-                       jmmLongAttribute_JMM_TOTAL_APP_TIME_MS,
-                       jmmLongAttribute_JMM_TOTAL_CLASSLOAD_TIME_MS,
-                       jmmLongAttribute_JMM_TOTAL_SAFEPOINTSYNC_TIME_MS,
-                       jmmLongAttribute_JMM_TOTAL_STOPPED_TIME_MS,
-                       jmmLongAttribute_JMM_VM_GLOBAL_COUNT,
-                       jmmLongAttribute_JMM_VM_THREAD_COUNT,
-                       jmmOptionalSupport,
-                       JNI_OK,
-                       JNIEnv, jobject};
+    use jmm_bindings::{
+        JMM_VERSION_1_2_2, jmmInterface_1_, jmmLongAttribute,
+        jmmLongAttribute_JMM_CLASS_INIT_TOTAL_COUNT, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_TIME_MS,
+        jmmLongAttribute_JMM_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_CLASS_LOADED_COUNT,
+        jmmLongAttribute_JMM_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT,
+        jmmLongAttribute_JMM_CLASS_VERIFY_TOTAL_TIME_MS, jmmLongAttribute_JMM_COMPILE_TOTAL_TIME_MS,
+        jmmLongAttribute_JMM_GC_COUNT, jmmLongAttribute_JMM_GC_EXT_ATTRIBUTE_INFO_SIZE,
+        jmmLongAttribute_JMM_GC_TIME_MS, jmmLongAttribute_JMM_INTERNAL_ATTRIBUTE_INDEX,
+        jmmLongAttribute_JMM_JVM_INIT_DONE_TIME_MS, jmmLongAttribute_JMM_JVM_UPTIME_MS,
+        jmmLongAttribute_JMM_METHOD_DATA_SIZE_BYTES, jmmLongAttribute_JMM_OS_ATTRIBUTE_INDEX,
+        jmmLongAttribute_JMM_OS_MEM_TOTAL_PHYSICAL_BYTES, jmmLongAttribute_JMM_OS_PROCESS_ID,
+        jmmLongAttribute_JMM_SAFEPOINT_COUNT,
+        jmmLongAttribute_JMM_SHARED_CLASS_LOADED_BYTES,
+        jmmLongAttribute_JMM_SHARED_CLASS_LOADED_COUNT,
+        jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT,
+        jmmLongAttribute_JMM_THREAD_DAEMON_COUNT, jmmLongAttribute_JMM_THREAD_LIVE_COUNT,
+        jmmLongAttribute_JMM_THREAD_PEAK_COUNT, jmmLongAttribute_JMM_THREAD_TOTAL_COUNT,
+        jmmLongAttribute_JMM_TOTAL_APP_TIME_MS,
+        jmmLongAttribute_JMM_TOTAL_CLASSLOAD_TIME_MS,
+        jmmLongAttribute_JMM_TOTAL_SAFEPOINTSYNC_TIME_MS, jmmLongAttribute_JMM_TOTAL_STOPPED_TIME_MS,
+        jmmLongAttribute_JMM_VM_GLOBAL_COUNT, jmmLongAttribute_JMM_VM_THREAD_COUNT, jmmOptionalSupport, JNI_OK,
+        JNIEnv, jobject,
+    };
     use jvmti_jni_bindings::{jint, jlong};
 
     unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
         JMM_VERSION_1_2_2 as i32
     }
 
-    unsafe extern "C" fn GetOptionalSupport(env: *mut JNIEnv, support_ptr: *mut jmmOptionalSupport) -> jint {
-        support_ptr.write(jmmOptionalSupport { _bitfield_1: Default::default() });
+    unsafe extern "C" fn GetOptionalSupport(
+        env: *mut JNIEnv,
+        support_ptr: *mut jmmOptionalSupport,
+    ) -> jint {
+        support_ptr.write(jmmOptionalSupport {
+            _bitfield_1: Default::default(),
+        });
         JNI_OK as i32
     }
 
     #[allow(non_camel_case_types)]
     #[allow(non_upper_case_globals)]
-    unsafe extern "C" fn GetLongAttribute(env: *mut JNIEnv, obj: jobject, att: jmmLongAttribute) -> jlong {
+    unsafe extern "C" fn GetLongAttribute(
+        env: *mut JNIEnv,
+        obj: jobject,
+        att: jmmLongAttribute,
+    ) -> jlong {
         match att {
             jmmLongAttribute_JMM_CLASS_LOADED_COUNT => todo!(),
             jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT => todo!(),
@@ -134,8 +136,8 @@ pub mod management_impl {
             jmmLongAttribute_JMM_THREAD_PEAK_COUNT => todo!(),
             jmmLongAttribute_JMM_THREAD_DAEMON_COUNT => todo!(),
             jmmLongAttribute_JMM_JVM_INIT_DONE_TIME_MS => {
-                1//todo have accurate numbers here.
-            },
+                1 //todo have accurate numbers here.
+            }
             jmmLongAttribute_JMM_COMPILE_TOTAL_TIME_MS => todo!(),
             jmmLongAttribute_JMM_GC_TIME_MS => todo!(),
             jmmLongAttribute_JMM_GC_COUNT => todo!(),
@@ -162,10 +164,9 @@ pub mod management_impl {
             jmmLongAttribute_JMM_OS_PROCESS_ID => todo!(),
             jmmLongAttribute_JMM_OS_MEM_TOTAL_PHYSICAL_BYTES => todo!(),
             jmmLongAttribute_JMM_GC_EXT_ATTRIBUTE_INFO_SIZE => todo!(),
-            _ => panic!()
+            _ => panic!(),
         }
     }
-
 
     pub fn get_jmm_interface() -> jmmInterface_1_ {
         jmmInterface_1_ {
@@ -215,42 +216,64 @@ pub mod management_impl {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> jobject {
+unsafe extern "system" fn JVM_InitAgentProperties(
+    env: *mut JNIEnv,
+    agent_props: jobject,
+) -> jobject {
     match InitAgentProperties(env, agent_props) {
         Ok(res) => res,
-        Err(_) => null_mut()
+        Err(_) => null_mut(),
     }
 }
 
-unsafe fn InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> Result<jobject, WasException> {
+unsafe fn InitAgentProperties(
+    env: *mut JNIEnv,
+    agent_props: jobject,
+) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let props = JavaValue::Object(todo!()/*from_jclass(jvm,agent_props)*/).cast_properties();
+    let props = JavaValue::Object(todo!() /*from_jclass(jvm,agent_props)*/).cast_properties();
 
-    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.java.command"))?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    let sun_java_command =
+        JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.java.command"))?;
+    let sun_java_command_val = JString::from_rust(
+        jvm,
+        int_state,
+        Wtf8Buf::from_str("command line not currently compatible todo"),
+    )?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.flags"))?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    let sun_java_command_val = JString::from_rust(
+        jvm,
+        int_state,
+        Wtf8Buf::from_str("command line not currently compatible todo"),
+    )?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.args"))?;
-    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    let sun_java_command_val = JString::from_rust(
+        jvm,
+        int_state,
+        Wtf8Buf::from_str("command line not currently compatible todo"),
+    )?;
     props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     Ok(agent_props)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
+unsafe extern "system" fn JVM_GetVersionInfo(
+    env: *mut JNIEnv,
+    info: *mut jvm_version_info,
+    info_size: usize,
+) {
     (*info).jvm_version = 8;
     (*info).set_is_attach_supported(0);
     (*info).set_update_version(0);
     (*info).set_special_update_version(0);
     (*info).set_reserved1(0);
 }
-
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
@@ -259,5 +282,3 @@ unsafe extern "system" fn JVM_SupportsCX8() -> jboolean {
 
 #[no_mangle]
 unsafe extern "system" fn JVM_BeforeHalt() {}
-
-

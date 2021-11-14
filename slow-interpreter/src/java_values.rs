@@ -60,16 +60,26 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: Object<'gc_life, 'l>) -> GcManagedObject<'gc_life> {
+    pub fn allocate_object(
+        &'gc_life self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        object: Object<'gc_life, 'l>,
+    ) -> GcManagedObject<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
-            Object::Array(arr) => {
-                runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, arr.loader, Some(arr.len as usize), jvm.thread_state.get_current_thread_tid_or_invalid())
-            }
-            Object::Object(obj) => {
-                runtime_class_to_allocated_object_type(&obj.objinfo.class_pointer.clone(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid())
-            }
+            Object::Array(arr) => runtime_class_to_allocated_object_type(
+                &arr.whole_array_runtime_class,
+                arr.loader,
+                Some(arr.len as usize),
+                jvm.thread_state.get_current_thread_tid_or_invalid(),
+            ),
+            Object::Object(obj) => runtime_class_to_allocated_object_type(
+                &obj.objinfo.class_pointer.clone(),
+                LoaderName::BootstrapLoader,
+                None,
+                jvm.thread_state.get_current_thread_tid_or_invalid(),
+            ),
         };
         let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
         let allocated = memory_region.get_allocation();
@@ -83,11 +93,14 @@ impl<'gc_life> GC<'gc_life> {
                                   len,
                                   elems,
                                   phantom_data,
-                                  elem_type
+                                  elem_type,
                               }) => {
                     assert_eq!(len as usize, elems.len());
                     unsafe {
-                        let new_elems = slice::from_raw_parts_mut(allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr(), len as usize);
+                        let new_elems = slice::from_raw_parts_mut(
+                            allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr(),
+                            len as usize,
+                        );
                         for (i, elem) in elems.iter().enumerate() {
                             new_elems[i] = *elem;
                         }
@@ -101,12 +114,30 @@ impl<'gc_life> GC<'gc_life> {
                         }))
                     }
                 }
-                Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields, class_pointer }, obj_ptr }) => {
-                    let new_fields = unsafe { slice::from_raw_parts_mut(allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr(), fields.read().unwrap().len()) };
+                Object::Object(NormalObject {
+                                   objinfo:
+                                   ObjectFieldsAndClass {
+                                       fields,
+                                       class_pointer,
+                                   },
+                                   obj_ptr,
+                               }) => {
+                    let new_fields = unsafe {
+                        slice::from_raw_parts_mut(
+                            allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr(),
+                            fields.read().unwrap().len(),
+                        )
+                    };
                     for (i, field) in fields.read().unwrap().iter().enumerate() {
                         new_fields[i] = *field;
                     }
-                    Arc::new(Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields: RwLock::new(new_fields), class_pointer }, obj_ptr }))
+                    Arc::new(Object::Object(NormalObject {
+                        objinfo: ObjectFieldsAndClass {
+                            fields: RwLock::new(new_fields),
+                            class_pointer,
+                        },
+                        obj_ptr,
+                    }))
                 }
             },
             raw_ptr: allocated,
@@ -146,13 +177,22 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    fn gc_recurse_super(obj: &NormalObject<'gc_life, 'l>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<c_void>>) {
+    fn gc_recurse_super(
+        obj: &NormalObject<'gc_life, 'l>,
+        class_class: &RuntimeClassClass,
+        visited: &mut HashSet<NonNull<c_void>>,
+    ) {
         for (_name, (index, rtype)) in class_class.field_numbers.iter() {
             if let CPDType::Ref(_) = rtype {
-                Self::gc_recurse(match NonNull::new(todo!()/*unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }*/) {
-                    None => continue,
-                    Some(ptr) => ptr
-                }, visited)
+                Self::gc_recurse(
+                    match NonNull::new(
+                        todo!(), /*unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }*/
+                    ) {
+                        None => continue,
+                        Some(ptr) => ptr,
+                    },
+                    visited,
+                )
             }
         }
         if let Some(parent) = &class_class.parent {
@@ -182,15 +222,24 @@ impl<'gc_life> GC<'gc_life> {
         if !jvm.vm_live() {
             return;
         }
-        let interpreter_states = jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| {
-            unsafe { jt.gc_suspend(); }
-            let guard = InterpreterStateGuard {
-                int_state: Some(jt.interpreter_state.write().unwrap()),
-                thread: jt.clone(),
-                registered: false,
-            };
-            (guard.cloned_stack_snapshot(jvm), guard.throw())
-        }).collect_vec();
+        let interpreter_states = jvm
+            .thread_state
+            .all_java_threads
+            .read()
+            .unwrap()
+            .values()
+            .map(|jt| {
+                unsafe {
+                    jt.gc_suspend();
+                }
+                let guard = InterpreterStateGuard {
+                    int_state: Some(jt.interpreter_state.write().unwrap()),
+                    thread: jt.clone(),
+                    registered: false,
+                };
+                (guard.cloned_stack_snapshot(jvm), guard.throw())
+            })
+            .collect_vec();
         let mut roots = HashSet::new();
         unsafe {
             // dbg!(interpreter_states.len());
@@ -202,9 +251,17 @@ impl<'gc_life> GC<'gc_life> {
                 for stack_entry in stack {
                     // dbg!(stack_entry.operand_stack.len());
                     // dbg!(stack_entry.local_vars().len());
-                    for local_var in stack_entry.local_vars().iter().cloned().chain(
-                        stack_entry.operand_stack().iter().cloned()).chain(
-                        stack_entry.native_local_refs.iter().flat_map(|hashet| hashet.iter().map(|raw| JavaValue::Object(from_object(jvm, *raw))))) {
+                    for local_var in stack_entry
+                        .local_vars()
+                        .iter()
+                        .cloned()
+                        .chain(stack_entry.operand_stack().iter().cloned())
+                        .chain(stack_entry.native_local_refs.iter().flat_map(|hashet| {
+                            hashet
+                                .iter()
+                                .map(|raw| JavaValue::Object(from_object(jvm, *raw)))
+                        }))
+                    {
                         if let JavaValue::Object(Some(gc_managed)) = local_var {
                             // dbg!(gc_managed.raw_ptr);
                             roots.insert(gc_managed.raw_ptr);
@@ -214,15 +271,39 @@ impl<'gc_life> GC<'gc_life> {
             }
         }
         for (root, _) in self.vm_temp_owned_roots.read().unwrap().iter() {
-            roots.insert(todo!()/*root.clone()*/);
+            roots.insert(todo!() /*root.clone()*/);
         }
         let classes_guard = jvm.classes.read().unwrap();
-        for root in jvm.string_internment.read().unwrap().strings.values().cloned().chain(
-            jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned()).chain(
-            jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object())).chain(classes_guard.classes_gc_roots()) {
+        for root in jvm
+            .string_internment
+            .read()
+            .unwrap()
+            .strings
+            .values()
+            .cloned()
+            .chain(
+                jvm.thread_state
+                    .system_thread_group
+                    .read()
+                    .unwrap()
+                    .as_ref()
+                    .map(|thread_group| thread_group.clone().object())
+                    .iter()
+                    .cloned(),
+            )
+            .chain(
+                jvm.thread_state
+                    .all_java_threads
+                    .read()
+                    .unwrap()
+                    .values()
+                    .map(|jt| jt.thread_object().object()),
+            )
+            .chain(classes_guard.classes_gc_roots())
+        {
             roots.insert(root.raw_ptr);
         }
-        self.gc_with_roots(todo!()/*roots*/)
+        self.gc_with_roots(todo!() /*roots*/)
     }
 
     pub fn new(regions: early_startup::Regions) -> Self {
@@ -234,7 +315,6 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 }
-
 
 pub struct ByAddressGcManagedObject<'gc_life>(pub GcManagedObject<'gc_life>);
 
@@ -266,7 +346,9 @@ impl<'gc_life> GcManagedObject<'gc_life> {
         let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
-            AllocatedObjectType::Class { size, name, loader, .. } => {
+            AllocatedObjectType::Class {
+                size, name, loader, ..
+            } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
                 let runtime_class_class = runtime_class.unwrap_class_class();
@@ -274,7 +356,10 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                 unsafe {
                     Arc::new(Object::Object(NormalObject {
                         objinfo: ObjectFieldsAndClass {
-                            fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc_life>, num_fields)),
+                            fields: RwLock::new(slice::from_raw_parts_mut(
+                                raw_ptr.as_ptr() as *mut NativeJavaValue<'gc_life>,
+                                num_fields,
+                            )),
                             class_pointer: runtime_class.clone(),
                         },
                         obj_ptr: Some(raw_ptr.cast()),
@@ -284,24 +369,58 @@ impl<'gc_life> GcManagedObject<'gc_life> {
             AllocatedObjectType::ObjectArray { .. } => todo!(),
             AllocatedObjectType::PrimitiveArray { .. } => todo!(),
         };
-        Self { obj, raw_ptr, gc: jvm.gc, jvm }
+        Self {
+            obj,
+            raw_ptr,
+            gc: jvm.gc,
+            jvm,
+        }
     }
 
-    pub fn from_native_assert_already_registered(raw_ptr: NonNull<c_void>, gc: &'gc_life GC<'gc_life>) -> Self {
+    pub fn from_native_assert_already_registered(
+        raw_ptr: NonNull<c_void>,
+        gc: &'gc_life GC<'gc_life>,
+    ) -> Self {
         todo!();
-        assert!(gc.vm_temp_owned_roots.read().unwrap().contains_key(&raw_ptr));
-        Self { obj: todo!(), raw_ptr, gc, jvm: todo!() }
+        assert!(gc
+            .vm_temp_owned_roots
+            .read()
+            .unwrap()
+            .contains_key(&raw_ptr));
+        Self {
+            obj: todo!(),
+            raw_ptr,
+            gc,
+            jvm: todo!(),
+        }
     }
 
     pub fn self_check(&self) {
-        assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&(self.raw_ptr)));
-        if !self.gc.all_allocated_object.read().unwrap().contains(&(self.raw_ptr)) {
+        assert!(self
+            .gc
+            .vm_temp_owned_roots
+            .read()
+            .unwrap()
+            .contains_key(&(self.raw_ptr)));
+        if !self
+            .gc
+            .all_allocated_object
+            .read()
+            .unwrap()
+            .contains(&(self.raw_ptr))
+        {
             panic!()
         }
     }
 
     pub fn strong_count(&self) -> usize {
-        self.gc.vm_temp_owned_roots.read().unwrap().get(&(self.raw_ptr)).unwrap().load(Ordering::SeqCst)
+        self.gc
+            .vm_temp_owned_roots
+            .read()
+            .unwrap()
+            .get(&(self.raw_ptr))
+            .unwrap()
+            .load(Ordering::SeqCst)
     }
 }
 
@@ -312,7 +431,6 @@ impl<'gc_life> Deref for GcManagedObject<'gc_life> {
         &self.obj
     }
 }
-
 
 impl<'gc_life> Clone for GcManagedObject<'gc_life> {
     fn clone(&self) -> Self {
@@ -333,9 +451,12 @@ impl Drop for GcManagedObject<'_> {
     }
 }
 
-
 impl<'gc_life> GcManagedObject<'gc_life> {
-    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName) -> JavaValue<'gc_life> {
+    pub fn lookup_field(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        field_name: FieldName,
+    ) -> JavaValue<'gc_life> {
         self.deref().lookup_field(jvm, field_name)
     }
 
@@ -365,9 +486,8 @@ pub enum JavaValue<'gc_life> {
     Double(f64),
     Object(Option<GcManagedObject<'gc_life>>),
 
-    Top,//should never be interacted with by the bytecode
+    Top, //should never be interacted with by the bytecode
 }
-
 
 impl<'gc_life> JavaValue<'gc_life> {
     pub(crate) fn self_check(&self) {
@@ -376,33 +496,16 @@ impl<'gc_life> JavaValue<'gc_life> {
         }
     }
 
-
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
         match self.clone() {
-            JavaValue::Long(val_) => {
-                NativeJavaValue { long: val_ }
-            }
-            JavaValue::Int(val_) => {
-                NativeJavaValue { int: val_ }
-            }
-            JavaValue::Short(val_) => {
-                NativeJavaValue { int: val_ as i32 }
-            }
-            JavaValue::Byte(val_) => {
-                NativeJavaValue { int: val_ as i32 }
-            }
-            JavaValue::Boolean(val_) => {
-                NativeJavaValue { int: val_ as i32 }
-            }
-            JavaValue::Char(val_) => {
-                NativeJavaValue { int: val_ as i32 }
-            }
-            JavaValue::Float(val_) => {
-                NativeJavaValue { float: val_ }
-            }
-            JavaValue::Double(val_) => {
-                NativeJavaValue { double: val_ }
-            }
+            JavaValue::Long(val_) => NativeJavaValue { long: val_ },
+            JavaValue::Int(val_) => NativeJavaValue { int: val_ },
+            JavaValue::Short(val_) => NativeJavaValue { int: val_ as i32 },
+            JavaValue::Byte(val_) => NativeJavaValue { int: val_ as i32 },
+            JavaValue::Boolean(val_) => NativeJavaValue { int: val_ as i32 },
+            JavaValue::Char(val_) => NativeJavaValue { int: val_ as i32 },
+            JavaValue::Float(val_) => NativeJavaValue { float: val_ },
+            JavaValue::Double(val_) => NativeJavaValue { double: val_ },
             JavaValue::Object(val_) => {
                 NativeJavaValue {
                     object: match val_ {
@@ -411,10 +514,10 @@ impl<'gc_life> JavaValue<'gc_life> {
                             // gc_managed.obj
                             todo!()
                         }
-                    }
+                    },
                 }
             }
-            JavaValue::Top => unsafe { transmute(0xDEADDEADDEADDEADusize) }
+            JavaValue::Top => unsafe { transmute(0xDEADDEADDEADDEADusize) },
         }
     }
 }
@@ -541,7 +644,7 @@ impl<'gc_life> Debug for JavaValue<'gc_life> {
             JavaValue::Object(_) => {
                 writeln!(f, "obj")
             }
-            JavaValue::Top => writeln!(f, "top")
+            JavaValue::Top => writeln!(f, "top"),
         }
     }
 }
@@ -557,25 +660,16 @@ impl<'gc_life> JavaValue<'gc_life> {
 
     pub fn try_unwrap_int(&self) -> Option<i32> {
         match self {
-            JavaValue::Int(i) => {
-                *i
-            }
-            JavaValue::Byte(i) => {
-                *i as i32
-            }
-            JavaValue::Boolean(i) => {
-                *i as i32
-            }
-            JavaValue::Char(c) => {
-                *c as i32
-            }
-            JavaValue::Short(i) => {
-                *i as i32
-            }
+            JavaValue::Int(i) => *i,
+            JavaValue::Byte(i) => *i as i32,
+            JavaValue::Boolean(i) => *i as i32,
+            JavaValue::Char(c) => *c as i32,
+            JavaValue::Short(i) => *i as i32,
             _ => {
                 return None;
             }
-        }.into()
+        }
+            .into()
     }
 
     pub fn unwrap_float(&self) -> f32 {
@@ -583,10 +677,8 @@ impl<'gc_life> JavaValue<'gc_life> {
     }
     pub fn try_unwrap_float(&self) -> Option<f32> {
         match self {
-            JavaValue::Float(f) => {
-                (*f).into()
-            }
-            _ => None
+            JavaValue::Float(f) => (*f).into(),
+            _ => None,
         }
     }
     pub fn unwrap_double(&self) -> f64 {
@@ -597,21 +689,16 @@ impl<'gc_life> JavaValue<'gc_life> {
         self.try_unwrap_long().unwrap()
     }
 
-
     pub fn try_unwrap_double(&self) -> Option<f64> {
         match self {
-            JavaValue::Double(f) => {
-                (*f).into()
-            }
-            _ => None
+            JavaValue::Double(f) => (*f).into(),
+            _ => None,
         }
     }
 
     pub fn try_unwrap_long(&self) -> Option<i64> {
         match self {
-            JavaValue::Long(l) => {
-                (*l).into()
-            }
+            JavaValue::Long(l) => (*l).into(),
             _ => {
                 dbg!(self);
                 None
@@ -640,7 +727,6 @@ impl<'gc_life> JavaValue<'gc_life> {
         res as i16
     }
 
-
     pub fn unwrap_object(&self) -> Option<GcManagedObject<'gc_life>> {
         self.try_unwrap_object().unwrap()
     }
@@ -657,19 +743,14 @@ impl<'gc_life> JavaValue<'gc_life> {
 
     pub fn unwrap_array<'l>(&'l self) -> &'l ArrayObject<'gc_life, 'gc_life> {
         match self {
-            JavaValue::Object(o) => {
-                o.as_ref().unwrap().unwrap_array()
-            }
-            _ => panic!()
+            JavaValue::Object(o) => o.as_ref().unwrap().unwrap_array(),
+            _ => panic!(),
         }
     }
 
-
     pub fn try_unwrap_object(&self) -> Option<Option<GcManagedObject<'gc_life>>> {
         match self {
-            JavaValue::Object(o) => {
-                Some(o.clone())
-            }
+            JavaValue::Object(o) => Some(o.clone()),
             _ => {
                 // dbg!(other);
                 None
@@ -679,63 +760,93 @@ impl<'gc_life> JavaValue<'gc_life> {
 
     pub fn deep_clone(&self, jvm: &'gc_life JVMState<'gc_life>) -> Self {
         match &self {
-            JavaValue::Object(o) => {
-                JavaValue::Object(match o {
-                    None => None,
-                    Some(o) => {
-                        jvm.allocate_object(o.deref().deep_clone(jvm)).into()
-                    }
-                })
-            }
+            JavaValue::Object(o) => JavaValue::Object(match o {
+                None => None,
+                Some(o) => jvm.allocate_object(o.deref().deep_clone(jvm)).into(),
+            }),
             JavaValue::Top => panic!(),
-            jv => (*jv).clone()
+            jv => (*jv).clone(),
         }
     }
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<JavaValue<'gc_life>, WasException> {
-        Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
-            jvm,
-            int_state,
-            vec![],
-            CPDType::ByteType,
-            jvm.thread_state.new_monitor("".to_string()),
-        )?)))))
+    pub fn empty_byte_array(
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    ) -> Result<JavaValue<'gc_life>, WasException> {
+        Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(
+            ArrayObject::new_array(
+                jvm,
+                int_state,
+                vec![],
+                CPDType::ByteType,
+                jvm.thread_state.new_monitor("".to_string()),
+            )?,
+        )))))
     }
 
-    fn new_object_impl(runtime_class: &Arc<RuntimeClass<'gc_life>>) -> ObjectFieldsAndClass<'gc_life, 'gc_life> {
-        let fields = repeat_n(JavaValue::Top, runtime_class.unwrap_class_class().num_vars()).map(|jv| UnsafeCell::new(jv.to_native())).collect_vec();
+    fn new_object_impl(
+        runtime_class: &Arc<RuntimeClass<'gc_life>>,
+    ) -> ObjectFieldsAndClass<'gc_life, 'gc_life> {
+        let fields = repeat_n(
+            JavaValue::Top,
+            runtime_class.unwrap_class_class().num_vars(),
+        )
+            .map(|jv| UnsafeCell::new(jv.to_native()))
+            .collect_vec();
         ObjectFieldsAndClass {
             fields: todo!(),
             class_pointer: runtime_class.clone(),
         }
     }
 
-    pub fn new_object(jvm: &'gc_life JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>) -> Option<GcManagedObject<'gc_life>> {
+    pub fn new_object(
+        jvm: &'gc_life JVMState<'gc_life>,
+        runtime_class: Arc<RuntimeClass<'gc_life>>,
+    ) -> Option<GcManagedObject<'gc_life>> {
         assert!(!runtime_class.view().is_abstract());
 
         let class_class = runtime_class.unwrap_class_class();
-        let mut fields = (0..class_class.recursive_num_fields).map(|_| NativeJavaValue { object: null_mut() }).collect_vec();
+        let mut fields = (0..class_class.recursive_num_fields)
+            .map(|_| NativeJavaValue { object: null_mut() })
+            .collect_vec();
 
         jvm.allocate_object(Object::Object(NormalObject {
-            objinfo: ObjectFieldsAndClass { fields: RwLock::new(&mut fields), class_pointer: runtime_class },
+            objinfo: ObjectFieldsAndClass {
+                fields: RwLock::new(&mut fields),
+                class_pointer: runtime_class,
+            },
             obj_ptr: None,
-        })).into()
+        }))
+            .into()
     }
 
-    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
+    pub fn new_vec(
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+        len: usize,
+        val: JavaValue<'gc_life>,
+        elem_type: CPDType,
+    ) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Ok(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(
-            jvm,
-            int_state,
-            buf,
-            elem_type,
-            jvm.thread_state.new_monitor("array object monitor".to_string()),
-        )?))))
+        Ok(Some(
+            jvm.allocate_object(Object::Array(ArrayObject::new_array(
+                jvm,
+                int_state,
+                buf,
+                elem_type,
+                jvm.thread_state
+                    .new_monitor("array object monitor".to_string()),
+            )?)),
+        ))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> JavaValue<'gc_life> {
+    pub fn new_vec_from_vec(
+        jvm: &'gc_life JVMState<'gc_life>,
+        vals: Vec<JavaValue<'gc_life>>,
+        elem_type: CPDType,
+    ) -> JavaValue<'gc_life> {
         JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
@@ -751,7 +862,6 @@ impl<'gc_life> JavaValue<'gc_life> {
         self.try_unwrap_normal_object().unwrap()
     }
 
-
     pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject<'gc_life, 'gc_life>> {
         //todo these are longer than ideal
         match self {
@@ -762,7 +872,7 @@ impl<'gc_life> JavaValue<'gc_life> {
                 Object::Array(_) => None,
                 Object::Object(o) => o.into(),
             },
-            _ => None
+            _ => None,
         }
     }
 
@@ -789,22 +899,16 @@ impl<'gc_life> JavaValue<'gc_life> {
             JavaValue::Char(_) => RuntimeType::IntType,
             JavaValue::Float(_) => RuntimeType::FloatType,
             JavaValue::Double(_) => RuntimeType::DoubleType,
-            JavaValue::Object(obj) => {
-                RuntimeType::Ref(match obj {
-                    None => RuntimeRefType::NullType,
-                    Some(not_null) => {
-                        match not_null.deref() {
-                            Object::Array(array) => {
-                                RuntimeRefType::Array(array.elem_type.clone().into())
-                            }
-                            Object::Object(obj) => {
-                                RuntimeRefType::Class(obj.objinfo.class_pointer.cpdtype().unwrap_class_type())
-                            }
-                        }
-                    }
-                })
-            }
-            JavaValue::Top => RuntimeType::TopType
+            JavaValue::Object(obj) => RuntimeType::Ref(match obj {
+                None => RuntimeRefType::NullType,
+                Some(not_null) => match not_null.deref() {
+                    Object::Array(array) => RuntimeRefType::Array(array.elem_type.clone().into()),
+                    Object::Object(obj) => RuntimeRefType::Class(
+                        obj.objinfo.class_pointer.cpdtype().unwrap_class_type(),
+                    ),
+                },
+            }),
+            JavaValue::Top => RuntimeType::TopType,
         }
     }
 
@@ -815,7 +919,6 @@ impl<'gc_life> JavaValue<'gc_life> {
             _ => false,
         }
     }
-
 
     pub fn is_size_1(&self) -> bool {
         !self.is_size_2()
@@ -842,54 +945,38 @@ impl<'gc_life> Clone for JavaValue<'gc_life> {
 impl<'gc_life> PartialEq for JavaValue<'gc_life> {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            JavaValue::Long(x) => {
-                match other {
-                    JavaValue::Long(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Int(x) => {
-                match other {
-                    JavaValue::Int(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Short(x) => {
-                match other {
-                    JavaValue::Short(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Byte(x) => {
-                match other {
-                    JavaValue::Byte(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Boolean(x) => {
-                match other {
-                    JavaValue::Boolean(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Char(x) => {
-                match other {
-                    JavaValue::Char(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Float(x) => {
-                match other {
-                    JavaValue::Float(x1) => x == x1,
-                    _ => false
-                }
-            }
-            JavaValue::Double(x) => {
-                match other {
-                    JavaValue::Double(x1) => x == x1,
-                    _ => false
-                }
-            }
+            JavaValue::Long(x) => match other {
+                JavaValue::Long(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Int(x) => match other {
+                JavaValue::Int(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Short(x) => match other {
+                JavaValue::Short(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Byte(x) => match other {
+                JavaValue::Byte(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Boolean(x) => match other {
+                JavaValue::Boolean(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Char(x) => match other {
+                JavaValue::Char(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Float(x) => match other {
+                JavaValue::Float(x1) => x == x1,
+                _ => false,
+            },
+            JavaValue::Double(x) => match other {
+                JavaValue::Double(x1) => x == x1,
+                _ => false,
+            },
             /*JavaValue::Array(x) => {
                 match other {
                     JavaValue::Array(x1) => x == x1,
@@ -901,15 +988,15 @@ impl<'gc_life> PartialEq for JavaValue<'gc_life> {
                     JavaValue::Object(x1) => {
                         todo!()
                         /*                        match x {
-                            None => x1.is_none(),
-                            Some(o) => match x1 {
-                                None => false,
-                                Some(o1) => Arc::ptr_eq(o, o1),
-                            },
-                        }
-*/
+                                                    None => x1.is_none(),
+                                                    Some(o) => match x1 {
+                                                        None => false,
+                                                        Some(o1) => Arc::ptr_eq(o, o1),
+                                                    },
+                                                }
+                        */
                     }
-                    _ => false
+                    _ => false,
                 }
             }
             JavaValue::Top => {
@@ -930,15 +1017,24 @@ unsafe impl<'gc_life> Send for Object<'gc_life, '_> {}
 unsafe impl<'gc_life> Sync for Object<'gc_life, '_> {}
 
 impl<'gc_life, 'l> Object<'gc_life, 'l> {
-    pub fn lookup_field(&self, jvm: &'gc_life JVMState<'gc_life>, s: FieldName) -> JavaValue<'gc_life> {
+    pub fn lookup_field(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        s: FieldName,
+    ) -> JavaValue<'gc_life> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
         let (field_number, rtype) = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
             None => {
-                dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
+                dbg!(class_pointer
+                    .view()
+                    .name()
+                    .unwrap_object_name()
+                    .0
+                    .to_str(&jvm.string_pool));
                 dbg!(s.0.to_str(&jvm.string_pool));
                 panic!()
             }
-            Some(res) => res
+            Some(res) => res,
         };
         // unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(rtype.clone(), jvm)
         todo!()
@@ -965,7 +1061,6 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         }
     }
 
-
     pub fn unwrap_array(&self) -> &ArrayObject<'gc_life, 'l> {
         match self {
             Object::Array(a) => a,
@@ -982,7 +1077,14 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
             Object::Array(a) => {
                 // let sub_array = a.array_iterator(jvm).map(|x| x.deep_clone(jvm).to_native()).collect();//todo
                 todo!();
-                Object::Array(ArrayObject { whole_array_runtime_class: a.whole_array_runtime_class.clone(), loader: a.loader, len: todo!(), elems: todo!(), phantom_data: Default::default(), elem_type: a.elem_type.clone() })
+                Object::Array(ArrayObject {
+                    whole_array_runtime_class: a.whole_array_runtime_class.clone(),
+                    loader: a.loader,
+                    len: todo!(),
+                    elems: todo!(),
+                    phantom_data: Default::default(),
+                    elem_type: a.elem_type.clone(),
+                })
             }
             Object::Object(o) => {
                 todo!()
@@ -1003,22 +1105,41 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         }
     }
 
-    pub fn object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, object_array: Vec<JavaValue<'gc_life>>, class_type: CPDType) -> Result<Object<'gc_life, 'gc_life>, WasException> {
-        Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
+    pub fn object_array(
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+        object_array: Vec<JavaValue<'gc_life>>,
+        class_type: CPDType,
+    ) -> Result<Object<'gc_life, 'gc_life>, WasException> {
+        Ok(Object::Array(ArrayObject::new_array(
+            jvm,
+            int_state,
+            object_array,
+            class_type,
+            jvm.thread_state.new_monitor("".to_string()),
+        )?))
     }
 
     pub fn monitor(&self) -> &Monitor2 {
         match self {
-            Object::Array(a) => todo!()/*&a.monitor*/,
-            Object::Object(o) => todo!()/*&o.monitor*/,
+            Object::Array(a) => todo!(),  /*&a.monitor*/
+            Object::Object(o) => todo!(), /*&o.monitor*/
         }
     }
 
-    pub fn monitor_unlock(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+    pub fn monitor_unlock(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &mut InterpreterStateGuard<'gc_life, '_>,
+    ) {
         self.monitor().unlock(jvm, int_state).unwrap();
     }
 
-    pub fn monitor_lock<'k>(&'_ self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'k>) {
+    pub fn monitor_lock<'k>(
+        &'_ self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &'_ mut InterpreterStateGuard<'gc_life, 'k>,
+    ) {
         let monitor_to_lock = self.monitor();
         monitor_to_lock.lock(jvm, int_state).unwrap();
     }
@@ -1067,7 +1188,10 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
         todo!()
     }
 
-    pub fn array_iterator(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l, '_> {
+    pub fn array_iterator(
+        &'l self,
+        jvm: &'gc_life JVMState<'gc_life>,
+    ) -> ArrayIterator<'gc_life, 'l, '_> {
         ArrayIterator {
             elems: self,
             jvm,
@@ -1080,8 +1204,18 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
         todo!()
     }
 
-    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
-        check_resolved_class(jvm, int_state, CPDType::Ref(CPRefType::Array(box type_.clone())))?;
+    pub fn new_array(
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+        elems: Vec<JavaValue<'gc_life>>,
+        type_: CPDType,
+        monitor: Arc<Monitor2>,
+    ) -> Result<Self, WasException> {
+        check_resolved_class(
+            jvm,
+            int_state,
+            CPDType::Ref(CPRefType::Array(box type_.clone())),
+        )?;
         Ok(Self {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
@@ -1108,49 +1242,32 @@ pub union NativeJavaValue<'gc_life> {
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {
-    pub fn to_java_value(&self, ptype: CPDType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
+    pub fn to_java_value(
+        &self,
+        ptype: CPDType,
+        jvm: &'gc_life JVMState<'gc_life>,
+    ) -> JavaValue<'gc_life> {
         unsafe {
             match ptype {
-                CPDType::ByteType => {
-                    JavaValue::Byte(self.byte)
-                }
-                CPDType::CharType => {
-                    JavaValue::Char(self.char)
-                }
-                CPDType::DoubleType => {
-                    JavaValue::Double(self.double)
-                }
-                CPDType::FloatType => {
-                    JavaValue::Float(self.float)
-                }
-                CPDType::IntType => {
-                    JavaValue::Int(self.int)
-                }
-                CPDType::LongType => {
-                    JavaValue::Long(self.long)
-                }
-                CPDType::Ref(_) => {
-                    match NonNull::new(self.object) {
-                        None => {
-                            JavaValue::Object(None)
-                        }
-                        Some(nonnull) => {
-                            JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm)))
-                        }
+                CPDType::ByteType => JavaValue::Byte(self.byte),
+                CPDType::CharType => JavaValue::Char(self.char),
+                CPDType::DoubleType => JavaValue::Double(self.double),
+                CPDType::FloatType => JavaValue::Float(self.float),
+                CPDType::IntType => JavaValue::Int(self.int),
+                CPDType::LongType => JavaValue::Long(self.long),
+                CPDType::Ref(_) => match NonNull::new(self.object) {
+                    None => JavaValue::Object(None),
+                    Some(nonnull) => {
+                        JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm)))
                     }
-                }
-                CPDType::ShortType => {
-                    JavaValue::Short(self.short)
-                }
-                CPDType::BooleanType => {
-                    JavaValue::Boolean(self.boolean)
-                }
-                CPDType::VoidType => panic!()
+                },
+                CPDType::ShortType => JavaValue::Short(self.short),
+                CPDType::BooleanType => JavaValue::Boolean(self.boolean),
+                CPDType::VoidType => panic!(),
             }
         }
     }
 }
-
 
 #[derive(Copy, Clone)]
 pub union StackNativeJavaValue<'gc_life> {
@@ -1163,37 +1280,28 @@ pub union StackNativeJavaValue<'gc_life> {
 }
 
 impl<'gc_life> StackNativeJavaValue<'gc_life> {
-    pub fn to_java_value(&self, rtype: RuntimeType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
+    pub fn to_java_value(
+        &self,
+        rtype: RuntimeType,
+        jvm: &'gc_life JVMState<'gc_life>,
+    ) -> JavaValue<'gc_life> {
         unsafe {
             match rtype {
-                RuntimeType::DoubleType => {
-                    JavaValue::Double(self.double)
-                }
-                RuntimeType::FloatType => {
-                    JavaValue::Float(self.float)
-                }
-                RuntimeType::IntType => {
-                    JavaValue::Int(self.int)
-                }
-                RuntimeType::LongType => {
-                    JavaValue::Long(self.long)
-                }
-                RuntimeType::Ref(_) => {
-                    match NonNull::new(self.object) {
-                        None => {
-                            JavaValue::Object(None)
-                        }
-                        Some(nonnull) => {
-                            JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm)))
-                        }
+                RuntimeType::DoubleType => JavaValue::Double(self.double),
+                RuntimeType::FloatType => JavaValue::Float(self.float),
+                RuntimeType::IntType => JavaValue::Int(self.int),
+                RuntimeType::LongType => JavaValue::Long(self.long),
+                RuntimeType::Ref(_) => match NonNull::new(self.object) {
+                    None => JavaValue::Object(None),
+                    Some(nonnull) => {
+                        JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm)))
                     }
-                }
-                RuntimeType::TopType => panic!()
+                },
+                RuntimeType::TopType => panic!(),
             }
         }
     }
 }
-
 
 pub mod native_objects {
     use std::collections::HashMap;
@@ -1221,50 +1329,94 @@ pub struct NormalObject<'gc_life, 'l> {
 
 impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
-        let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let (field_index, ptype) = self
+            .objinfo
+            .class_pointer
+            .unwrap_class_class()
+            .field_numbers
+            .get(&name)
+            .unwrap();
         /**unsafe {
-                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                        }.unwrap() = jv.to_native();*/
+                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                }.unwrap() = jv.to_native();*/
         todo!()
     }
 
-    pub fn set_var(&self, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, jv: JavaValue<'gc_life>) {
+    pub fn set_var(
+        &self,
+        class_pointer: Arc<RuntimeClass<'gc_life>>,
+        name: FieldName,
+        jv: JavaValue<'gc_life>,
+    ) {
         jv.self_check();
         unsafe {
             let top_class_pointer = self.objinfo.class_pointer.clone();
-            self.set_var_impl(top_class_pointer.unwrap_class_class(), class_pointer, name, jv, true)
+            self.set_var_impl(
+                top_class_pointer.unwrap_class_class(),
+                class_pointer,
+                name,
+                jv,
+                true,
+            )
         }
     }
 
-    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, jv: JavaValue<'gc_life>, mut do_class_check: bool) {
-        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+    unsafe fn set_var_impl(
+        &self,
+        current_class_pointer: &RuntimeClassClass,
+        class_pointer: Arc<RuntimeClass<'gc_life>>,
+        name: FieldName,
+        jv: JavaValue<'gc_life>,
+        mut do_class_check: bool,
+    ) {
+        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check
+        {
             let field_index = match current_class_pointer.field_numbers.get(&name) {
                 None => {
                     do_class_check = false;
                 }
                 Some((field_index, ptype)) => {
-                    self.objinfo.fields.write().unwrap().get_mut(*field_index).map(|set| *set = jv.to_native());
+                    self.objinfo
+                        .fields
+                        .write()
+                        .unwrap()
+                        .get_mut(*field_index)
+                        .map(|set| *set = jv.to_native());
                     return;
                 }
             };
         }
         if let Some(parent_class) = current_class_pointer.parent.as_ref() {
-            self.set_var_impl(parent_class.unwrap_class_class(), class_pointer, name, jv, do_class_check);
+            self.set_var_impl(
+                parent_class.unwrap_class_class(),
+                class_pointer,
+                name,
+                jv,
+                do_class_check,
+            );
         } else {
             panic!()
         }
     }
 
-
-    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, name: FieldName) -> JavaValue<'gc_life> {
+    pub fn get_var_top_level(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        name: FieldName,
+    ) -> JavaValue<'gc_life> {
         let name = name.into();
-        let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let (field_index, ptype) = self
+            .objinfo
+            .class_pointer
+            .unwrap_class_class()
+            .field_numbers
+            .get(&name)
+            .unwrap();
         todo!()
         /*unsafe {
             self.objinfo.fields[*field_index].get().as_ref()
         }.unwrap().to_java_value(ptype.clone(), jvm)*/
     }
-
 
     // pub fn type_check(&self, class_pointer: Arc<RuntimeClass>) -> bool {
     //     Self::type_check_impl(&self.objinfo, class_pointer)
@@ -1292,15 +1444,28 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
         return interfaces || super_;
     }*/
 
-
-    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName) -> JavaValue<'gc_life> {
+    pub fn get_var(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        class_pointer: Arc<RuntimeClass<'gc_life>>,
+        name: FieldName,
+    ) -> JavaValue<'gc_life> {
         // if !self.type_check(class_pointer.clone()) {
         //     dbg!(name);
         //     dbg!(class_pointer.view().name());
         //     dbg!(self.objinfo.class_pointer.view().name());
         //     panic!()
         // }
-        let res = unsafe { Self::get_var_impl(self, jvm, self.objinfo.class_pointer.unwrap_class_class(), class_pointer.clone(), name, true) };
+        let res = unsafe {
+            Self::get_var_impl(
+                self,
+                jvm,
+                self.objinfo.class_pointer.unwrap_class_class(),
+                class_pointer.clone(),
+                name,
+                true,
+            )
+        };
         // self.expected_type_check(class_pointer, expected_type, name, &res);
         // res.self_check();
         res
@@ -1345,8 +1510,16 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
         };
     }*/
 
-    unsafe fn get_var_impl(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc_life>>, name: FieldName, mut do_class_check: bool) -> JavaValue<'gc_life> {
-        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+    unsafe fn get_var_impl(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+        current_class_pointer: &RuntimeClassClass,
+        class_pointer: Arc<RuntimeClass<'gc_life>>,
+        name: FieldName,
+        mut do_class_check: bool,
+    ) -> JavaValue<'gc_life> {
+        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check
+        {
             match current_class_pointer.field_numbers.get(&name) {
                 Some((field_number, ptype)) => {
                     todo!()
@@ -1358,7 +1531,13 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
             }
         }
         if let Some(parent_class) = current_class_pointer.parent.as_ref() {
-            return self.get_var_impl(jvm, parent_class.unwrap_class_class(), class_pointer, name, do_class_check);
+            return self.get_var_impl(
+                jvm,
+                parent_class.unwrap_class_class(),
+                class_pointer,
+                name,
+                do_class_check,
+            );
         } else {
             panic!()
         }
@@ -1388,7 +1567,10 @@ pub fn default_value<'gc_life>(type_: CPDType) -> JavaValue<'gc_life> {
 }
 
 impl<'gc_life> ArrayObject<'gc_life, '_> {
-    pub fn unwrap_object_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Option<GcManagedObject<'gc_life>>> {
+    pub fn unwrap_object_array(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+    ) -> Vec<Option<GcManagedObject<'gc_life>>> {
         /*unsafe { self.elems.get().as_ref() }.unwrap().iter().map(|x| { x.to_java_value(self.elem_type.clone(), jvm).unwrap_object() }).collect()*/
         todo!()
     }
@@ -1401,12 +1583,13 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
     }*/
     pub fn unwrap_byte_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<jbyte> {
         assert_eq!(self.elem_type, CPDType::ByteType);
-        self.array_iterator(jvm).map(|x| { x.unwrap_byte() }).collect()
+        self.array_iterator(jvm).map(|x| x.unwrap_byte()).collect()
     }
     pub fn unwrap_char_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> String {
         assert_eq!(self.elem_type, CPDType::CharType);
         let mut res = String::new();
-        self.array_iterator(jvm).for_each(|x| { res.push(x.unwrap_int() as u8 as char) });//todo fix this
+        self.array_iterator(jvm)
+            .for_each(|x| res.push(x.unwrap_int() as u8 as char)); //todo fix this
         res
     }
 }
@@ -1416,7 +1599,6 @@ impl<'gc_life> std::convert::From<Option<GcManagedObject<'gc_life>>> for JavaVal
         JavaValue::Object(f)
     }
 }
-
 
 pub trait ExceptionReturn {
     fn invalid_default() -> Self;
@@ -1487,7 +1669,6 @@ impl ExceptionReturn for *const u16 {
         null()
     }
 }
-
 
 impl ExceptionReturn for *mut c_void {
     fn invalid_default() -> Self {

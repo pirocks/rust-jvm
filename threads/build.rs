@@ -6,14 +6,16 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)
-        .generate().unwrap();
+        .generate()
+        .unwrap();
 
     let ucontext = bindgen::Builder::default()
         .header("ucontext-wrapper.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)
-        .generate().unwrap();
+        .generate()
+        .unwrap();
 
     println!("cargo:rerun-if-changed={}", "signals-wrapper.h");
     println!("cargo:rerun-if-changed={}", "ucontext-wrapper.h");
@@ -21,7 +23,6 @@ fn main() {
     signal
         .write_to_file(PathBuf::from("gen/signal.rs"))
         .expect("Couldn't write bindings!");
-
 
     ucontext
         .write_to_file(PathBuf::from("gen/ucontext.rs"))

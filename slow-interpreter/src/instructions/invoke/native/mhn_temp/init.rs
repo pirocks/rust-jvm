@@ -3,35 +3,58 @@ use itertools::Either;
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
+use rust_jvm_common::classfile::{
+    ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE,
+    REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL,
+};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
+use crate::instructions::invoke::native::mhn_temp::{
+    IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT,
+};
 use crate::interpreter::WasException;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
 
-pub fn MHN_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+pub fn MHN_init(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    args: Vec<JavaValue<'gc_life>>,
+) -> Result<(), WasException> {
     //two params, is a static function.
     let mname = args[0].clone().cast_member_name();
     let target = args[1].clone();
-    let to_string = target.cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm);
+    let to_string = target
+        .cast_object()
+        .to_string(jvm, int_state)?
+        .unwrap()
+        .to_rust_string(jvm);
     let assertion_case = match to_string.as_str() {
         "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => {
             InitAssertionCase::CHECK_EXACT_TYPE.into()
         }
         _ => None
     };
-    let res = init(jvm, int_state, mname.clone(), target, Either::Left(None), false);
+    let res = init(
+        jvm,
+        int_state,
+        mname.clone(),
+        target,
+        Either::Left(None),
+        false,
+    );
     if let Some(case) = assertion_case {
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
                 assert_eq!(mname.get_flags(jvm), 100728840);
-                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), CClassName::invokers());
+                assert_eq!(
+                    mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(),
+                    CClassName::invokers()
+                );
             }
         }
     }
@@ -39,23 +62,57 @@ pub fn MHN_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 }
 
 pub enum InitAssertionCase {
-    CHECK_EXACT_TYPE
+    CHECK_EXACT_TYPE,
 }
 
-
-pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, mname: MemberName<'gc_life>, target: JavaValue<'gc_life>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
-    if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::method().into() {
+pub fn init(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    mname: MemberName<'gc_life>,
+    target: JavaValue<'gc_life>,
+    view: Either<Option<&MethodView>, Option<&FieldView>>,
+    synthetic: bool,
+) -> Result<(), WasException> {
+    if target
+        .unwrap_normal_object()
+        .objinfo
+        .class_pointer
+        .view()
+        .name()
+        == CClassName::method().into()
+    {
         let target = target.cast_method();
-        method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::constructor().into() {
+        method_init(
+            jvm,
+            int_state,
+            mname.clone(),
+            target,
+            view.left().unwrap(),
+            synthetic,
+        )?;
+    } else if target
+        .unwrap_normal_object()
+        .objinfo
+        .class_pointer
+        .view()
+        .name()
+        == CClassName::constructor().into()
+    {
         let target = target.cast_constructor();
         constructor_init(jvm, mname.clone(), target, view.left().unwrap(), synthetic)?;
-    } else if target.unwrap_normal_object().objinfo.class_pointer.view().name() == CClassName::field().into() {
+    } else if target
+        .unwrap_normal_object()
+        .objinfo
+        .class_pointer
+        .view()
+        .name()
+        == CClassName::field().into()
+    {
         todo!()
     } else {
         todo!()
     }
-    Ok(())//this is a void method.
+    Ok(()) //this is a void method.
 }
 
 /*
@@ -104,7 +161,14 @@ pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSta
 */
 
 /// the method view param here and elsewhere is only passed when resolving
-fn method_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, mname: MemberName<'gc_life>, method: Method<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn method_init(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    mname: MemberName<'gc_life>,
+    method: Method<'gc_life>,
+    method_view: Option<&MethodView>,
+    synthetic: bool,
+) -> Result<(), WasException> {
     let flags = method.get_modifiers(jvm);
     let clazz = method.get_clazz(jvm);
     mname.set_clazz(clazz.clone());
@@ -114,7 +178,10 @@ fn method_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
         REF_INVOKE_STATIC
     } else {
         let class_ptye = clazz.as_type(jvm);
-        let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
+        let class_name = class_ptye
+            .unwrap_ref_type()
+            .try_unwrap_name()
+            .unwrap_or_else(|| unimplemented!("Handle arrays?"));
         let inited_class = check_initing_or_inited_class(jvm, int_state, class_name.into())?;
         if inited_class.view().is_interface() {
             REF_INVOKE_INTERFACE
@@ -126,7 +193,8 @@ fn method_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
                 REF_INVOKE_VIRTUAL
             }
         }
-    } as u32) << REFERENCE_KIND_SHIFT) as i32;
+    } as u32)
+        << REFERENCE_KIND_SHIFT) as i32;
     let extra_flags = IS_METHOD | invoke_type_flag as u32;
     let mut modifiers = method.get_modifiers(jvm);
     if let Some(method_view) = method_view {
@@ -136,7 +204,11 @@ fn method_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     Ok(())
 }
 
-fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, method_view: &MethodView) {
+fn update_modifiers_with_method_view(
+    synthetic: bool,
+    modifiers: &mut i32,
+    method_view: &MethodView,
+) {
     if method_view.is_varargs() {
         *modifiers |= ACC_VARARGS as i32;
         if method_view.is_signature_polymorphic() {
@@ -157,8 +229,13 @@ fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, metho
     }
 }
 
-
-fn constructor_init(jvm: &'gc_life JVMState<'gc_life>, mname: MemberName<'gc_life>, constructor: Constructor<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn constructor_init(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mname: MemberName<'gc_life>,
+    constructor: Constructor<'gc_life>,
+    method_view: Option<&MethodView>,
+    synthetic: bool,
+) -> Result<(), WasException> {
     let clazz = constructor.get_clazz(jvm);
     mname.set_clazz(clazz.clone());
     //static v. invoke_virtual v. interface

@@ -2,15 +2,15 @@ use std::ops::Deref;
 
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::{
+    CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType,
+};
 use rust_jvm_common::compressed_classfile::names::CompressedClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::vtype::VType;
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum PTypeView {
     ByteType,
     CharType,
@@ -32,7 +32,6 @@ pub enum PTypeView {
     UninitializedThisOrClass(Box<PTypeView>),
 }
 
-
 impl PTypeView {
     pub fn to_ptype(&self) -> PType {
         match self {
@@ -50,7 +49,9 @@ impl PTypeView {
             PTypeView::NullType => PType::NullType,
             PTypeView::Uninitialized(u) => PType::Uninitialized(u.clone()),
             PTypeView::UninitializedThis => PType::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(u) => PType::UninitializedThisOrClass(u.deref().to_ptype().into()),
+            PTypeView::UninitializedThisOrClass(u) => {
+                PType::UninitializedThisOrClass(u.deref().to_ptype().into())
+            }
         }
     }
 
@@ -70,7 +71,9 @@ impl PTypeView {
             PType::NullType => PTypeView::NullType,
             PType::Uninitialized(u) => PTypeView::Uninitialized(u.clone()),
             PType::UninitializedThis => PTypeView::UninitializedThis,
-            PType::UninitializedThisOrClass(u) => PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into()),
+            PType::UninitializedThisOrClass(u) => {
+                PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into())
+            }
         }
     }
 
@@ -96,7 +99,11 @@ impl PTypeView {
         }
     }
 
-    pub fn to_verification_type(&self, loader: &LoaderName, pool: &CompressedClassfileStringPool) -> VType {
+    pub fn to_verification_type(
+        &self,
+        loader: &LoaderName,
+        pool: &CompressedClassfileStringPool,
+    ) -> VType {
         match self {
             PTypeView::ByteType => VType::IntType,
             PTypeView::CharType => VType::IntType,
@@ -111,10 +118,10 @@ impl PTypeView {
             PTypeView::NullType => VType::NullType,
             PTypeView::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
             PTypeView::UninitializedThis => VType::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool)),
-            PTypeView::Ref(r) => {
-                r.to_verification_type(loader, pool)
+            PTypeView::UninitializedThisOrClass(c) => {
+                VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool))
             }
+            PTypeView::Ref(r) => r.to_verification_type(loader, pool),
         }
     }
 
@@ -170,19 +177,17 @@ impl PTypeView {
             PTypeView::FloatType => res.push('F'),
             PTypeView::IntType => res.push('I'),
             PTypeView::LongType => res.push('J'),
-            PTypeView::Ref(ref_) => {
-                match ref_ {
-                    ReferenceTypeView::Class(c) => {
-                        res.push('L');
-                        res.push_str(c.get_referred_name());
-                        res.push(';')
-                    }
-                    ReferenceTypeView::Array(subtype) => {
-                        res.push('[');
-                        res.push_str(&subtype.deref().jvm_representation())
-                    }
+            PTypeView::Ref(ref_) => match ref_ {
+                ReferenceTypeView::Class(c) => {
+                    res.push('L');
+                    res.push_str(c.get_referred_name());
+                    res.push(';')
                 }
-            }
+                ReferenceTypeView::Array(subtype) => {
+                    res.push('[');
+                    res.push_str(&subtype.deref().jvm_representation())
+                }
+            },
             PTypeView::ShortType => res.push('S'),
             PTypeView::BooleanType => res.push('Z'),
             PTypeView::VoidType => res.push('V'),
@@ -190,7 +195,6 @@ impl PTypeView {
         }
         res
     }
-
 
     pub fn class_name_representation(&self) -> String {
         let mut res = String::new();
@@ -201,17 +205,15 @@ impl PTypeView {
             PTypeView::FloatType => res.push_str("float"),
             PTypeView::IntType => res.push_str("int"),
             PTypeView::LongType => res.push_str("long"),
-            PTypeView::Ref(ref_) => {
-                match ref_ {
-                    ReferenceTypeView::Class(c) => {
-                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
-                    }
-                    ReferenceTypeView::Array(subtype) => {
-                        res.push('[');
-                        subtype.deref().class_name_rep_impl(&mut res)
-                    }
+            PTypeView::Ref(ref_) => match ref_ {
+                ReferenceTypeView::Class(c) => {
+                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
                 }
-            }
+                ReferenceTypeView::Array(subtype) => {
+                    res.push('[');
+                    subtype.deref().class_name_rep_impl(&mut res)
+                }
+            },
             PTypeView::ShortType => res.push_str("short"),
             PTypeView::BooleanType => res.push_str("boolean"),
             PTypeView::VoidType => res.push_str("void"),
@@ -228,19 +230,17 @@ impl PTypeView {
             PTypeView::FloatType => res.push('F'),
             PTypeView::IntType => res.push('I'),
             PTypeView::LongType => res.push('J'),
-            PTypeView::Ref(ref_) => {
-                match ref_ {
-                    ReferenceTypeView::Class(c) => {
-                        res.push('L');
-                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
-                        res.push(';')
-                    }
-                    ReferenceTypeView::Array(subtype) => {
-                        res.push('[');
-                        res.push_str(&subtype.deref().jvm_representation())
-                    }
+            PTypeView::Ref(ref_) => match ref_ {
+                ReferenceTypeView::Class(c) => {
+                    res.push('L');
+                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
+                    res.push(';')
                 }
-            }
+                ReferenceTypeView::Array(subtype) => {
+                    res.push('[');
+                    res.push_str(&subtype.deref().jvm_representation())
+                }
+            },
             PTypeView::ShortType => res.push('S'),
             PTypeView::BooleanType => res.push('Z'),
             PTypeView::VoidType => res.push('V'),
@@ -257,17 +257,15 @@ impl PTypeView {
             PTypeView::FloatType => res.push_str("float"),
             PTypeView::IntType => res.push_str("int"),
             PTypeView::LongType => res.push_str("long"),
-            PTypeView::Ref(ref_) => {
-                match ref_ {
-                    ReferenceTypeView::Class(c) => {
-                        res.push_str(c.get_referred_name().replace("/", ".").as_str());
-                    }
-                    ReferenceTypeView::Array(subtype) => {
-                        res.push_str(&subtype.deref().java_source_representation());
-                        res.push_str("[]");
-                    }
+            PTypeView::Ref(ref_) => match ref_ {
+                ReferenceTypeView::Class(c) => {
+                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
                 }
-            }
+                ReferenceTypeView::Array(subtype) => {
+                    res.push_str(&subtype.deref().java_source_representation());
+                    res.push_str("[]");
+                }
+            },
             PTypeView::ShortType => res.push('S'),
             PTypeView::BooleanType => res.push('Z'),
             PTypeView::VoidType => res.push('V'),
@@ -292,9 +290,7 @@ impl PTypeView {
     }
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum ReferenceTypeView {
     Class(ClassName),
     Array(Box<PTypeView>),
@@ -307,10 +303,23 @@ impl From<ClassName> for ReferenceTypeView {
 }
 
 impl ReferenceTypeView {
-    pub fn to_verification_type(&self, loader: &LoaderName, pool: &CompressedClassfileStringPool) -> VType {
+    pub fn to_verification_type(
+        &self,
+        loader: &LoaderName,
+        pool: &CompressedClassfileStringPool,
+    ) -> VType {
         match self {
-            ReferenceTypeView::Class(c) => { VType::Class(ClassWithLoader { class_name: CompressedClassName(pool.add_name(c.get_referred_name().to_string(), true)), loader: loader.clone() }) }
-            ReferenceTypeView::Array(p) => { VType::ArrayReferenceType(CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool)/*p.deref().clone()*/) }
+            ReferenceTypeView::Class(c) => VType::Class(ClassWithLoader {
+                class_name: CompressedClassName(
+                    pool.add_name(c.get_referred_name().to_string(), true),
+                ),
+                loader: loader.clone(),
+            }),
+            ReferenceTypeView::Array(p) => {
+                VType::ArrayReferenceType(
+                    CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool), /*p.deref().clone()*/
+                )
+            }
         }
     }
 
@@ -324,7 +333,9 @@ impl ReferenceTypeView {
     pub fn from_reference_type(ref_: &ReferenceType) -> ReferenceTypeView {
         match ref_ {
             ReferenceType::Class(c) => ReferenceTypeView::Class(c.clone()),
-            ReferenceType::Array(a) => ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into()),
+            ReferenceType::Array(a) => {
+                ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into())
+            }
         }
     }
 
@@ -342,23 +353,17 @@ impl ReferenceTypeView {
     pub fn unwrap_arrays_to_name(&self) -> Option<ClassName> {
         match self {
             ReferenceTypeView::Class(c) => c.clone().into(),
-            ReferenceTypeView::Array(a) => {
-                match a.deref().try_unwrap_ref_type() {
-                    None => None,
-                    Some(ref_) => {
-                        ref_.unwrap_arrays_to_name()
-                    }
-                }
-            }
+            ReferenceTypeView::Array(a) => match a.deref().try_unwrap_ref_type() {
+                None => None,
+                Some(ref_) => ref_.unwrap_arrays_to_name(),
+            },
         }
     }
 
     pub fn unwrap_array(&self) -> PTypeView {
         match self {
             ReferenceTypeView::Class(_) => panic!(),
-            ReferenceTypeView::Array(a) => {
-                a.deref().clone()
-            }
+            ReferenceTypeView::Array(a) => a.deref().clone(),
         }
     }
 
@@ -395,8 +400,10 @@ impl Clone for PTypeView {
             PTypeView::NullType => PTypeView::NullType,
             PTypeView::Uninitialized(uvi) => PTypeView::Uninitialized(uvi.clone()),
             PTypeView::UninitializedThis => PTypeView::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(t) => PTypeView::UninitializedThisOrClass(t.clone()),
-            PTypeView::Ref(r) => PTypeView::Ref(r.clone())
+            PTypeView::UninitializedThisOrClass(t) => {
+                PTypeView::UninitializedThisOrClass(t.clone())
+            }
+            PTypeView::Ref(r) => PTypeView::Ref(r.clone()),
         }
     }
 }
@@ -404,15 +411,11 @@ impl Clone for PTypeView {
 impl PTypeView {
     pub fn unwrap_array_type(&self) -> PTypeView {
         match self {
-            PTypeView::Ref(r) => {
-                match r {
-                    ReferenceTypeView::Class(_) => panic!(),
-                    ReferenceTypeView::Array(a) => {
-                        a.deref().clone()
-                    }
-                }
-            }
-            _ => panic!()
+            PTypeView::Ref(r) => match r {
+                ReferenceTypeView::Class(_) => panic!(),
+                ReferenceTypeView::Array(a) => a.deref().clone(),
+            },
+            _ => panic!(),
         }
     }
     pub fn unwrap_class_type(&self) -> ClassName {
@@ -420,13 +423,11 @@ impl PTypeView {
     }
     pub fn try_unwrap_class_type(&self) -> Option<ClassName> {
         match self {
-            PTypeView::Ref(r) => {
-                match r {
-                    ReferenceTypeView::Class(c) => c.clone().into(),
-                    ReferenceTypeView::Array(_) => None,
-                }
-            }
-            _ => None
+            PTypeView::Ref(r) => match r {
+                ReferenceTypeView::Class(c) => c.clone().into(),
+                ReferenceTypeView::Array(_) => None,
+            },
+            _ => None,
         }
     }
     pub fn unwrap_ref_type(&self) -> &ReferenceTypeView {
@@ -481,7 +482,6 @@ impl PTypeView {
         }
     }
 }
-
 
 impl From<ClassName> for PTypeView {
     fn from(cn: ClassName) -> Self {

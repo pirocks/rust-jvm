@@ -28,15 +28,15 @@ pub enum ClassName {
 
 impl ClassName {
     pub fn is_raw(&self) -> bool {
-        &Self::raw_byte() == self ||
-            &Self::raw_char() == self ||
-            &Self::raw_double() == self ||
-            &Self::raw_float() == self ||
-            &Self::raw_int() == self ||
-            &Self::raw_long() == self ||
-            &Self::raw_short() == self ||
-            &Self::raw_boolean() == self ||
-            &Self::raw_void() == self
+        &Self::raw_byte() == self
+            || &Self::raw_char() == self
+            || &Self::raw_double() == self
+            || &Self::raw_float() == self
+            || &Self::raw_int() == self
+            || &Self::raw_long() == self
+            || &Self::raw_short() == self
+            || &Self::raw_boolean() == self
+            || &Self::raw_void() == self
     }
 
     pub fn raw_byte() -> Self {
@@ -66,7 +66,6 @@ impl ClassName {
     pub fn raw_void() -> Self {
         ClassName::Str("void".to_string())
     }
-
 
     pub fn new(str_: &str) -> Self {
         ClassName::Str(str_.to_string())
@@ -214,12 +213,11 @@ impl std::clone::Clone for ClassName {
     fn clone(&self) -> Self {
         match self {
             ClassName::Str(s) => {
-                ClassName::Str(s.clone())//todo fix
+                ClassName::Str(s.clone()) //todo fix
             }
         }
     }
 }
-
 
 impl std::fmt::Debug for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -230,15 +228,14 @@ impl std::fmt::Debug for ClassName {
 impl ClassName {
     pub fn get_referred_name(&self) -> &String {
         match self {
-            ClassName::Str(s) => { s }
+            ClassName::Str(s) => s,
         }
     }
 }
 
-
 pub fn class_name(class: &Classfile) -> ClassName {
     match class.extract_class_from_constant_pool_name(class.this_class) {
         ReferenceType::Class(c) => c,
-        ReferenceType::Array(_) => todo!()
+        ReferenceType::Array(_) => todo!(),
     }
 }

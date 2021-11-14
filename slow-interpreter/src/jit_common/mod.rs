@@ -17,7 +17,6 @@ pub struct SavedRegisters {
     pub status_register: *mut JavaStatus,
 }
 
-
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
 pub struct JitCodeContext {
@@ -42,7 +41,6 @@ pub struct RuntimeTypeInfo {
 
     pub allocated_type_to_vtable: *const VTableRaw,
 }
-
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
@@ -73,10 +71,9 @@ pub enum VMExitData {
     ArrayOutOfBounds,
     DebugTestExit,
     DebugTestExitValue {
-        value: FramePointerOffset
+        value: FramePointerOffset,
     },
     ExitDueToCompletion,
 }
-
 
 pub mod java_stack;

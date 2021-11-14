@@ -8,10 +8,12 @@ use slow_interpreter::rust_jni::native_util::{get_interpreter_state, to_object};
 //so it appears hotspot implements both of these as null.
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetResourceLookupCacheURLs(env: *mut JNIEnv, loader: jobject) -> jobjectArray {
+unsafe extern "system" fn JVM_GetResourceLookupCacheURLs(
+    env: *mut JNIEnv,
+    loader: jobject,
+) -> jobjectArray {
     null_mut()
 }
-
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetResourceLookupCache(

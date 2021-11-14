@@ -21,17 +21,25 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{
+    from_jclass, get_interpreter_state, get_state, to_object,
+};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     let jvm = get_state(env);
-    from_jclass(jvm, cb).as_runtime_class(jvm).view().num_fields() as i32
+    from_jclass(jvm, cb)
+        .as_runtime_class(jvm)
+        .view()
+        .num_fields() as i32
 }
 
-
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
+unsafe extern "system" fn JVM_GetClassDeclaredFields(
+    env: *mut JNIEnv,
+    ofClass: jclass,
+    publicOnly: jboolean,
+) -> jobjectArray {
     let jvm = get_state(env);
     let class_obj = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let jvm = get_state(env);
@@ -47,8 +55,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let res = Some(jvm.allocate_object(
-        Object::Array(match ArrayObject::new_array(
+    let res = Some(jvm.allocate_object(Object::Array(
+        match ArrayObject::new_array(
             jvm,
             int_state,
             object_array,
@@ -56,8 +64,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
             jvm.thread_state.new_monitor("".to_string()),
         ) {
             Ok(arr) => arr,
-            Err(WasException {}) => return null_mut()
-        })));
+            Err(WasException {}) => return null_mut(),
+        },
+    )));
     new_local_ref_public(res, int_state)
 }
-

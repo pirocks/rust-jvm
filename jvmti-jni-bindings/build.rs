@@ -13,10 +13,14 @@ use std::path::PathBuf;
 // }
 
 fn main() {
-    let jvm_include_path = env::var("JVM_H").unwrap_or("/home/francis/build/openjdk-jdk8u/jdk/src/share/javavm/export/".to_string());
-    let jvm_md_include_path = env::var("JVM_MD_H").unwrap_or("/home/francis/ClionProjects/rust-jvm/jvmti-jni-bindings/".to_string());
-    let jni_md_include_path = env::var("JNI_MD_H").unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/linux/".to_string());
-    let jni_include_path = env::var("JNI_H").unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/".to_string());
+    let jvm_include_path = env::var("JVM_H")
+        .unwrap_or("/home/francis/build/openjdk-jdk8u/jdk/src/share/javavm/export/".to_string());
+    let jvm_md_include_path = env::var("JVM_MD_H")
+        .unwrap_or("/home/francis/ClionProjects/rust-jvm/jvmti-jni-bindings/".to_string());
+    let jni_md_include_path = env::var("JNI_MD_H")
+        .unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/linux/".to_string());
+    let jni_include_path =
+        env::var("JNI_H").unwrap_or("/home/francis/Desktop/jdk8u232-b09/include/".to_string());
     // println!("cargo:rerun-if-changed={}", path_join(jvm_include_path, "/jvm.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jvm_md_include_path, "/jvm_md.h"));
     // println!("cargo:rerun-if-changed={}", path_join(jni_include_path, "/jni.h"));

@@ -16,11 +16,15 @@ pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
     jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle<File>>>>,
-    class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>,//todo deal with multiple entries with same name
+    class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>, //todo deal with multiple entries with same name
 }
 
 impl Classpath {
-    pub fn lookup(&self, class_name: &CClassName, pool: &CompressedClassfileStringPool) -> Result<Arc<Classfile>, ClassLoadingError> {
+    pub fn lookup(
+        &self,
+        class_name: &CClassName,
+        pool: &CompressedClassfileStringPool,
+    ) -> Result<Arc<Classfile>, ClassLoadingError> {
         let mut guard = self.class_cache.write().unwrap();
         match guard.get(class_name) {
             None => {
@@ -30,26 +34,35 @@ impl Classpath {
                 }
                 res
             }
-            Some(res) => Ok(res.clone())
+            Some(res) => Ok(res.clone()),
         }
     }
 
-    pub fn lookup_cache_miss(&self, class_name: &CClassName, pool: &CompressedClassfileStringPool) -> Result<Arc<Classfile>, ClassLoadingError> {
+    pub fn lookup_cache_miss(
+        &self,
+        class_name: &CClassName,
+        pool: &CompressedClassfileStringPool,
+    ) -> Result<Arc<Classfile>, ClassLoadingError> {
         for x in &self.classpath_base {
             for dir_member in match x.read_dir() {
                 Ok(dir) => dir,
-                Err(_) => continue,//java ignores invalid classpath entries
+                Err(_) => continue, //java ignores invalid classpath entries
             } {
                 let dir_member = match dir_member {
                     Ok(dir_member) => dir_member,
-                    Err(_) => continue
+                    Err(_) => continue,
                 };
-                let is_jar = dir_member.path().extension().map(|x| { &x.to_string_lossy() == "jar" }).unwrap_or(false);
+                let is_jar = dir_member
+                    .path()
+                    .extension()
+                    .map(|x| &x.to_string_lossy() == "jar")
+                    .unwrap_or(false);
                 if is_jar {
                     let mut cache_write_guard = self.jar_cache.write().unwrap();
                     let boxed_path = dir_member.path().into_boxed_path();
                     if cache_write_guard.get(&boxed_path).is_none() {
-                        cache_write_guard.insert(boxed_path.clone(), box JarHandle::new(boxed_path).unwrap());
+                        cache_write_guard
+                            .insert(boxed_path.clone(), box JarHandle::new(boxed_path).unwrap());
                     }
                 }
             }
@@ -59,7 +72,7 @@ impl Classpath {
             if let Ok(c) = jar.lookup(pool, class_name) {
                 return Result::Ok(c);
             }
-        };
+        }
         for path in &self.classpath_base {
             let mut new_path = path.clone().into_path_buf();
             new_path.push(format!("{}.class", class_name.0.to_str(pool)));
@@ -74,7 +87,11 @@ impl Classpath {
     }
 
     pub fn from_dirs(dirs: Vec<Box<Path>>) -> Self {
-        Self { classpath_base: dirs, jar_cache: RwLock::new(HashMap::new()), class_cache: Default::default() }
+        Self {
+            classpath_base: dirs,
+            jar_cache: RwLock::new(HashMap::new()),
+            class_cache: Default::default(),
+        }
     }
 
     pub fn classpath_string(&self) -> String {

@@ -13,7 +13,7 @@ use std::thread::LocalKey;
 
 use crossbeam::thread::Scope;
 use crossbeam::thread::ScopedJoinHandle;
-use nix::sys::signal::{SigAction, sigaction, SigHandler, SigSet};
+use nix::sys::signal::{sigaction, SigAction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
 
 use crate::handlers::{handle_event, handle_pause};
@@ -29,15 +29,13 @@ pub struct Threads<'vm_life> {
 static mut THERE_CAN_ONLY_BE_ONE_THREADS: bool = false;
 
 thread_local! {
-        static THIS_THREAD: RefCell<Option<Arc<Thread<'static>>>> = RefCell::new(None);
-    }
-
+    static THIS_THREAD: RefCell<Option<Arc<Thread<'static>>>> = RefCell::new(None);
+}
 
 impl<'vm_life> Threads<'vm_life> {
     pub fn this_thread(&self) -> Arc<Thread> {
-        self.this_thread.with(|thread| {
-            unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) }
-        })
+        self.this_thread
+            .with(|thread| unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) })
     }
 
     pub fn new(scope: Scope<'vm_life>) -> Threads<'vm_life> {
@@ -51,7 +49,6 @@ impl<'vm_life> Threads<'vm_life> {
             this_thread: &THIS_THREAD,
             scope,
         };
-
 
         res.init_signal_handler();
         res
@@ -83,14 +80,19 @@ impl<'vm_life> Threads<'vm_life> {
             Some(name) => builder.name(name),
         };
         let join_handle = builder
-            .stack_size(1024 * 1024 * 256)// verifier makes heavy use of recursion.
+            .stack_size(1024 * 1024 * 256) // verifier makes heavy use of recursion.
             .spawn(move |_| unsafe {
-                join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
+                join_status
+                    .write()
+                    .unwrap()
+                    .alive
+                    .store(true, Ordering::SeqCst);
                 thread_info_channel_send.send(pthread_self()).unwrap();
                 let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
                 func(data);
                 join_status.read().unwrap().thread_finished.notify_all();
-            }).unwrap();
+            })
+            .unwrap();
         res.thread_start_channel_send = Mutex::new(thread_start_channel_send).into();
         res.pthread_id = thread_info_channel_recv.recv().unwrap().into();
         res.rust_join_handle = Some(join_handle);
@@ -120,7 +122,7 @@ pub struct Thread<'vm_life> {
 #[derive(Debug)]
 pub struct PauseStatus {
     paused_mutex: Mutex<bool>,
-    paused: Condvar,    //todo maybe use rust park() for this
+    paused: Condvar, //todo maybe use rust park() for this
 }
 
 #[derive(Debug)]
@@ -131,16 +133,31 @@ pub struct JoinStatus {
     thread_finished: Condvar,
 }
 
-
 impl<'vm_life> Thread<'vm_life> {
-    pub fn start_thread<T: 'vm_life>(&self, func: Box<T>, data: Box<dyn Any>) where T: FnOnce(Box<dyn Any>) {
-        self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
+    pub fn start_thread<T: 'vm_life>(&self, func: Box<T>, data: Box<dyn Any>)
+        where
+            T: FnOnce(Box<dyn Any>),
+    {
+        self.thread_start_channel_send
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .send(ThreadStartInfo { func, data })
+            .unwrap();
         self.started.store(true, Ordering::SeqCst);
     }
 
     pub fn pause(&self) {
-        unsafe { assert_eq!(self.pthread_id.unwrap(), pthread_self()); }
-        std::mem::drop(self.pause.paused.wait(self.pause.paused_mutex.lock().unwrap()).unwrap());
+        unsafe {
+            assert_eq!(self.pthread_id.unwrap(), pthread_self());
+        }
+        std::mem::drop(
+            self.pause
+                .paused
+                .wait(self.pause.paused_mutex.lock().unwrap())
+                .unwrap(),
+        );
     }
 
     pub fn is_paused(&self) -> bool {
@@ -159,7 +176,12 @@ impl<'vm_life> Thread<'vm_life> {
     pub fn join(&self) {
         let guard = self.join_status.read().unwrap();
         assert!(guard.alive.load(Ordering::SeqCst));
-        std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
+        std::mem::drop(
+            guard
+                .thread_finished
+                .wait(guard.finished_mutex.lock().unwrap())
+                .unwrap(),
+        );
     }
 
     pub unsafe fn is_this_thread(&self) -> bool {
@@ -173,7 +195,7 @@ pub enum SignalReason<'vm_life> {
 }
 
 pub struct AnEvent {
-    pub event_handler: unsafe extern fn(data: *mut c_void),
+    pub event_handler: unsafe extern "C" fn(data: *mut c_void),
     pub data: *mut c_void,
 }
 
@@ -181,13 +203,21 @@ impl<'vm_life> Threads<'vm_life> {
     fn init_signal_handler(&self) {
         unsafe {
             #[allow(clippy::transmuting_null)]
-                let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
+                let sa = SigAction::new(
+                SigHandler::SigAction(handler),
+                transmute(0 as libc::c_int),
+                SigSet::empty(),
+            );
             sigaction(Signal::SIGUSR1, &sa).unwrap();
         };
     }
 }
 
-extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
+extern "C" fn handler(
+    signal_number: libc::c_int,
+    siginfo: *mut libc::siginfo_t,
+    _data: *mut libc::c_void,
+) {
     unsafe {
         assert_eq!(Signal::try_from(signal_number).unwrap(), Signal::SIGUSR1);
 
@@ -199,7 +229,7 @@ extern fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _da
 
         match reason {
             SignalReason::Pause(threads) => handle_pause(threads.as_ref().unwrap()),
-            SignalReason::Event(e) => handle_event(e)
+            SignalReason::Event(e) => handle_event(e),
         }
     }
 }
@@ -213,11 +243,13 @@ pub mod handlers {
     }
 
     pub unsafe fn handle_event(e: AnEvent) {
-        let AnEvent { event_handler, data } = e;
+        let AnEvent {
+            event_handler,
+            data,
+        } = e;
         event_handler(data);
     }
 }
 
-
-pub mod signal;
 pub mod context;
+pub mod signal;

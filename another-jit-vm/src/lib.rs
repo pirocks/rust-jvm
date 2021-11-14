@@ -21,7 +21,12 @@ pub struct MethodOffset(usize);
 
 pub struct VMState<T: Sized> {
     method_id_max: AtomicUsize,
-    exit_handlers: RwLock<HashMap<MethodImplementationID, HashMap<MethodOffset, Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>>>>,
+    exit_handlers: RwLock<
+        HashMap<
+            MethodImplementationID,
+            HashMap<MethodOffset, Box<dyn FnMut(&VMExitEvent) -> VMExitAction<T>>>,
+        >,
+    >,
     code_regions: RwLock<HashMap<MethodImplementationID, Range<*mut c_void>>>,
     mmaped_code_region_base: *mut c_void,
 }
@@ -66,10 +71,10 @@ pub struct VMExitEvent {
 
 pub enum VMExitAction<T: Sized> {
     ExitVMCompletely {
-        return_data: T
+        return_data: T,
     },
     ReturnTo {
-        return_register_state: SavedRegistersWithIP
+        return_register_state: SavedRegistersWithIP,
     },
 }
 
@@ -115,74 +120,128 @@ pub const R14_NATIVE_OFFSET_CONST: usize = 112 + 120 + 4096;
 pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = 120 + 120 + 4096;
 
 impl<T> VMState<T> {
-    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> T {
+    pub fn launch_vm(
+        &self,
+        method_id: MethodImplementationID,
+        initial_registers: SavedRegistersWithoutIP,
+    ) -> T {
         let code_region: &Range<*mut c_void> = self.code_regions.get(&method_id).unwrap();
         let branch_to = code_region.start;
-        let rip_guest_offset = offset_of!(SavedRegistersWithIP,rip) + offset_of!(JITContext,registers_to_copy_in) + offset_of!(JITContext,guest_registers);
+        let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip)
+            + offset_of!(JITContext, registers_to_copy_in)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rip_guest_offset, RIP_GUEST_OFFSET_CONST);
-        let rax_guest_offset = offset_of!(SavedRegistersWithoutIP,rax) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rax_guest_offset = offset_of!(SavedRegistersWithoutIP, rax)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rax_guest_offset, RAX_GUEST_OFFSET_CONST);
-        let rbx_guest_offset = offset_of!(SavedRegistersWithoutIP,rbx) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rbx_guest_offset = offset_of!(SavedRegistersWithoutIP, rbx)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rbx_guest_offset, RBX_GUEST_OFFSET_CONST);
-        let rcx_guest_offset = offset_of!(SavedRegistersWithoutIP,rcx) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rcx_guest_offset = offset_of!(SavedRegistersWithoutIP, rcx)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rcx_guest_offset, RCX_GUEST_OFFSET_CONST);
-        let rdx_guest_offset = offset_of!(SavedRegistersWithoutIP,rdx) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rdx_guest_offset = offset_of!(SavedRegistersWithoutIP, rdx)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rdx_guest_offset, RDX_GUEST_OFFSET_CONST);
-        let rsi_guest_offset = offset_of!(SavedRegistersWithoutIP,rsi) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rsi_guest_offset = offset_of!(SavedRegistersWithoutIP, rsi)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rsi_guest_offset, RSI_GUEST_OFFSET_CONST);
-        let rdi_guest_offset = offset_of!(SavedRegistersWithoutIP,rdi) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rdi_guest_offset = offset_of!(SavedRegistersWithoutIP, rdi)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rdi_guest_offset, RDI_GUEST_OFFSET_CONST);
-        let rbp_guest_offset = offset_of!(SavedRegistersWithoutIP,rbp) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rbp_guest_offset = offset_of!(SavedRegistersWithoutIP, rbp)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rbp_guest_offset, RBP_GUEST_OFFSET_CONST);
-        let rsp_guest_offset = offset_of!(SavedRegistersWithoutIP,rsp) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let rsp_guest_offset = offset_of!(SavedRegistersWithoutIP, rsp)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(rsp_guest_offset, RSP_GUEST_OFFSET_CONST);
-        let r8_guest_offset = offset_of!(SavedRegistersWithoutIP,r8) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r8_guest_offset = offset_of!(SavedRegistersWithoutIP, r8)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r8_guest_offset, R8_GUEST_OFFSET_CONST);
-        let r9_guest_offset = offset_of!(SavedRegistersWithoutIP,r9) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r9_guest_offset = offset_of!(SavedRegistersWithoutIP, r9)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r9_guest_offset, R9_GUEST_OFFSET_CONST);
-        let r10_guest_offset = offset_of!(SavedRegistersWithoutIP,r10) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r10_guest_offset = offset_of!(SavedRegistersWithoutIP, r10)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r10_guest_offset, R10_GUEST_OFFSET_CONST);
-        let r11_guest_offset = offset_of!(SavedRegistersWithoutIP,r11) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r11_guest_offset = offset_of!(SavedRegistersWithoutIP, r11)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r11_guest_offset, R11_GUEST_OFFSET_CONST);
-        let r12_guest_offset = offset_of!(SavedRegistersWithoutIP,r12) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r12_guest_offset = offset_of!(SavedRegistersWithoutIP, r12)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r12_guest_offset, R12_GUEST_OFFSET_CONST);
-        let r13_guest_offset = offset_of!(SavedRegistersWithoutIP,r13) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r13_guest_offset = offset_of!(SavedRegistersWithoutIP, r13)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r13_guest_offset, R13_GUEST_OFFSET_CONST);
-        let r14_guest_offset = offset_of!(SavedRegistersWithoutIP,r14) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let r14_guest_offset = offset_of!(SavedRegistersWithoutIP, r14)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(r14_guest_offset, R14_GUEST_OFFSET_CONST);
-        let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP,xsave_area) + offset_of!(SavedRegistersWithIP,saved_registers_without_ip) + offset_of!(JITContext,guest_registers);
+        let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area)
+            + offset_of!(SavedRegistersWithIP, saved_registers_without_ip)
+            + offset_of!(JITContext, guest_registers);
         assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
-        let rax_native_offset = offset_of!(SavedRegistersWithoutIP,rax) + offset_of!(JITContext,vm_native_saved_registers);
+        let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rax_native_offset, RAX_NATIVE_OFFSET_CONST);
-        let rbx_native_offset = offset_of!(SavedRegistersWithoutIP,rbx) + offset_of!(JITContext,vm_native_saved_registers);
+        let rbx_native_offset = offset_of!(SavedRegistersWithoutIP, rbx)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rbx_native_offset, RBX_NATIVE_OFFSET_CONST);
-        let rcx_native_offset = offset_of!(SavedRegistersWithoutIP,rcx) + offset_of!(JITContext,vm_native_saved_registers);
+        let rcx_native_offset = offset_of!(SavedRegistersWithoutIP, rcx)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rcx_native_offset, RCX_NATIVE_OFFSET_CONST);
-        let rdx_native_offset = offset_of!(SavedRegistersWithoutIP,rdx) + offset_of!(JITContext,vm_native_saved_registers);
+        let rdx_native_offset = offset_of!(SavedRegistersWithoutIP, rdx)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rdx_native_offset, RDX_NATIVE_OFFSET_CONST);
-        let rsi_native_offset = offset_of!(SavedRegistersWithoutIP,rsi) + offset_of!(JITContext,vm_native_saved_registers);
+        let rsi_native_offset = offset_of!(SavedRegistersWithoutIP, rsi)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rsi_native_offset, RSI_NATIVE_OFFSET_CONST);
-        let rdi_native_offset = offset_of!(SavedRegistersWithoutIP,rdi) + offset_of!(JITContext,vm_native_saved_registers);
+        let rdi_native_offset = offset_of!(SavedRegistersWithoutIP, rdi)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rdi_native_offset, RDI_NATIVE_OFFSET_CONST);
-        let rbp_native_offset = offset_of!(SavedRegistersWithoutIP,rbp) + offset_of!(JITContext,vm_native_saved_registers);
+        let rbp_native_offset = offset_of!(SavedRegistersWithoutIP, rbp)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rbp_native_offset, RBP_NATIVE_OFFSET_CONST);
-        let rsp_native_offset = offset_of!(SavedRegistersWithoutIP,rsp) + offset_of!(JITContext,vm_native_saved_registers);
+        let rsp_native_offset = offset_of!(SavedRegistersWithoutIP, rsp)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rsp_native_offset, RSP_NATIVE_OFFSET_CONST);
-        let r8_native_offset = offset_of!(SavedRegistersWithoutIP,r8) + offset_of!(JITContext,vm_native_saved_registers);
+        let r8_native_offset = offset_of!(SavedRegistersWithoutIP, r8)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r8_native_offset, R8_NATIVE_OFFSET_CONST);
-        let r9_native_offset = offset_of!(SavedRegistersWithoutIP,r9) + offset_of!(JITContext,vm_native_saved_registers);
+        let r9_native_offset = offset_of!(SavedRegistersWithoutIP, r9)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r9_native_offset, R9_NATIVE_OFFSET_CONST);
-        let r10_native_offset = offset_of!(SavedRegistersWithoutIP,r10) + offset_of!(JITContext,vm_native_saved_registers);
+        let r10_native_offset = offset_of!(SavedRegistersWithoutIP, r10)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r10_native_offset, R10_NATIVE_OFFSET_CONST);
-        let r11_native_offset = offset_of!(SavedRegistersWithoutIP,r11) + offset_of!(JITContext,vm_native_saved_registers);
+        let r11_native_offset = offset_of!(SavedRegistersWithoutIP, r11)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r11_native_offset, R11_NATIVE_OFFSET_CONST);
-        let r12_native_offset = offset_of!(SavedRegistersWithoutIP,r12) + offset_of!(JITContext,vm_native_saved_registers);
+        let r12_native_offset = offset_of!(SavedRegistersWithoutIP, r12)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r12_native_offset, R12_NATIVE_OFFSET_CONST);
-        let r13_native_offset = offset_of!(SavedRegistersWithoutIP,r13) + offset_of!(JITContext,vm_native_saved_registers);
+        let r13_native_offset = offset_of!(SavedRegistersWithoutIP, r13)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r13_native_offset, R13_NATIVE_OFFSET_CONST);
-        let r14_native_offset = offset_of!(SavedRegistersWithoutIP,r14) + offset_of!(JITContext,vm_native_saved_registers);
+        let r14_native_offset = offset_of!(SavedRegistersWithoutIP, r14)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r14_native_offset, R14_NATIVE_OFFSET_CONST);
-        let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP,xsave_area) + offset_of!(JITContext,vm_native_saved_registers);
+        let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area)
+            + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
         let mut jit_context = JITContext {
             guest_registers: SavedRegistersWithIP {

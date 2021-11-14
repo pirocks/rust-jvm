@@ -9,33 +9,34 @@ pub struct JVMString {
 
 impl JVMString {
     pub fn from_regular_string(str: &str) -> Self {
-        let buf = str.chars().flat_map(|char_| {
-            let char_ = char_ as u32;
-            if char_ >= 0x1 && char_ <= 0x7F {
-                vec![char_ as u8]
-            } else if char_ >= 0x80 && char_ <= 0x7FF {
-                let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
-                let y = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
-                vec![x, y]
-            } else if char_ >= 0x800 && char_ <= 0xFFFF {
-                let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));
-                let y = 0b1000_0000 | (0b0011_1111 & ((char_ >> 6) as u8));
-                let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
-                vec![x, y, z]
-            } else {
-                assert!(char_ > 0xFFFF);
-                let u = 0b1110_1101;
-                let v = 0b1010_0000 | (0b1111_0000 & ((char_ >> 16) as u8 - 1));
-                let w = 0b1000_0000 | (0b1100_0000 & ((char_ >> 10) as u8));
-                let x = 0b1110_1101;
-                let y = 0b1011_0000 | (0b0000_1111 & ((char_ >> 6) as u8));
-                let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
-                vec![u, v, w, x, y, z]
-            }
-        }).collect::<Vec<_>>();
-        Self {
-            buf
-        }
+        let buf = str
+            .chars()
+            .flat_map(|char_| {
+                let char_ = char_ as u32;
+                if char_ >= 0x1 && char_ <= 0x7F {
+                    vec![char_ as u8]
+                } else if char_ >= 0x80 && char_ <= 0x7FF {
+                    let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
+                    let y = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
+                    vec![x, y]
+                } else if char_ >= 0x800 && char_ <= 0xFFFF {
+                    let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));
+                    let y = 0b1000_0000 | (0b0011_1111 & ((char_ >> 6) as u8));
+                    let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
+                    vec![x, y, z]
+                } else {
+                    assert!(char_ > 0xFFFF);
+                    let u = 0b1110_1101;
+                    let v = 0b1010_0000 | (0b1111_0000 & ((char_ >> 16) as u8 - 1));
+                    let w = 0b1000_0000 | (0b1100_0000 & ((char_ >> 10) as u8));
+                    let x = 0b1110_1101;
+                    let y = 0b1011_0000 | (0b0000_1111 & ((char_ >> 6) as u8));
+                    let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
+                    vec![u, v, w, x, y, z]
+                }
+            })
+            .collect::<Vec<_>>();
+        Self { buf }
     }
 
     pub fn to_string_validated(&self) -> String {
@@ -43,11 +44,19 @@ impl JVMString {
     }
 
     pub fn to_wtf8(&self) -> Wtf8Buf {
-        PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(true).unwrap().unwrap_wtf8()
+        PossiblyJVMString {
+            buf: self.buf.clone(),
+        }
+            .to_regular_utf8(true)
+            .unwrap()
+            .unwrap_wtf8()
     }
 
     pub fn to_string(&self) -> Result<String, ValidationError> {
-        let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(false)?;
+        let buf = PossiblyJVMString {
+            buf: self.buf.clone(),
+        }
+            .to_regular_utf8(false)?;
         Ok(buf.unwrap_utf8())
     }
 }
@@ -70,12 +79,9 @@ impl From<FromUtf8Error> for ValidationError {
     }
 }
 
-
 impl PossiblyJVMString {
     pub fn new(buf: Vec<u8>) -> Self {
-        Self {
-            buf
-        }
+        Self { buf }
     }
 
     pub fn validate(self, allow_wtf8: bool) -> Result<JVMString, ValidationError> {
@@ -99,7 +105,10 @@ impl PossiblyJVMString {
                 let codepoint = x as u32;
                 res.push_codepoint(codepoint)?;
             } else if (x >> 5) == 0b110 {
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -108,11 +117,17 @@ impl PossiblyJVMString {
                 let codepoint = ((x_u16 & 0x1f) << 6) + (y_u16 & 0x3f);
                 res.push_codepoint(codepoint as u32)?;
             } else if x != 0b11101101 {
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -123,11 +138,17 @@ impl PossiblyJVMString {
                 res.push_codepoint(codepoint as u32)?;
             } else {
                 let u = x;
-                let v = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let v = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (v >> 4) != 0b1010 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let w = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let w = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (w >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -145,11 +166,17 @@ impl PossiblyJVMString {
                     }
                 }
                 buf_iter.next().unwrap();
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 4) != 0b1010 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter
+                    .next()
+                    .cloned()
+                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -157,7 +184,11 @@ impl PossiblyJVMString {
                 let z_u32 = z as u32;
                 let v_u32 = v as u32;
                 let w_u32 = w as u32;
-                let codepoint = 0x10000 + ((v_u32 & 0x0f) << 16) + ((w_u32 & 0x3f) << 10) + ((y_u32 & 0x0f) << 6) + (z_u32 & 0x3f);
+                let codepoint = 0x10000
+                    + ((v_u32 & 0x0f) << 16)
+                    + ((w_u32 & 0x3f) << 10)
+                    + ((y_u32 & 0x0f) << 6)
+                    + (z_u32 & 0x3f);
                 res.push_codepoint(codepoint as u32)?;
             }
         }
@@ -179,9 +210,11 @@ impl Utf8OrWtf8 {
     }
     pub fn push_codepoint(&mut self, to_push: u32) -> Result<(), ValidationError> {
         match self {
-            Utf8OrWtf8::Wtf(wtf) => {
-                wtf.push(CodePoint::from_u32(to_push as u32).ok_or_else(|| panic!("panic for now for debugging todo")).unwrap())
-            }
+            Utf8OrWtf8::Wtf(wtf) => wtf.push(
+                CodePoint::from_u32(to_push as u32)
+                    .ok_or_else(|| panic!("panic for now for debugging todo"))
+                    .unwrap(),
+            ),
             Utf8OrWtf8::Utf(utf) => {
                 utf.push(char::from_u32(to_push as u32).ok_or(ValidationError::InvalidCodePoint)?)
             }
@@ -192,17 +225,16 @@ impl Utf8OrWtf8 {
     pub fn unwrap_wtf8(self) -> Wtf8Buf {
         match self {
             Utf8OrWtf8::Wtf(res) => res,
-            Utf8OrWtf8::Utf(str) => Wtf8Buf::from_string(str)
+            Utf8OrWtf8::Utf(str) => Wtf8Buf::from_string(str),
         }
     }
 
     pub fn unwrap_utf8(self) -> String {
         match self {
             Utf8OrWtf8::Wtf(_) => panic!(),
-            Utf8OrWtf8::Utf(str) => str
+            Utf8OrWtf8::Utf(str) => str,
         }
     }
 }
-
 
 pub struct InvalidCodepoint {}

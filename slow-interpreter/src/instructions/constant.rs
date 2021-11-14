@@ -16,20 +16,29 @@ pub fn fconst_2(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntry
     current_frame.push(JavaValue::Float(2.0));
 }
 
-
-pub fn bipush(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, b: u8) {
-    current_frame.push(JavaValue::Int(unsafe { transmute::<u8, i8>(b) } as i32))//todo get rid of unneeded transmute
+pub fn bipush(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mut current_frame: StackEntryMut<'gc_life, 'l>,
+    b: u8,
+) {
+    current_frame.push(JavaValue::Int(unsafe { transmute::<u8, i8>(b) } as i32))
+    //todo get rid of unneeded transmute
 }
 
-pub fn sipush(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, val: u16) {
+pub fn sipush(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mut current_frame: StackEntryMut<'gc_life, 'l>,
+    val: u16,
+) {
     current_frame.push(JavaValue::Int(unsafe { transmute::<u16, i16>(val) } as i32));
 }
 
-
-pub fn aconst_null(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+pub fn aconst_null(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mut current_frame: StackEntryMut<'gc_life, 'l>,
+) {
     current_frame.push(JavaValue::null())
 }
-
 
 pub fn iconst_5(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     current_frame.push(JavaValue::Int(5))
@@ -63,10 +72,17 @@ pub fn dconst_0(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntry
     current_frame.push(JavaValue::Double(0.0))
 }
 
-pub fn iconst_m1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+pub fn iconst_m1(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mut current_frame: StackEntryMut<'gc_life, 'l>,
+) {
     current_frame.push(JavaValue::Int(-1))
 }
 
-pub fn lconst(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, i: i64) {
+pub fn lconst(
+    jvm: &'gc_life JVMState<'gc_life>,
+    mut current_frame: StackEntryMut<'gc_life, 'l>,
+    i: i64,
+) {
     current_frame.push(JavaValue::Long(i))
 }

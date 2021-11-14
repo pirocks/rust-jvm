@@ -31,11 +31,13 @@ impl Debug for Monitor {
     }
 }
 
-
 impl Monitor {
     pub fn new(name: String, i: usize) -> Self {
         Self {
-            owned: RwLock::new(OwningThreadAndCount { owner: None, count: 0 }),
+            owned: RwLock::new(OwningThreadAndCount {
+                owner: None,
+                count: 0,
+            }),
             mutex: Arc::new(const_fair_mutex(())),
             monitor_i: i,
             condvar: Condvar::new(),
@@ -73,7 +75,9 @@ impl Monitor {
         current_owners_guard.count -= 1;
         if current_owners_guard.count == 0 {
             current_owners_guard.owner = None;
-            unsafe { self.mutex.force_unlock_fair(); }
+            unsafe {
+                self.mutex.force_unlock_fair();
+            }
         }
     }
 
@@ -90,14 +94,20 @@ impl Monitor {
         count_and_owner.count = 0;
         count_and_owner.owner = None;
         let guard1 = self.condvar_mutex.lock().unwrap();
-        unsafe { self.mutex.force_unlock_fair(); }
+        unsafe {
+            self.mutex.force_unlock_fair();
+        }
         std::mem::drop(count_and_owner);
         //after this line any other thread can now lock.
         // assert!(millis >= 0);// would throw an illegal argument exception, however the java agent seems to use -1 instead of 0
         if millis <= 0 {
             std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
-            std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());
+            std::mem::drop(
+                self.condvar
+                    .wait_timeout(guard1, Duration::from_millis(millis as u64))
+                    .unwrap(),
+            );
         }
         //now reacquire the same count as earlier:
         std::mem::forget(self.mutex.lock());
@@ -106,14 +116,19 @@ impl Monitor {
         write_guard.count = count;
     }
 
-    pub fn destroy(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<(), MonitorOwnedBySomeoneElse> {
+    pub fn destroy(
+        &self,
+        jvm: &'gc_life JVMState<'gc_life>,
+    ) -> Result<(), MonitorOwnedBySomeoneElse> {
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
             return Result::Err(MonitorOwnedBySomeoneElse {});
         }
         current_owners_guard.count = 0;
         current_owners_guard.owner = None;
-        unsafe { self.mutex.force_unlock_fair(); }
+        unsafe {
+            self.mutex.force_unlock_fair();
+        }
         Result::Ok(())
     }
 
@@ -134,13 +149,9 @@ impl Monitor {
     pub fn this_thread_holds_lock(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
         match self.owned.read().unwrap().owner.as_ref() {
             None => false,
-            Some(owner_tid) => {
-                *owner_tid == Monitor::get_tid(jvm)
-            }
+            Some(owner_tid) => *owner_tid == Monitor::get_tid(jvm),
         }
     }
 }
 
 pub struct MonitorOwnedBySomeoneElse {}
-
-

@@ -8,7 +8,6 @@ use crate::runtime_class::RuntimeClass;
 pub type FieldTableIndex = usize;
 pub type FieldId = usize;
 
-
 pub struct FieldTable<'gc_life> {
     table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
     //todo at a later date will contain compiled code data etc.
@@ -23,13 +22,19 @@ impl<'gc_life> FieldTable<'gc_life> {
             None => {
                 return self.register_with_table(rc, index);
             }
-        }.get(&index) {
+        }
+            .get(&index)
+        {
             Some(x) => *x,
             None => self.register_with_table(rc, index),
         }
     }
 
-    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, field_index: u16) -> FieldTableIndex {
+    pub fn register_with_table(
+        &mut self,
+        rc: Arc<RuntimeClass<'gc_life>>,
+        field_index: u16,
+    ) -> FieldTableIndex {
         let res = self.table.len();
         self.table.push((rc.clone(), field_index));
         match self.index.get_mut(&rc.clone().into()) {

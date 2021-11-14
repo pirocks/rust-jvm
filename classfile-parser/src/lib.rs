@@ -16,10 +16,12 @@ pub mod attribute_infos;
 pub mod code;
 pub mod constant_infos;
 
-
 mod parsing_util;
 
-pub fn parse_interfaces(p: &mut dyn ParsingContext, interfaces_count: u16) -> Result<Vec<u16>, ClassfileParsingError> {
+pub fn parse_interfaces(
+    p: &mut dyn ParsingContext,
+    interfaces_count: u16,
+) -> Result<Vec<u16>, ClassfileParsingError> {
     let mut res = Vec::with_capacity(interfaces_count as usize);
     for _ in 0..interfaces_count {
         res.push(p.read16()?)
@@ -33,10 +35,18 @@ pub fn parse_field(p: &mut dyn ParsingContext) -> Result<FieldInfo, ClassfilePar
     let descriptor_index = p.read16()?;
     let attributes_count = p.read16()?;
     let attributes = parse_attributes(p, attributes_count)?;
-    Ok(FieldInfo { access_flags, name_index, descriptor_index, attributes })
+    Ok(FieldInfo {
+        access_flags,
+        name_index,
+        descriptor_index,
+        attributes,
+    })
 }
 
-pub fn parse_field_infos(p: &mut dyn ParsingContext, fields_count: u16) -> Result<Vec<FieldInfo>, ClassfileParsingError> {
+pub fn parse_field_infos(
+    p: &mut dyn ParsingContext,
+    fields_count: u16,
+) -> Result<Vec<FieldInfo>, ClassfileParsingError> {
     let mut res = Vec::with_capacity(fields_count as usize);
     for _ in 0..fields_count {
         res.push(parse_field(p)?)
@@ -50,10 +60,18 @@ pub fn parse_method(p: &mut dyn ParsingContext) -> Result<MethodInfo, ClassfileP
     let descriptor_index = p.read16()?;
     let attributes_count = p.read16()?;
     let attributes = parse_attributes(p, attributes_count)?;
-    Ok(MethodInfo { access_flags, name_index, descriptor_index, attributes })
+    Ok(MethodInfo {
+        access_flags,
+        name_index,
+        descriptor_index,
+        attributes,
+    })
 }
 
-pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Result<Vec<MethodInfo>, ClassfileParsingError> {
+pub fn parse_methods(
+    p: &mut dyn ParsingContext,
+    methods_count: u16,
+) -> Result<Vec<MethodInfo>, ClassfileParsingError> {
     let mut res = Vec::with_capacity(methods_count as usize);
     for _ in 0..methods_count {
         res.push(parse_method(p)?)
@@ -62,12 +80,14 @@ pub fn parse_methods(p: &mut dyn ParsingContext, methods_count: u16) -> Result<V
 }
 
 pub fn parse_class_file(read: &mut dyn Read) -> Result<Classfile, ClassfileParsingError> {
-    let mut p = ReadParsingContext { constant_pool: None, read: &mut BufReader::new(read) };
+    let mut p = ReadParsingContext {
+        constant_pool: None,
+        read: &mut BufReader::new(read),
+    };
     let mut class_file = parse_from_context(&mut p)?;
     class_file.constant_pool = p.constant_pool();
     Ok(class_file)
 }
-
 
 fn parse_from_context(p: &mut dyn ParsingContext) -> Result<Classfile, ClassfileParsingError> {
     let magic: u32 = p.read32()?;

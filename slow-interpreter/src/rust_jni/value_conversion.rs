@@ -4,7 +4,9 @@ use std::sync::Arc;
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
+use jvmti_jni_bindings::{
+    jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort,
+};
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::JavaValue;
@@ -19,12 +21,10 @@ pub fn runtime_class_to_native<'gc_life>(runtime_class: Arc<RuntimeClass<'gc_lif
     Arg::new(pointer_ref)
 }
 
-
 pub unsafe fn native_to_runtime_class<'gc_life>(clazz: jclass) -> Arc<RuntimeClass<'gc_life>> {
     let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass<'gc_life>>);
     boxed_arc.deref().clone()
 }
-
 
 pub fn to_native_type(t: &CPDType) -> Type {
     match t {
@@ -41,15 +41,18 @@ pub fn to_native_type(t: &CPDType) -> Type {
     }
 }
 
-
 pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &CPDType) -> Arg {
     match t {
-        CPDType::ByteType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte)
-        }
-        CPDType::CharType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar)
-        }
+        CPDType::ByteType => Arg::new(
+            Box::into_raw(Box::new(j.unwrap_int() as i8))
+                .as_ref()
+                .unwrap() as &jbyte,
+        ),
+        CPDType::CharType => Arg::new(
+            Box::into_raw(Box::new(j.unwrap_int() as u16))
+                .as_ref()
+                .unwrap() as &jchar,
+        ),
         CPDType::DoubleType => {
             Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble)
         }
@@ -67,16 +70,19 @@ pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &
             drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
-        CPDType::ShortType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort)
-        }
-        CPDType::BooleanType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u8)).as_ref().unwrap() as &jboolean)
-        }
+        CPDType::ShortType => Arg::new(
+            Box::into_raw(Box::new(j.unwrap_int() as i16))
+                .as_ref()
+                .unwrap() as &jshort,
+        ),
+        CPDType::BooleanType => Arg::new(
+            Box::into_raw(Box::new(j.unwrap_int() as u8))
+                .as_ref()
+                .unwrap() as &jboolean,
+        ),
         _ => panic!(),
     }
 }
-
 
 pub unsafe fn free_native<'gc_life>(_j: JavaValue<'gc_life>, t: &CPDType, to_free: &mut Arg) {
     match t {

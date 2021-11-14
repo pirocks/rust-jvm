@@ -34,7 +34,9 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use crate::class_loading::{
+    check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader,
+};
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -54,163 +56,186 @@ pub mod java;
 pub mod sun;
 #[macro_use]
 pub mod utils;
-pub mod interpreter_state;
-pub mod options;
-pub mod jvm_state;
-pub mod instructions;
-pub mod interpreter_util;
-pub mod rust_jni;
-pub mod loading;
-pub mod jvmti;
-pub mod invoke_interface;
-pub mod stack_entry;
-pub mod class_objects;
-pub mod tracing;
-pub mod interpreter;
-pub mod method_table;
-pub mod field_table;
-pub mod native_allocation;
-pub mod threading;
-mod resolvers;
 pub mod class_loading;
+pub mod class_objects;
+pub mod field_table;
+pub mod instructions;
+pub mod interpreter;
+pub mod interpreter_state;
+pub mod interpreter_util;
+pub mod invoke_interface;
+pub mod jvm_state;
+pub mod jvmti;
+pub mod loading;
+pub mod method_table;
+pub mod native_allocation;
+pub mod options;
+mod resolvers;
+pub mod rust_jni;
+pub mod stack_entry;
+pub mod threading;
+pub mod tracing;
 #[macro_use]
 pub mod runtime_class;
-pub mod jit;
 pub mod gc_memory_layout_common;
+pub mod jit;
 pub mod jit_common;
+
 pub mod native_tracing {
     use std::ffi::c_void;
 
     pub enum Event {
-        InvokeVirtual {}
+        InvokeVirtual {},
     }
-
 
     /*#[repr(align = "4096")]
-    #[repr(packed)]
-    pub struct XsaveArea {
-        data : [u64;64]
-    }
-*/
+        #[repr(packed)]
+        pub struct XsaveArea {
+            data : [u64;64]
+        }
+    */
     /*  #[naked]
-      unsafe fn trace(){
-          asm!(
-          "push r0",
-          "push r1",
-          "push r2",
-          "push r3",
-          "push r4",
-          "push r5",
-          "push r6",
-          "push r7",
-          "push r8",
-          "push r9",
-          "push r10",
-          "push r11",
-          "push r12",
-          "push r13",
-          "push r14",
-          "push r15",
-          "push cs",
-          "push ss",
-          "push ds",
-          "push es",
-          "push fs",
-          "push gs",
-          "push gs",
-          "push esp",
-          "mov rax, rsp",
-          "sub rsp, 4096",
-          "xsave rax",
-          "push rsp"
-          );
+    unsafe fn trace(){
+        asm!(
+        "push r0",
+        "push r1",
+        "push r2",
+        "push r3",
+        "push r4",
+        "push r5",
+        "push r6",
+        "push r7",
+        "push r8",
+        "push r9",
+        "push r10",
+        "push r11",
+        "push r12",
+        "push r13",
+        "push r14",
+        "push r15",
+        "push cs",
+        "push ss",
+        "push ds",
+        "push es",
+        "push fs",
+        "push gs",
+        "push gs",
+        "push esp",
+        "mov rax, rsp",
+        "sub rsp, 4096",
+        "xsave rax",
+        "push rsp"
+        );
 
 
 
-          /*asm!(
-          "pop esp",
-          "add esp, 16", "movdqu dqword [esp], ymm31",
-          "add esp, 16", "movdqu dqword [esp], ymm30",
-          "add esp, 16", "movdqu dqword [esp], ymm29",
-          "add esp, 16", "movdqu dqword [esp], ymm28",
-          "add esp, 16", "movdqu dqword [esp], ymm27",
-          "add esp, 16", "movdqu dqword [esp], ymm26",
-          "add esp, 16", "movdqu dqword [esp], ymm25",
-          "add esp, 16", "movdqu dqword [esp], ymm24",
-          "add esp, 16", "movdqu dqword [esp], ymm23",
-          "add esp, 16", "movdqu dqword [esp], ymm22",
-          "add esp, 16", "movdqu dqword [esp], ymm21",
-          "add esp, 16", "movdqu dqword [esp], ymm20",
-          "add esp, 16", "movdqu dqword [esp], ymm19",
-          "add esp, 16", "movdqu dqword [esp], ymm18",
-          "add esp, 16", "movdqu dqword [esp], ymm17",
-          "add esp, 16", "movdqu dqword [esp], ymm16",
-          "add esp, 16", "movdqu dqword [esp], ymm15",
-          "add esp, 16", "movdqu dqword [esp], ymm14",
-          "add esp, 16", "movdqu dqword [esp], ymm13",
-          "add esp, 16", "movdqu dqword [esp], ymm12",
-          "add esp, 16", "movdqu dqword [esp], ymm11",
-          "add esp, 16", "movdqu dqword [esp], ymm10",
-          "add esp, 16", "movdqu dqword [esp], ymm9",
-          "add esp, 16", "movdqu dqword [esp], ymm8",
-          "add esp, 16", "movdqu dqword [esp], ymm7",
-          "add esp, 16", "movdqu dqword [esp], ymm6",
-          "add esp, 16", "movdqu dqword [esp], ymm5",
-          "add esp, 16", "movdqu dqword [esp], ymm4",
-          "add esp, 16", "movdqu dqword [esp], ymm3",
-          "add esp, 16", "movdqu dqword [esp], ymm2",
-          "add esp, 16", "movdqu dqword [esp], ymm1",
-          "add esp, 16", "movdqu dqword [esp], ymm0",
-          "add esp, 16", "movdqu dqword [esp], xmm7",
-          "add esp, 16", "movdqu dqword [esp], xmm6",
-          "add esp, 16", "movdqu dqword [esp], xmm5",
-          "add esp, 16", "movdqu dqword [esp], xmm4",
-          "add esp, 16", "movdqu dqword [esp], xmm3",
-          "add esp, 16", "movdqu dqword [esp], xmm2",
-          "add esp, 16", "movdqu dqword [esp], xmm1",
-          "add esp, 16", "movdqu dqword [esp], xmm0",
-          //todo should use xsave
-          "pop gs",
-          "pop gs",
-          "pop fs",
-          "pop es",
-          "pop ds",
-          "pop ss",
-          "pop cs",
-          "pop r15",
-          "pop r14",
-          "pop r13",
-          "pop r12",
-          "pop r11",
-          "pop r10",
-          "pop r9",
-          "pop r8",
-          "pop r7",
-          "pop r6",
-          "pop r5",
-          "pop r4",
-          "pop r3",
-          "pop r2",
-          "pop r1",
-          "pop r0",
-          )*/
-      }*/
+        /*asm!(
+        "pop esp",
+        "add esp, 16", "movdqu dqword [esp], ymm31",
+        "add esp, 16", "movdqu dqword [esp], ymm30",
+        "add esp, 16", "movdqu dqword [esp], ymm29",
+        "add esp, 16", "movdqu dqword [esp], ymm28",
+        "add esp, 16", "movdqu dqword [esp], ymm27",
+        "add esp, 16", "movdqu dqword [esp], ymm26",
+        "add esp, 16", "movdqu dqword [esp], ymm25",
+        "add esp, 16", "movdqu dqword [esp], ymm24",
+        "add esp, 16", "movdqu dqword [esp], ymm23",
+        "add esp, 16", "movdqu dqword [esp], ymm22",
+        "add esp, 16", "movdqu dqword [esp], ymm21",
+        "add esp, 16", "movdqu dqword [esp], ymm20",
+        "add esp, 16", "movdqu dqword [esp], ymm19",
+        "add esp, 16", "movdqu dqword [esp], ymm18",
+        "add esp, 16", "movdqu dqword [esp], ymm17",
+        "add esp, 16", "movdqu dqword [esp], ymm16",
+        "add esp, 16", "movdqu dqword [esp], ymm15",
+        "add esp, 16", "movdqu dqword [esp], ymm14",
+        "add esp, 16", "movdqu dqword [esp], ymm13",
+        "add esp, 16", "movdqu dqword [esp], ymm12",
+        "add esp, 16", "movdqu dqword [esp], ymm11",
+        "add esp, 16", "movdqu dqword [esp], ymm10",
+        "add esp, 16", "movdqu dqword [esp], ymm9",
+        "add esp, 16", "movdqu dqword [esp], ymm8",
+        "add esp, 16", "movdqu dqword [esp], ymm7",
+        "add esp, 16", "movdqu dqword [esp], ymm6",
+        "add esp, 16", "movdqu dqword [esp], ymm5",
+        "add esp, 16", "movdqu dqword [esp], ymm4",
+        "add esp, 16", "movdqu dqword [esp], ymm3",
+        "add esp, 16", "movdqu dqword [esp], ymm2",
+        "add esp, 16", "movdqu dqword [esp], ymm1",
+        "add esp, 16", "movdqu dqword [esp], ymm0",
+        "add esp, 16", "movdqu dqword [esp], xmm7",
+        "add esp, 16", "movdqu dqword [esp], xmm6",
+        "add esp, 16", "movdqu dqword [esp], xmm5",
+        "add esp, 16", "movdqu dqword [esp], xmm4",
+        "add esp, 16", "movdqu dqword [esp], xmm3",
+        "add esp, 16", "movdqu dqword [esp], xmm2",
+        "add esp, 16", "movdqu dqword [esp], xmm1",
+        "add esp, 16", "movdqu dqword [esp], xmm0",
+        //todo should use xsave
+        "pop gs",
+        "pop gs",
+        "pop fs",
+        "pop es",
+        "pop ds",
+        "pop ss",
+        "pop cs",
+        "pop r15",
+        "pop r14",
+        "pop r13",
+        "pop r12",
+        "pop r11",
+        "pop r10",
+        "pop r9",
+        "pop r8",
+        "pop r7",
+        "pop r6",
+        "pop r5",
+        "pop r4",
+        "pop r3",
+        "pop r2",
+        "pop r1",
+        "pop r0",
+        )*/
+    }*/
 }
 
-pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
+pub fn run_main(
+    args: Vec<String>,
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
-    let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
+    let main = check_loaded_class_force_loader(
+        jvm,
+        int_state,
+        &jvm.config.main_class_name.clone().into(),
+        main_loader,
+    )
+        .expect("failed to load main class");
+    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype())
+        .expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);
     let main_thread = jvm.thread_state.get_main_thread();
-    assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
-    let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
+    assert!(Arc::ptr_eq(
+        &jvm.thread_state.get_current_thread(),
+        &main_thread,
+    ));
+    let num_vars = main_view
+        .method_view_i(main_i as u16)
+        .code_attribute()
+        .unwrap()
+        .max_locals;
+    let stack_entry = StackEntry::new_java_frame(
+        jvm,
+        main.clone(),
+        main_i as u16,
+        vec![JavaValue::Top; num_vars as usize],
+    );
     let main_frame_guard = int_state.push_frame(stack_entry, jvm);
 
     setup_program_args(&jvm, int_state, args);
@@ -220,7 +245,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, main_frame_guard, false);
             }
-            sleep(Duration::new(100, 0));//todo need to wait for other threads or something
+            sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
         }
         Err(WasException {}) => {
             int_state.debug_print_stack_trace(jvm);
@@ -230,41 +255,68 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     Result::Ok(())
 }
 
-
-fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<String>) {
+fn setup_program_args(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    args: Vec<String>,
+) {
     let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").java_value());
+        arg_strings.push(
+            JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str))
+                .expect("todo")
+                .java_value(),
+        );
     }
-    let arg_array = JavaValue::Object(Some(jvm.allocate_object(Array(ArrayObject::new_array(
-        jvm,
-        int_state,
-        arg_strings,
-        CPDType::Ref(CPRefType::Class(CClassName::string())),
-        jvm.thread_state.new_monitor("arg array monitor".to_string()),
-    ).expect("todo")))));
+    let arg_array = JavaValue::Object(Some(
+        jvm.allocate_object(Array(
+            ArrayObject::new_array(
+                jvm,
+                int_state,
+                arg_strings,
+                CPDType::Ref(CPRefType::Class(CClassName::string())),
+                jvm.thread_state
+                    .new_monitor("arg array monitor".to_string()),
+            )
+                .expect("todo"),
+        )),
+    ));
     let mut current_frame_mut = int_state.current_frame_mut();
     let mut local_vars = current_frame_mut.local_vars_mut();
     local_vars.set(0, arg_array);
 }
 
-
-fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]), jvm);
+fn set_properties(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+) -> Result<(), WasException> {
+    let frame_for_properties = int_state.push_frame(
+        StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]),
+        jvm,
+    );
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
-        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
+        let key = JString::from_rust(
+            jvm,
+            int_state,
+            Wtf8Buf::from_string(properties[key_i].clone()),
+        )
+            .expect("todo");
+        let value = JString::from_rust(
+            jvm,
+            int_state,
+            Wtf8Buf::from_string(properties[value_i].clone()),
+        )
+            .expect("todo");
         prop_obj.set_property(jvm, int_state, key, value)?;
     }
     int_state.pop_frame(jvm, frame_for_properties, false);
     Ok(())
 }
-
 
 fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn ClassView>) -> u16 {
     let string_name = CClassName::string();
@@ -273,7 +325,10 @@ fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn Class
     let psvms = main.lookup_method_name(MethodName(pool.add_name(&"main".to_string(), false)));
     for m in psvms {
         let desc = m.desc();
-        if m.is_static() && desc.arg_types == vec![string_array.clone()] && desc.return_type == CPDType::VoidType {
+        if m.is_static()
+            && desc.arg_types == vec![string_array.clone()]
+            && desc.return_type == CPDType::VoidType
+        {
             return m.method_i();
         }
     }

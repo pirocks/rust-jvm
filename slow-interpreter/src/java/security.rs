@@ -7,7 +7,9 @@ pub mod protection_domain {
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_protection_domain(&self) -> ProtectionDomain<'gc_life> {
-            ProtectionDomain { normal_object: self.unwrap_object_nonnull() }
+            ProtectionDomain {
+                normal_object: self.unwrap_object_nonnull(),
+            }
         }
     }
 
@@ -34,17 +36,38 @@ pub mod access_control_context {
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_access_control_context(&self) -> AccessControlContext<'gc_life> {
-            AccessControlContext { normal_object: self.unwrap_object_nonnull() }
+            AccessControlContext {
+                normal_object: self.unwrap_object_nonnull(),
+            }
         }
     }
 
     impl<'gc_life> AccessControlContext<'gc_life> {
-        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, protection_domains: Vec<ProtectionDomain<'gc_life>>) -> Result<Self, WasException> {
-            let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
+        pub fn new(
+            jvm: &'gc_life JVMState<'gc_life>,
+            int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+            protection_domains: Vec<ProtectionDomain<'gc_life>>,
+        ) -> Result<Self, WasException> {
+            let access_control_context_class =
+                assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
             let access_control_object = new_object(jvm, int_state, &access_control_context_class);
-            let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.into_iter().map(|pd| pd.java_value()).collect(), CClassName::protection_domain().into());
-            run_constructor(jvm, int_state, access_control_context_class, vec![access_control_object.clone(), pds_jv],
-                            &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
+            let pds_jv = JavaValue::new_vec_from_vec(
+                jvm,
+                protection_domains
+                    .into_iter()
+                    .map(|pd| pd.java_value())
+                    .collect(),
+                CClassName::protection_domain().into(),
+            );
+            run_constructor(
+                jvm,
+                int_state,
+                access_control_context_class,
+                vec![access_control_object.clone(), pds_jv],
+                &CMethodDescriptor::void_return(vec![CPDType::array(
+                    CClassName::protection_domain().into(),
+                )]),
+            )?;
             Ok(access_control_object.cast_access_control_context())
         }
 

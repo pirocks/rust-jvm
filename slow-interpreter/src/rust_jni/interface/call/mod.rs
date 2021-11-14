@@ -1,7 +1,9 @@
 use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
+use jvmti_jni_bindings::{
+    jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue,
+};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 
 use crate::class_loading::check_initing_or_inited_class;
@@ -19,12 +21,21 @@ use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
-
-unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+unsafe fn call_nonstatic_method<'gc_life>(
+    env: *mut *const JNINativeInterface_,
+    obj: jobject,
+    method_id: jmethodID,
+    mut l: VarargProvider,
+) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of unwrap
+    let (class, method_i) = jvm
+        .method_table
+        .read()
+        .unwrap()
+        .try_lookup(method_id)
+        .unwrap(); //todo should really return error instead of unwrap
     let classview = class.view().clone();
     let method = &classview.method_view_i(method_i);
     if method.is_static() {
@@ -40,15 +51,26 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
+        int_state
+            .pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap()))
+            .into()
     })
 }
 
-pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub unsafe fn call_static_method_impl<'gc_life>(
+    env: *mut *const JNINativeInterface_,
+    jmethod_id: jmethodID,
+    mut l: VarargProvider,
+) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
+    let (class, method_i) = jvm
+        .method_table
+        .read()
+        .unwrap()
+        .try_lookup(method_id)
+        .unwrap(); //todo should really return error instead of lookup
     check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
@@ -58,7 +80,9 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     Ok(if method.desc().return_type == CPDType::VoidType {
         None
     } else {
-        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
+        int_state
+            .pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap()))
+            .into()
     })
 }
 
@@ -139,7 +163,6 @@ impl VarargProvider<'_, '_, '_> {
             }
         }
     }
-
 
     pub unsafe fn arg_float(&mut self) -> f32 {
         match self {

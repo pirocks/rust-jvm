@@ -21,7 +21,8 @@ impl<K: Clone + Ord + Eq + SingleElementRangeable<K>, V: Clone + Eq + Hash> BiRa
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        self.left_to_right.insert(key.to_single_element_range(), value.clone());
+        self.left_to_right
+            .insert(key.to_single_element_range(), value.clone());
         let (new_range, _) = self.left_to_right.get_key_value(&key).unwrap();
         self.right_to_left.insert(value, new_range.clone());
     }
@@ -61,7 +62,6 @@ impl<K: Clone + Ord + Eq, V: Clone + Eq + Hash> IntoIterator for BiRangeMap<K, V
 pub trait SingleElementRangeable<T: SingleElementRangeable<T>> {
     fn to_single_element_range(&self) -> Range<T>;
 }
-
 
 impl SingleElementRangeable<*mut c_void> for *mut c_void {
     fn to_single_element_range(&self) -> Range<*mut c_void> {

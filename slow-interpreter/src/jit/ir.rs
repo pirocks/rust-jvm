@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, ebx, ecx, edx, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r8, r8d, r9, r9d, rbx, rcx, rdx};
+use iced_x86::code_asm::{
+    AsmRegister32, AsmRegister64, CodeAssembler, ebx, ecx, edx, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r8, r8d,
+    r9, r9d, rbx, rcx, rdx,
+};
 
 use crate::gc_memory_layout_common::FramePointerOffset;
 use crate::jit::{LabelName, VMExitType};
@@ -12,7 +15,6 @@ pub struct IRLabel {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Register(pub u8);
-
 
 impl Register {
     pub fn to_native_64(&self) -> AsmRegister64 {
@@ -27,7 +29,7 @@ impl Register {
             7 => r12,
             8 => r13,
             9 => r14,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
@@ -43,7 +45,7 @@ impl Register {
             7 => r12d,
             8 => r13d,
             9 => r14d,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }
@@ -107,17 +109,17 @@ pub enum IRInstr {
         const_: u64,
     },
     BranchToLabel {
-        label: LabelName
+        label: LabelName,
     },
     LoadLabel {
         label: LabelName,
         to: Register,
     },
     LoadRBP {
-        to: Register
+        to: Register,
     },
     WriteRBP {
-        from: Register
+        from: Register,
     },
     BranchEqual {
         a: Register,
@@ -142,13 +144,13 @@ pub enum IRInstr {
         exit_type: VMExitType,
     },
     GrowStack {
-        amount: usize
+        amount: usize,
     },
     LoadSP {
-        to: Register
+        to: Register,
     },
     WithAssembler {
-        function: Box<dyn FnOnce(&mut CodeAssembler) -> ()>
+        function: Box<dyn FnOnce(&mut CodeAssembler) -> ()>,
     },
     FNOP,
     Label(IRLabel),

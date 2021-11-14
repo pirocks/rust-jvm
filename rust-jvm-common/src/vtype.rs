@@ -7,8 +7,7 @@ use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
 use crate::runtime_type::{RuntimeRefType, RuntimeType};
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum VType {
     //VType for VerificationType
     // this doesn't reside in the verifier b/c class view needs to_verification_type on PTypeView
@@ -27,7 +26,6 @@ pub enum VType {
     // I suspect that Uninitialized might work for this, but making my own anyway
     UninitializedThisOrClass(CPDType),
     //below here used internally in isAssignable
-
     TwoWord,
     OneWord,
     Reference,
@@ -52,13 +50,17 @@ impl Clone for VType {
             VType::OneWord => VType::OneWord,
             VType::Reference => VType::TwoWord,
             VType::UninitializedEmpty => VType::OneWord,
-            VType::UninitializedThisOrClass(t) => VType::UninitializedThisOrClass(t.clone())
+            VType::UninitializedThisOrClass(t) => VType::UninitializedThisOrClass(t.clone()),
         }
     }
 }
 
 impl VType {
-    pub fn from_ptype(ptype: &PType, loader: LoaderName, pool: &CompressedClassfileStringPool) -> Self {
+    pub fn from_ptype(
+        ptype: &PType,
+        loader: LoaderName,
+        pool: &CompressedClassfileStringPool,
+    ) -> Self {
         match ptype {
             PType::ByteType => VType::IntType,
             PType::CharType => VType::IntType,
@@ -66,16 +68,17 @@ impl VType {
             PType::FloatType => VType::FloatType,
             PType::IntType => VType::IntType,
             PType::LongType => VType::LongType,
-            PType::Ref(ref_) => {
-                match ref_ {
-                    ReferenceType::Class(ccn) => {
-                        VType::Class(ClassWithLoader { class_name: CompressedClassName(pool.add_name(ccn.get_referred_name().clone(), true)), loader })
-                    }
-                    ReferenceType::Array(arr) => {
-                        VType::ArrayReferenceType(CPDType::from_ptype(arr.deref(), pool))
-                    }
+            PType::Ref(ref_) => match ref_ {
+                ReferenceType::Class(ccn) => VType::Class(ClassWithLoader {
+                    class_name: CompressedClassName(
+                        pool.add_name(ccn.get_referred_name().clone(), true),
+                    ),
+                    loader,
+                }),
+                ReferenceType::Array(arr) => {
+                    VType::ArrayReferenceType(CPDType::from_ptype(arr.deref(), pool))
                 }
-            }
+            },
             PType::ShortType => VType::IntType,
             PType::BooleanType => VType::IntType,
             PType::VoidType => VType::VoidType,
@@ -83,7 +86,9 @@ impl VType {
             PType::NullType => VType::NullType,
             PType::Uninitialized(uninitvarinfo) => VType::Uninitialized(uninitvarinfo.clone()),
             PType::UninitializedThis => VType::UninitializedThis,
-            PType::UninitializedThisOrClass(ptype) => VType::UninitializedThisOrClass(CPDType::from_ptype(ptype.deref(), pool))
+            PType::UninitializedThisOrClass(ptype) => {
+                VType::UninitializedThisOrClass(CPDType::from_ptype(ptype.deref(), pool))
+            }
         }
     }
 
@@ -94,7 +99,9 @@ impl VType {
             VType::IntType => RuntimeType::IntType,
             VType::LongType => RuntimeType::LongType,
             VType::Class(c) => RuntimeType::Ref(RuntimeRefType::Class(c.class_name)),
-            VType::ArrayReferenceType(array_ref) => RuntimeType::Ref(RuntimeRefType::Array(array_ref.clone())),
+            VType::ArrayReferenceType(array_ref) => {
+                RuntimeType::Ref(RuntimeRefType::Array(array_ref.clone()))
+            }
             VType::VoidType => panic!(),
             VType::TopType => RuntimeType::TopType,
             VType::NullType => RuntimeType::Ref(RuntimeRefType::NullType),

@@ -30,17 +30,30 @@ unsafe extern "system" fn JVM_SocketShutdown(fd: jint, howto: jint) -> jint {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Recv(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
+unsafe extern "system" fn JVM_Recv(
+    fd: jint,
+    buf: *mut ::std::os::raw::c_char,
+    nBytes: jint,
+    flags: jint,
+) -> jint {
     retry_on_eintr(|| libc::recv(fd, buf as *mut c_void, nBytes as usize, flags) as i32)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, nBytes: jint, flags: jint) -> jint {
+unsafe extern "system" fn JVM_Send(
+    fd: jint,
+    buf: *mut ::std::os::raw::c_char,
+    nBytes: jint,
+    flags: jint,
+) -> jint {
     retry_on_eintr(|| libc::send(fd, buf as *mut c_void, nBytes as usize, flags) as i32)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std::os::raw::c_long) -> jint {
+unsafe extern "system" fn JVM_Timeout(
+    fd: ::std::os::raw::c_int,
+    timeout: ::std::os::raw::c_long,
+) -> jint {
     let start = Instant::now();
     loop {
         let mut pollfd = libc::pollfd {
@@ -92,12 +105,19 @@ unsafe extern "system" fn JVM_SocketAvailable(fd: jint, result: *mut jint) -> ji
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetSockName(fd: jint, him: *mut sockaddr, len: *mut ::std::os::raw::c_int) -> jint {
+unsafe extern "system" fn JVM_GetSockName(
+    fd: jint,
+    him: *mut sockaddr,
+    len: *mut ::std::os::raw::c_int,
+) -> jint {
     libc::getsockname(fd, him as *mut libc::sockaddr, len as *mut libc::socklen_t)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, namelen: ::std::os::raw::c_int) -> ::std::os::raw::c_int {
+unsafe extern "system" fn JVM_GetHostName(
+    name: *mut ::std::os::raw::c_char,
+    namelen: ::std::os::raw::c_int,
+) -> ::std::os::raw::c_int {
     libc::gethostname(name, namelen as usize)
 }
 
@@ -109,7 +129,13 @@ unsafe extern "system" fn JVM_GetSockOpt(
     optval: *mut ::std::os::raw::c_char,
     optlen: *mut ::std::os::raw::c_int,
 ) -> jint {
-    libc::getsockopt(fd, level, optname, optval as *mut c_void, optlen as *mut libc::socklen_t)
+    libc::getsockopt(
+        fd,
+        level,
+        optname,
+        optval as *mut c_void,
+        optlen as *mut libc::socklen_t,
+    )
 }
 
 #[no_mangle]
@@ -122,4 +148,3 @@ unsafe extern "system" fn JVM_SetSockOpt(
 ) -> jint {
     libc::setsockopt(fd, level, optname, optval as *mut c_void, optlen as u32)
 }
-

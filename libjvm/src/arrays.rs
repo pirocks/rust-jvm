@@ -20,25 +20,36 @@ use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
+use slow_interpreter::rust_jni::native_util::{
+    from_jclass, from_object, get_interpreter_state, get_state, to_object,
+};
+use slow_interpreter::utils::{
+    java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res,
+    throw_illegal_arg_res, throw_npe, throw_npe_res,
+};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
+unsafe extern "system" fn JVM_AllocateNewArray(
+    env: *mut JNIEnv,
+    obj: jobject,
+    currClass: jclass,
+    length: jint,
+) -> jobject {
     unimplemented!()
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> jint {
     match get_array(env, arr) {
-        Ok(jv) => {
-            jv.unwrap_array().len() as i32
-        }
-        Err(WasException {}) => -1 as i32
+        Ok(jv) => jv.unwrap_array().len() as i32,
+        Err(WasException {}) => -1 as i32,
     }
 }
 
-unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValue<'gc_life>, WasException> {
+unsafe fn get_array<'gc_life>(
+    env: *mut JNIEnv,
+    arr: jobject,
+) -> Result<JavaValue<'gc_life>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match from_object(jvm, arr) {
@@ -49,7 +60,7 @@ unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValu
         Some(possibly_arr) => {
             match possibly_arr.deref() {
                 Object::Array(_) => {
-                    Ok(JavaValue::Object(todo!()/*from_jclass(jvm,arr)*/))
+                    Ok(JavaValue::Object(todo!() /*from_jclass(jvm,arr)*/))
                 }
                 Object::Object(obj) => {
                     return throw_illegal_arg_res(jvm, int_state);
@@ -60,7 +71,11 @@ unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<JavaValu
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, index: jint) -> jobject {
+unsafe extern "system" fn JVM_GetArrayElement(
+    env: *mut JNIEnv,
+    arr: jobject,
+    index: jint,
+) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match get_array(env, arr) {
@@ -70,66 +85,108 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
                 return throw_array_out_of_bounds(jvm, int_state, index);
             }
             let java_value = jv.unwrap_array().get_i(jvm, index);
-            new_local_ref_public(match java_value_to_boxed_object(jvm, int_state, java_value) {
-                Ok(boxed) => boxed,
-                Err(WasException {}) => None
-            }, int_state)
+            new_local_ref_public(
+                match java_value_to_boxed_object(jvm, int_state, java_value) {
+                    Ok(boxed) => boxed,
+                    Err(WasException {}) => None,
+                },
+                int_state,
+            )
         }
-        Err(WasException {}) => null_mut()
+        Err(WasException {}) => null_mut(),
     }
 }
 
-
 #[no_mangle]
-unsafe extern "system" fn JVM_GetPrimitiveArrayElement(env: *mut JNIEnv, arr: jobject, index: jint, wCode: jint) -> jvalue {
+unsafe extern "system" fn JVM_GetPrimitiveArrayElement(
+    env: *mut JNIEnv,
+    arr: jobject,
+    index: jint,
+    wCode: jint,
+) -> jvalue {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetArrayElement(env: *mut JNIEnv, arr: jobject, index: jint, val: jobject) {
+unsafe extern "system" fn JVM_SetArrayElement(
+    env: *mut JNIEnv,
+    arr: jobject,
+    index: jint,
+    val: jobject,
+) {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jobject, index: jint, v: jvalue, vCode: ::std::os::raw::c_uchar) {
+unsafe extern "system" fn JVM_SetPrimitiveArrayElement(
+    env: *mut JNIEnv,
+    arr: jobject,
+    index: jint,
+    v: jvalue,
+    vCode: ::std::os::raw::c_uchar,
+) {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
+unsafe extern "system" fn JVM_NewArray(
+    env: *mut JNIEnv,
+    eltClass: jclass,
+    length: jint,
+) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).cpdtype();
     a_new_array_from_name(jvm, int_state, length, array_type_name);
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
+    new_local_ref_public(
+        int_state
+            .pop_current_operand_stack(Some(CClassName::object().into()))
+            .unwrap_object(),
+        int_state,
+    )
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, dim: jintArray) -> jobject {
+unsafe extern "system" fn JVM_NewMultiArray(
+    env: *mut JNIEnv,
+    eltClass: jclass,
+    dim: jintArray,
+) -> jobject {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
+unsafe extern "system" fn JVM_ArrayCopy(
+    env: *mut JNIEnv,
+    ignored: jclass,
+    src: jobject,
+    src_pos: jint,
+    dst: jobject,
+    dst_pos: jint,
+    length: jint,
+) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let src_o = from_object(jvm, src);
     let src = match src_o.as_ref() {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
-    }.unwrap_array();
+    }
+        .unwrap_array();
     let dest_o = from_object(jvm, dst);
     let dest = match dest_o.as_ref() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
-    }.unwrap_array();
+    }
+        .unwrap_array();
     if src_pos < 0
         || dst_pos < 0
         || length < 0
         || src_pos + length > src.len() as i32
-        || dst_pos + length > dest.len() as i32 {
+        || dst_pos + length > dest.len() as i32
+    {
         unimplemented!()
     }
     let mut to_copy = vec![];

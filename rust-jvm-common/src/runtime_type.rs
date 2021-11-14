@@ -20,7 +20,6 @@ pub enum RuntimeRefType {
     NullType,
 }
 
-
 impl From<CompressedClassName> for RuntimeType {
     fn from(ccn: CompressedClassName) -> Self {
         Self::Ref(RuntimeRefType::Class(ccn))
@@ -30,21 +29,19 @@ impl From<CompressedClassName> for RuntimeType {
 impl RuntimeType {
     pub fn is_array(&self) -> bool {
         match self {
-            RuntimeType::Ref(ref_) => {
-                match ref_ {
-                    RuntimeRefType::Array(_) => true,
-                    RuntimeRefType::Class(_) => false,
-                    RuntimeRefType::NullType => false,
-                }
-            }
-            _ => false
+            RuntimeType::Ref(ref_) => match ref_ {
+                RuntimeRefType::Array(_) => true,
+                RuntimeRefType::Class(_) => false,
+                RuntimeRefType::NullType => false,
+            },
+            _ => false,
         }
     }
 
     pub fn unwrap_ref_type(&self) -> &RuntimeRefType {
         match self {
             RuntimeType::Ref(ref_) => ref_,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -52,4 +49,3 @@ impl RuntimeType {
         Self::Ref(RuntimeRefType::Class(CClassName::object()))
     }
 }
-

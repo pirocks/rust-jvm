@@ -9,15 +9,13 @@ pub struct CompressedMethodDescriptorsPool {
 impl CompressedMethodDescriptorsPool {
     pub fn new() -> Self {
         Self {
-            pool: AddOnlyIdMap::new()
+            pool: AddOnlyIdMap::new(),
         }
     }
 
     pub fn add_descriptor(&self, cmd: impl Into<CMethodDescriptor>) -> ActuallyCompressedMD {
         let id = self.pool.push(cmd.into());
-        ActuallyCompressedMD {
-            id
-        }
+        ActuallyCompressedMD { id }
     }
 
     pub fn lookup(&self, id: ActuallyCompressedMD) -> &CMethodDescriptor {

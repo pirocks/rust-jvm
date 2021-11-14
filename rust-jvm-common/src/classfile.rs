@@ -7,51 +7,43 @@ use crate::classnames::class_name;
 use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::ptype::PType;
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SourceFile {
     pub sourcefile_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct InnerClasses {
     pub classes: Vec<InnerClass>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct EnclosingMethod {
     pub class_index: CPIndex,
     pub method_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SourceDebugExtension {
     pub debug_extension: Vec<u8>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BootstrapMethods {
     pub bootstrap_methods: Vec<BootstrapMethod>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct NestHost {
     pub host_class_index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ConstantValue {
     pub constant_value_index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Code {
     pub attributes: Vec<AttributeInfo>,
     pub max_stack: u16,
@@ -61,8 +53,7 @@ pub struct Code {
     pub exception_table: Vec<ExceptionTableElem>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ExceptionTableElem {
     pub start_pc: u16,
     pub end_pc: u16,
@@ -70,92 +61,75 @@ pub struct ExceptionTableElem {
     pub catch_type: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LineNumberTableEntry {
     pub start_pc: u16,
     pub line_number: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Exceptions {
     pub exception_index_table: Vec<u16>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeVisibleParameterAnnotations {
     pub parameter_annotations: Vec<Vec<Annotation>>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeInvisibleParameterAnnotations {
     pub parameter_annotations: Vec<Vec<Annotation>>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct AnnotationDefault {
     pub default_value: ElementValue,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct MethodParameter {
     pub name_index: u16,
     pub access_flags: u16,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct MethodParameters {
     pub parameters: Vec<MethodParameter>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Synthetic {}
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Deprecated {}
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Signature {
     pub signature_index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeVisibleAnnotations {
     pub annotations: Vec<Annotation>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeInvisibleAnnotations {
     pub annotations: Vec<Annotation>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LineNumberTable {
     pub line_number_table: Vec<LineNumberTableEntry>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVariableTable {
     pub local_variable_table: Vec<LocalVariableTableEntry>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVariableTableEntry {
     pub start_pc: u16,
     pub length: u16,
@@ -164,8 +138,7 @@ pub struct LocalVariableTableEntry {
     pub index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVariableTypeTableEntry {
     pub start_pc: u16,
     pub length: u16,
@@ -174,40 +147,36 @@ pub struct LocalVariableTypeTableEntry {
     pub index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVariableTypeTable {
     pub type_table: Vec<LocalVariableTypeTableEntry>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ObjectVariableInfo {
     pub cpool_index: Option<u16>,
     pub class_name: String,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ArrayVariableInfo {
     pub array_type: PType,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct UninitializedVariableInfo {
     pub offset: u16,
 }
 
 impl Clone for UninitializedVariableInfo {
     fn clone(&self) -> Self {
-        UninitializedVariableInfo { offset: self.offset }
+        UninitializedVariableInfo {
+            offset: self.offset,
+        }
     }
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum VerificationTypeInfo {
     Top,
     Integer,
@@ -219,52 +188,43 @@ pub enum VerificationTypeInfo {
     Object(ObjectVariableInfo),
     Uninitialized(UninitializedVariableInfo),
     Array(ArrayVariableInfo),
-
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SameFrame {
     pub offset_delta: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SameLocals1StackItemFrame {
     pub offset_delta: u16,
     pub stack: PType,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
     pub stack: PType,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ChopFrame {
     pub offset_delta: u16,
     pub k_frames_to_chop: u8,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct SameFrameExtended {
     pub offset_delta: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct AppendFrame {
     pub offset_delta: u16,
     pub locals: Vec<PType>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct FullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
@@ -273,8 +233,7 @@ pub struct FullFrame {
     pub stack: Vec<PType>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum StackMapFrame {
     SameFrame(SameFrame),
     SameLocals1StackItemFrame(SameLocals1StackItemFrame),
@@ -285,28 +244,25 @@ pub enum StackMapFrame {
     FullFrame(FullFrame),
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct StackMapTable {
     pub entries: Vec<StackMapFrame>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVarTargetTableEntry {
     pub start_pc: u16,
     pub length: u16,
     pub index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum TargetInfo {
     TypeParameterTarget {
-        type_parameter_index: u8
+        type_parameter_index: u8,
     },
     SuperTypeTarget {
-        supertype_index: u16
+        supertype_index: u16,
     },
     TypeParameterBoundTarget {
         type_parameter_index: u8,
@@ -314,19 +270,19 @@ pub enum TargetInfo {
     },
     EmptyTarget,
     FormalParameterTarget {
-        formal_parameter_index: u8
+        formal_parameter_index: u8,
     },
     ThrowsTarget {
-        throws_type_index: u16
+        throws_type_index: u16,
     },
     LocalVarTarget {
-        table: Vec<LocalVarTargetTableEntry>
+        table: Vec<LocalVarTargetTableEntry>,
     },
     CatchTarget {
-        exception_table_entry: u16
+        exception_table_entry: u16,
     },
     OffsetTarget {
-        offset: u16
+        offset: u16,
     },
     TypeArgumentTarget {
         offset: u16,
@@ -334,21 +290,18 @@ pub enum TargetInfo {
     },
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TypePathEntry {
     pub type_path_kind: u8,
     pub type_argument_index: u8,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TypePath {
     pub path: Vec<TypePathEntry>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TypeAnnotation {
     pub target_type: TargetInfo,
     pub target_path: TypePath,
@@ -356,27 +309,22 @@ pub struct TypeAnnotation {
     pub element_value_pairs: Vec<ElementValuePair>,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeVisibleTypeAnnotations {
     pub annotations: Vec<TypeAnnotation>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct RuntimeInvisibleTypeAnnotations {
     pub annotations: Vec<TypeAnnotation>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct NestMembers {
     pub classes: Vec<u16>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum AttributeType {
     SourceFile(SourceFile),
     InnerClasses(InnerClasses),
@@ -406,20 +354,15 @@ pub enum AttributeType {
     Unknown,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BootstrapMethod {
     pub bootstrap_method_ref: u16,
     pub bootstrap_arguments: Vec<BootstrapArg>,
 }
 
-
 type BootstrapArg = u16;
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct InnerClass {
     pub inner_class_info_index: CPIndex,
     pub outer_class_info_index: CPIndex,
@@ -427,36 +370,30 @@ pub struct InnerClass {
     pub inner_class_access_flags: CPIndex,
 }
 
-
 pub type CPIndex = u16;
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct EnumConstValue {
     pub type_name_index: CPIndex,
     pub const_name_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ClassInfoIndex {
     pub class_info_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct AnnotationValue {
     pub annotation: Annotation,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ArrayValue {
     pub values: Vec<ElementValue>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ElementValue {
     Byte(CPIndex),
     Char(CPIndex),
@@ -473,120 +410,99 @@ pub enum ElementValue {
     ArrayType(ArrayValue),
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ElementValuePair {
     pub element_name_index: CPIndex,
     pub value: ElementValue,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Annotation {
     pub type_index: u16,
     pub num_element_value_pairs: u16,
     pub element_value_pairs: Vec<ElementValuePair>,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct IInc {
     pub index: u16,
     pub const_: i16,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq)]
+#[derive(Debug, Eq)]
 pub struct Utf8 {
     pub length: u16,
     pub string: Wtf8Buf,
 }
 
-
 impl PartialEq for Utf8 {
     fn eq(&self, other: &Self) -> bool {
-        self.length == other.length &&
-            self.string == other.string
+        self.length == other.length && self.string == other.string
     }
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Integer {
     //unimplemented!()
     pub bytes: u32,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Float {
     pub bytes: u32,
     //unimplemented!()
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Long {
     pub low_bytes: u32,
     pub high_bytes: u32,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Double {
     pub low_bytes: u32,
     pub high_bytes: u32,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Class {
     //unimplemented!()
     pub name_index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct String_ {
     //unimplemented!()
     pub string_index: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Fieldref {
     //unimplemented!()
     pub class_index: CPIndex,
     pub name_and_type_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Methodref {
     pub class_index: CPIndex,
     pub name_and_type_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InterfaceMethodref {
     pub class_index: CPIndex,
     pub nt_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct NameAndType {
     pub name_index: CPIndex,
     pub descriptor_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ReferenceKind {
     //1 REF_getField getfield C.f:T
     // 2 REF_getStatic getstatic C.f:T
@@ -612,33 +528,27 @@ pub enum ReferenceKind {
     InvokeInterface,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct MethodHandle {
     pub reference_kind: ReferenceKind,
     pub reference_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct MethodType {
     pub descriptor_index: CPIndex,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvokeDynamic {
     pub bootstrap_method_attr_index: CPIndex,
     pub name_and_type_index: CPIndex,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InvalidConstant {}
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 //#[derive(Copy, Clone)]
 pub enum ConstantKind {
     Utf8(Utf8),
@@ -656,12 +566,10 @@ pub enum ConstantKind {
     MethodType(MethodType),
     InvokeDynamic(InvokeDynamic),
     InvalidConstant(InvalidConstant),
-    LiveObject(LiveObjectIndex),//live object pool index
+    LiveObject(LiveObjectIndex), //live object pool index
 }
 
-
-#[derive(Debug)]
-#[derive(Eq)]
+#[derive(Debug, Eq)]
 pub struct ConstantInfo {
     pub kind: ConstantKind,
 }
@@ -672,17 +580,14 @@ impl PartialEq for ConstantInfo {
     }
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct AttributeInfo {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
     pub attribute_type: AttributeType,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct FieldInfo {
     pub access_flags: u16,
     pub name_index: CPIndex,
@@ -690,8 +595,7 @@ pub struct FieldInfo {
     pub attributes: Vec<AttributeInfo>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct MethodInfo {
     pub access_flags: u16,
     pub name_index: CPIndex,
@@ -699,39 +603,27 @@ pub struct MethodInfo {
     pub attributes: Vec<AttributeInfo>,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct InvokeInterface {
     pub index: u16,
     pub count: u8,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct LookupSwitch {
     pub pairs: Vec<(i32, i32)>,
     pub default: i32,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct MultiNewArray {
     pub index: CPIndex,
     pub dims: u8,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 #[repr(u8)]
-#[derive(Copy, Clone)]
-#[derive(FromPrimitive)]
+#[derive(Copy, Clone, FromPrimitive)]
 pub enum Atype {
     TBoolean = 4,
     TChar = 5,
@@ -743,10 +635,7 @@ pub enum Atype {
     TLong = 11,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct TableSwitch {
     pub default: i32,
     pub low: i32,
@@ -754,10 +643,7 @@ pub struct TableSwitch {
     pub offsets: Vec<i32>,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub enum Wide {
     Iload(WideIload),
     Fload(WideFload),
@@ -775,96 +661,62 @@ pub enum Wide {
 //iload, fload, aload, lload, dload, istore, fstore, astore,
 // lstore, dstore, or ret
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideIload {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideFload {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideAload {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideLload {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideDload {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideIstore {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideFstore {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideAstore {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideLstore {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideDstore {
     pub index: u16,
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Hash)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct WideRet {
     pub index: u16,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Instruction {
     pub offset: u16,
     pub size: u16,
@@ -872,9 +724,7 @@ pub struct Instruction {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum InstructionInfo {
     aaload,
     aastore,
@@ -1081,7 +931,6 @@ pub enum InstructionInfo {
     EndOfCode,
 }
 
-
 pub const ACC_PUBLIC: u16 = 0x0001;
 pub const ACC_PRIVATE: u16 = 0x0002;
 pub const ACC_PROTECTED: u16 = 0x0004;
@@ -1131,17 +980,17 @@ pub type Interface = u16;
 
 impl std::cmp::PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {
-        self.magic == other.magic &&
-            self.minor_version == other.minor_version &&
-            self.major_version == other.major_version &&
-            self.constant_pool == other.constant_pool &&
-            self.access_flags == other.access_flags &&
-            self.this_class == other.this_class &&
-            self.super_class == other.super_class &&
-            self.interfaces == other.interfaces &&
-            self.fields == other.fields &&
-            self.methods == other.methods &&
-            self.attributes == other.attributes
+        self.magic == other.magic
+            && self.minor_version == other.minor_version
+            && self.major_version == other.major_version
+            && self.constant_pool == other.constant_pool
+            && self.access_flags == other.access_flags
+            && self.this_class == other.this_class
+            && self.super_class == other.super_class
+            && self.interfaces == other.interfaces
+            && self.fields == other.fields
+            && self.methods == other.methods
+            && self.attributes == other.attributes
     }
 }
 
@@ -1159,7 +1008,6 @@ impl std::hash::Hash for Classfile {
         }
     }
 }
-
 
 impl From<ConstantKind> for ConstantInfo {
     fn from(kind: ConstantKind) -> Self {

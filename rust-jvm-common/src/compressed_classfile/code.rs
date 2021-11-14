@@ -265,7 +265,6 @@ pub enum CompressedInstructionInfo {
     EndOfCode,
 }
 
-
 impl CInstructionInfo {
     pub fn size(&self, starting_offset: u16) -> u16 {
         match self {
@@ -472,26 +471,29 @@ impl CInstructionInfo {
             CompressedInstructionInfo::sastore => 1,
             CompressedInstructionInfo::sipush(_) => 3,
             CompressedInstructionInfo::swap => 1,
-            CompressedInstructionInfo::tableswitch(box TableSwitch { default: _, low: _, high: _, offsets }) => {
+            CompressedInstructionInfo::tableswitch(box TableSwitch {
+                default: _,
+                low: _,
+                high: _,
+                offsets,
+            }) => {
                 let pad_and_bytecode = 4 - (starting_offset % 4);
                 pad_and_bytecode + 4 + 4 + 4 + offsets.len() as u16 * 4
             }
-            CompressedInstructionInfo::wide(wide) => {
-                match wide {
-                    Wide::Iload(_) => 4,
-                    Wide::Fload(_) => 4,
-                    Wide::Aload(_) => 4,
-                    Wide::Lload(_) => 4,
-                    Wide::Dload(_) => 4,
-                    Wide::Istore(_) => 4,
-                    Wide::Fstore(_) => 4,
-                    Wide::Astore(_) => 4,
-                    Wide::Lstore(_) => 4,
-                    Wide::Dstore(_) => 4,
-                    Wide::Ret(_) => 4,
-                    Wide::IInc(_) => 6
-                }
-            }
+            CompressedInstructionInfo::wide(wide) => match wide {
+                Wide::Iload(_) => 4,
+                Wide::Fload(_) => 4,
+                Wide::Aload(_) => 4,
+                Wide::Lload(_) => 4,
+                Wide::Dload(_) => 4,
+                Wide::Istore(_) => 4,
+                Wide::Fstore(_) => 4,
+                Wide::Astore(_) => 4,
+                Wide::Lstore(_) => 4,
+                Wide::Dstore(_) => 4,
+                Wide::Ret(_) => 4,
+                Wide::IInc(_) => 6,
+            },
             CompressedInstructionInfo::EndOfCode => 0,
         }
     }
@@ -705,25 +707,16 @@ impl CInstructionInfo {
     }
 }
 
-
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct LiveObjectIndex(pub usize);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompressedLdcW {
-    String {
-        str: Wtf8Buf
-    },
-    Class {
-        type_: CPDType
-    },
-    Float {
-        float: f32
-    },
-    Integer {
-        integer: i32
-    },
+    String { str: Wtf8Buf },
+    Class { type_: CPDType },
+    Float { float: f32 },
+    Integer { integer: i32 },
     MethodType {},
     MethodHandle {},
     LiveObject(LiveObjectIndex),
@@ -732,27 +725,17 @@ pub enum CompressedLdcW {
 impl Hash for CompressedLdcW {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            CompressedLdcW::String { str } => {
-                str.hash(state)
-            }
-            CompressedLdcW::Class { type_ } => {
-                type_.hash(state)
-            }
-            CompressedLdcW::Float { float } => {
-                state.write_u32(float.to_bits())
-            }
-            CompressedLdcW::Integer { integer } => {
-                state.write_i32(*integer)
-            }
+            CompressedLdcW::String { str } => str.hash(state),
+            CompressedLdcW::Class { type_ } => type_.hash(state),
+            CompressedLdcW::Float { float } => state.write_u32(float.to_bits()),
+            CompressedLdcW::Integer { integer } => state.write_i32(*integer),
             CompressedLdcW::MethodType {} => {
                 state.write_usize(1);
             }
             CompressedLdcW::MethodHandle {} => {
                 state.write_usize(0);
             }
-            CompressedLdcW::LiveObject(LiveObjectIndex(_0)) => {
-                state.write_usize(*_0)
-            }
+            CompressedLdcW::LiveObject(LiveObjectIndex(_0)) => state.write_usize(*_0),
         }
     }
 }
@@ -784,8 +767,7 @@ pub struct CompressedCode {
     pub stack_map_table: Vec<CompressedStackMapFrame>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum CompressedStackMapFrame {
     SameFrame(SameFrame),
     SameLocals1StackItemFrame(CompressedSameLocals1StackItemFrame),
@@ -796,45 +778,38 @@ pub enum CompressedStackMapFrame {
     FullFrame(CompressedFullFrame),
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedSameLocals1StackItemFrame {
     pub offset_delta: u16,
     pub stack: VType,
 }
 
-
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedSameLocals1StackItemFrameExtended {
     pub offset_delta: u16,
     pub stack: VType,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedChopFrame {
     //todo why is this a thing
     pub offset_delta: u16,
     pub k_frames_to_chop: u8,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedSameFrameExtended {
     //todo why is this is a thing as well, since its same as non-compressed
     pub offset_delta: u16,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedAppendFrame {
     pub offset_delta: u16,
     pub locals: Vec<VType>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedFullFrame {
     pub offset_delta: u16,
     pub number_of_locals: u16,
@@ -843,8 +818,7 @@ pub struct CompressedFullFrame {
     pub stack: Vec<VType>,
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedExceptionTableElem {
     pub start_pc: u16,
     pub end_pc: u16,

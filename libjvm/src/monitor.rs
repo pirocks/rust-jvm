@@ -22,13 +22,18 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
 unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj).expect("null monitor?").monitor().notify(jvm);
+    from_object(jvm, obj)
+        .expect("null monitor?")
+        .monitor()
+        .notify(jvm);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotifyAll(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj).expect("null monitor?").monitor().notify_all(jvm);
+    from_object(jvm, obj)
+        .expect("null monitor?")
+        .monitor()
+        .notify_all(jvm);
 }
-

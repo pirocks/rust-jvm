@@ -25,7 +25,6 @@ impl LivePoolGetter for NoopLivePoolGetter {
     }
 }
 
-
 #[derive(Debug)]
 pub enum ClassfileParsingError {
     EOF,
@@ -57,20 +56,18 @@ impl From<wtf8::Wtf8Buf> for ClassfileParsingError {
 
 impl std::error::Error for ClassfileParsingError {}
 
-
 impl Display for ClassfileParsingError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-
 #[derive(Debug)]
 pub enum ClassLoadingError {
     ClassNotFoundException,
     ClassFileInvalid(ClassfileParsingError),
     // ClassFormatError , UnsupportedClassVersionError
-    ClassVerificationError,// java.lang.VerifyError
+    ClassVerificationError, // java.lang.VerifyError
 }
 
 impl From<ClassfileParsingError> for ClassLoadingError {
@@ -91,9 +88,7 @@ impl std::error::Error for ClassLoadingError {}
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LoaderIndex(pub usize);
 
-#[derive(Debug)]
-#[derive(Eq)]
-#[derive(Clone, Hash, Copy)]
+#[derive(Debug, Eq, Clone, Hash, Copy)]
 pub enum LoaderName {
     UserDefinedLoader(LoaderIndex),
     BootstrapLoader,
@@ -104,17 +99,16 @@ impl PartialEq for LoaderName {
         match self {
             LoaderName::BootstrapLoader => match other {
                 LoaderName::BootstrapLoader => true,
-                LoaderName::UserDefinedLoader(_) => false
+                LoaderName::UserDefinedLoader(_) => false,
             },
 
             LoaderName::UserDefinedLoader(idx) => match other {
                 LoaderName::UserDefinedLoader(other_idx) => other_idx == idx,
-                LoaderName::BootstrapLoader => false
-            }
+                LoaderName::BootstrapLoader => false,
+            },
         }
     }
 }
-
 
 impl Display for LoaderName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -128,7 +122,6 @@ impl Display for LoaderName {
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct ClassWithLoader {
@@ -151,12 +144,14 @@ impl PartialEq for ClassWithLoader {
 
 impl Clone for ClassWithLoader {
     fn clone(&self) -> Self {
-        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
+        ClassWithLoader {
+            class_name: self.class_name.clone(),
+            loader: self.loader.clone(),
+        }
     }
 }
 
 impl Eq for ClassWithLoader {}
-
 
 /*impl Debug for ClassWithLoader {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {

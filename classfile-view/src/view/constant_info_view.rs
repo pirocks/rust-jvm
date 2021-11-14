@@ -1,7 +1,12 @@
 use wtf8::Wtf8Buf;
 
-use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::classfile::{
+    Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref,
+    MethodType, NameAndType, ReferenceKind,
+};
+use rust_jvm_common::compressed_classfile::{
+    CCString, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType,
+};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::ptype::PType;
@@ -74,14 +79,23 @@ impl FieldrefView<'_> {
     }
     pub fn class(&self) -> String {
         let class_index = self.field_ref().class_index;
-        let name_index = self.class_view.underlying_class.extract_class_from_constant_pool(class_index).name_index as usize;
-        self.class_view.underlying_class.constant_pool[name_index].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
+        let name_index = self
+            .class_view
+            .underlying_class
+            .extract_class_from_constant_pool(class_index)
+            .name_index as usize;
+        self.class_view.underlying_class.constant_pool[name_index]
+            .extract_string_from_utf8()
+            .into_string()
+            .expect("should have validated this earlier maybe todo")
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
-        NameAndTypeView { class_view: self.class_view, i: self.field_ref().name_and_type_index as usize }
+        NameAndTypeView {
+            class_view: self.class_view,
+            i: self.field_ref().name_and_type_index as usize,
+        }
     }
 }
-
 
 pub struct MethodrefView<'cl> {
     pub(crate) class_view: &'cl ClassBackedView,
@@ -101,7 +115,16 @@ impl MethodrefView<'_> {
 
     pub fn class(&self, pool: &CompressedClassfileStringPool) -> CPRefType {
         let class_index = self.get_raw().class_index;
-        CPDType::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index)), pool).unwrap_ref_type().clone()
+        CPDType::from_ptype(
+            &PType::Ref(
+                self.class_view
+                    .underlying_class
+                    .extract_class_from_constant_pool_name(class_index),
+            ),
+            pool,
+        )
+            .unwrap_ref_type()
+            .clone()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView {
@@ -119,9 +142,7 @@ pub struct InterfaceMethodrefView<'cl> {
 impl InterfaceMethodrefView<'_> {
     fn interface_method_ref(&self) -> &InterfaceMethodref {
         match &self.class_view.underlying_class.constant_pool[self.i].kind {
-            ConstantKind::InterfaceMethodref(imr) => {
-                &imr
-            }
+            ConstantKind::InterfaceMethodref(imr) => &imr,
             _ => panic!(),
         }
     }
@@ -130,7 +151,10 @@ impl InterfaceMethodrefView<'_> {
         /*PTypeView::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(self.interface_method_ref().class_index))).unwrap_ref_type().clone()*/
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
-        NameAndTypeView { class_view: self.class_view, i: self.interface_method_ref().nt_index as usize }
+        NameAndTypeView {
+            class_view: self.class_view,
+            i: self.interface_method_ref().nt_index as usize,
+        }
     }
 }
 
@@ -142,23 +166,39 @@ pub struct NameAndTypeView<'cl> {
 impl NameAndTypeView<'_> {
     fn name_and_type(&self) -> &NameAndType {
         match &self.class_view.underlying_class.constant_pool[self.i as usize].kind {
-            ConstantKind::NameAndType(nt) => {
-                &nt
-            }
-            _ => panic!()
+            ConstantKind::NameAndType(nt) => &nt,
+            _ => panic!(),
         }
     }
 
     pub fn name(&self, pool: &CompressedClassfileStringPool) -> CCString {
-        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), true)
+        pool.add_name(
+            self.class_view.underlying_class.constant_pool
+                [self.name_and_type().name_index as usize]
+                .extract_string_from_utf8()
+                .into_string()
+                .expect("should have validated this earlier maybe todo"),
+            true,
+        )
     }
     pub fn desc_str(&self, pool: &CompressedClassfileStringPool) -> CCString {
-        pool.add_name(self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo"), false)
+        pool.add_name(
+            self.class_view.underlying_class.constant_pool
+                [self.name_and_type().descriptor_index as usize]
+                .extract_string_from_utf8()
+                .into_string()
+                .expect("should have validated this earlier maybe todo"),
+            false,
+        )
         /*self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8()*/
     }
     pub fn desc_method(&self, pool: &CompressedClassfileStringPool) -> CMethodDescriptor {
         //todo this is incorrect, name and types aren't always method descirpotrs
-        let desc_str = self.class_view.underlying_class.constant_pool[self.name_and_type().descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
+        let desc_str = self.class_view.underlying_class.constant_pool
+            [self.name_and_type().descriptor_index as usize]
+            .extract_string_from_utf8()
+            .into_string()
+            .expect("should have validated this earlier maybe todo");
         let md = parse_method_descriptor(desc_str.as_str()).unwrap();
         CMethodDescriptor::from_legacy(md, pool)
     }
@@ -173,9 +213,7 @@ pub struct MethodHandleView<'l> {
 impl MethodHandleView<'_> {
     fn get_raw(&self) -> &MethodHandle {
         match &self.class_view.underlying_class.constant_pool[self.i].kind {
-            ConstantKind::MethodHandle(mh) => {
-                mh
-            }
+            ConstantKind::MethodHandle(mh) => mh,
             _ => panic!(),
         }
     }
@@ -199,27 +237,45 @@ impl MethodHandleView<'_> {
                 // CONSTANT_InterfaceMethodref_info structure (§4.4.2) representing a
                 // class's or interface's method for which a method handle is to be created.
                 let reference_idx = self.get_raw().reference_index as usize;
-                let invoke_static = match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
-                    ConstantKind::Methodref(_) => InvokeStatic::Method(MethodrefView { class_view: self.class_view, i: reference_idx }),
-                    ConstantKind::InterfaceMethodref(_) => InvokeStatic::Interface(InterfaceMethodrefView { class_view: self.class_view, i: reference_idx }),
-                    ck => {
-                        dbg!(ck);
-                        panic!()
-                    }
-                };
+                let invoke_static =
+                    match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
+                        ConstantKind::Methodref(_) => InvokeStatic::Method(MethodrefView {
+                            class_view: self.class_view,
+                            i: reference_idx,
+                        }),
+                        ConstantKind::InterfaceMethodref(_) => {
+                            InvokeStatic::Interface(InterfaceMethodrefView {
+                                class_view: self.class_view,
+                                i: reference_idx,
+                            })
+                        }
+                        ck => {
+                            dbg!(ck);
+                            panic!()
+                        }
+                    };
                 ReferenceInvokeKind::InvokeStatic(invoke_static)
             }
             ReferenceKind::InvokeSpecial => {
                 assert!(self.class_view.backing_class.major_version >= 52);
                 let reference_idx = self.get_raw().reference_index as usize;
-                let invoke_special = match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
-                    ConstantKind::Methodref(_) => InvokeSpecial::Method(MethodrefView { class_view: self.class_view, i: reference_idx }),
-                    ConstantKind::InterfaceMethodref(_) => InvokeSpecial::Interface(InterfaceMethodrefView { class_view: self.class_view, i: reference_idx }),
-                    ck => {
-                        dbg!(ck);
-                        panic!()
-                    }
-                };
+                let invoke_special =
+                    match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
+                        ConstantKind::Methodref(_) => InvokeSpecial::Method(MethodrefView {
+                            class_view: self.class_view,
+                            i: reference_idx,
+                        }),
+                        ConstantKind::InterfaceMethodref(_) => {
+                            InvokeSpecial::Interface(InterfaceMethodrefView {
+                                class_view: self.class_view,
+                                i: reference_idx,
+                            })
+                        }
+                        ck => {
+                            dbg!(ck);
+                            panic!()
+                        }
+                    };
                 ReferenceInvokeKind::InvokeSpecial(invoke_special)
             }
             ReferenceKind::NewInvokeSpecial => unimplemented!(),
@@ -239,7 +295,6 @@ pub enum InvokeStatic<'cl> {
     Method(MethodrefView<'cl>),
 }
 
-
 pub enum InvokeSpecial<'cl> {
     Interface(InterfaceMethodrefView<'cl>),
     //todo should this be a thing
@@ -258,9 +313,13 @@ impl MethodTypeView<'_> {
     }
 
     fn method_type(&self) -> &MethodType {
-        if let ConstantKind::MethodType(mt) = &self.class_view.underlying_class.constant_pool[self.i].kind {
+        if let ConstantKind::MethodType(mt) =
+        &self.class_view.underlying_class.constant_pool[self.i].kind
+        {
             mt
-        } else { panic!() }
+        } else {
+            panic!()
+        }
     }
 }
 
@@ -279,7 +338,13 @@ impl InvokeDynamicView<'_> {
     }
     //todo this is wrong, there are multiple bootstrap methods.
     pub fn bootstrap_method(&self) -> BootstrapMethodView {
-        BootstrapMethodView { backing: self.class_view.bootstrap_methods_attr().unwrap_or_else(|| todo!()), i: self.bootstrap_method_attr_index as usize }
+        BootstrapMethodView {
+            backing: self
+                .class_view
+                .bootstrap_methods_attr()
+                .unwrap_or_else(|| todo!()),
+            i: self.bootstrap_method_attr_index as usize,
+        }
     }
 }
 
@@ -304,7 +369,7 @@ pub enum ConstantInfoView<'cl> {
 impl ConstantInfoView<'_> {
     pub fn unwrap_class(&self) -> &ClassPoolElemView {
         match self {
-            ConstantInfoView::Class(c) => { c }
+            ConstantInfoView::Class(c) => c,
             _ => panic!(),
         }
     }

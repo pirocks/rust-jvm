@@ -14,7 +14,6 @@ pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
 }
 
-
 pub struct MethodTable<'gc_life> {
     table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
     //at a later date will contain compiled code etc.
@@ -22,20 +21,30 @@ pub struct MethodTable<'gc_life> {
 }
 
 impl<'gc_life> MethodTable<'gc_life> {
-    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass<'gc_life>>, index: u16) -> MethodTableIndex {
+    pub fn get_method_id(
+        &mut self,
+        rc: Arc<RuntimeClass<'gc_life>>,
+        index: u16,
+    ) -> MethodTableIndex {
         assert_ne!(index, u16::max_value());
         match match self.index.get(&ByAddress(rc.clone())) {
             Some(x) => x,
             None => {
                 return self.register_with_table(rc, index);
             }
-        }.get(&index) {
+        }
+            .get(&index)
+        {
             Some(x) => *x,
             None => self.register_with_table(rc, index),
         }
     }
 
-    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, method_index: u16) -> MethodTableIndex {
+    pub fn register_with_table(
+        &mut self,
+        rc: Arc<RuntimeClass<'gc_life>>,
+        method_index: u16,
+    ) -> MethodTableIndex {
         assert_ne!(method_index, u16::max_value());
         let res = self.table.len();
         self.table.push((rc.clone(), method_index));
@@ -70,4 +79,3 @@ impl<'gc_life> MethodTable<'gc_life> {
         }
     }
 }
-

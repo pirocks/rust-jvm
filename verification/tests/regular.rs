@@ -42,14 +42,12 @@
 // //    verify_class_with_name(&main_class_name).unwrap();
 // //}
 
-
 // #[test]
 // #[timeout(10000)]
 // pub fn can_verify_object() {
 //     let main_class_name = "java/lang/Object".to_string();
 //     verify_class_with_name(&main_class_name).unwrap();
 // }
-
 
 // #[test]
 // #[timeout(30000)]
@@ -71,7 +69,6 @@
 //     let main_class_name = "java/io/FileInputStream".to_string();
 //     verify_class_with_name(&main_class_name).unwrap();
 // }
-
 
 // #[test]
 // #[timeout(30000)]
@@ -126,14 +123,12 @@
 //     verify_class_with_name(&main_class_name).unwrap();
 // }
 
-
 // #[test]
 // #[timeout(20000)]
 // pub fn can_verify_properties() {
 //     let main_class_name = "java/util/Properties".to_string();
 //     verify_class_with_name(&main_class_name).unwrap();
 // }
-
 
 // #[test]
 // //#[timeout(10000)]
@@ -162,7 +157,6 @@
 //     let mut jar_handle = JarHandle::new(jar_path.into()).unwrap();
 //     let classfile = jar_handle.lookup(classname).unwrap();
 //     bootstrap_loader.parsed.write().unwrap().insert(class_name(&classfile), classfile.clone());
-
 
 //     match verify(&VerifierContext { bootstrap_loader: bootstrap_loader.clone() }, ClassView::from(classfile.clone()), bootstrap_loader.clone()) {
 //         Ok(_) => Result::Ok(()),
