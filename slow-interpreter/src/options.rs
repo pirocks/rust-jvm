@@ -24,20 +24,7 @@ pub struct JVMOptions {
 }
 
 impl JVMOptions {
-    pub fn new(
-        main_class_name: ClassName,
-        classpath: Classpath,
-        args: Vec<String>,
-        libjava: OsString,
-        libjdwp: OsString,
-        enable_tracing: bool,
-        enable_jvmti: bool,
-        properties: Vec<String>,
-        unittest_mode: bool,
-        store_generated_classes: bool,
-        debug_print_exceptions: bool,
-        assertions_enabled: bool,
-    ) -> Self {
+    pub fn new(main_class_name: ClassName, classpath: Classpath, args: Vec<String>, libjava: OsString, libjdwp: OsString, enable_tracing: bool, enable_jvmti: bool, properties: Vec<String>, unittest_mode: bool, store_generated_classes: bool, debug_print_exceptions: bool, assertions_enabled: bool) -> Self {
         Self {
             main_class_name,
             classpath,

@@ -7,18 +7,10 @@ use by_address::ByAddress;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::{
-    ConstantInfoView, InterfaceMethodrefView, MethodrefView,
-};
+use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{
-    _jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class,
-    JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer,
-    JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long,
-    JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType,
-    JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod,
-};
+use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -37,13 +29,8 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_jclass, get_interpreter_state, get_state, to_object,
-};
-use slow_interpreter::utils::{
-    throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg,
-    throw_illegal_arg_res,
-};
+use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
 //todo lots of duplication here, idk if should fix though
 
@@ -59,11 +46,7 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetSize(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-) -> jint {
+unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
     let jvm = get_state(env);
     let runtime_class = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
     let view = runtime_class.view();
@@ -71,12 +54,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetSize(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetClassAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jclass {
+unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -85,12 +63,10 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(c) => {
-            match get_or_create_class_object(jvm, CPDType::Ref(c.class_ref_type()), int_state) {
-                Ok(class_obj) => to_object(class_obj.into()),
-                Err(_) => null_mut(),
-            }
-        }
+        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, CPDType::Ref(c.class_ref_type()), int_state) {
+            Ok(class_obj) => to_object(class_obj.into()),
+            Err(_) => null_mut(),
+        },
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -98,12 +74,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jclass {
+unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -114,10 +85,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => {
             let classes_guard = jvm.classes.read().unwrap();
-            match classes_guard.get_class_obj(
-                rc.cpdtype(),
-                None, /*todo should there be something here*/
-            ) {
+            match classes_guard.get_class_obj(rc.cpdtype(), None /*todo should there be something here*/) {
                 None => null_mut(),
                 Some(obj) => to_object(obj.into()),
             }
@@ -129,50 +97,25 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jobject {
+unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
     match get_method(env, constantPoolOop, index, true) {
         Ok(method) => method,
         Err(WasException {}) => null_mut(),
     }
 }
 
-fn get_class_from_type_maybe(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    ptype: CPDType,
-    load_class: bool,
-) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
+fn get_class_from_type_maybe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if load_class {
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {
-        match jvm
-            .classes
-            .read()
-            .unwrap()
-            .get_class_obj(ptype, None /*todo should this be something*/)
-        {
+        match jvm.classes.read().unwrap().get_class_obj(ptype, None /*todo should this be something*/) {
             None => return Ok(None),
-            Some(rc) => Some(
-                JavaValue::Object(todo!() /*rc.into()*/)
-                    .cast_class()
-                    .unwrap()
-                    .as_runtime_class(jvm),
-            ),
+            Some(rc) => Some(JavaValue::Object(todo!() /*rc.into()*/).cast_class().unwrap().as_runtime_class(jvm)),
         }
     })
 }
 
-unsafe fn get_method(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    index: i32,
-    load_class: bool,
-) -> Result<jobject, WasException> {
+unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -183,12 +126,7 @@ unsafe fn get_method(
     }
     let method_obj = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(
-                jvm,
-                int_state,
-                CPDType::Ref(method_ref.class(&jvm.string_pool)),
-                load_class,
-            )? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class(&jvm.string_pool)), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class,
             };
@@ -199,12 +137,7 @@ unsafe fn get_method(
             Method::method_object_from_method_view(jvm, int_state, &method_view)?
         }
         ConstantInfoView::InterfaceMethodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(
-                jvm,
-                int_state,
-                CPDType::Ref(method_ref.class()),
-                load_class,
-            )? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class()), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class,
             };
@@ -223,24 +156,14 @@ unsafe fn get_method(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jobject {
+unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
     match get_method(env, constantPoolOop, index, false) {
         Ok(method) => method,
         Err(WasException {}) => null_mut(),
     }
 }
 
-unsafe fn get_field(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    index: i32,
-    load_class: bool,
-) -> Result<jobject, WasException> {
+unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -251,26 +174,13 @@ unsafe fn get_field(
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(field_ref) => {
-            let field_rc = match get_class_from_type_maybe(
-                jvm,
-                int_state,
-                CPDType::from_ptype(
-                    &parse_field_descriptor(field_ref.class().as_str())
-                        .unwrap()
-                        .field_type,
-                    &jvm.string_pool,
-                ),
-                load_class,
-            )? {
+            let field_rc = match get_class_from_type_maybe(jvm, int_state, CPDType::from_ptype(&parse_field_descriptor(field_ref.class().as_str()).unwrap().field_type, &jvm.string_pool), load_class)? {
                 None => return Ok(null_mut()),
                 Some(field_rc) => field_rc,
             };
             let name = field_ref.name_and_type().name(&jvm.string_pool);
             let view = field_rc.view();
-            let field_view = view
-                .fields()
-                .find(|f| f.field_name() == FieldName(name))
-                .unwrap();
+            let field_view = view.fields().find(|f| f.field_name() == FieldName(name)).unwrap();
             let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
             Ok(new_local_ref_public(method_obj.unwrap_object(), int_state))
         }
@@ -281,12 +191,7 @@ unsafe fn get_field(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jobject {
+unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
     match get_field(env, constantPoolOop, index, true) {
         Ok(method) => method,
         Err(WasException {}) => null_mut(),
@@ -294,12 +199,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jobject {
+unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
     match get_field(env, constantPoolOop, index, false) {
         Ok(method) => method,
         Err(WasException {}) => null_mut(),
@@ -307,12 +207,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jobjectArray {
+unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -322,20 +217,13 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(
     }
     let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => {
-            let class = PTypeView::from_compressed(
-                &CPDType::Ref(ref_.class(&jvm.string_pool)),
-                &jvm.string_pool,
-            )
-                .class_name_representation()
-                .replace(".", "/");
+            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class(&jvm.string_pool)), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
         }
         ConstantInfoView::InterfaceMethodref(ref_) => {
-            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool)
-                .class_name_representation()
-                .replace(".", "/");
+            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
@@ -355,36 +243,20 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(
             Ok(class) => class.java_value(),
             Err(WasException {}) => return null_mut(),
         },
-        match JString::from_rust(
-            jvm,
-            int_state,
-            Wtf8Buf::from_string(name.to_str(&jvm.string_pool)),
-        ) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.to_str(&jvm.string_pool))) {
             Ok(name) => name.java_value(),
             Err(WasException {}) => return null_mut(),
         },
-        match JString::from_rust(
-            jvm,
-            int_state,
-            Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool)),
-        ) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool))) {
             Ok(desc_str) => desc_str.java_value(),
             Err(WasException {}) => return null_mut(),
         },
     ];
-    new_local_ref_public(
-        JavaValue::new_vec_from_vec(jvm, jv_vec, CClassName::string().into()).unwrap_object(),
-        int_state,
-    )
+    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jv_vec, CClassName::string().into()).unwrap_object(), int_state)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetIntAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jint {
+unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -401,12 +273,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetLongAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jlong {
+unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jlong {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -423,12 +290,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jfloat {
+unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jfloat {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -445,12 +307,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jdouble {
+unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jdouble {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -467,23 +324,14 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetStringAt(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jstring {
+unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
     match ConstantPoolGetStringAt_impl(env, constantPoolOop, index) {
         Ok(res) => res,
         Err(_) => null_mut(),
     }
 }
 
-unsafe fn ConstantPoolGetStringAt_impl(
-    env: *mut JNIEnv,
-    constantPoolOop: *mut _jobject,
-    index: i32,
-) -> Result<jobject, WasException> {
+unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _jobject, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -492,11 +340,7 @@ unsafe fn ConstantPoolGetStringAt_impl(
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::String(string) => Ok(to_object(
-            JString::from_rust(jvm, int_state, string.string())?
-                .object()
-                .into(),
-        )),
+        ConstantInfoView::String(string) => Ok(to_object(JString::from_rust(jvm, int_state, string.string())?.object().into())),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }
@@ -504,23 +348,14 @@ unsafe fn ConstantPoolGetStringAt_impl(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    jcpool: jobject,
-    index: jint,
-) -> jstring {
+unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
     match ConstantPoolGetUTF8At_impl(env, constantPoolOop, index) {
         Ok(res) => res,
         Err(WasException {}) => null_mut(),
     }
 }
 
-unsafe fn ConstantPoolGetUTF8At_impl(
-    env: *mut JNIEnv,
-    constantPoolOop: jobject,
-    index: i32,
-) -> Result<jobject, WasException> {
+unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
@@ -529,11 +364,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Utf8(utf8) => Ok(to_object(
-            JString::from_rust(jvm, int_state, utf8.str.clone())?
-                .object()
-                .into(),
-        )),
+        ConstantInfoView::Utf8(utf8) => Ok(to_object(JString::from_rust(jvm, int_state, utf8.str.clone())?.object().into())),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }
@@ -546,9 +377,7 @@ unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, type
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
-    for (i, constant_pool) in
-    (0..view.constant_pool_size()).map(|i| (i, view.constant_pool_view(i)))
-    {
+    for (i, constant_pool) in (0..view.constant_pool_size()).map(|i| (i, view.constant_pool_view(i))) {
         types.offset(i as isize).write(match constant_pool {
             ConstantInfoView::Utf8(_) => JVM_CONSTANT_Utf8,
             ConstantInfoView::Integer(_) => JVM_CONSTANT_Integer,
@@ -579,11 +408,7 @@ unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -592,14 +417,7 @@ unsafe extern "system" fn JVM_GetCPFieldNameUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -607,11 +425,7 @@ unsafe extern "system" fn JVM_GetCPFieldNameUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -620,22 +434,8 @@ unsafe extern "system" fn JVM_GetCPMethodNameUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -643,11 +443,7 @@ unsafe extern "system" fn JVM_GetCPMethodNameUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -656,22 +452,8 @@ unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .desc_str(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .desc_str(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -679,11 +461,7 @@ unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -692,14 +470,7 @@ unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .desc_str(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -707,11 +478,7 @@ unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPClassNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -720,16 +487,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(class_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                PTypeView::from_compressed(
-                    &CPDType::Ref(class_.class_ref_type()),
-                    &jvm.string_pool,
-                )
-                    .class_name_representation(),
-            ),
+        ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(&CPDType::Ref(class_.class_ref_type()), &jvm.string_pool).class_name_representation()),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -737,11 +495,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -750,14 +504,7 @@ unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Fieldref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -765,11 +512,7 @@ unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -778,22 +521,8 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Methodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
-        ConstantInfoView::InterfaceMethodref(ref_) => jvm
-            .native
-            .native_interface_allocations
-            .allocate_modified_string(
-                ref_.name_and_type()
-                    .name(&jvm.string_pool)
-                    .to_str(&jvm.string_pool),
-            ),
+        ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
+        ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -801,21 +530,11 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPFieldModifiers(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-    calledClass: jclass,
-) -> jint {
+unsafe extern "system" fn JVM_GetCPFieldModifiers(env: *mut JNIEnv, cb: jclass, index: jint, calledClass: jclass) -> jint {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetCPMethodModifiers(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-    calledClass: jclass,
-) -> jint {
+unsafe extern "system" fn JVM_GetCPMethodModifiers(env: *mut JNIEnv, cb: jclass, index: jint, calledClass: jclass) -> jint {
     unimplemented!()
 }

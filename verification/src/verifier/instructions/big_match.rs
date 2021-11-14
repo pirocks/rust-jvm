@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use rust_jvm_common::classfile::{
-    Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload,
-    WideIstore, WideLload, WideLstore, WideRet,
-};
+use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 
@@ -18,17 +15,8 @@ use crate::verifier::instructions::special::*;
 use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(
-    instruction: &CInstruction,
-    env: &mut Environment,
-    offset: u16,
-    stack_frame: Frame,
-) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    env.vf
-        .verification_types
-        .entry(env.method.method_index as u16)
-        .or_insert(HashMap::new())
-        .insert(offset, stack_frame.clone());
+pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environment, offset: u16, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+    env.vf.verification_types.entry(env.method.method_index as u16).or_insert(HashMap::new()).insert(offset, stack_frame.clone());
     match &instruction.info {
         CInstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
         CInstructionInfo::aastore => instruction_is_type_safe_aastore(env, stack_frame),
@@ -38,9 +26,7 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::aload_1 => instruction_is_type_safe_aload(1, env, stack_frame),
         CInstructionInfo::aload_2 => instruction_is_type_safe_aload(2, env, stack_frame),
         CInstructionInfo::aload_3 => instruction_is_type_safe_aload(3, env, stack_frame),
-        CInstructionInfo::anewarray(cpdtype) => {
-            instruction_is_type_safe_anewarray(cpdtype, env, stack_frame)
-        }
+        CInstructionInfo::anewarray(cpdtype) => instruction_is_type_safe_anewarray(cpdtype, env, stack_frame),
         CInstructionInfo::areturn => instruction_is_type_safe_areturn(env, stack_frame),
         CInstructionInfo::arraylength => instruction_is_type_safe_arraylength(env, stack_frame),
         CInstructionInfo::astore(i) => instruction_is_type_safe_astore(*i as u16, env, stack_frame),
@@ -54,9 +40,7 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::bipush(_) => instruction_is_type_safe_sipush(env, stack_frame),
         CInstructionInfo::caload => instruction_is_type_safe_caload(env, stack_frame),
         CInstructionInfo::castore => instruction_is_type_safe_castore(env, stack_frame),
-        CInstructionInfo::checkcast(cpdtype) => {
-            instruction_is_type_safe_checkcast(cpdtype, env, stack_frame)
-        }
+        CInstructionInfo::checkcast(cpdtype) => instruction_is_type_safe_checkcast(cpdtype, env, stack_frame),
         CInstructionInfo::d2f => instruction_is_type_safe_d2f(env, stack_frame),
         CInstructionInfo::d2i => instruction_is_type_safe_d2i(env, stack_frame),
         CInstructionInfo::d2l => instruction_is_type_safe_d2l(env, stack_frame),
@@ -116,16 +100,8 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::fstore_2 => instruction_is_type_safe_fstore(2, env, stack_frame),
         CInstructionInfo::fstore_3 => instruction_is_type_safe_fstore(3, env, stack_frame),
         CInstructionInfo::fsub => instruction_is_type_safe_fadd(env, stack_frame),
-        CInstructionInfo::getfield {
-            name,
-            desc,
-            target_class,
-        } => instruction_is_type_safe_getfield(*target_class, *name, desc, env, stack_frame),
-        CInstructionInfo::getstatic {
-            name,
-            desc,
-            target_class,
-        } => instruction_is_type_safe_getstatic(*target_class, *name, desc, env, stack_frame),
+        CInstructionInfo::getfield { name, desc, target_class } => instruction_is_type_safe_getfield(*target_class, *name, desc, env, stack_frame),
+        CInstructionInfo::getstatic { name, desc, target_class } => instruction_is_type_safe_getstatic(*target_class, *name, desc, env, stack_frame),
         CInstructionInfo::goto_(target) => {
             let final_target = (*target as isize) + (instruction.offset as isize);
             assert!(final_target >= 0);
@@ -166,24 +142,12 @@ pub fn instruction_is_type_safe(
             instruction_is_type_safe_if_acmpeq(final_target as u16, env, stack_frame)
             //same as eq case
         }
-        CInstructionInfo::if_icmpeq(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
-        CInstructionInfo::if_icmpne(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
-        CInstructionInfo::if_icmplt(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
-        CInstructionInfo::if_icmpge(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
-        CInstructionInfo::if_icmpgt(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
-        CInstructionInfo::if_icmple(target) => {
-            if_icmp_wrapper(instruction, env, stack_frame, *target)
-        }
+        CInstructionInfo::if_icmpeq(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
+        CInstructionInfo::if_icmpne(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
+        CInstructionInfo::if_icmplt(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
+        CInstructionInfo::if_icmpge(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
+        CInstructionInfo::if_icmpgt(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
+        CInstructionInfo::if_icmple(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
         CInstructionInfo::ifeq(target) => ifeq_wrapper(instruction, env, stack_frame, *target),
         CInstructionInfo::ifne(target) => ifeq_wrapper(instruction, env, stack_frame, *target),
         CInstructionInfo::iflt(target) => ifeq_wrapper(instruction, env, stack_frame, *target),
@@ -200,12 +164,8 @@ pub fn instruction_is_type_safe(
             assert!(final_target >= 0);
             instruction_is_type_safe_ifnonnull(final_target as u16, env, stack_frame)
         }
-        CInstructionInfo::iinc(iinc) => {
-            instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame)
-        }
-        CInstructionInfo::iload(index) => {
-            instruction_is_type_safe_iload(*index as u16, env, stack_frame)
-        }
+        CInstructionInfo::iinc(iinc) => instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame),
+        CInstructionInfo::iload(index) => instruction_is_type_safe_iload(*index as u16, env, stack_frame),
         CInstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env, stack_frame),
         CInstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env, stack_frame),
         CInstructionInfo::iload_2 => instruction_is_type_safe_iload(2, env, stack_frame),
@@ -213,49 +173,11 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::imul => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::ineg => instruction_is_type_safe_ineg(env, stack_frame),
         CInstructionInfo::instanceof(_) => instruction_is_type_safe_instanceof(env, stack_frame),
-        CInstructionInfo::invokedynamic(cp) => {
-            instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame)
-        }
-        CInstructionInfo::invokeinterface {
-            method_name,
-            descriptor,
-            classname_ref_type,
-            count,
-        } => instruction_is_type_safe_invokeinterface(
-            *method_name,
-            descriptor,
-            classname_ref_type,
-            count.get() as usize,
-            env,
-            stack_frame,
-        ),
-        CInstructionInfo::invokespecial {
-            method_name,
-            descriptor,
-            classname_ref_type,
-        } => instruction_is_type_safe_invokespecial(
-            &CPDType::Ref(classname_ref_type.clone()),
-            *method_name,
-            descriptor,
-            env,
-            stack_frame,
-        ),
-        CInstructionInfo::invokestatic {
-            method_name,
-            descriptor,
-            classname_ref_type: _,
-        } => instruction_is_type_safe_invokestatic(*method_name, descriptor, env, stack_frame),
-        CInstructionInfo::invokevirtual {
-            method_name,
-            descriptor,
-            classname_ref_type,
-        } => instruction_is_type_safe_invokevirtual(
-            &CPDType::Ref(classname_ref_type.clone()),
-            *method_name,
-            descriptor,
-            env,
-            stack_frame,
-        ),
+        CInstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame),
+        CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => instruction_is_type_safe_invokeinterface(*method_name, descriptor, classname_ref_type, count.get() as usize, env, stack_frame),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokespecial(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type: _ } => instruction_is_type_safe_invokestatic(*method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokevirtual(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
         CInstructionInfo::ior => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::irem => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, stack_frame),
@@ -281,13 +203,9 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, stack_frame),
         CInstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, stack_frame),
         CInstructionInfo::lconst_1 => instruction_is_type_safe_lconst_0(env, stack_frame),
-        CInstructionInfo::ldc(cldc) => {
-            instruction_is_type_safe_ldc_w(&cldc.as_ref().left().unwrap(), env, stack_frame)
-        }
+        CInstructionInfo::ldc(cldc) => instruction_is_type_safe_ldc_w(&cldc.as_ref().left().unwrap(), env, stack_frame),
         CInstructionInfo::ldc_w(cp) => instruction_is_type_safe_ldc_w(cp, env, stack_frame),
-        CInstructionInfo::ldc2_w(cldc2w) => {
-            instruction_is_type_safe_ldc2_w(cldc2w, env, stack_frame)
-        }
+        CInstructionInfo::ldc2_w(cldc2w) => instruction_is_type_safe_ldc2_w(cldc2w, env, stack_frame),
         CInstructionInfo::ldiv => instruction_is_type_safe_ladd(env, stack_frame),
         CInstructionInfo::lload(i) => instruction_is_type_safe_lload(*i as u16, env, stack_frame),
         CInstructionInfo::lload_0 => instruction_is_type_safe_lload(0, env, stack_frame),
@@ -297,11 +215,7 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::lmul => instruction_is_type_safe_ladd(env, stack_frame),
         CInstructionInfo::lneg => instruction_is_type_safe_lneg(env, stack_frame),
         CInstructionInfo::lookupswitch(s) => {
-            let targets: Vec<u16> = s
-                .pairs
-                .iter()
-                .map(|(_, x)| (offset as i32 + *x as i32) as u16)
-                .collect();
+            let targets: Vec<u16> = s.pairs.iter().map(|(_, x)| (offset as i32 + *x as i32) as u16).collect();
             let keys = s.pairs.iter().map(|(x, _)| *x).collect();
             instruction_is_type_safe_lookupswitch(targets, keys, env, stack_frame)
         }
@@ -320,34 +234,14 @@ pub fn instruction_is_type_safe(
         CInstructionInfo::lxor => instruction_is_type_safe_ladd(env, stack_frame),
         CInstructionInfo::monitorenter => instruction_is_type_safe_monitorenter(env, stack_frame),
         CInstructionInfo::monitorexit => instruction_is_type_safe_monitorenter(env, stack_frame),
-        CInstructionInfo::multianewarray {
-            type_,
-            dimensions: dimesions,
-        } => instruction_is_type_safe_multianewarray(
-            type_,
-            dimesions.get() as usize,
-            env,
-            stack_frame,
-        ),
+        CInstructionInfo::multianewarray { type_, dimensions: dimesions } => instruction_is_type_safe_multianewarray(type_, dimesions.get() as usize, env, stack_frame),
         CInstructionInfo::new(_) => instruction_is_type_safe_new(offset, env, stack_frame),
-        CInstructionInfo::newarray(type_code) => {
-            instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame)
-        }
+        CInstructionInfo::newarray(type_code) => instruction_is_type_safe_newarray(*type_code as usize, env, stack_frame),
         CInstructionInfo::nop => instruction_is_type_safe_nop(stack_frame),
         CInstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
         CInstructionInfo::pop2 => instruction_is_type_safe_pop2(env, stack_frame),
-        CInstructionInfo::putfield {
-            name,
-            desc,
-            target_class,
-        } => {
-            instruction_is_type_safe_putfield((*target_class).into(), *name, desc, env, stack_frame)
-        }
-        CInstructionInfo::putstatic {
-            name: _,
-            desc,
-            target_class: _,
-        } => instruction_is_type_safe_putstatic(desc, env, stack_frame),
+        CInstructionInfo::putfield { name, desc, target_class } => instruction_is_type_safe_putfield((*target_class).into(), *name, desc, env, stack_frame),
+        CInstructionInfo::putstatic { name: _, desc, target_class: _ } => instruction_is_type_safe_putstatic(desc, env, stack_frame),
         CInstructionInfo::ret(_) => instruction_is_type_safe_nop(stack_frame),
         CInstructionInfo::return_ => instruction_is_type_safe_return(env, stack_frame),
         CInstructionInfo::saload => instruction_is_type_safe_saload(env, stack_frame),
@@ -363,36 +257,16 @@ pub fn instruction_is_type_safe(
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
         CInstructionInfo::wide(wide) => match wide {
-            Wide::Iload(WideIload { index }) => {
-                instruction_is_type_safe_iload(*index as u16, env, stack_frame)
-            }
-            Wide::Fload(WideFload { index }) => {
-                instruction_is_type_safe_fload(*index as u16, env, stack_frame)
-            }
-            Wide::Aload(WideAload { index }) => {
-                instruction_is_type_safe_aload(*index as u16, env, stack_frame)
-            }
-            Wide::Lload(WideLload { index }) => {
-                instruction_is_type_safe_lload(*index as u16, env, stack_frame)
-            }
-            Wide::Dload(WideDload { index }) => {
-                instruction_is_type_safe_dload(*index as u16, env, stack_frame)
-            }
-            Wide::Istore(WideIstore { index }) => {
-                instruction_is_type_safe_istore(*index as u16, env, stack_frame)
-            }
-            Wide::Fstore(WideFstore { index }) => {
-                instruction_is_type_safe_fstore(*index as u16, env, stack_frame)
-            }
-            Wide::Astore(WideAstore { index }) => {
-                instruction_is_type_safe_astore(*index as u16, env, stack_frame)
-            }
-            Wide::Lstore(WideLstore { index }) => {
-                instruction_is_type_safe_lstore(*index as u16, env, stack_frame)
-            }
-            Wide::Dstore(WideDstore { index }) => {
-                instruction_is_type_safe_dstore(*index as u16, env, stack_frame)
-            }
+            Wide::Iload(WideIload { index }) => instruction_is_type_safe_iload(*index as u16, env, stack_frame),
+            Wide::Fload(WideFload { index }) => instruction_is_type_safe_fload(*index as u16, env, stack_frame),
+            Wide::Aload(WideAload { index }) => instruction_is_type_safe_aload(*index as u16, env, stack_frame),
+            Wide::Lload(WideLload { index }) => instruction_is_type_safe_lload(*index as u16, env, stack_frame),
+            Wide::Dload(WideDload { index }) => instruction_is_type_safe_dload(*index as u16, env, stack_frame),
+            Wide::Istore(WideIstore { index }) => instruction_is_type_safe_istore(*index as u16, env, stack_frame),
+            Wide::Fstore(WideFstore { index }) => instruction_is_type_safe_fstore(*index as u16, env, stack_frame),
+            Wide::Astore(WideAstore { index }) => instruction_is_type_safe_astore(*index as u16, env, stack_frame),
+            Wide::Lstore(WideLstore { index }) => instruction_is_type_safe_lstore(*index as u16, env, stack_frame),
+            Wide::Dstore(WideDstore { index }) => instruction_is_type_safe_dstore(*index as u16, env, stack_frame),
             Wide::Ret(WideRet { index: _ }) => instruction_is_type_safe_nop(stack_frame),
             Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame),
         },
@@ -400,23 +274,13 @@ pub fn instruction_is_type_safe(
     }
 }
 
-fn if_icmp_wrapper(
-    instruction: &CInstruction,
-    env: &Environment,
-    stack_frame: Frame,
-    target: i16,
-) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn if_icmp_wrapper(instruction: &CInstruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let final_target = (target as isize) + (instruction.offset as isize);
     assert!(final_target >= 0);
     instruction_is_type_safe_if_icmpeq(final_target as u16, env, stack_frame)
 }
 
-fn ifeq_wrapper(
-    instruction: &CInstruction,
-    env: &Environment,
-    stack_frame: Frame,
-    target: i16,
-) -> Result<InstructionTypeSafe, TypeSafetyError> {
+fn ifeq_wrapper(instruction: &CInstruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let final_target = (target as isize) + (instruction.offset as isize);
     assert!(final_target >= 0);
     instruction_is_type_safe_ifeq(final_target as u16, env, stack_frame)

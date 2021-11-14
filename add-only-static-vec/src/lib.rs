@@ -29,9 +29,7 @@ impl<T> AddOnlyVec<T> {
     }
 
     pub fn new() -> Self {
-        Self {
-            inner: RwLock::new(vec![]),
-        }
+        Self { inner: RwLock::new(vec![]) }
     }
 }
 
@@ -79,10 +77,7 @@ impl<T> Drop for AddOnlyIdMap<T>
         let mut guard = self.inner.write().unwrap();
         let AddOnlyIdMapInner { map, owner } = guard.deref_mut();
         map.drain().for_each(|(key, value)| {
-            mem::drop(StaticRc::<T, 2, 2>::join(
-                owner[value.0 as usize].take().unwrap(),
-                key,
-            ));
+            mem::drop(StaticRc::<T, 2, 2>::join(owner[value.0 as usize].take().unwrap(), key));
         })
     }
 }
@@ -100,9 +95,7 @@ impl<T> AddOnlyIdMap<T>
             None => {
                 assert_eq!(inner.owner.len(), next_id);
                 inner.owner.push(Some(right));
-                inner
-                    .map
-                    .insert(left, AddOnlyId(next_id.try_into().unwrap()));
+                inner.map.insert(left, AddOnlyId(next_id.try_into().unwrap()));
                 AddOnlyId(next_id.try_into().unwrap())
             }
             Some(res) => {
@@ -119,11 +112,6 @@ impl<T> AddOnlyIdMap<T>
     }
 
     pub fn new() -> Self {
-        Self {
-            inner: RwLock::new(AddOnlyIdMapInner {
-                map: Default::default(),
-                owner: AddOnlyVec::new(),
-            }),
-        }
+        Self { inner: RwLock::new(AddOnlyIdMapInner { map: Default::default(), owner: AddOnlyVec::new() }) }
     }
 }

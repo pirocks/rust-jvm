@@ -21,11 +21,7 @@ pub fn astore(mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     vars_mut.set(n, object_ref);
 }
 
-pub fn lstore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    n: u16,
-) {
+pub fn lstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let val = current_frame.pop(Some(RuntimeType::LongType));
     match val {
         JavaValue::Long(_) => {}
@@ -37,11 +33,7 @@ pub fn lstore(
     current_frame.local_vars_mut().set(n, val);
 }
 
-pub fn dstore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    n: u16,
-) {
+pub fn dstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let jv = current_frame.pop(Some(RuntimeType::DoubleType));
     match jv {
         JavaValue::Double(_) => {}
@@ -53,73 +45,46 @@ pub fn dstore(
     current_frame.local_vars_mut().set(n, jv);
 }
 
-pub fn fstore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    n: u16,
-) {
+pub fn fstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let jv = current_frame.pop(Some(RuntimeType::FloatType));
     jv.unwrap_float();
     current_frame.local_vars_mut().set(n, jv);
 }
 
-pub fn castore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let arrar_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let arrar_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
     let char_ = val as u16;
-    arrar_ref_o
-        .unwrap_array()
-        .set_i(jvm, index, JavaValue::Char(char_));
+    arrar_ref_o.unwrap_array().set_i(jvm, index, JavaValue::Char(char_));
 }
 
-pub fn bastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int() as jbyte; // int value is truncated
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let array_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    assert!(
-        array_ref_o.unwrap_array().elem_type == CPDType::ByteType
-            || array_ref_o.unwrap_array().elem_type == CPDType::BooleanType
-    );
+    assert!(array_ref_o.unwrap_array().elem_type == CPDType::ByteType || array_ref_o.unwrap_array().elem_type == CPDType::BooleanType);
     let array_ref = array_ref_o.unwrap_array();
     array_ref.set_i(jvm, index, JavaValue::Byte(val));
 }
 
-pub fn sastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_short();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let array_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -130,19 +95,11 @@ pub fn sastore(
     array_ref.set_i(jvm, index, JavaValue::Short(val));
 }
 
-pub fn fastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn fastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let val = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let array_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -152,19 +109,11 @@ pub fn fastore(
     array_ref.set_i(jvm, index, JavaValue::Float(val));
 }
 
-pub fn dastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn dastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
-    let val = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let val = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let array_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let array_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -174,17 +123,11 @@ pub fn dastore(
     array_ref.set_i(jvm, index, JavaValue::Double(val));
 }
 
-pub fn iastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn iastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let arrar_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let arrar_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -195,17 +138,11 @@ pub fn iastore(
     array_ref.set_i(jvm, index, JavaValue::Int(int_));
 }
 
-pub fn aastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn aastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::object()));
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let arrary_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let arrary_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -219,28 +156,16 @@ pub fn aastore(
     array_ref.set_i(jvm, index, val);
 }
 
-pub fn istore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    n: u16,
-) {
+pub fn istore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let object_ref = current_frame.pop(Some(RuntimeType::IntType));
-    current_frame
-        .local_vars_mut()
-        .set(n, JavaValue::Int(object_ref.unwrap_int()));
+    current_frame.local_vars_mut().set(n, JavaValue::Int(object_ref.unwrap_int()));
 }
 
-pub fn lastore(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+pub fn lastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
-    let arrar_ref_o = match current_frame
-        .pop(Some(RuntimeType::object()))
-        .unwrap_object()
-    {
+    let arrar_ref_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

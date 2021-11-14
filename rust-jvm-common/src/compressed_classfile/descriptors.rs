@@ -8,9 +8,7 @@ pub struct CompressedMethodDescriptorsPool {
 
 impl CompressedMethodDescriptorsPool {
     pub fn new() -> Self {
-        Self {
-            pool: AddOnlyIdMap::new(),
-        }
+        Self { pool: AddOnlyIdMap::new() }
     }
 
     pub fn add_descriptor(&self, cmd: impl Into<CMethodDescriptor>) -> ActuallyCompressedMD {

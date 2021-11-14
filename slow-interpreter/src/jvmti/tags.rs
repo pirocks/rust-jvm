@@ -33,11 +33,7 @@ use crate::jvmti::get_state;
 /// JVMTI_ERROR_MUST_POSSESS_CAPABILITY 	The environment does not possess the capability can_tag_objects. Use AddCapabilities.
 /// JVMTI_ERROR_INVALID_OBJECT	object is not an object.
 /// JVMTI_ERROR_NULL_POINTER	tag_ptr is NULL.
-pub unsafe extern "C" fn get_tag(
-    env: *mut jvmtiEnv,
-    object: jobject,
-    tag_ptr: *mut jlong,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *mut jlong) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetTag");
     null_check!(object);
@@ -52,9 +48,7 @@ pub unsafe extern "C" fn get_tag(
             jvmtiError_JVMTI_ERROR_NONE
         }
     };
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 ///Set Tag
@@ -88,13 +82,6 @@ pub unsafe extern "C" fn set_tag(env: *mut jvmtiEnv, object: jobject, tag: jlong
     let jvm = get_state(env);
     //todo handle capabilities
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetTag");
-    jvm.jvmti_state()
-        .unwrap()
-        .tags
-        .write()
-        .unwrap()
-        .insert(object, tag);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.jvmti_state().unwrap().tags.write().unwrap().insert(object, tag);
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

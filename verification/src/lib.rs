@@ -16,18 +16,8 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-pub fn verify(
-    vf: &mut VerifierContext,
-    to_verify: CClassName,
-    loader: LoaderName,
-) -> Result<(), TypeSafetyError> {
-    class_is_type_safe(
-        vf,
-        &ClassWithLoader {
-            class_name: to_verify,
-            loader,
-        },
-    )
+pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
+    class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader })
 }
 
 #[derive(Debug)]
@@ -47,21 +37,13 @@ pub struct VerifierContext<'l> {
 }
 
 pub trait ClassFileGetter {
-    fn get_classfile(
-        &self,
-        loader: LoaderName,
-        class: CClassName,
-    ) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
 }
 
 pub struct NoopClassFileGetter;
 
 impl ClassFileGetter for NoopClassFileGetter {
-    fn get_classfile(
-        &self,
-        loader: LoaderName,
-        class: CClassName,
-    ) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         todo!("{:?}{:?}", loader, class)
     }
 }
@@ -73,9 +55,7 @@ pub struct OperandStack {
 
 impl Clone for OperandStack {
     fn clone(&self) -> Self {
-        OperandStack {
-            data: self.data.clone(),
-        }
+        OperandStack { data: self.data.clone() }
     }
 }
 
@@ -111,9 +91,7 @@ impl OperandStack {
     }
 
     pub fn empty() -> OperandStack {
-        OperandStack {
-            data: VecDeque::new(),
-        }
+        OperandStack { data: VecDeque::new() }
     }
 
     pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, VType> {

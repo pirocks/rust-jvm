@@ -34,10 +34,7 @@ impl Debug for Monitor {
 impl Monitor {
     pub fn new(name: String, i: usize) -> Self {
         Self {
-            owned: RwLock::new(OwningThreadAndCount {
-                owner: None,
-                count: 0,
-            }),
+            owned: RwLock::new(OwningThreadAndCount { owner: None, count: 0 }),
             mutex: Arc::new(const_fair_mutex(())),
             monitor_i: i,
             condvar: Condvar::new(),
@@ -103,11 +100,7 @@ impl Monitor {
         if millis <= 0 {
             std::mem::drop(self.condvar.wait(guard1).unwrap());
         } else {
-            std::mem::drop(
-                self.condvar
-                    .wait_timeout(guard1, Duration::from_millis(millis as u64))
-                    .unwrap(),
-            );
+            std::mem::drop(self.condvar.wait_timeout(guard1, Duration::from_millis(millis as u64)).unwrap());
         }
         //now reacquire the same count as earlier:
         std::mem::forget(self.mutex.lock());
@@ -116,10 +109,7 @@ impl Monitor {
         write_guard.count = count;
     }
 
-    pub fn destroy(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> Result<(), MonitorOwnedBySomeoneElse> {
+    pub fn destroy(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<(), MonitorOwnedBySomeoneElse> {
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
             return Result::Err(MonitorOwnedBySomeoneElse {});

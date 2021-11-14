@@ -14,31 +14,19 @@ unsafe extern "system" fn JVM_IsSilentCompiler(env: *mut JNIEnv, compCls: jclass
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CompileClass(
-    env: *mut JNIEnv,
-    compCls: jclass,
-    cls: jclass,
-) -> jboolean {
+unsafe extern "system" fn JVM_CompileClass(env: *mut JNIEnv, compCls: jclass, cls: jclass) -> jboolean {
     eprintln!("JVM_CompileClass not supported");
     u8::from(false)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CompileClasses(
-    env: *mut JNIEnv,
-    cls: jclass,
-    jname: jstring,
-) -> jboolean {
+unsafe extern "system" fn JVM_CompileClasses(env: *mut JNIEnv, cls: jclass, jname: jstring) -> jboolean {
     eprintln!("JVM_CompileClasses not supported");
     u8::from(false)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CompilerCommand(
-    env: *mut JNIEnv,
-    compCls: jclass,
-    arg: jobject,
-) -> jobject {
+unsafe extern "system" fn JVM_CompilerCommand(env: *mut JNIEnv, compCls: jclass, arg: jobject) -> jobject {
     eprintln!("JVM_CompilerCommand not supported");
     null_mut()
 }

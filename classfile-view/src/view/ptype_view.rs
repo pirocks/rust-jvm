@@ -2,9 +2,7 @@ use std::ops::Deref;
 
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{
-    CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType,
-};
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CompressedClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
@@ -49,9 +47,7 @@ impl PTypeView {
             PTypeView::NullType => PType::NullType,
             PTypeView::Uninitialized(u) => PType::Uninitialized(u.clone()),
             PTypeView::UninitializedThis => PType::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(u) => {
-                PType::UninitializedThisOrClass(u.deref().to_ptype().into())
-            }
+            PTypeView::UninitializedThisOrClass(u) => PType::UninitializedThisOrClass(u.deref().to_ptype().into()),
         }
     }
 
@@ -71,9 +67,7 @@ impl PTypeView {
             PType::NullType => PTypeView::NullType,
             PType::Uninitialized(u) => PTypeView::Uninitialized(u.clone()),
             PType::UninitializedThis => PTypeView::UninitializedThis,
-            PType::UninitializedThisOrClass(u) => {
-                PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into())
-            }
+            PType::UninitializedThisOrClass(u) => PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into()),
         }
     }
 
@@ -86,12 +80,8 @@ impl PTypeView {
             CPDType::IntType => PTypeView::IntType,
             CPDType::LongType => PTypeView::LongType,
             CPDType::Ref(r) => PTypeView::Ref(match r {
-                CompressedParsedRefType::Array(arr) => {
-                    ReferenceTypeView::Array(box PTypeView::from_compressed(arr.deref(), pool))
-                }
-                CompressedParsedRefType::Class(obj) => {
-                    ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string()))
-                }
+                CompressedParsedRefType::Array(arr) => ReferenceTypeView::Array(box PTypeView::from_compressed(arr.deref(), pool)),
+                CompressedParsedRefType::Class(obj) => ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string())),
             }),
             CPDType::ShortType => PTypeView::ShortType,
             CPDType::BooleanType => PTypeView::BooleanType,
@@ -99,11 +89,7 @@ impl PTypeView {
         }
     }
 
-    pub fn to_verification_type(
-        &self,
-        loader: &LoaderName,
-        pool: &CompressedClassfileStringPool,
-    ) -> VType {
+    pub fn to_verification_type(&self, loader: &LoaderName, pool: &CompressedClassfileStringPool) -> VType {
         match self {
             PTypeView::ByteType => VType::IntType,
             PTypeView::CharType => VType::IntType,
@@ -118,9 +104,7 @@ impl PTypeView {
             PTypeView::NullType => VType::NullType,
             PTypeView::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
             PTypeView::UninitializedThis => VType::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(c) => {
-                VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool))
-            }
+            PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool)),
             PTypeView::Ref(r) => r.to_verification_type(loader, pool),
         }
     }
@@ -303,22 +287,14 @@ impl From<ClassName> for ReferenceTypeView {
 }
 
 impl ReferenceTypeView {
-    pub fn to_verification_type(
-        &self,
-        loader: &LoaderName,
-        pool: &CompressedClassfileStringPool,
-    ) -> VType {
+    pub fn to_verification_type(&self, loader: &LoaderName, pool: &CompressedClassfileStringPool) -> VType {
         match self {
             ReferenceTypeView::Class(c) => VType::Class(ClassWithLoader {
-                class_name: CompressedClassName(
-                    pool.add_name(c.get_referred_name().to_string(), true),
-                ),
+                class_name: CompressedClassName(pool.add_name(c.get_referred_name().to_string(), true)),
                 loader: loader.clone(),
             }),
             ReferenceTypeView::Array(p) => {
-                VType::ArrayReferenceType(
-                    CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool), /*p.deref().clone()*/
-                )
+                VType::ArrayReferenceType(CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool) /*p.deref().clone()*/)
             }
         }
     }
@@ -333,9 +309,7 @@ impl ReferenceTypeView {
     pub fn from_reference_type(ref_: &ReferenceType) -> ReferenceTypeView {
         match ref_ {
             ReferenceType::Class(c) => ReferenceTypeView::Class(c.clone()),
-            ReferenceType::Array(a) => {
-                ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into())
-            }
+            ReferenceType::Array(a) => ReferenceTypeView::Array(PTypeView::from_ptype(a.deref()).into()),
         }
     }
 
@@ -400,9 +374,7 @@ impl Clone for PTypeView {
             PTypeView::NullType => PTypeView::NullType,
             PTypeView::Uninitialized(uvi) => PTypeView::Uninitialized(uvi.clone()),
             PTypeView::UninitializedThis => PTypeView::UninitializedThis,
-            PTypeView::UninitializedThisOrClass(t) => {
-                PTypeView::UninitializedThisOrClass(t.clone())
-            }
+            PTypeView::UninitializedThisOrClass(t) => PTypeView::UninitializedThisOrClass(t.clone()),
             PTypeView::Ref(r) => PTypeView::Ref(r.clone()),
         }
     }

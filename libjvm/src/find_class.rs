@@ -24,35 +24,21 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromBootLoader(
-    env: *mut JNIEnv,
-    name: *const ::std::os::raw::c_char,
-) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string(); //todo handle utf8 here
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    let loader_obj = int_state
-        .previous_frame()
-        .local_vars(jvm)
-        .get(0, RuntimeType::object())
-        .cast_class_loader();
+    let loader_obj = int_state.previous_frame().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
-    let runtime_class = match guard
-        .loaded_classes_by_type
-        .get(&BootstrapLoader)
-        .unwrap()
-        .get(&class_name.clone().into())
-    {
+    let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
             let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
@@ -61,57 +47,30 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(
             };
             let ptype = runtime_class.cpdtype();
             let mut guard = jvm.classes.write().unwrap();
-            guard
-                .initiating_loaders
-                .entry(ptype.clone())
-                .or_insert((BootstrapLoader, runtime_class.clone())); //todo wrong loader?
-            guard
-                .loaded_classes_by_type
-                .entry(BootstrapLoader)
-                .or_insert(HashMap::new())
-                .insert(ptype, runtime_class.clone());
+            guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone())); //todo wrong loader?
+            guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
             runtime_class
         }
         Some(runtime_class) => runtime_class.clone(),
     };
     let mut guard = jvm.classes.write().unwrap();
-    to_object(
-        guard
-            .get_class_obj_from_runtime_class(runtime_class.clone())
-            .clone()
-            .into(),
-    )
+    to_object(guard.get_class_obj_from_runtime_class(runtime_class.clone()).clone().into())
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromClassLoader(
-    env: *mut JNIEnv,
-    name: *const ::std::os::raw::c_char,
-    init: jboolean,
-    loader: jobject,
-    throwError: jboolean,
-) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromClassLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, throwError: jboolean) -> jclass {
     dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromClass(
-    env: *mut JNIEnv,
-    name: *const ::std::os::raw::c_char,
-    init: jboolean,
-    from: jclass,
-) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, from: jclass) -> jclass {
     dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindLoadedClass(
-    env: *mut JNIEnv,
-    loader: jobject,
-    name: jstring,
-) -> jclass {
+unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = match JavaValue::Object(from_object(jvm, name)).cast_string() {
@@ -122,33 +81,20 @@ unsafe extern "system" fn JVM_FindLoadedClass(
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl
-    let class_name =
-        CompressedClassName(jvm.string_pool.add_name(name_str.replace(".", "/"), true));
-    let loaded = jvm
-        .classes
-        .write()
-        .unwrap()
-        .is_loaded(&class_name.clone().into());
+    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str.replace(".", "/"), true));
+    let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.clone().into());
     match loaded {
         None => null_mut(),
         Some(view) => {
             // todo what if name is long/int etc.
-            let res = get_or_create_class_object(
-                jvm,
-                CPDType::Ref(CPRefType::Class(class_name)),
-                int_state,
-            )
-                .unwrap(); //todo handle exception
+            let res = get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Class(class_name)), int_state).unwrap(); //todo handle exception
             new_local_ref_public(res.into(), int_state)
         }
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindPrimitiveClass(
-    env: *mut JNIEnv,
-    utf: *const ::std::os::raw::c_char,
-) -> jclass {
+unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jclass {
     assert_ne!(utf, std::ptr::null());
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -170,29 +116,28 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(
     let short_cstr = short.into_raw();
     let void = CString::new("void").unwrap();
     let void_cstr = void.into_raw();
-    let (class_name, as_str, ptype) =
-        if libc::strncmp(float_cstr, utf, libc::strlen(float_cstr) + 1) == 0 {
-            (ClassName::raw_float(), "float", CPDType::FloatType)
-        } else if libc::strncmp(double_cstr, utf, libc::strlen(double_cstr) + 1) == 0 {
-            (ClassName::raw_double(), "double", CPDType::DoubleType)
-        } else if libc::strncmp(int_cstr, utf, libc::strlen(int_cstr) + 1) == 0 {
-            (ClassName::raw_int(), "int", CPDType::IntType)
-        } else if libc::strncmp(boolean_cstr, utf, libc::strlen(boolean_cstr) + 1) == 0 {
-            (ClassName::raw_boolean(), "boolean", CPDType::BooleanType)
-        } else if libc::strncmp(char_cstr, utf, libc::strlen(char_cstr) + 1) == 0 {
-            (ClassName::raw_char(), "char", CPDType::CharType)
-        } else if libc::strncmp(long_cstr, utf, libc::strlen(long_cstr) + 1) == 0 {
-            (ClassName::raw_long(), "long", CPDType::LongType)
-        } else if libc::strncmp(byte_cstr, utf, libc::strlen(byte_cstr) + 1) == 0 {
-            (ClassName::raw_byte(), "byte", CPDType::ByteType)
-        } else if libc::strncmp(short_cstr, utf, libc::strlen(short_cstr) + 1) == 0 {
-            (ClassName::raw_short(), "short", CPDType::ShortType)
-        } else if libc::strncmp(void_cstr, utf, libc::strlen(void_cstr) + 1) == 0 {
-            (ClassName::raw_void(), "void", CPDType::VoidType)
-        } else {
-            dbg!((*utf) as u8 as char);
-            unimplemented!()
-        };
+    let (class_name, as_str, ptype) = if libc::strncmp(float_cstr, utf, libc::strlen(float_cstr) + 1) == 0 {
+        (ClassName::raw_float(), "float", CPDType::FloatType)
+    } else if libc::strncmp(double_cstr, utf, libc::strlen(double_cstr) + 1) == 0 {
+        (ClassName::raw_double(), "double", CPDType::DoubleType)
+    } else if libc::strncmp(int_cstr, utf, libc::strlen(int_cstr) + 1) == 0 {
+        (ClassName::raw_int(), "int", CPDType::IntType)
+    } else if libc::strncmp(boolean_cstr, utf, libc::strlen(boolean_cstr) + 1) == 0 {
+        (ClassName::raw_boolean(), "boolean", CPDType::BooleanType)
+    } else if libc::strncmp(char_cstr, utf, libc::strlen(char_cstr) + 1) == 0 {
+        (ClassName::raw_char(), "char", CPDType::CharType)
+    } else if libc::strncmp(long_cstr, utf, libc::strlen(long_cstr) + 1) == 0 {
+        (ClassName::raw_long(), "long", CPDType::LongType)
+    } else if libc::strncmp(byte_cstr, utf, libc::strlen(byte_cstr) + 1) == 0 {
+        (ClassName::raw_byte(), "byte", CPDType::ByteType)
+    } else if libc::strncmp(short_cstr, utf, libc::strlen(short_cstr) + 1) == 0 {
+        (ClassName::raw_short(), "short", CPDType::ShortType)
+    } else if libc::strncmp(void_cstr, utf, libc::strlen(void_cstr) + 1) == 0 {
+        (ClassName::raw_void(), "void", CPDType::VoidType)
+    } else {
+        dbg!((*utf) as u8 as char);
+        unimplemented!()
+    };
 
     let res = get_or_create_class_object(jvm, ptype, int_state).unwrap(); //todo what if not using bootstap loader, todo handle exception
     new_local_ref_public(res.into(), int_state)

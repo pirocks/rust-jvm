@@ -8,9 +8,7 @@ use std::sync::Arc;
 
 use iced_x86::{BlockEncoder, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
-use iced_x86::code_asm::{
-    CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp,
-};
+use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
 use itertools::Itertools;
 use memoffset::offset_of;
 use wtf8::Wtf8Buf;
@@ -18,9 +16,7 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::code::{
-    CInstruction, CompressedCode, CompressedInstructionInfo,
-};
+use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
@@ -42,73 +38,24 @@ pub struct LabelName(u32);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum VMExitType {
-    ResolveInvokeStatic {
-        method_name: MethodName,
-        desc: CMethodDescriptor,
-        target_class: CPDType,
-    },
-    RunNativeStatic {
-        method_name: MethodName,
-        desc: CMethodDescriptor,
-        target_class: CPDType,
-    },
-    ResolveInvokeSpecial {
-        method_name: MethodName,
-        desc: CMethodDescriptor,
-        target_class: CPDType,
-    },
-    InvokeSpecialNative {
-        method_name: MethodName,
-        desc: CMethodDescriptor,
-        target_class: CPDType,
-    },
-    InitClass {
-        target_class: CPDType,
-    },
-    NeedNewRegion {
-        target_class: AllocatedObjectType,
-    },
-    PutStatic {
-        target_class: CPDType,
-        target_type: CPDType,
-        name: FieldName,
-        frame_pointer_offset_of_to_put: FramePointerOffset,
-    },
-    Allocate {
-        ptypeview: CPDType,
-        loader: LoaderName,
-        res: FramePointerOffset,
-        bytecode_size: u16,
-    },
-    LoadString {
-        string: Wtf8Buf,
-        res: FramePointerOffset,
-    },
-    LoadClass {
-        class_type: CPDType,
-        res: FramePointerOffset,
-        bytecode_size: u16,
-    },
-    Throw {
-        res: FramePointerOffset,
-    },
-    MonitorEnter {
-        ref_offset: FramePointerOffset,
-    },
-    MonitorExit {
-        ref_offset: FramePointerOffset,
-    },
-    Trace {
-        values: Vec<(String, FramePointerOffset)>,
-    },
+    ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    InvokeSpecialNative { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
+    InitClass { target_class: CPDType },
+    NeedNewRegion { target_class: AllocatedObjectType },
+    PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
+    Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset, bytecode_size: u16 },
+    LoadString { string: Wtf8Buf, res: FramePointerOffset },
+    LoadClass { class_type: CPDType, res: FramePointerOffset, bytecode_size: u16 },
+    Throw { res: FramePointerOffset },
+    MonitorEnter { ref_offset: FramePointerOffset },
+    MonitorExit { ref_offset: FramePointerOffset },
+    Trace { values: Vec<(String, FramePointerOffset)> },
     TopLevelReturn {},
     Todo {},
     NPE {},
-    AllocateVariableSizeArrayANewArray {
-        target_type_sub_type: CPDType,
-        len_offset: FramePointerOffset,
-        res_write_offset: FramePointerOffset,
-    },
+    AllocateVariableSizeArrayANewArray { target_type_sub_type: CPDType, len_offset: FramePointerOffset, res_write_offset: FramePointerOffset },
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
@@ -132,12 +79,7 @@ pub struct MethodResolver<'gc_life> {
 }
 
 impl<'gc_life> MethodResolver<'gc_life> {
-    pub fn lookup_static(
-        &self,
-        on: CPDType,
-        name: MethodName,
-        desc: CMethodDescriptor,
-    ) -> Option<(MethodId, bool)> {
+    pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
@@ -149,12 +91,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
-    pub fn lookup_special(
-        &self,
-        on: CPDType,
-        name: MethodName,
-        desc: CMethodDescriptor,
-    ) -> Option<(MethodId, bool)> {
+    pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
@@ -165,45 +102,25 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
-    pub fn lookup_type_loaded(
-        &self,
-        cpdtype: &CPDType,
-    ) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
+    pub fn lookup_type_loaded(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
         let rc = self.jvm.classes.read().unwrap().is_loaded(cpdtype)?;
         let loader = self.jvm.classes.read().unwrap().get_initiating_loader(&rc);
         Some((rc, loader))
     }
 
     pub fn lookup_method_layout(&self, methodid: usize) -> NaiveStackframeLayout {
-        let (rc, method_i) = self
-            .jvm
-            .method_table
-            .read()
-            .unwrap()
-            .try_lookup(methodid)
-            .unwrap();
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let function_frame_type = self.jvm.function_frame_type_data.read().unwrap();
         let frames = function_frame_type.get(&methodid).unwrap();
-        let stack_depth = frames
-            .iter()
-            .sorted_by_key(|(offset, _)| *offset)
-            .enumerate()
-            .map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16))
-            .collect();
+        let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16)).collect();
         let code = method_view.code_attribute().unwrap();
         NaiveStackframeLayout::from_stack_depth(stack_depth, code.max_locals, code.max_stack)
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
-        let (rc, method_i) = self
-            .jvm
-            .method_table
-            .read()
-            .unwrap()
-            .try_lookup(method_id)
-            .unwrap();
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         method_view.code_attribute().unwrap().clone()

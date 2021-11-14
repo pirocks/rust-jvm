@@ -31,27 +31,18 @@ use crate::jvmti::get_state;
 /// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
 /// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
 /// JVMTI_ERROR_NULL_POINTER	data_ptr is NULL.
-pub unsafe extern "C" fn get_thread_local_storage(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    data_ptr: *mut *mut ::std::os::raw::c_void,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data_ptr: *mut *mut ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     assert!(jvm.vm_live());
     null_check!(data_ptr);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadLocalStorage");
     let java_thread = get_thread_or_error!(jvm, thread).get_java_thread(jvm);
     data_ptr.write(*java_thread.thread_local_storage.read().unwrap());
     //todo so I'm not sure thread's aliveness is all that relevant in this implementation
     // if !java_thread.is_alive() {
     //     return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
     // }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Set Thread Local Storage
@@ -88,24 +79,15 @@ pub unsafe extern "C" fn get_thread_local_storage(
 /// Error 	Description
 /// JVMTI_ERROR_INVALID_THREAD	thread is not a thread object.
 /// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
-pub unsafe extern "C" fn set_thread_local_storage(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    data: *const ::std::os::raw::c_void,
-) -> jvmtiError {
+pub unsafe extern "C" fn set_thread_local_storage(env: *mut jvmtiEnv, thread: jthread, data: *const ::std::os::raw::c_void) -> jvmtiError {
     let jvm = get_state(env);
     assert!(jvm.vm_live());
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "SetThreadLocalStorage");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetThreadLocalStorage");
     let java_thread = get_thread_or_error!(jvm, thread).get_java_thread(jvm);
     *java_thread.thread_local_storage.write().unwrap() = data as *mut c_void;
     //todo so I'm not sure thread's aliveness is all that relevant in this implementation
     // if !java_thread.is_alive() {
     //     return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE);
     // }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

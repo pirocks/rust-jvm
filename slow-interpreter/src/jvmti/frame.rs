@@ -3,13 +3,7 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{
-    _jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv,
-    jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT,
-    jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD,
-    jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE,
-    jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry,
-};
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
@@ -51,16 +45,9 @@ use crate::stack_entry::StackEntry;
 /// JVMTI_ERROR_THREAD_NOT_ALIVE	thread is not live (has not been started or is now dead).
 /// JVMTI_ERROR_NULL_POINTER	count_ptr is NULL.
 ///
-pub unsafe extern "C" fn get_frame_count(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    count_ptr: *mut jint,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, count_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetFrameCount");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetFrameCount");
     assert!(jvm.vm_live());
     null_check!(count_ptr);
 
@@ -77,9 +64,7 @@ pub unsafe extern "C" fn get_frame_count(
     };
     count_ptr.write(frame_count as i32);
 
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Frame Location
@@ -120,18 +105,9 @@ pub unsafe extern "C" fn get_frame_count(
 /// JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
 /// JVMTI_ERROR_NULL_POINTER	method_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	location_ptr is NULL.
-pub unsafe extern "C" fn get_frame_location(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    method_ptr: *mut jmethodID,
-    location_ptr: *mut jlocation,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread, depth: jint, method_ptr: *mut jmethodID, location_ptr: *mut jlocation) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetFrameLocation");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetFrameLocation");
     assert!(jvm.vm_live());
     let jthread = get_thread_or_error!(jvm, thread);
     null_check!(method_ptr);
@@ -162,23 +138,14 @@ pub unsafe extern "C" fn get_frame_location(
             let thread_class_view = thread_class.view();
             let possible_starts = thread_class_view.lookup_method_name(MethodName::method_start());
             let thread_start_view = possible_starts.get(0).unwrap();
-            jvm.method_table
-                .write()
-                .unwrap()
-                .get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
+            jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
         }
-        Some(method_i) => jvm
-            .method_table
-            .write()
-            .unwrap()
-            .get_method_id(stack_entry.class_pointer().clone(), method_i),
+        Some(method_i) => jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i),
     };
 
     method_ptr.write(transmute(meth_id));
     location_ptr.write(stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1));
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Local Variable Table
@@ -237,19 +204,11 @@ pub unsafe extern "C" fn get_frame_location(
 /// JVMTI_ERROR_NATIVE_METHOD	method is a native method.
 /// JVMTI_ERROR_NULL_POINTER	entry_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	table_ptr is NULL.
-pub unsafe extern "C" fn get_local_variable_table(
-    env: *mut jvmtiEnv,
-    method: jmethodID,
-    entry_count_ptr: *mut jint,
-    table_ptr: *mut *mut jvmtiLocalVariableEntry,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_local_variable_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLocalVariableEntry) -> jvmtiError {
     //todo check capabilities
     let jvm = get_state(env);
     assert!(jvm.vm_live());
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetLocalVariableTable");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalVariableTable");
     null_check!(table_ptr);
     null_check!(entry_count_ptr);
     let method_id = from_jmethod_id(method);
@@ -258,10 +217,7 @@ pub unsafe extern "C" fn get_local_variable_table(
     let (class, method_i) = match option {
         None => {
             assert!(false);
-            return jvm
-                .config
-                .tracing
-                .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_METHODID);
+            return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_METHODID);
         }
         Some(pair) => pair,
     };
@@ -269,10 +225,7 @@ pub unsafe extern "C" fn get_local_variable_table(
     let method_view = class_view.method_view_i(method_i);
     let num_locals = method_view.code_attribute().unwrap().max_locals as usize;
     if method_view.is_native() {
-        return jvm
-            .config
-            .tracing
-            .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NATIVE_METHOD);
+        return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NATIVE_METHOD);
     }
     let local_vars = match method_view.local_variable_attribute() {
         None => {
@@ -294,10 +247,7 @@ pub unsafe extern "C" fn get_local_variable_table(
             //         slot
             //     }
             // })
-            return jvm.config.tracing.trace_jdwp_function_exit(
-                tracing_guard,
-                jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION,
-            );
+            return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION);
         }
         Some(lva) => lva,
     };
@@ -306,15 +256,9 @@ pub unsafe extern "C" fn get_local_variable_table(
         .iter()
         .map(|local_variable_view| {
             let name = local_variable_view.name();
-            let allocated_name = jvm
-                .native
-                .native_interface_allocations
-                .allocate_string(name);
+            let allocated_name = jvm.native.native_interface_allocations.allocate_string(name);
             let signature = local_variable_view.desc_str();
-            let allocated_signature = jvm
-                .native
-                .native_interface_allocations
-                .allocate_string(signature);
+            let allocated_signature = jvm.native.native_interface_allocations.allocate_string(signature);
             let slot = local_variable_view.local_var_slot() as i32;
             _jvmtiLocalVariableEntry {
                 start_location: local_variable_view.variable_start_pc() as i64,
@@ -326,12 +270,8 @@ pub unsafe extern "C" fn get_local_variable_table(
             }
         })
         .collect::<Vec<_>>();
-    jvm.native
-        .native_interface_allocations
-        .allocate_and_write_vec(res, entry_count_ptr, table_ptr);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.native.native_interface_allocations.allocate_and_write_vec(res, entry_count_ptr, table_ptr);
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 /// Get Line Number Table
@@ -381,22 +321,14 @@ pub unsafe extern "C" fn get_local_variable_table(
 /// JVMTI_ERROR_NATIVE_METHOD	method is a native method.
 /// JVMTI_ERROR_NULL_POINTER	entry_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	table_ptr is NULL.
-pub unsafe extern "C" fn get_line_number_table(
-    env: *mut jvmtiEnv,
-    method: jmethodID,
-    entry_count_ptr: *mut jint,
-    table_ptr: *mut *mut jvmtiLineNumberEntry,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmethodID, entry_count_ptr: *mut jint, table_ptr: *mut *mut jvmtiLineNumberEntry) -> jvmtiError {
     let jvm = get_state(env);
     let method_id = from_jmethod_id(method);
     //todo capabilities
     assert!(jvm.vm_live());
     null_check!(table_ptr);
     null_check!(entry_count_ptr);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetLineNumberTable");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLineNumberTable");
     let (class, method_i) = match jvm.method_table.read().unwrap().try_lookup(method_id) {
         None => {
             return jvmtiError_JVMTI_ERROR_INVALID_METHODID;
@@ -416,21 +348,12 @@ pub unsafe extern "C" fn get_line_number_table(
     }
         .line_number_table;
     entry_count_ptr.write(table.len() as i32);
-    let res_table = jvm
-        .native
-        .native_interface_allocations
-        .allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len())
-        as *mut _jvmtiLineNumberEntry;
+    let res_table = jvm.native.native_interface_allocations.allocate_malloc(size_of::<_jvmtiLineNumberEntry>() * table.len()) as *mut _jvmtiLineNumberEntry;
     for (i, entry) in table.iter().enumerate() {
         let start = entry.start_pc;
         let line_number = entry.line_number;
-        res_table.add(i).write(_jvmtiLineNumberEntry {
-            start_location: start as i64,
-            line_number: line_number as i32,
-        })
+        res_table.add(i).write(_jvmtiLineNumberEntry { start_location: start as i64, line_number: line_number as i32 })
     }
     table_ptr.write(res_table);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

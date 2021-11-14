@@ -13,12 +13,7 @@ use crate::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state
 //for now a method id is a pair of class pointers and i.
 //turns out this is for member functions only
 //see also get_static_method_id
-pub unsafe extern "C" fn get_method_id(
-    env: *mut JNIEnv,
-    clazz: jclass,
-    name: *const c_char,
-    sig: *const c_char,
-) -> jmethodID {
+pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv, clazz: jclass, name: *const c_char, sig: *const c_char) -> jmethodID {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let method_name = match CStr::from_ptr(name).to_str() {
@@ -49,10 +44,6 @@ pub unsafe extern "C" fn get_method_id(
             cur_method_name == method_name && method_descriptor_str == cur_desc
         })
         .unwrap();
-    let method_id = jvm
-        .method_table
-        .write()
-        .unwrap()
-        .get_method_id(c.clone(), *m as u16);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(c.clone(), *m as u16);
     transmute(method_id)
 }

@@ -1,15 +1,6 @@
 use rust_jvm_common::classfile::{
-    Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo,
-    AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code,
-    ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue,
-    Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable,
-    LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable,
-    LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodParameter, MethodParameters,
-    NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations,
-    RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame,
-    SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature,
-    SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo,
-    TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo,
+    Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry,
+    MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo,
 };
 use rust_jvm_common::classfile::AttributeType::Unknown;
 use rust_jvm_common::classfile::EnclosingMethod;
@@ -63,52 +54,31 @@ pub fn parse_attribute(p: &mut dyn ParsingContext) -> Result<AttributeInfo, Clas
             Ok(Unknown)
         }
     }?;
-    Ok(AttributeInfo {
-        attribute_name_index,
-        attribute_length,
-        attribute_type,
-    })
+    Ok(AttributeInfo { attribute_name_index, attribute_length, attribute_type })
 }
 
-fn parse_local_variable_type_table_entry(
-    p: &mut dyn ParsingContext,
-) -> Result<LocalVariableTypeTableEntry, ClassfileParsingError> {
+fn parse_local_variable_type_table_entry(p: &mut dyn ParsingContext) -> Result<LocalVariableTypeTableEntry, ClassfileParsingError> {
     let start_pc = p.read16()?;
     let length = p.read16()?;
     let name_index = p.read16()?;
     let descriptor_index = p.read16()?;
     let index = p.read16()?;
-    Ok(LocalVariableTypeTableEntry {
-        start_pc,
-        length,
-        name_index,
-        descriptor_index,
-        index,
-    })
+    Ok(LocalVariableTypeTableEntry { start_pc, length, name_index, descriptor_index, index })
 }
 
-fn parse_local_variable_type_table(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_local_variable_type_table(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let local_variable_type_table_length = p.read16()?;
     let mut type_table = vec![];
     for _ in 0..local_variable_type_table_length {
         type_table.push(parse_local_variable_type_table_entry(p)?);
     }
-    Ok(AttributeType::LocalVariableTypeTable(
-        LocalVariableTypeTable { type_table },
-    ))
+    Ok(AttributeType::LocalVariableTypeTable(LocalVariableTypeTable { type_table }))
 }
 
-fn parse_enclosing_method(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_enclosing_method(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let class_index = p.read16()?;
     let method_index = p.read16()?;
-    Ok(AttributeType::EnclosingMethod(EnclosingMethod {
-        class_index,
-        method_index,
-    }))
+    Ok(AttributeType::EnclosingMethod(EnclosingMethod { class_index, method_index }))
 }
 
 fn parse_synthetic(_p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
@@ -129,41 +99,28 @@ fn parse_nest_members(p: &mut dyn ParsingContext) -> Result<AttributeType, Class
     Ok(AttributeType::NestMembers(NestMembers { classes }))
 }
 
-fn parse_constant_value_index(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_constant_value_index(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let constant_value_index = p.read16()?;
-    Ok(AttributeType::ConstantValue(ConstantValue {
-        constant_value_index,
-    }))
+    Ok(AttributeType::ConstantValue(ConstantValue { constant_value_index }))
 }
 
-fn parse_bootstrap_methods(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_bootstrap_methods(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let num_bootstrap_methods = p.read16()?;
     let mut bootstrap_methods = Vec::with_capacity(num_bootstrap_methods as usize);
     for _ in 0..num_bootstrap_methods {
         bootstrap_methods.push(parse_bootstrap_method(p)?);
     }
-    Ok(AttributeType::BootstrapMethods(BootstrapMethods {
-        bootstrap_methods,
-    }))
+    Ok(AttributeType::BootstrapMethods(BootstrapMethods { bootstrap_methods }))
 }
 
-fn parse_bootstrap_method(
-    p: &mut dyn ParsingContext,
-) -> Result<BootstrapMethod, ClassfileParsingError> {
+fn parse_bootstrap_method(p: &mut dyn ParsingContext) -> Result<BootstrapMethod, ClassfileParsingError> {
     let bootstrap_method_ref = p.read16()?;
     let num_bootstrap_args = p.read16()?;
     let mut bootstrap_arguments = Vec::with_capacity(num_bootstrap_args as usize);
     for _ in 0..num_bootstrap_args {
         bootstrap_arguments.push(p.read16()?);
     }
-    Ok(BootstrapMethod {
-        bootstrap_arguments,
-        bootstrap_method_ref,
-    })
+    Ok(BootstrapMethod { bootstrap_arguments, bootstrap_method_ref })
 }
 
 fn parse_inner_class(p: &mut dyn ParsingContext) -> Result<InnerClass, ClassfileParsingError> {
@@ -171,12 +128,7 @@ fn parse_inner_class(p: &mut dyn ParsingContext) -> Result<InnerClass, Classfile
     let outer_class_info_index = p.read16()?;
     let inner_name_index = p.read16()?;
     let inner_class_access_flags = p.read16()?;
-    Ok(InnerClass {
-        inner_class_access_flags,
-        inner_class_info_index,
-        inner_name_index,
-        outer_class_info_index,
-    })
+    Ok(InnerClass { inner_class_access_flags, inner_class_info_index, inner_name_index, outer_class_info_index })
 }
 
 fn parse_inner_classes(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
@@ -198,15 +150,11 @@ fn parse_exceptions(p: &mut dyn ParsingContext) -> Result<AttributeType, Classfi
     for _ in 0..num_exceptions {
         exception_index_table.push(p.read16()?);
     }
-    Ok(AttributeType::Exceptions(Exceptions {
-        exception_index_table,
-    }))
+    Ok(AttributeType::Exceptions(Exceptions { exception_index_table }))
 }
 
 fn parse_signature(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
-    Ok(AttributeType::Signature(Signature {
-        signature_index: p.read16()?,
-    }))
+    Ok(AttributeType::Signature(Signature { signature_index: p.read16()? }))
 }
 
 fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, ClassfileParsingError> {
@@ -222,12 +170,8 @@ fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, Class
         'Z' => ElementValue::Boolean(p.read16()?),
         's' => ElementValue::String(p.read16()?),
         'e' => ElementValue::EnumType(parse_enum_const_value(p)?),
-        'c' => ElementValue::Class(ClassInfoIndex {
-            class_info_index: p.read16()?,
-        }),
-        '@' => ElementValue::AnnotationType(AnnotationValue {
-            annotation: parse_annotation(p)?,
-        }),
+        'c' => ElementValue::Class(ClassInfoIndex { class_info_index: p.read16()? }),
+        '@' => ElementValue::AnnotationType(AnnotationValue { annotation: parse_annotation(p)? }),
         '[' => {
             let num_values = p.read16()?;
             let mut values = vec![];
@@ -279,10 +223,7 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
             res.push('s' as u8);
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
-        ElementValue::EnumType(EnumConstValue {
-                                   type_name_index,
-                                   const_name_index,
-                               }) => {
+        ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
             res.extend_from_slice(&type_name_index.to_be_bytes());
             res.extend_from_slice(&const_name_index.to_be_bytes());
         }
@@ -301,66 +242,41 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
     res
 }
 
-fn parse_enum_const_value(
-    p: &mut dyn ParsingContext,
-) -> Result<EnumConstValue, ClassfileParsingError> {
+fn parse_enum_const_value(p: &mut dyn ParsingContext) -> Result<EnumConstValue, ClassfileParsingError> {
     let type_name_index = p.read16()?;
     let const_name_index = p.read16()?;
-    Ok(EnumConstValue {
-        type_name_index,
-        const_name_index,
-    })
+    Ok(EnumConstValue { type_name_index, const_name_index })
 }
 
-fn parse_element_value_pair(
-    p: &mut dyn ParsingContext,
-) -> Result<ElementValuePair, ClassfileParsingError> {
+fn parse_element_value_pair(p: &mut dyn ParsingContext) -> Result<ElementValuePair, ClassfileParsingError> {
     let element_name_index = p.read16()?;
     let value = parse_element_value(p)?;
-    Ok(ElementValuePair {
-        element_name_index,
-        value,
-    })
+    Ok(ElementValuePair { element_name_index, value })
 }
 
 fn parse_annotation(p: &mut dyn ParsingContext) -> Result<Annotation, ClassfileParsingError> {
     let type_index = p.read16()?;
     let num_element_value_pairs = p.read16()?;
-    let mut element_value_pairs: Vec<ElementValuePair> =
-        Vec::with_capacity(num_element_value_pairs as usize);
+    let mut element_value_pairs: Vec<ElementValuePair> = Vec::with_capacity(num_element_value_pairs as usize);
     for _ in 0..num_element_value_pairs {
         element_value_pairs.push(parse_element_value_pair(p)?);
     }
-    Ok(Annotation {
-        type_index,
-        num_element_value_pairs,
-        element_value_pairs,
-    })
+    Ok(Annotation { type_index, num_element_value_pairs, element_value_pairs })
 }
 
 pub fn annotation_to_bytes(annotation: Annotation) -> Vec<u8> {
     let mut res = vec![];
-    let Annotation {
-        type_index,
-        num_element_value_pairs,
-        element_value_pairs,
-    } = annotation;
+    let Annotation { type_index, num_element_value_pairs, element_value_pairs } = annotation;
     res.extend_from_slice(&type_index.to_be_bytes());
     res.extend_from_slice(&num_element_value_pairs.to_be_bytes());
-    for ElementValuePair {
-        element_name_index,
-        value,
-    } in element_value_pairs
-    {
+    for ElementValuePair { element_name_index, value } in element_value_pairs {
         res.extend_from_slice(&element_name_index.to_be_bytes());
         res.extend_from_slice(&element_value_to_bytes(value));
     }
     res
 }
 
-fn parse_runtime_annotations_impl(
-    p: &mut dyn ParsingContext,
-) -> Result<Vec<Annotation>, ClassfileParsingError> {
+fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Annotation>, ClassfileParsingError> {
     let num_annotations = p.read16()?;
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
@@ -369,27 +285,17 @@ fn parse_runtime_annotations_impl(
     Ok(annotations)
 }
 
-fn parse_runtime_visible_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_runtime_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeVisibleAnnotations(
-        RuntimeVisibleAnnotations { annotations },
-    ))
+    Ok(AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }))
 }
 
-fn parse_runtime_invisible_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_invisible_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_runtime_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeInvisibleAnnotations(
-        RuntimeInvisibleAnnotations { annotations },
-    ))
+    Ok(AttributeType::RuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations { annotations }))
 }
 
-fn parse_runtime_parameter_annotations_impl(
-    p: &mut dyn ParsingContext,
-) -> Result<Vec<Vec<Annotation>>, ClassfileParsingError> {
+fn parse_runtime_parameter_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Vec<Annotation>>, ClassfileParsingError> {
     let mut parameter_annotations = vec![];
     let num_parameters = p.read8()?;
     for _ in 0..num_parameters {
@@ -403,31 +309,17 @@ fn parse_runtime_parameter_annotations_impl(
     Ok(parameter_annotations)
 }
 
-fn parse_runtime_visible_parameter_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_visible_parameter_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let parameter_annotations = parse_runtime_parameter_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeVisibleParameterAnnotations(
-        RuntimeVisibleParameterAnnotations {
-            parameter_annotations,
-        },
-    ))
+    Ok(AttributeType::RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations { parameter_annotations }))
 }
 
-fn parse_runtime_invisible_parameter_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_invisible_parameter_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let parameter_annotations = parse_runtime_parameter_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeVisibleParameterAnnotations(
-        RuntimeVisibleParameterAnnotations {
-            parameter_annotations,
-        },
-    ))
+    Ok(AttributeType::RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations { parameter_annotations }))
 }
 
-fn parse_type_annotations_impl(
-    p: &mut dyn ParsingContext,
-) -> Result<Vec<TypeAnnotation>, ClassfileParsingError> {
+fn parse_type_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<TypeAnnotation>, ClassfileParsingError> {
     let num_annotations = p.read16()?;
     let mut annotations = vec![];
     for _ in 0..num_annotations {
@@ -436,50 +328,29 @@ fn parse_type_annotations_impl(
     Ok(annotations)
 }
 
-fn parse_runtime_visible_type_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_visible_type_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_type_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeVisibleTypeAnnotations(
-        RuntimeVisibleTypeAnnotations { annotations },
-    ))
+    Ok(AttributeType::RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations { annotations }))
 }
 
-fn parse_runtime_invisible_type_annotations(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_runtime_invisible_type_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_type_annotations_impl(p)?;
-    Ok(AttributeType::RuntimeVisibleTypeAnnotations(
-        RuntimeVisibleTypeAnnotations { annotations },
-    ))
+    Ok(AttributeType::RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations { annotations }))
 }
 
-fn parse_type_annotation(
-    p: &mut dyn ParsingContext,
-) -> Result<TypeAnnotation, ClassfileParsingError> {
+fn parse_type_annotation(p: &mut dyn ParsingContext) -> Result<TypeAnnotation, ClassfileParsingError> {
     let target_type_raw = p.read8()?;
     let target_type = match target_type_raw {
-        0x00 | 0x01 => TargetInfo::TypeParameterTarget {
-            type_parameter_index: p.read8()?,
-        },
-        0x10 => TargetInfo::SuperTypeTarget {
-            supertype_index: p.read16()?,
-        },
+        0x00 | 0x01 => TargetInfo::TypeParameterTarget { type_parameter_index: p.read8()? },
+        0x10 => TargetInfo::SuperTypeTarget { supertype_index: p.read16()? },
         0x11 | 0x12 => {
             let type_parameter_index = p.read8()?;
             let bound_index = p.read8()?;
-            TargetInfo::TypeParameterBoundTarget {
-                type_parameter_index,
-                bound_index,
-            }
+            TargetInfo::TypeParameterBoundTarget { type_parameter_index, bound_index }
         }
         0x13 | 0x14 | 0x15 => TargetInfo::EmptyTarget,
-        0x16 => TargetInfo::FormalParameterTarget {
-            formal_parameter_index: p.read8()?,
-        },
-        0x17 => TargetInfo::ThrowsTarget {
-            throws_type_index: p.read16()?,
-        },
+        0x16 => TargetInfo::FormalParameterTarget { formal_parameter_index: p.read8()? },
+        0x17 => TargetInfo::ThrowsTarget { throws_type_index: p.read16()? },
         0x40 | 0x41 => {
             let table_len = p.read16()?;
             let mut table = vec![];
@@ -487,27 +358,16 @@ fn parse_type_annotation(
                 let start_pc = p.read16()?;
                 let length = p.read16()?;
                 let index = p.read16()?;
-                table.push(LocalVarTargetTableEntry {
-                    start_pc,
-                    length,
-                    index,
-                })
+                table.push(LocalVarTargetTableEntry { start_pc, length, index })
             }
             TargetInfo::LocalVarTarget { table }
         }
-        0x42 => TargetInfo::CatchTarget {
-            exception_table_entry: p.read16()?,
-        },
-        0x43..=0x46 => TargetInfo::OffsetTarget {
-            offset: p.read16()?,
-        },
+        0x42 => TargetInfo::CatchTarget { exception_table_entry: p.read16()? },
+        0x43..=0x46 => TargetInfo::OffsetTarget { offset: p.read16()? },
         0x47..=0x4B => {
             let offset = p.read16()?;
             let type_argument_index = p.read8()?;
-            TargetInfo::TypeArgumentTarget {
-                offset,
-                type_argument_index,
-            }
+            TargetInfo::TypeArgumentTarget { offset, type_argument_index }
         }
         _ => return Err(ClassfileParsingError::WrongTag),
     };
@@ -518,12 +378,7 @@ fn parse_type_annotation(
     for _ in 0..num_element_value_pairs {
         element_value_pairs.push(parse_element_value_pair(p)?);
     }
-    Ok(TypeAnnotation {
-        target_type,
-        target_path,
-        type_index,
-        element_value_pairs,
-    })
+    Ok(TypeAnnotation { target_type, target_path, type_index, element_value_pairs })
 }
 
 fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfileParsingError> {
@@ -532,44 +387,28 @@ fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfilePars
     for _ in 0..length {
         let type_path_kind = p.read8()?;
         let type_argument_index = p.read8()?;
-        path.push(TypePathEntry {
-            type_path_kind,
-            type_argument_index,
-        });
+        path.push(TypePathEntry { type_path_kind, type_argument_index });
     }
     Ok(TypePath { path })
 }
 
-fn parse_annotation_default(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let default_value = parse_element_value(p)?;
-    Ok(AttributeType::AnnotationDefault(AnnotationDefault {
-        default_value,
-    }))
+    Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
 }
 
-fn parse_method_parameters(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_method_parameters(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let mut parameters = vec![];
     let parameters_count = p.read8()?;
     for _ in 0..parameters_count {
         let access_flags = p.read16()?;
         let name_index = access_flags;
-        parameters.push(MethodParameter {
-            name_index,
-            access_flags,
-        })
+        parameters.push(MethodParameter { name_index, access_flags })
     }
-    Ok(AttributeType::MethodParameters(MethodParameters {
-        parameters,
-    }))
+    Ok(AttributeType::MethodParameters(MethodParameters { parameters }))
 }
 
-fn parse_stack_map_table(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_stack_map_table(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let number_of_entries = p.read16()?;
     let mut entries = Vec::with_capacity(number_of_entries as usize);
     for _ in 0..number_of_entries {
@@ -578,9 +417,7 @@ fn parse_stack_map_table(
     Ok(AttributeType::StackMapTable(StackMapTable { entries }))
 }
 
-fn parse_stack_map_table_entry(
-    p: &mut dyn ParsingContext,
-) -> Result<StackMapFrame, ClassfileParsingError> {
+fn parse_stack_map_table_entry(p: &mut dyn ParsingContext) -> Result<StackMapFrame, ClassfileParsingError> {
     let type_of_frame = p.read8()?;
     const SAME_FRAME_LOWER: u8 = 0;
     const SAME_FRAME_UPPER: u8 = 64;
@@ -596,33 +433,23 @@ fn parse_stack_map_table_entry(
     const APPEND_FRAME_UPPER: u8 = 255;
     const FULL_FRAME: u8 = 255;
     Ok(match type_of_frame {
-        SAME_FRAME_LOWER..SAME_FRAME_UPPER => StackMapFrame::SameFrame(SameFrame {
-            offset_delta: type_of_frame as u16,
+        SAME_FRAME_LOWER..SAME_FRAME_UPPER => StackMapFrame::SameFrame(SameFrame { offset_delta: type_of_frame as u16 }),
+        SAME_LOCALS_1_STACK_LOWER..SAME_LOCALS_1_STACK_UPPER => StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
+            offset_delta: (type_of_frame - SAME_LOCALS_1_STACK_LOWER) as u16,
+            stack: parse_verification_type_info(p)?,
         }),
-        SAME_LOCALS_1_STACK_LOWER..SAME_LOCALS_1_STACK_UPPER => {
-            StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame {
-                offset_delta: (type_of_frame - SAME_LOCALS_1_STACK_LOWER) as u16,
-                stack: parse_verification_type_info(p)?,
-            })
-        }
         RESERVED_LOWER..RESERVED_UPPER => {
             return Err(ClassfileParsingError::UsedReservedStackMapEntry);
         }
         SAME_LOCALS_1_STACK_ITEM_FRAME_EXTENDED => {
             let offset_delta = p.read16()?;
             let stack = parse_verification_type_info(p)?;
-            StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended {
-                offset_delta,
-                stack,
-            })
+            StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack })
         }
         CHOP_FRAME_LOWER..CHOPE_FRAME_UPPER => {
             let offset_delta = p.read16()?;
             let k_frames_to_chop = CHOPE_FRAME_UPPER - type_of_frame;
-            StackMapFrame::ChopFrame(ChopFrame {
-                offset_delta,
-                k_frames_to_chop,
-            })
+            StackMapFrame::ChopFrame(ChopFrame { offset_delta, k_frames_to_chop })
         }
         SAME_FRAME_EXTENDED => {
             let offset_delta = p.read16()?;
@@ -635,10 +462,7 @@ fn parse_stack_map_table_entry(
             for _ in 0..locals_size {
                 locals.push(parse_verification_type_info(p)?)
             }
-            StackMapFrame::AppendFrame(AppendFrame {
-                offset_delta,
-                locals,
-            })
+            StackMapFrame::AppendFrame(AppendFrame { offset_delta, locals })
         }
         FULL_FRAME => {
             let offset_delta = p.read16()?;
@@ -652,13 +476,7 @@ fn parse_stack_map_table_entry(
             for _ in 0..number_of_stack_items {
                 stack.push(parse_verification_type_info(p)?);
             }
-            StackMapFrame::FullFrame(FullFrame {
-                offset_delta,
-                number_of_locals,
-                locals,
-                number_of_stack_items,
-                stack,
-            })
+            StackMapFrame::FullFrame(FullFrame { offset_delta, number_of_locals, locals, number_of_stack_items, stack })
         }
         _ => {
             return Err(ClassfileParsingError::WrongStackMapFrameType);
@@ -666,9 +484,7 @@ fn parse_stack_map_table_entry(
     })
 }
 
-fn parse_verification_type_info(
-    p: &mut dyn ParsingContext,
-) -> Result<PType, ClassfileParsingError> {
+fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, ClassfileParsingError> {
     let type_ = p.read8()?;
     const ITEM_TOP: u8 = 0;
     const ITEM_INTEGER: u8 = 1;
@@ -695,20 +511,15 @@ fn parse_verification_type_info(
                     return Err(ClassfileParsingError::WromngCPEntry);
                 }
             };
-            let type_descriptor = p.constant_pool_borrow()[index as usize]
-                .extract_string_from_utf8()
-                .into_string()?;
+            let type_descriptor = p.constant_pool_borrow()[index as usize].extract_string_from_utf8().into_string()?;
             if type_descriptor.starts_with('[') {
-                let res_descriptor = parse_field_descriptor(type_descriptor.as_str())
-                    .ok_or(ClassfileParsingError::WrongDescriptor)?;
+                let res_descriptor = parse_field_descriptor(type_descriptor.as_str()).ok_or(ClassfileParsingError::WrongDescriptor)?;
                 res_descriptor.field_type
             } else {
                 PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))
             }
         }
-        ITEM_UNINITIALIZED => PType::Uninitialized(UninitializedVariableInfo {
-            offset: p.read16()?,
-        }),
+        ITEM_UNINITIALIZED => PType::Uninitialized(UninitializedVariableInfo { offset: p.read16()? }),
         _ => {
             return Err(ClassfileParsingError::WrongPtype);
         }
@@ -720,86 +531,53 @@ fn parse_sourcefile(p: &mut dyn ParsingContext) -> Result<AttributeType, Classfi
     Ok(AttributeType::SourceFile(SourceFile { sourcefile_index }))
 }
 
-fn parse_source_debug_extension(
-    p: &mut dyn ParsingContext,
-    len: u32,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_source_debug_extension(p: &mut dyn ParsingContext, len: u32) -> Result<AttributeType, ClassfileParsingError> {
     let mut debug_extension = vec![];
     for _ in 0..len {
         debug_extension.push(p.read8()?);
     }
-    Ok(AttributeType::SourceDebugExtension(SourceDebugExtension {
-        debug_extension,
-    }))
+    Ok(AttributeType::SourceDebugExtension(SourceDebugExtension { debug_extension }))
 }
 
-fn parse_local_variable_table(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_local_variable_table(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let local_variable_table_length = p.read16()?;
     let mut local_variable_table = Vec::with_capacity(local_variable_table_length as usize);
     for _ in 0..local_variable_table_length {
         local_variable_table.push(read_local_variable_table_entry(p)?);
     }
-    Ok(AttributeType::LocalVariableTable(LocalVariableTable {
-        local_variable_table,
-    }))
+    Ok(AttributeType::LocalVariableTable(LocalVariableTable { local_variable_table }))
 }
 
-fn read_local_variable_table_entry(
-    p: &mut dyn ParsingContext,
-) -> Result<LocalVariableTableEntry, ClassfileParsingError> {
+fn read_local_variable_table_entry(p: &mut dyn ParsingContext) -> Result<LocalVariableTableEntry, ClassfileParsingError> {
     let start_pc = p.read16()?;
     let length = p.read16()?;
     let name_index = p.read16()?;
     let descriptor_index = p.read16()?;
     let index = p.read16()?;
-    Ok(LocalVariableTableEntry {
-        start_pc,
-        length,
-        name_index,
-        descriptor_index,
-        index,
-    })
+    Ok(LocalVariableTableEntry { start_pc, length, name_index, descriptor_index, index })
 }
 
-fn parse_line_number_table(
-    p: &mut dyn ParsingContext,
-) -> Result<AttributeType, ClassfileParsingError> {
+fn parse_line_number_table(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let line_number_table_length = p.read16()?;
     let mut line_number_table = Vec::with_capacity(line_number_table_length as usize);
     for _ in 0..line_number_table_length {
         line_number_table.push(parse_line_number_table_entry(p)?);
     }
-    Ok(AttributeType::LineNumberTable(LineNumberTable {
-        line_number_table,
-    }))
+    Ok(AttributeType::LineNumberTable(LineNumberTable { line_number_table }))
 }
 
-fn parse_line_number_table_entry(
-    p: &mut dyn ParsingContext,
-) -> Result<LineNumberTableEntry, ClassfileParsingError> {
+fn parse_line_number_table_entry(p: &mut dyn ParsingContext) -> Result<LineNumberTableEntry, ClassfileParsingError> {
     let start_pc = p.read16()?;
     let line_number = p.read16()?;
-    Ok(LineNumberTableEntry {
-        start_pc,
-        line_number,
-    })
+    Ok(LineNumberTableEntry { start_pc, line_number })
 }
 
-fn parse_exception_table_entry(
-    p: &mut dyn ParsingContext,
-) -> Result<ExceptionTableElem, ClassfileParsingError> {
+fn parse_exception_table_entry(p: &mut dyn ParsingContext) -> Result<ExceptionTableElem, ClassfileParsingError> {
     let start_pc = p.read16()?;
     let end_pc = p.read16()?;
     let handler_pc = p.read16()?;
     let catch_type = p.read16()?;
-    Ok(ExceptionTableElem {
-        start_pc,
-        end_pc,
-        handler_pc,
-        catch_type,
-    })
+    Ok(ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type })
 }
 
 fn parse_code(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
@@ -819,20 +597,10 @@ fn parse_code(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfilePars
     let attributes = parse_attributes(p, attributes_count)?;
 
     let parsed_code = parse_code_raw(code.as_slice())?;
-    Ok(AttributeType::Code(Code {
-        max_stack,
-        max_locals,
-        code_raw: code,
-        code: parsed_code,
-        exception_table,
-        attributes,
-    }))
+    Ok(AttributeType::Code(Code { max_stack, max_locals, code_raw: code, code: parsed_code, exception_table, attributes }))
 }
 
-pub fn parse_attributes(
-    p: &mut dyn ParsingContext,
-    num_attributes: u16,
-) -> Result<Vec<AttributeInfo>, ClassfileParsingError> {
+pub fn parse_attributes(p: &mut dyn ParsingContext, num_attributes: u16) -> Result<Vec<AttributeInfo>, ClassfileParsingError> {
     let mut res = Vec::with_capacity(num_attributes as usize);
     for _ in 0..num_attributes {
         res.push(parse_attribute(p)?);

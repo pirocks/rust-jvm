@@ -3,26 +3,17 @@ use std::slice::Iter;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use rust_jvm_common::classfile::{
-    Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray,
-    TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore,
-    WideIload, WideIstore, WideLload, WideLstore, WideRet,
-};
+use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 
 use crate::ClassfileParsingError;
 
 fn read_iinc(c: &mut CodeParserContext) -> Result<IInc, ClassfileParsingError> {
     let index = read_u8(c)?;
     let const_ = read_i8(c)?;
-    Ok(IInc {
-        index: index as u16,
-        const_: const_ as i16,
-    })
+    Ok(IInc { index: index as u16, const_: const_ as i16 })
 }
 
-fn read_invoke_interface(
-    c: &mut CodeParserContext,
-) -> Result<InvokeInterface, ClassfileParsingError> {
+fn read_invoke_interface(c: &mut CodeParserContext) -> Result<InvokeInterface, ClassfileParsingError> {
     let index = read_u16(c)?;
     let count = read_u8(c)?;
     assert_ne!(count, 0);
@@ -68,12 +59,7 @@ fn read_table_switch(c: &mut CodeParserContext) -> Result<TableSwitch, Classfile
     for _ in 0..num_to_read {
         offsets.push(read_i32(c)?);
     }
-    Ok(TableSwitch {
-        default,
-        low,
-        high,
-        offsets,
-    })
+    Ok(TableSwitch { default, low, high, offsets })
 }
 
 fn read_wide(c: &mut CodeParserContext) -> Result<Wide, ClassfileParsingError> {
@@ -112,19 +98,13 @@ pub struct CodeParserContext<'l> {
 pub fn parse_code_raw(raw: &[u8]) -> Result<Vec<Instruction>, ClassfileParsingError> {
     //is this offset of 0 even correct?
     // what if code starts at non-aligned?
-    let mut c = CodeParserContext {
-        iter: raw.iter(),
-        offset: 0,
-    };
+    let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
     parse_code_impl(&mut c)
 }
 
 fn read_u8(c: &mut CodeParserContext) -> Result<u8, ClassfileParsingError> {
     c.offset += 1;
-    let next = c
-        .iter
-        .next()
-        .ok_or(ClassfileParsingError::EndOfInstructions);
+    let next = c.iter.next().ok_or(ClassfileParsingError::EndOfInstructions);
     Ok(*next?)
 }
 
@@ -367,9 +347,7 @@ pub enum InstructionTypeNum {
     wide = 196,
 }
 
-pub fn parse_instruction(
-    c: &mut CodeParserContext,
-) -> Result<InstructionInfo, ClassfileParsingError> {
+pub fn parse_instruction(c: &mut CodeParserContext) -> Result<InstructionInfo, ClassfileParsingError> {
     let opcode = read_opcode(read_u8(c)?)?;
     Ok(match opcode {
         InstructionTypeNum::aaload => InstructionInfo::aaload,
@@ -507,9 +485,7 @@ pub fn parse_instruction(
             assert_eq!(zero, 0);
             res
         }
-        InstructionTypeNum::invokeinterface => {
-            InstructionInfo::invokeinterface(read_invoke_interface(c)?)
-        }
+        InstructionTypeNum::invokeinterface => InstructionInfo::invokeinterface(read_invoke_interface(c)?),
         InstructionTypeNum::invokespecial => InstructionInfo::invokespecial(read_u16(c)?),
         InstructionTypeNum::invokestatic => InstructionInfo::invokestatic(read_u16(c)?),
         InstructionTypeNum::invokevirtual => InstructionInfo::invokevirtual(read_u16(c)?),
@@ -565,9 +541,7 @@ pub fn parse_instruction(
         InstructionTypeNum::lxor => InstructionInfo::lxor,
         InstructionTypeNum::monitorenter => InstructionInfo::monitorenter,
         InstructionTypeNum::monitorexit => InstructionInfo::monitorexit,
-        InstructionTypeNum::multianewarray => {
-            InstructionInfo::multianewarray(read_multi_new_array(c)?)
-        }
+        InstructionTypeNum::multianewarray => InstructionInfo::multianewarray(read_multi_new_array(c)?),
         InstructionTypeNum::new => InstructionInfo::new(read_u16(c)?),
         InstructionTypeNum::newarray => InstructionInfo::newarray(read_atype(c)?),
         InstructionTypeNum::nop => InstructionInfo::nop,
@@ -592,11 +566,7 @@ fn parse_code_impl(c: &mut CodeParserContext) -> Result<Vec<Instruction>, Classf
         let offset = c.offset;
         let instruction_option = parse_instruction(c);
         match instruction_option {
-            Ok(instruction) => res.push(Instruction {
-                offset,
-                size: (c.offset - offset) as u16,
-                instruction,
-            }),
+            Ok(instruction) => res.push(Instruction { offset, size: (c.offset - offset) as u16, instruction }),
             Err(ClassfileParsingError::EndOfInstructions) => {
                 break;
             }

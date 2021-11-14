@@ -22,11 +22,7 @@ pub type CClassName = CompressedClassName;
 
 impl CompressedClassName {
     const fn from_raw_id(raw_id: AddOnlyVecIDType) -> Self {
-        Self {
-            0: CompressedClassfileString {
-                id: AddOnlyId(raw_id),
-            },
-        }
+        Self { 0: CompressedClassfileString { id: AddOnlyId(raw_id) } }
     }
 
     pub fn object() -> Self {
@@ -395,27 +391,13 @@ impl PredefinedStrings {
             JAVA_LANG_BYTE => ClassName::byte().get_referred_name().to_string(),
             JAVA_LANG_SHORT => ClassName::short().get_referred_name().to_string(),
             JAVA_LANG_VOID => ClassName::void().get_referred_name().to_string(),
-            JAVA_LANG_INVOKE_METHOD_TYPE => {
-                ClassName::method_type().get_referred_name().to_string()
-            }
-            JAVA_LANG_INVOKE_METHOD_TYPE_FORM => ClassName::method_type_form()
-                .get_referred_name()
-                .to_string(),
-            JAVA_LANG_INVOKE_METHOD_HANDLE => {
-                ClassName::method_handle().get_referred_name().to_string()
-            }
-            JAVA_LANG_INVOKE_METHOD_HANDLES => {
-                ClassName::method_handles().get_referred_name().to_string()
-            }
-            JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP => {
-                ClassName::lookup().get_referred_name().to_string()
-            }
-            JAVA_LANG_INVOKE_DIRECT_METHOD_HANDLE => ClassName::direct_method_handle()
-                .get_referred_name()
-                .to_string(),
-            JAVA_LANG_INVOKE_MEMBER_NAME => {
-                ClassName::member_name().get_referred_name().to_string()
-            }
+            JAVA_LANG_INVOKE_METHOD_TYPE => ClassName::method_type().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_METHOD_TYPE_FORM => ClassName::method_type_form().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_METHOD_HANDLE => ClassName::method_handle().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_METHOD_HANDLES => ClassName::method_handles().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP => ClassName::lookup().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_DIRECT_METHOD_HANDLE => ClassName::direct_method_handle().get_referred_name().to_string(),
+            JAVA_LANG_INVOKE_MEMBER_NAME => ClassName::member_name().get_referred_name().to_string(),
             JAVA_LANG_REFLECT_METHOD => ClassName::method().get_referred_name().to_string(),
             JAVA_LANG_SYSTEM => ClassName::system().get_referred_name().to_string(),
             JAVA_IO_SERIALIZABLE => ClassName::serializable().get_referred_name().to_string(),
@@ -425,32 +407,20 @@ impl PredefinedStrings {
             JAVA_UTIL_PROPERTIES => ClassName::properties().get_referred_name().to_string(),
             JAVA_LANG_THREAD => ClassName::thread().get_referred_name().to_string(),
             JAVA_LANG_THREADGROUP => ClassName::thread_group().get_referred_name().to_string(),
-            JAVA_LANG_REFLECT_CONSTRUCTOR => {
-                ClassName::constructor().get_referred_name().to_string()
-            }
+            JAVA_LANG_REFLECT_CONSTRUCTOR => ClassName::constructor().get_referred_name().to_string(),
             JAVA_LANG_CLASSLOADER => ClassName::classloader().get_referred_name().to_string(),
-            JAVA_LANG_STACK_TRACE_ELEMENT => ClassName::stack_trace_element()
-                .get_referred_name()
-                .to_string(),
-            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => {
-                "java/lang/ArrayOutOfBoundsException".to_string()
-            }
+            JAVA_LANG_STACK_TRACE_ELEMENT => ClassName::stack_trace_element().get_referred_name().to_string(),
+            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => "java/lang/ArrayOutOfBoundsException".to_string(),
             JAVA_LANG_NULL_POINTER_EXCEPTION => "java/lang/NullPointerException".to_string(),
-            JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION => {
-                "java/lang/IllegalArgumentException".to_string()
-            }
+            JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION => "java/lang/IllegalArgumentException".to_string(),
             JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION => "java/lang/ClassNotFoundException".to_string(),
             JAVA_LANG_REFLECT_CONSTANT_POOL => "java/lang/reflect/ConstantPool".to_string(),
-            JAVA_SECURITY_ACCESS_CONTROL_CONTEXT => {
-                "java/security/AccessControlContext".to_string()
-            }
+            JAVA_SECURITY_ACCESS_CONTROL_CONTEXT => "java/security/AccessControlContext".to_string(),
             JAVA_SECURITY_PROTECTION_DOMAIN => "java/security/ProtectionDomain".to_string(),
             SUN_MISC_LAUNCHER => "sun/misc/Launcher".to_string(),
             SUN_REFLECT_REFLECTION => "sun/reflect/Reflection".to_string(),
             JAVA_LANG_INVOKE_CALL_SITE => "java/lang/invoke/CallSite".to_string(),
-            JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION => {
-                "java/lang/invoke/LambdaForm$NamedFunction".to_string()
-            }
+            JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION => "java/lang/invoke/LambdaForm$NamedFunction".to_string(),
             JAVA_NIO_HEAP_BYTE_BUFFER => "java/nio/HeapByteBuffer".to_string(),
             SUN_MISC_LAUNCHER_EXT_CLASS_LOADER => "sun/misc/Launcher$ExtClassLoader".to_string(),
             JAVA_LANG_LINKAGE_ERROR => "java/lang/LinkageError".to_string(),
@@ -513,9 +483,7 @@ impl PredefinedStrings {
             field_and_method_type => "type".to_string(),
             field_and_method_value => "value".to_string(),
             field_vmentry => "vmentry".to_string(),
-            field_and_method_inheritedAccessControlContext => {
-                "inheritedAccessControlContext".to_string()
-            }
+            field_and_method_inheritedAccessControlContext => "inheritedAccessControlContext".to_string(),
             field_IMPL_LOOKUP => "IMPL_LOOKUP".to_string(),
             field_member => "member".to_string(),
             field_slotToArgTable => "slotToArgTable".to_string(),
@@ -565,11 +533,7 @@ fn add_builtin_name(pool: &AddOnlyIdMap<String>, str_: String, id: AddOnlyVecIDT
 
 pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     for pre_defined in PredefinedStrings::iter() {
-        add_builtin_name(
-            pool,
-            pre_defined.underlying_string(),
-            pre_defined as AddOnlyVecIDType,
-        )
+        add_builtin_name(pool, pre_defined.underlying_string(), pre_defined as AddOnlyVecIDType)
     }
 }
 
@@ -579,9 +543,7 @@ pub struct FieldName(pub CompressedClassfileString);
 #[allow(non_snake_case)]
 impl FieldName {
     fn from_raw_id(id: PredefinedStrings) -> Self {
-        FieldName(CompressedClassfileString {
-            id: AddOnlyId(id as AddOnlyVecIDType),
-        })
+        FieldName(CompressedClassfileString { id: AddOnlyId(id as AddOnlyVecIDType) })
     }
 
     pub fn field_annotationData() -> Self {
@@ -784,9 +746,7 @@ impl Debug for MethodName {
 #[allow(non_snake_case)]
 impl MethodName {
     fn from_raw_id(id: PredefinedStrings) -> Self {
-        MethodName(CompressedClassfileString {
-            id: AddOnlyId(id as AddOnlyVecIDType),
-        })
+        MethodName(CompressedClassfileString { id: AddOnlyId(id as AddOnlyVecIDType) })
     }
 
     pub fn constructor_init() -> Self {

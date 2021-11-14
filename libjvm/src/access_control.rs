@@ -15,19 +15,11 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
-unsafe extern "C" fn JVM_DoPrivileged(
-    env: *mut JNIEnv,
-    cls: jclass,
-    action: jobject,
-    context: jobject,
-    wrapException: jboolean,
-) -> jobject {
+unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let action = from_object(jvm, action);
@@ -37,23 +29,13 @@ unsafe extern "C" fn JVM_DoPrivileged(
             return throw_npe(jvm, int_state);
         }
     };
-    let expected_descriptor = CMethodDescriptor {
-        arg_types: vec![],
-        return_type: CPDType::Ref(CPRefType::Class(CClassName::object())),
-    };
+    let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) };
     int_state.push_current_operand_stack(JavaValue::Object(action));
-    invoke_virtual(
-        jvm,
-        int_state,
-        MethodName::method_run(),
-        &expected_descriptor,
-    );
+    invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor);
     if int_state.throw().is_some() {
         return null_mut();
     }
-    let res = int_state
-        .pop_current_operand_stack(Some(CClassName::object().into()))
-        .unwrap_object();
+    let res = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(res, int_state)
 }
 
@@ -65,22 +47,10 @@ unsafe extern "C" fn JVM_DoPrivileged(
 //      */
 /// aka this is the inheritedAccessControlContext field on thread object
 #[no_mangle]
-unsafe extern "system" fn JVM_GetInheritedAccessControlContext(
-    env: *mut JNIEnv,
-    cls: jclass,
-) -> jobject {
+unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(
-        JavaValue::Object(
-            todo!(), /*jvm.thread_state.get_current_thread().thread_object().object().into()*/
-        )
-            .cast_thread()
-            .get_inherited_access_control_context(jvm)
-            .object()
-            .into(),
-        int_state,
-    )
+    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().into(), int_state)
 }
 
 ///  /**
@@ -93,10 +63,7 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(
 //      *         null if there was only privileged system code.
 //      */
 #[no_mangle]
-unsafe extern "system" fn JVM_GetStackAccessControlContext(
-    env: *mut JNIEnv,
-    cls: jclass,
-) -> jobject {
+unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let stack = int_state.cloned_stack_snapshot(jvm);
@@ -109,9 +76,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(
             match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
                 None => None,
                 Some(domain) => {
-                    JavaValue::Object(todo!() /*domain.clone().0.into()*/)
-                        .cast_protection_domain()
-                        .into()
+                    JavaValue::Object(todo!() /*domain.clone().0.into()*/).cast_protection_domain().into()
                 }
             }
         })
@@ -120,9 +85,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(
         return null_mut();
     } else {
         match AccessControlContext::new(jvm, int_state, protection_domains) {
-            Ok(access_control_ctx) => {
-                new_local_ref_public(access_control_ctx.object().into(), int_state)
-            }
+            Ok(access_control_ctx) => new_local_ref_public(access_control_ctx.object().into(), int_state),
             Err(WasException {}) => return null_mut(),
         }
     }

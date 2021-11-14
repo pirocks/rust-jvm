@@ -17,17 +17,10 @@ impl FieldView<'_> {
         FieldName(self.field_info().name)
     }
     pub fn field_desc(&self) -> String {
-        self.view.underlying_class.constant_pool
-            [self.view.underlying_class.fields[self.i].descriptor_index as usize]
-            .extract_string_from_utf8()
-            .clone()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i].descriptor_index as usize].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo")
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
-        self.view.underlying_class.fields[self.i]
-            .constant_value_attribute_i()
-            .map(|i| self.view.constant_pool_view(i as usize))
+        self.view.underlying_class.fields[self.i].constant_value_attribute_i().map(|i| self.view.constant_pool_view(i as usize))
     }
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i }
@@ -49,10 +42,7 @@ impl HasAccessFlags for FieldView<'_> {
 }
 
 pub enum FieldIterator<'l> {
-    ClassBacked {
-        backing_class: &'l ClassBackedView,
-        i: usize,
-    },
+    ClassBacked { backing_class: &'l ClassBackedView, i: usize },
     Empty,
 }
 

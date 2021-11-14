@@ -27,8 +27,5 @@ unsafe extern "system" fn JVM_RawMonitorEnter(mon: *mut ::std::os::raw::c_void) 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RawMonitorExit(mon: *mut ::std::os::raw::c_void) {
-    (mon as *mut ReentrantMutex<()>)
-        .as_mut()
-        .unwrap()
-        .force_unlock();
+    (mon as *mut ReentrantMutex<()>).as_mut().unwrap().force_unlock();
 }

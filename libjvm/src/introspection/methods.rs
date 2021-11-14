@@ -7,9 +7,7 @@ use itertools::Itertools;
 use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::{
-    jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType,
-};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -19,19 +17,12 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_jclass, from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
-use slow_interpreter::utils::{
-    throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe,
-};
+use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(
-    env: *mut JNIEnv,
-    method: jobject,
-) -> jobjectArray {
+unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method = JavaValue::Object(
@@ -44,25 +35,12 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(
     )
         .cast_method();
     let clazz = method.get_clazz(jvm).as_runtime_class(jvm);
-    let name = MethodName(
-        jvm.string_pool
-            .add_name(method.get_name(jvm).to_rust_string(jvm), true),
-    );
+    let name = MethodName(jvm.string_pool.add_name(method.get_name(jvm).to_rust_string(jvm), true));
     let return_type_jclass: JClass<'gc_life> = method.get_return_type(jvm);
     let return_type = return_type_jclass.as_type(jvm);
-    let parameter_types = method
-        .parameter_types(jvm)
-        .into_iter()
-        .map(|jclass_| jclass_.as_type(jvm))
-        .collect::<Vec<_>>();
+    let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm)).collect::<Vec<_>>();
     let view = clazz.view();
-    let res_method_view = match view.lookup_method(
-        name,
-        &CMethodDescriptor {
-            arg_types: parameter_types,
-            return_type,
-        },
-    ) {
+    let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
             return throw_illegal_arg(jvm, int_state);
         }
@@ -73,10 +51,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetEnclosingMethodInfo(
-    env: *mut JNIEnv,
-    ofClass: jclass,
-) -> jobjectArray {
+unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if from_jclass(jvm, ofClass).as_type(jvm).is_primitive() {
@@ -99,12 +74,7 @@ unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass)
     view.num_methods() as jint
 }
 
-unsafe fn get_method_view<T: ExceptionReturn>(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    and_then: impl Fn(&MethodView) -> Result<T, WasException>,
-) -> Result<T, WasException> {
+unsafe fn get_method_view<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&MethodView) -> Result<T, WasException>) -> Result<T, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -114,12 +84,7 @@ unsafe fn get_method_view<T: ExceptionReturn>(
 }
 
 //todo should just return T, no need to handle result
-unsafe fn get_code_attr<T: ExceptionReturn>(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    and_then: impl Fn(&Code) -> Result<T, WasException>,
-) -> Result<T, WasException> {
+unsafe fn get_code_attr<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&Code) -> Result<T, WasException>) -> Result<T, WasException> {
     get_method_view(env, cb, method_index, |method_view| {
         let jvm = get_state(env);
         let int_state = get_interpreter_state(env);
@@ -134,11 +99,7 @@ unsafe fn get_code_attr<T: ExceptionReturn>(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-) -> jint {
+unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
     match get_code_attr(env, cb, method_index, |code| {
         Ok(code.exception_table.len() as i32) //todo this wrong, this should be in exception table length
     }) {
@@ -148,12 +109,7 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCode(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    code_output: *mut c_uchar,
-) {
+unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code_output: *mut c_uchar) {
     match get_code_attr(env, cb, method_index, |code| {
         for (i, x) in code.code_raw.iter().enumerate() {
             code_output.offset(i as isize).write(*x)
@@ -166,59 +122,31 @@ unsafe extern "system" fn JVM_GetMethodIxByteCode(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-) -> jint {
-    match get_code_attr(
-        env,
-        cb,
-        method_index,
-        |code| Ok(code.code_raw.len() as jint),
-    ) {
+unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jclass, method_index: jint) -> jint {
+    match get_code_attr(env, cb, method_index, |code| Ok(code.code_raw.len() as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
-    match get_code_attr(
-        env,
-        cb,
-        index,
-        |code| Ok(code.exception_table.len() as jint),
-    ) {
+unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
+    match get_code_attr(env, cb, index, |code| Ok(code.exception_table.len() as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxModifiers(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
-    match get_method_view(env, cb, index, |method_view| {
-        Ok(method_view.access_flags() as jint)
-    }) {
+unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
+    match get_method_view(env, cb, index, |method_view| Ok(method_view.access_flags() as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxLocalsCount(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
+unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
     match get_code_attr(env, cb, index, |code| Ok(code.max_locals as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
@@ -226,25 +154,15 @@ unsafe extern "system" fn JVM_GetMethodIxLocalsCount(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxArgsSize(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
-    match get_method_view(env, cb, index, |method_view| {
-        Ok(method_view.num_args() as jint)
-    }) {
+unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
+    match get_method_view(env, cb, index, |method_view| Ok(method_view.num_args() as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxMaxStack(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
+unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
     match get_code_attr(env, cb, index, |code| Ok(code.max_stack as jint)) {
         Ok(res) => res,
         Err(WasException {}) => return jint::invalid_default(),
@@ -252,41 +170,22 @@ unsafe extern "system" fn JVM_GetMethodIxMaxStack(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxNameUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetMethodIxNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: jint,
-) -> *const c_char {
+unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    entry_index: jint,
-    entry: *mut JVM_ExceptionTableEntryType,
-) {
+unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(env: *mut JNIEnv, cb: jclass, method_index: jint, entry_index: jint, entry: *mut JVM_ExceptionTableEntryType) {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(
-    env: *mut JNIEnv,
-    cb: jclass,
-    method_index: jint,
-    exceptions: *mut c_ushort,
-) {
+unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(env: *mut JNIEnv, cb: jclass, method_index: jint, exceptions: *mut c_ushort) {
     unimplemented!()
 }
 
@@ -313,36 +212,22 @@ unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jcl
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetFieldIxModifiers(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jint {
+unsafe extern "system" fn JVM_GetFieldIxModifiers(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetFieldTypeAnnotations(
-    env: *mut JNIEnv,
-    field: jobject,
-) -> jbyteArray {
+unsafe extern "system" fn JVM_GetFieldTypeAnnotations(env: *mut JNIEnv, field: jobject) -> jbyteArray {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodTypeAnnotations(
-    env: *mut JNIEnv,
-    method: jobject,
-) -> jbyteArray {
+unsafe extern "system" fn JVM_GetMethodTypeAnnotations(env: *mut JNIEnv, method: jobject) -> jbyteArray {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_IsConstructorIx(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jboolean {
+unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
@@ -354,10 +239,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(
-    env: *mut JNIEnv,
-    cb: jclass,
-    index: c_int,
-) -> jboolean {
-    u8::from(false) //todo perhaps check invoke dynamic stuff
+unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
+    u8::from(false)
+    //todo perhaps check invoke dynamic stuff
 }

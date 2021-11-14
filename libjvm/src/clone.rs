@@ -6,9 +6,7 @@ use itertools::Itertools;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::sun::misc::unsafe_::Unsafe;
 
 #[no_mangle]
@@ -38,11 +36,13 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                         jvm.allocate_object(Object::Object(NormalObject {
                             // monitor: jvm.thread_state.new_monitor("".to_string()),
                             objinfo: ObjectFieldsAndClass {
-                                fields: todo!()/*o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect()*/,
+                                fields: todo!(),
+                                /*o.objinfo.fields.iter().map(|val| UnsafeCell::new(val.get().as_ref().unwrap().clone())).collect()*/
                                 class_pointer: o.objinfo.class_pointer.clone(),
                             },
                             obj_ptr: todo!(),
-                        })).into()
+                        }))
+                            .into()
                     }
                 }
             }

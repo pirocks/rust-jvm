@@ -1,12 +1,7 @@
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{
-    jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError,
-    jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT,
-    jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE,
-    jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH,
-};
+use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
@@ -57,29 +52,15 @@ use crate::threading::JavaThread;
 /// JVMTI_ERROR_ILLEGAL_ARGUMENT	depth is less than zero.
 /// JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
 /// JVMTI_ERROR_NULL_POINTER	value_ptr is NULL.
-pub unsafe extern "C" fn get_local_object(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut jobject,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jobject) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
     let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => var,
-        Err(err) => {
-            return jvm
-                .config
-                .tracing
-                .trace_jdwp_function_exit(tracing_guard, err)
-        }
+        Err(err) => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match var {
         JavaValue::Top => value_ptr.write(null_mut()), //todo is this correct?
@@ -87,81 +68,42 @@ pub unsafe extern "C" fn get_local_object(
             let possibly_object = var.try_unwrap_object();
             match possibly_object {
                 None => {
-                    return jvm.config.tracing.trace_jdwp_function_exit(
-                        tracing_guard,
-                        jvmtiError_JVMTI_ERROR_TYPE_MISMATCH,
-                    );
+                    return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
                 }
                 Some(obj) => value_ptr.write(new_local_ref_public(obj, int_state)),
             }
         }
     }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn get_local_primitive_type<'gc_life, T>(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut T,
-    unwrap_function: fn(JavaValue<'gc_life>) -> Option<T>,
-) -> jvmtiError {
+unsafe fn get_local_primitive_type<'gc_life, T>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut T, unwrap_function: fn(JavaValue<'gc_life>) -> Option<T>) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(value_ptr);
     let var = match get_local_t(jvm, thread, depth, slot) {
         Ok(var) => var,
-        Err(err) => {
-            return jvm
-                .config
-                .tracing
-                .trace_jdwp_function_exit(tracing_guard, err)
-        }
+        Err(err) => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     match unwrap_function(var) {
         None => {
-            return jvm
-                .config
-                .tracing
-                .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
+            return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
         }
         Some(unwrapped) => value_ptr.write(unwrapped),
     }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub(crate) unsafe fn set_local<'gc_life>(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: JavaValue<'gc_life>,
-) -> jvmtiError {
+pub(crate) unsafe fn set_local<'gc_life>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: JavaValue<'gc_life>) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetLocalObject");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
     null_check!(thread);
     if let Err(err) = set_local_t(jvm, thread, depth, slot, value) {
-        return jvm
-            .config
-            .tracing
-            .trace_jdwp_function_exit(tracing_guard, err);
+        return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err);
     };
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Local Variable - Int
@@ -204,54 +146,23 @@ pub(crate) unsafe fn set_local<'gc_life>(
 /// JVMTI_ERROR_ILLEGAL_ARGUMENT	depth is less than zero.
 /// JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
 /// JVMTI_ERROR_NULL_POINTER	value_ptr is NULL.
-pub unsafe extern "C" fn get_local_int(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut jint,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jint) -> jvmtiError {
     get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| x.try_unwrap_int())
 }
 
-pub unsafe extern "C" fn get_local_float(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut jfloat,
-) -> jvmtiError {
-    get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| {
-        x.try_unwrap_float()
-    })
+pub unsafe extern "C" fn get_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jfloat) -> jvmtiError {
+    get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| x.try_unwrap_float())
 }
 
-pub unsafe extern "C" fn get_local_double(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut jdouble,
-) -> jvmtiError {
-    get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| {
-        x.try_unwrap_double()
-    })
+pub unsafe extern "C" fn get_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jdouble) -> jvmtiError {
+    get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| x.try_unwrap_double())
 }
 
-pub unsafe extern "C" fn get_local_long(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value_ptr: *mut jlong,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value_ptr: *mut jlong) -> jvmtiError {
     get_local_primitive_type(env, thread, depth, slot, value_ptr, |x| x.try_unwrap_long())
 }
 
-unsafe fn get_thread_from_obj_or_current<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    thread: jthread,
-) -> Result<Arc<JavaThread<'gc_life>>, jvmtiError> {
+unsafe fn get_thread_from_obj_or_current<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread) -> Result<Arc<JavaThread<'gc_life>>, jvmtiError> {
     Ok(if !thread.is_null() {
         match JavaValue::Object(todo!() /*from_jclass(jvm,thread)*/).try_cast_thread() {
             None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_THREAD),
@@ -263,12 +174,7 @@ unsafe fn get_thread_from_obj_or_current<'gc_life>(
     })
 }
 
-unsafe fn get_local_t<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-) -> Result<JavaValue<'gc_life>, jvmtiError> {
+unsafe fn get_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc_life>, jvmtiError> {
     if depth < 0 {
         return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
@@ -283,17 +189,10 @@ unsafe fn get_local_t<'gc_life>(
         return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
     let var = stack_frame.local_vars().get(slot as usize).cloned();
-    var.map(Result::Ok)
-        .unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
+    var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }
 
-unsafe fn set_local_t<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    to_set: JavaValue<'gc_life>,
-) -> Result<(), jvmtiError> {
+unsafe fn set_local_t<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, thread: jthread, depth: jint, slot: jint, to_set: JavaValue<'gc_life>) -> Result<(), jvmtiError> {
     if depth < 0 {
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }

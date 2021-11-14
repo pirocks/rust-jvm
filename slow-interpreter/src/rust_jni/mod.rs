@@ -43,21 +43,12 @@ impl<'gc_life> NativeLibraries<'gc_life> {
     }
 }
 
-pub fn call<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    classfile: Arc<RuntimeClass<'gc_life>>,
-    method_view: MethodView,
-    args: Vec<JavaValue<'gc_life>>,
-    md: CMethodDescriptor,
-) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
+pub fn call<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
         let libraries_guard = jvm.native_libaries.native_libs.read().unwrap();
-        let possible_symbol = libraries_guard
-            .values()
-            .find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());
+        let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());
         match possible_symbol {
             Some(symbol) => {
                 let symbol: Symbol<unsafe extern "C" fn()> = symbol;
@@ -69,53 +60,24 @@ pub fn call<'gc_life>(
         }
     };
 
-    Ok(if method_view.is_static() {
-        Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
-    } else {
-        Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
-    })
+    Ok(if method_view.is_static() { Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?) } else { Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?) })
 }
 
-pub fn call_impl<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    classfile: Arc<RuntimeClass<'gc_life>>,
-    args: Vec<JavaValue<'gc_life>>,
-    md: CMethodDescriptor,
-    raw: &unsafe extern "C" fn(),
-    suppress_runtime_class: bool,
-) -> Result<Option<JavaValue<'gc_life>>, WasException> {
-    let mut args_type = if suppress_runtime_class {
-        vec![Type::pointer()]
-    } else {
-        vec![Type::pointer(), Type::pointer()]
-    };
+pub fn call_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        let class_popped_jv =
-            load_class_constant_by_type(jvm, int_state, &classfile.view().type_())?;
-        let class_constant = unsafe {
-            to_native(
-                env,
-                class_popped_jv,
-                &Into::<CPDType>::into(CClassName::object()),
-            )
-        };
+        let class_popped_jv = load_class_constant_by_type(jvm, int_state, &classfile.view().type_())?;
+        let class_constant = unsafe { to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object())) };
         let res = vec![Arg::new(&env), class_constant];
         res
     };
     //todo inconsistent use of class and/pr arc<RuntimeClass>
 
     let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object()))];
-    let args_and_type = if suppress_runtime_class {
-        args.iter()
-            .zip(temp_vec.iter().chain(md.arg_types.iter()))
-            .collect::<Vec<_>>()
-    } else {
-        args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>()
-    };
+    let args_and_type = if suppress_runtime_class { args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>() } else { args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>() };
     for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
         unsafe {
@@ -128,9 +90,7 @@ pub fn call_impl<'gc_life>(
     let res = match &md.return_type {
         CPDType::VoidType => None,
         CPDType::ByteType => Some(JavaValue::Byte(cif_res as i8)),
-        CPDType::FloatType => Some(JavaValue::Float(unsafe {
-            transmute(cif_res as usize as u32)
-        })),
+        CPDType::FloatType => Some(JavaValue::Float(unsafe { transmute(cif_res as usize as u32) })),
         CPDType::DoubleType => Some(JavaValue::Double(unsafe { transmute(cif_res as u64) })),
         CPDType::ShortType => Some(JavaValue::Short(cif_res as jshort)),
         CPDType::CharType => Some(JavaValue::Char(cif_res as jchar)),

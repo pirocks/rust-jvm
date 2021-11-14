@@ -13,37 +13,16 @@ use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
 
-pub fn new_object<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    runtime_class: &'_ Arc<RuntimeClass<'gc_life>>,
-) -> JavaValue<'gc_life> {
+pub fn new_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, runtime_class: &'_ Arc<RuntimeClass<'gc_life>>) -> JavaValue<'gc_life> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    let _loader = jvm
-        .classes
-        .read()
-        .unwrap()
-        .get_initiating_loader(runtime_class);
-    default_init_fields(
-        jvm,
-        &object_pointer
-            .as_ref()
-            .unwrap()
-            .unwrap_normal_object()
-            .objinfo
-            .class_pointer,
-        &object_pointer.clone().unwrap(),
-    );
+    let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
+    default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
     new_obj
 }
 
-fn default_init_fields<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    current_class_pointer: &Arc<RuntimeClass<'gc_life>>,
-    object_pointer: &GcManagedObject<'gc_life>,
-) {
+fn default_init_fields<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, object_pointer: &GcManagedObject<'gc_life>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
         default_init_fields(jvm, super_, object_pointer);
     }
@@ -58,11 +37,7 @@ fn default_init_fields<'gc_life>(
             let type_ = field.field_type();
             let val = default_value(type_.clone());
 
-            object_pointer.unwrap_normal_object().set_var(
-                current_class_pointer.clone(),
-                field.field_name(),
-                val,
-            );
+            object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val);
             // unsafe {
             // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
             // }
@@ -70,24 +45,9 @@ fn default_init_fields<'gc_life>(
     }
 }
 
-pub fn run_constructor<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    target_classfile: Arc<RuntimeClass<'gc_life>>,
-    full_args: Vec<JavaValue<'gc_life>>,
-    descriptor: &CMethodDescriptor,
-) -> Result<(), WasException> {
+pub fn run_constructor<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target_classfile: Arc<RuntimeClass<'gc_life>>, full_args: Vec<JavaValue<'gc_life>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
-    let method_view = target_classfile_view
-        .lookup_method(MethodName::constructor_init(), descriptor)
-        .unwrap();
+    let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    invoke_special_impl(
-        jvm,
-        int_state,
-        &md,
-        method_view.method_i(),
-        target_classfile.clone(),
-        full_args,
-    )
+    invoke_special_impl(jvm, int_state, &md, method_view.method_i(), target_classfile.clone(), full_args)
 }

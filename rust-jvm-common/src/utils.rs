@@ -1,8 +1,6 @@
 use wtf8::Wtf8Buf;
 
-use crate::classfile::{
-    ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo,
-};
+use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo};
 use crate::classfile::ACC_ABSTRACT;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -50,14 +48,8 @@ impl Classfile {
                 panic!("Ths a bug.")
             }
         }
-        let descriptor = self.constant_pool[nt.descriptor_index as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo");
-        let method_name = self.constant_pool[nt.name_index as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo");
+        let descriptor = self.constant_pool[nt.descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
+        let method_name = self.constant_pool[nt.name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
         (method_name, descriptor)
     }
 
@@ -73,10 +65,7 @@ impl Classfile {
             }
         };
         let name_entry = &self.constant_pool[name_index as usize];
-        let string = name_entry
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo");
+        let string = name_entry.extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
         parse_class_name(string.as_str()).unwrap_ref_type()
     }
 
@@ -102,13 +91,7 @@ impl Classfile {
             }
         };
         match &(self.constant_pool[class_info.name_index as usize]).kind {
-            ConstantKind::Utf8(s) => ClassName::Str(
-                s.string
-                    .clone()
-                    .into_string()
-                    .expect("should have validated this earlier maybe todo"),
-            )
-                .into(),
+            ConstantKind::Utf8(s) => ClassName::Str(s.string.clone().into_string().expect("should have validated this earlier maybe todo")).into(),
             _ => {
                 panic!()
             }
@@ -129,18 +112,10 @@ impl Classfile {
     }
 
     pub fn lookup_method_name(&self, name: &str) -> Vec<(usize, &MethodInfo)> {
-        self.methods
-            .iter()
-            .enumerate()
-            .filter(|(_i, m)| m.method_name(self) == name)
-            .collect()
+        self.methods.iter().enumerate().filter(|(_i, m)| m.method_name(self) == name).collect()
     }
 
-    pub fn lookup_method_name_owned(
-        self,
-        self_ref: &Self,
-        name: String,
-    ) -> Vec<(usize, MethodInfo)> {
+    pub fn lookup_method_name_owned(self, self_ref: &Self, name: String) -> Vec<(usize, MethodInfo)> {
         let mut res = vec![];
         for (i, m) in self.methods.into_iter().enumerate() {
             if m.method_name(self_ref) == name {
@@ -154,10 +129,7 @@ impl Classfile {
 impl MethodInfo {
     pub fn method_name(&self, class_file: &Classfile) -> String {
         let method_name_utf8 = &class_file.constant_pool[self.name_index as usize];
-        method_name_utf8
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        method_name_utf8.extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn code_attribute(&self) -> Option<&Code> {
@@ -189,10 +161,7 @@ impl MethodInfo {
     }
 
     pub fn descriptor_str(&self, class_file: &Classfile) -> String {
-        class_file.constant_pool[self.descriptor_index as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        class_file.constant_pool[self.descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn is_static(&self) -> bool {
@@ -219,9 +188,6 @@ impl FieldInfo {
     }
 
     pub fn name(&self, class: &Classfile) -> String {
-        class.constant_pool[self.name_index as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        class.constant_pool[self.name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 }

@@ -8,82 +8,50 @@ use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 
 pub fn fmul(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(value2 * value1));
 }
 
 pub fn fadd(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(value2 + value1));
 }
 
 pub fn fdiv(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(value1 / value2));
 }
 
 pub fn ddiv(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let value1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(value1 / value2));
 }
 
 pub fn dmul(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let value1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(value2 * value1));
 }
 
 pub fn dadd(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let value1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(value2 + value1));
 }
 
 pub fn dsub(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let value1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(value1 - value2));
 }
 
 pub fn fsub(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(value1 - value2));
 }
 

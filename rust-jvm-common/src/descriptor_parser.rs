@@ -71,10 +71,7 @@ pub fn parse_object_type(str_: &str) -> Option<(&str, PType)> {
     match str_.chars().next()? {
         'L' => {
             let str_without_l = eat_one(str_);
-            let end_index = str_without_l
-                .find(';')
-                .expect("unterminated object in descriptor")
-                + 1; //todo this needs to be a result
+            let end_index = str_without_l.find(';').expect("unterminated object in descriptor") + 1; //todo this needs to be a result
             assert_eq!(str_without_l.chars().nth(end_index - 1).expect(""), ';');
             let class_name = &str_without_l[0..end_index - 1];
             let remaining_to_parse = &str_without_l[(end_index)..str_without_l.len()];
@@ -119,11 +116,8 @@ pub fn parse_field_type(str_: &str) -> Option<(&str, PType)> {
     parse_array_type(str_).or_else(|| {
         parse_base_type(str_).or_else(|| {
             parse_object_type(str_).or_else(|| {
-                (
-                    "",
-                    PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string()))),
-                )
-                    .into() //todo fallback for when parsing maformedtypes names
+                ("", PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))).into()
+                //todo fallback for when parsing maformedtypes names
             })
         })
     })
@@ -162,10 +156,7 @@ pub fn parse_method_descriptor(str_: &str) -> Option<MethodDescriptor> {
     remaining_to_parse = eat_one(remaining_to_parse);
     if let Some((should_be_empty, return_type)) = parse_return_descriptor(remaining_to_parse) {
         if should_be_empty.is_empty() {
-            Some(MethodDescriptor {
-                return_type,
-                parameter_types,
-            })
+            Some(MethodDescriptor { return_type, parameter_types })
         } else {
             None
         }

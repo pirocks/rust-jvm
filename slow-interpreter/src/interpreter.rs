@@ -55,73 +55,55 @@ static mut INSTRUCTION_COUNT: u64 = 0;
 
 static mut ITERATION_COUNT: u64 = 0;
 
-pub fn run_function(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) -> Result<(), WasException> {
+pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
-        let method_id = jvm
-            .method_table
-            .write()
-            .unwrap()
-            .get_method_id(rc, method_i);
+        let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
         let view = interpreter_state.current_class_view(jvm).clone();
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
-        let resolver = MethodResolver {
-            jvm,
-            loader: LoaderName::BootstrapLoader,
-        };
-        let result = jvm
-            .jit_state
-            .with::<_, Result<(), WasException>>(|jit_state| {
-                jit_state
-                    .borrow_mut()
-                    .add_function(code, method_id, resolver); //todo fix method id jankyness
-                // todo!("copy current args over. ");
-                match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id)
-                {
-                    Ok(res) => {
-                        assert!(res.is_none());
-                        return Ok(());
-                        /*match res {
-                            Either::Left(res) => todo!(),
-                            Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {
-                                let rc = check_loaded_class(jvm, interpreter_state, CPDType::Ref(classname_ref_type))?;
-                                let view = rc.view();
-                                let method_view = view.lookup_method(method_name, &descriptor).unwrap();
-                                let code = method_view.code_attribute().unwrap();
-                                let invoke_target_method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-                                let guard = jvm.function_frame_type_data.read().unwrap();
-                                let frame_vtype = guard.get(&invoke_target_method_id).unwrap();
-                                let stack_frame_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());//todo use stack frame layouts instead
-                                let sorted_instructions = code.instructions.iter().sorted_by_key(|(offset, _)| *offset).map(|(_, instr)| instr.clone()).collect();
-                                let mut compiled_methods_guard = jvm.compiled_methods.write().unwrap();
-                                compiled_methods_guard.add_method(invoke_target_method_id, sorted_instructions, &stack_frame_layout);
-                                compiled_methods_guard.run_method(invoke_target_method_id, interpreter_state.get_java_stack()).unwrap();
-                                drop(compiled_methods_guard);//tos=do deadlock in exit hadnler
+        let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
+        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
+            jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
+            // todo!("copy current args over. ");
+            match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
+                Ok(res) => {
+                    assert!(res.is_none());
+                    return Ok(());
+                    /*match res {
+                        Either::Left(res) => todo!(),
+                        Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {
+                            let rc = check_loaded_class(jvm, interpreter_state, CPDType::Ref(classname_ref_type))?;
+                            let view = rc.view();
+                            let method_view = view.lookup_method(method_name, &descriptor).unwrap();
+                            let code = method_view.code_attribute().unwrap();
+                            let invoke_target_method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+                            let guard = jvm.function_frame_type_data.read().unwrap();
+                            let frame_vtype = guard.get(&invoke_target_method_id).unwrap();
+                            let stack_frame_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());//todo use stack frame layouts instead
+                            let sorted_instructions = code.instructions.iter().sorted_by_key(|(offset, _)| *offset).map(|(_, instr)| instr.clone()).collect();
+                            let mut compiled_methods_guard = jvm.compiled_methods.write().unwrap();
+                            compiled_methods_guard.add_method(invoke_target_method_id, sorted_instructions, &stack_frame_layout);
+                            compiled_methods_guard.run_method(invoke_target_method_id, interpreter_state.get_java_stack()).unwrap();
+                            drop(compiled_methods_guard);//tos=do deadlock in exit hadnler
 
 
-                                todo!("compile and restore ")
-                            }
-                            _ => todo!()
-                        }*/
-                    }
-                    Err(_) => todo!(),
+                            todo!("compile and restore ")
+                        }
+                        _ => todo!()
+                    }*/
                 }
-            });
+                Err(_) => todo!(),
+            }
+        });
         result
     } else {
         run_function_interpreted(&jvm, interpreter_state)
     }
 }
 
-fn run_function_interpreted(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) -> Result<(), WasException> {
+fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
     let method = view.method_view_i(method_i);
@@ -132,36 +114,18 @@ fn run_function_interpreted(
 
     let method_desc = method.desc_str().to_str(&jvm.string_pool);
     let current_depth = interpreter_state.call_stack_depth();
-    let current_thread_tid = jvm
-        .thread_state
-        .try_get_current_thread()
-        .map(|t| t.java_tid)
-        .unwrap_or(-1);
-    let function_enter_guard = jvm.config.tracing.trace_function_enter(
-        &jvm.string_pool,
-        &class_name__,
-        &meth_name,
-        &method_desc,
-        current_depth,
-        current_thread_tid,
-    );
+    let current_thread_tid = jvm.thread_state.try_get_current_thread().map(|t| t.java_tid).unwrap_or(-1);
+    let function_enter_guard = jvm.config.tracing.trace_function_enter(&jvm.string_pool, &class_name__, &meth_name, &method_desc, current_depth, current_thread_tid);
     assert!(!interpreter_state.function_return());
     let current_frame = interpreter_state.current_frame();
     let class_pointer = current_frame.class_pointer(jvm);
-    let method_id = jvm
-        .method_table
-        .write()
-        .unwrap()
-        .get_method_id(class_pointer.clone(), method_i);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
     //so figuring out which monitor to use is prob not this funcitions problem, like its already quite busy
     let monitor = monitor_for_function(jvm, interpreter_state, &method, synchronized);
 
     while !interpreter_state.function_return() && interpreter_state.throw().is_none() {
         let current_frame = interpreter_state.current_frame();
-        let current = code
-            .instructions
-            .get(todo!() /*&(current_frame.pc(jvm) as u16)*/)
-            .unwrap();
+        let current = code.instructions.get(todo!() /*&(current_frame.pc(jvm) as u16)*/).unwrap();
         let (instruct, instruction_size) = (current, current.instruction_size as usize);
         interpreter_state.set_current_pc_offset(instruction_size as i32);
         breakpoint_check(jvm, interpreter_state, method_id);
@@ -171,18 +135,13 @@ fn run_function_interpreted(
                 safepoint_check(jvm, interpreter_state).unwrap();
             }
         }
-        if meth_name == MethodName(jvm.string_pool.add_name("developLongDigits", false))
-            || meth_name == MethodName(jvm.string_pool.add_name("getBinaryToASCIIConverter", false))
-            || meth_name == MethodName(jvm.string_pool.add_name("dtoa", false))
-        {
+        if meth_name == MethodName(jvm.string_pool.add_name("developLongDigits", false)) || meth_name == MethodName(jvm.string_pool.add_name("getBinaryToASCIIConverter", false)) || meth_name == MethodName(jvm.string_pool.add_name("dtoa", false)) {
             let mut frame = interpreter_state.current_frame_mut();
             let local_vars_ref = frame.local_vars();
             let num_local_vars = local_vars_ref.len();
             for i in 0..num_local_vars {
                 dbg!(i);
-                dbg!(local_vars_ref
-                    .get(i as u16, RuntimeType::LongType)
-                    .try_unwrap_long());
+                dbg!(local_vars_ref.get(i as u16, RuntimeType::LongType).try_unwrap_long());
             }
             let operand_stack = frame.operand_stack_ref(jvm);
             dbg!(operand_stack.types());
@@ -221,14 +180,7 @@ fn run_function_interpreted(
         }
         run_single_instruction(jvm, interpreter_state, &instruct.info, method_id);
         if interpreter_state.throw().is_some() {
-            let throw_class = interpreter_state
-                .throw()
-                .as_ref()
-                .unwrap()
-                .unwrap_normal_object()
-                .objinfo
-                .class_pointer
-                .clone();
+            let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();
             for excep_table in &code.exception_table {
                 let pc = interpreter_state.current_pc();
                 if excep_table.start_pc <= pc && pc < (excep_table.end_pc) {
@@ -237,9 +189,7 @@ fn run_function_interpreted(
                         None => {
                             //todo dup
                             interpreter_state.debug_print_stack_trace(jvm);
-                            interpreter_state.push_current_operand_stack(JavaValue::Object(
-                                interpreter_state.throw(),
-                            ));
+                            interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                             interpreter_state.set_throw(None);
                             interpreter_state.set_current_pc(excep_table.handler_pc);
                             // println!("Caught Exception:{}", &throw_class.view().name().get_referred_name());
@@ -248,16 +198,10 @@ fn run_function_interpreted(
                         Some(catch_runtime_name) => {
                             let saved_throw = interpreter_state.throw().clone();
                             interpreter_state.set_throw(None);
-                            let catch_class = check_resolved_class(
-                                jvm,
-                                interpreter_state,
-                                catch_runtime_name.into(),
-                            )?;
+                            let catch_class = check_resolved_class(jvm, interpreter_state, catch_runtime_name.into())?;
                             interpreter_state.set_throw(saved_throw);
                             if inherits_from(jvm, interpreter_state, &throw_class, &catch_class)? {
-                                interpreter_state.push_current_operand_stack(JavaValue::Object(
-                                    interpreter_state.throw(),
-                                ));
+                                interpreter_state.push_current_operand_stack(JavaValue::Object(interpreter_state.throw()));
                                 interpreter_state.set_throw(None);
                                 interpreter_state.set_current_pc(excep_table.handler_pc);
                                 // println!("Caught Exception:{}", throw_class.view().name().get_referred_name());
@@ -286,19 +230,14 @@ fn run_function_interpreted(
     // } else {
     //     JavaValue::Top
     // };
-    jvm.config
-        .tracing
-        .function_exit_guard(function_enter_guard, JavaValue::Top); //todo put actual res in here again
+    jvm.config.tracing.function_exit_guard(function_enter_guard, JavaValue::Top); //todo put actual res in here again
     if interpreter_state.throw().is_some() {
         return Err(WasException);
     }
     Ok(())
 }
 
-pub fn safepoint_check(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) -> Result<(), WasException> {
+pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let thread = interpreter_state.thread.clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
@@ -315,20 +254,14 @@ fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGua
     interpreter_state.set_current_pc(pc);
 }
 
-fn breakpoint_check(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    methodid: MethodId,
-) {
+fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
     let stop = match jvm.jvmti_state() {
         None => false,
         Some(jvmti) => {
             let breakpoints = &jvmti.break_points.read().unwrap();
             let function_breakpoints = breakpoints.get(&methodid);
-            function_breakpoints
-                .map(|points| points.contains(&pc))
-                .unwrap_or(false)
+            function_breakpoints.map(|points| points.contains(&pc)).unwrap_or(false)
         }
     };
     if stop {
@@ -337,16 +270,10 @@ fn breakpoint_check(
     }
 }
 
-pub fn monitor_for_function(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>,
-    method: &MethodView,
-    synchronized: bool,
-) -> Option<Arc<Monitor2>> {
+pub fn monitor_for_function(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
     if synchronized {
         let monitor: Arc<Monitor2> = if method.is_static() {
-            let class_object =
-                get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();
+            let class_object = get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();
             todo!() /*class_object.unwrap_normal_object().monitor.clone()*/
         } else {
             /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
@@ -361,18 +288,10 @@ pub fn monitor_for_function(
 
 pub static mut TIMES: usize = 0;
 
-fn run_single_instruction(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    instruct: &CInstructionInfo,
-    method_id: MethodId,
-) {
+fn run_single_instruction(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, instruct: &CInstructionInfo, method_id: MethodId) {
     unsafe {
         TIMES += 1;
-        if TIMES % 10_000_000 == 0
-            && jvm.vm_live()
-            && jvm.thread_state.get_main_thread().is_this_thread()
-        {
+        if TIMES % 10_000_000 == 0 && jvm.vm_live() && jvm.thread_state.get_main_thread().is_this_thread() {
             interpreter_state.debug_print_stack_trace(jvm);
             //todo this thread suspension stuff is mega sketch
             // drop(interpreter_state.int_state.take());
@@ -433,9 +352,7 @@ fn run_single_instruction(
         CInstructionInfo::dneg => dneg(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::drem => drem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dreturn => dreturn(jvm, interpreter_state),
-        CInstructionInfo::dstore(i) => {
-            dstore(jvm, interpreter_state.current_frame_mut(), *i as u16)
-        }
+        CInstructionInfo::dstore(i) => dstore(jvm, interpreter_state.current_frame_mut(), *i as u16),
         CInstructionInfo::dstore_0 => dstore(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::dstore_1 => dstore(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::dstore_2 => dstore(jvm, interpreter_state.current_frame_mut(), 2),
@@ -468,30 +385,16 @@ fn run_single_instruction(
         CInstructionInfo::fneg => fneg(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::frem => frem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::freturn => freturn(jvm, interpreter_state),
-        CInstructionInfo::fstore(i) => {
-            fstore(jvm, interpreter_state.current_frame_mut(), *i as u16)
-        }
+        CInstructionInfo::fstore(i) => fstore(jvm, interpreter_state.current_frame_mut(), *i as u16),
         CInstructionInfo::fstore_0 => fstore(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::fstore_1 => fstore(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::fstore_2 => fstore(jvm, interpreter_state.current_frame_mut(), 2),
         CInstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::getfield {
-            desc,
-            target_class,
-            name,
-        } => get_field(jvm, interpreter_state, *target_class, *name, desc, false),
-        CInstructionInfo::getstatic {
-            name,
-            target_class,
-            desc,
-        } => get_static(jvm, interpreter_state, *target_class, *name, desc),
-        CInstructionInfo::goto_(target) => {
-            goto_(jvm, interpreter_state.current_frame_mut(), *target as i32)
-        }
-        CInstructionInfo::goto_w(target) => {
-            goto_(jvm, interpreter_state.current_frame_mut(), *target)
-        }
+        CInstructionInfo::getfield { desc, target_class, name } => get_field(jvm, interpreter_state, *target_class, *name, desc, false),
+        CInstructionInfo::getstatic { name, target_class, desc } => get_static(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::goto_(target) => goto_(jvm, interpreter_state.current_frame_mut(), *target as i32),
+        CInstructionInfo::goto_w(target) => goto_(jvm, interpreter_state.current_frame_mut(), *target),
         CInstructionInfo::i2b => i2b(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::i2c => i2c(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::i2d => i2d(jvm, interpreter_state.current_frame_mut()),
@@ -510,52 +413,27 @@ fn run_single_instruction(
         CInstructionInfo::iconst_4 => iconst_4(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iconst_5 => iconst_5(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::idiv => idiv(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::if_acmpeq(offset) => {
-            if_acmpeq(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_acmpne(offset) => {
-            if_acmpne(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmpeq(offset) => {
-            if_icmpeq(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmpne(offset) => {
-            if_icmpne(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmplt(offset) => {
-            if_icmplt(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmpge(offset) => {
-            if_icmpge(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmpgt(offset) => {
-            if_icmpgt(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::if_icmple(offset) => {
-            if_icmple(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
+        CInstructionInfo::if_acmpeq(offset) => if_acmpeq(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_acmpne(offset) => if_acmpne(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpeq(offset) => if_icmpeq(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpne(offset) => if_icmpne(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmplt(offset) => if_icmplt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpge(offset) => if_icmpge(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmpgt(offset) => if_icmpgt(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::if_icmple(offset) => if_icmple(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::ifeq(offset) => ifeq(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::ifne(offset) => ifne(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::iflt(offset) => iflt(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::ifge(offset) => ifge(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::ifgt(offset) => ifgt(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::ifle(offset) => ifle(jvm, interpreter_state.current_frame_mut(), *offset),
-        CInstructionInfo::ifnonnull(offset) => {
-            ifnonnull(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
-        CInstructionInfo::ifnull(offset) => {
-            ifnull(jvm, interpreter_state.current_frame_mut(), *offset)
-        }
+        CInstructionInfo::ifnonnull(offset) => ifnonnull(jvm, interpreter_state.current_frame_mut(), *offset),
+        CInstructionInfo::ifnull(offset) => ifnull(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::iinc(iinc) => {
             let mut current_frame = interpreter_state.current_frame_mut();
-            let val = current_frame
-                .local_vars()
-                .get(iinc.index, RuntimeType::IntType)
-                .unwrap_int();
+            let val = current_frame.local_vars().get(iinc.index, RuntimeType::IntType).unwrap_int();
             let res = val + iinc.const_ as i32;
-            current_frame
-                .local_vars_mut()
-                .set(iinc.index, JavaValue::Int(res));
+            current_frame.local_vars_mut().set(iinc.index, JavaValue::Int(res));
         }
         CInstructionInfo::iload(n) => iload(jvm, interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::iload_0 => iload(jvm, interpreter_state.current_frame_mut(), 0),
@@ -566,54 +444,16 @@ fn run_single_instruction(
         CInstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state, cp),
         CInstructionInfo::invokedynamic(cp) => invoke_dynamic(jvm, interpreter_state, *cp),
-        CInstructionInfo::invokeinterface {
-            classname_ref_type,
-            descriptor,
-            method_name,
-            count,
-        } => invoke_interface(
-            jvm,
-            interpreter_state,
-            classname_ref_type.clone(),
-            *method_name,
-            descriptor,
-            *count,
-        ),
-        CInstructionInfo::invokespecial {
-            method_name,
-            descriptor,
-            classname_ref_type,
-        } => invoke_special(
-            jvm,
-            interpreter_state,
-            classname_ref_type.unwrap_object_name(),
-            *method_name,
-            descriptor,
-        ),
-        CInstructionInfo::invokestatic {
-            method_name,
-            descriptor,
-            classname_ref_type,
-        } => run_invoke_static(
-            jvm,
-            interpreter_state,
-            classname_ref_type.clone(),
-            *method_name,
-            descriptor,
-        ),
-        CInstructionInfo::invokevirtual {
-            method_name,
-            descriptor,
-            classname_ref_type: _,
-        } => invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor),
+        CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type: _ } => invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor),
         CInstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::ireturn => ireturn(jvm, interpreter_state),
         CInstructionInfo::ishl => ishl(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::ishr => ishr(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::istore(n) => {
-            istore(jvm, interpreter_state.current_frame_mut(), *n as u16)
-        }
+        CInstructionInfo::istore(n) => istore(jvm, interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::istore_0 => istore(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::istore_1 => istore(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::istore_2 => istore(jvm, interpreter_state.current_frame_mut(), 2),
@@ -635,9 +475,7 @@ fn run_single_instruction(
         CInstructionInfo::lconst_1 => lconst(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::ldc(cldc2w) => ldc_w(jvm, interpreter_state, &cldc2w.as_ref()),
         CInstructionInfo::ldc_w(cldcw) => ldc_w(jvm, interpreter_state, &Either::Left(cldcw)),
-        CInstructionInfo::ldc2_w(cldc2w) => {
-            ldc2_w(jvm, interpreter_state.current_frame_mut(), cldc2w)
-        }
+        CInstructionInfo::ldc2_w(cldc2w) => ldc2_w(jvm, interpreter_state.current_frame_mut(), cldc2w),
         CInstructionInfo::ldiv => ldiv(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lload(i) => lload(jvm, interpreter_state.current_frame_mut(), *i as u16),
         CInstructionInfo::lload_0 => lload(jvm, interpreter_state.current_frame_mut(), 0),
@@ -646,17 +484,13 @@ fn run_single_instruction(
         CInstructionInfo::lload_3 => lload(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::lmul => lmul(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lneg => lneg(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::lookupswitch(ls) => {
-            invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut())
-        }
+        CInstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lor => lor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lrem => lrem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lreturn => lreturn(jvm, interpreter_state),
         CInstructionInfo::lshl => lshl(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lshr => lshr(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::lstore(n) => {
-            lstore(jvm, interpreter_state.current_frame_mut(), *n as u16)
-        }
+        CInstructionInfo::lstore(n) => lstore(jvm, interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::lstore_0 => lstore(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::lstore_1 => lstore(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::lstore_2 => lstore(jvm, interpreter_state.current_frame_mut(), 2),
@@ -665,50 +499,29 @@ fn run_single_instruction(
         CInstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::monitorenter => {
-            let mut stack_entry_mut: StackEntryMut<'gc_life, '_> =
-                interpreter_state.current_frame_mut();
+            let mut stack_entry_mut: StackEntryMut<'gc_life, '_> = interpreter_state.current_frame_mut();
             let popped: JavaValue<'gc_life> = stack_entry_mut.pop(Some(RuntimeType::object()));
             let gc_managed_object: GcManagedObject<'gc_life> = popped.unwrap_object_nonnull();
             gc_managed_object.monitor_lock(jvm, interpreter_state);
         }
         CInstructionInfo::monitorexit => {
-            interpreter_state
-                .current_frame_mut()
-                .pop(Some(RuntimeType::object()))
-                .unwrap_object_nonnull()
-                .monitor_unlock(jvm, interpreter_state);
+            interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
         }
-        CInstructionInfo::multianewarray { type_, dimensions } => {
-            multi_a_new_array(jvm, interpreter_state, dimensions.get(), type_)
-        }
+        CInstructionInfo::multianewarray { type_, dimensions } => multi_a_new_array(jvm, interpreter_state, dimensions.get(), type_),
         CInstructionInfo::new(cn) => new(jvm, interpreter_state, *cn),
         CInstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, *a_type),
         CInstructionInfo::nop => {}
         CInstructionInfo::pop => pop(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
-        CInstructionInfo::putfield {
-            name,
-            desc,
-            target_class,
-        } => putfield(jvm, interpreter_state, *target_class, *name, desc),
-        CInstructionInfo::putstatic {
-            name,
-            desc,
-            target_class,
-        } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
-        CInstructionInfo::ret(local_var_index) => ret(
-            jvm,
-            interpreter_state.current_frame_mut(),
-            *local_var_index as u16,
-        ),
+        CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), *local_var_index as u16),
         CInstructionInfo::return_ => return_(interpreter_state),
         CInstructionInfo::saload => saload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::sastore => sastore(jvm, interpreter_state),
         CInstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), *val),
         CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::tableswitch(switch) => {
-            tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut())
-        }
+        CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         CInstructionInfo::EndOfCode => panic!(),
     }
@@ -720,16 +533,13 @@ fn l2d(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, target: i32) {
-    let next_instruct =
-        (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
+    let next_instruct = (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
     interpreter_state.set_current_pc_offset(target);
 }
 
 fn f2l(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let res = if val.is_infinite() {
         if val.is_sign_positive() {
             i64::MAX
@@ -744,17 +554,10 @@ fn f2l(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.push(JavaValue::Long(res))
 }
 
-fn dup2_x2(
-    jvm: &'gc_life JVMState<'gc_life>,
-    method_id: MethodId,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-) {
+fn dup2_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-    let Frame {
-        stack_map: OperandStack { data },
-        ..
-    } = todo!(); //&stack_frames[&current_pc];
+    let Frame { stack_map: OperandStack { data }, .. } = todo!(); //&stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     let value2_vtype = data[1].clone();
     let value1 = current_frame.pop(Some(RuntimeType::LongType));
@@ -809,30 +612,20 @@ fn dup2_x2(
 }
 
 fn frem(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let res = drem_impl(value2 as f64, value1 as f64) as f32;
     current_frame.push(JavaValue::Float(res));
 }
 
 fn fneg(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_float();
+    let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     current_frame.push(JavaValue::Float(-val))
 }
 
 fn drem(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let value2 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_double(); //divisor
-    let value1 = current_frame
-        .pop(Some(RuntimeType::FloatType))
-        .unwrap_double();
+    let value2 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_double(); //divisor
+    let value1 = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_double();
     let res = drem_impl(value2, value1);
     current_frame.push(JavaValue::Double(res))
 }
@@ -861,9 +654,7 @@ fn drem_impl(value2: f64, value1: f64) -> f64 {
 }
 
 fn dneg(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let val = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     current_frame.push(JavaValue::Double(-val))
 }
 
@@ -874,38 +665,22 @@ fn swap(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc
     current_frame.push(second);
 }
 
-pub fn ret(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    local_var_index: u16,
-) {
-    let ret = current_frame
-        .local_vars()
-        .get(local_var_index, RuntimeType::LongType)
-        .unwrap_long();
+pub fn ret(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, local_var_index: u16) {
+    let ret = current_frame.local_vars().get(local_var_index, RuntimeType::LongType).unwrap_long();
     current_frame.set_pc(ret as u16);
     *current_frame.pc_offset_mut() = 0;
 }
 
 fn dcmpl(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let val1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }
     dcmp_common(jvm, current_frame, val2, val1);
 }
 
-fn dcmp_common(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    val2: f64,
-    val1: f64,
-) {
+fn dcmp_common(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, val2: f64, val1: f64) {
     let res = if val1 > val2 {
         1
     } else if val1 == val2 {
@@ -919,25 +694,17 @@ fn dcmp_common(
 }
 
 fn dcmpg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-    let val2 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
-    let val1 = current_frame
-        .pop(Some(RuntimeType::DoubleType))
-        .unwrap_double();
+    let val2 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
+    let val1 = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
         current_frame.push(JavaValue::Int(-1));
     }
     dcmp_common(jvm, current_frame, val2, val1)
 }
 
-fn athrow(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) {
+fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let exception_obj = {
-        let value =
-            interpreter_state.pop_current_operand_stack(Some(CClassName::throwable().into()));
+        let value = interpreter_state.pop_current_operand_stack(Some(CClassName::throwable().into()));
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.unwrap_object_nonnull()
     };

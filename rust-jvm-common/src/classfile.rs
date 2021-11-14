@@ -170,9 +170,7 @@ pub struct UninitializedVariableInfo {
 
 impl Clone for UninitializedVariableInfo {
     fn clone(&self) -> Self {
-        UninitializedVariableInfo {
-            offset: self.offset,
-        }
+        UninitializedVariableInfo { offset: self.offset }
     }
 }
 
@@ -258,36 +256,16 @@ pub struct LocalVarTargetTableEntry {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum TargetInfo {
-    TypeParameterTarget {
-        type_parameter_index: u8,
-    },
-    SuperTypeTarget {
-        supertype_index: u16,
-    },
-    TypeParameterBoundTarget {
-        type_parameter_index: u8,
-        bound_index: u8,
-    },
+    TypeParameterTarget { type_parameter_index: u8 },
+    SuperTypeTarget { supertype_index: u16 },
+    TypeParameterBoundTarget { type_parameter_index: u8, bound_index: u8 },
     EmptyTarget,
-    FormalParameterTarget {
-        formal_parameter_index: u8,
-    },
-    ThrowsTarget {
-        throws_type_index: u16,
-    },
-    LocalVarTarget {
-        table: Vec<LocalVarTargetTableEntry>,
-    },
-    CatchTarget {
-        exception_table_entry: u16,
-    },
-    OffsetTarget {
-        offset: u16,
-    },
-    TypeArgumentTarget {
-        offset: u16,
-        type_argument_index: u8,
-    },
+    FormalParameterTarget { formal_parameter_index: u8 },
+    ThrowsTarget { throws_type_index: u16 },
+    LocalVarTarget { table: Vec<LocalVarTargetTableEntry> },
+    CatchTarget { exception_table_entry: u16 },
+    OffsetTarget { offset: u16 },
+    TypeArgumentTarget { offset: u16, type_argument_index: u8 },
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -980,17 +958,7 @@ pub type Interface = u16;
 
 impl std::cmp::PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {
-        self.magic == other.magic
-            && self.minor_version == other.minor_version
-            && self.major_version == other.major_version
-            && self.constant_pool == other.constant_pool
-            && self.access_flags == other.access_flags
-            && self.this_class == other.this_class
-            && self.super_class == other.super_class
-            && self.interfaces == other.interfaces
-            && self.fields == other.fields
-            && self.methods == other.methods
-            && self.attributes == other.attributes
+        self.magic == other.magic && self.minor_version == other.minor_version && self.major_version == other.major_version && self.constant_pool == other.constant_pool && self.access_flags == other.access_flags && self.this_class == other.this_class && self.super_class == other.super_class && self.interfaces == other.interfaces && self.fields == other.fields && self.methods == other.methods && self.attributes == other.attributes
     }
 }
 

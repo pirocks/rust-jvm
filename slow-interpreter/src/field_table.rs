@@ -30,11 +30,7 @@ impl<'gc_life> FieldTable<'gc_life> {
         }
     }
 
-    pub fn register_with_table(
-        &mut self,
-        rc: Arc<RuntimeClass<'gc_life>>,
-        field_index: u16,
-    ) -> FieldTableIndex {
+    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, field_index: u16) -> FieldTableIndex {
         let res = self.table.len();
         self.table.push((rc.clone(), field_index));
         match self.index.get_mut(&rc.clone().into()) {
@@ -55,9 +51,6 @@ impl<'gc_life> FieldTable<'gc_life> {
     }
 
     pub fn new() -> Self {
-        Self {
-            table: vec![],
-            index: HashMap::new(),
-        }
+        Self { table: vec![], index: HashMap::new() }
     }
 }

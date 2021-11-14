@@ -8,9 +8,7 @@ use itertools::Either;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::ClassView;
-use rust_jvm_common::compressed_classfile::{
-    CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor,
-};
+use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
@@ -61,23 +59,13 @@ pub mod init;
 /// so this is completely undocumented
 /// supported match flags IS_METHOD | IS_CONSTRUCTOR |  IS_FIELD | SEARCH_SUPERCLASSES | SEARCH_INTERFACES
 ///
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    args: Vec<JavaValue<'gc_life>>,
-) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
-    let match_name = args[1]
-        .cast_string()
-        .map(|string| string.to_rust_string(jvm))
-        .map(|str| jvm.string_pool.add_name(str, false));
+    let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //signature to lookup on
-    let matchSig = args[2]
-        .cast_string()
-        .map(|string| string.to_rust_string(jvm))
-        .map(|str| jvm.string_pool.add_name(str, false));
+    let matchSig = args[2].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks
@@ -97,80 +85,26 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
     let is_constructor = (matchFlags & IS_CONSTRUCTOR) > 0;
     let member_names = match matchSig {
         None => {
-            let methods = if is_method {
-                Either::Left(
-                    get_matching_methods(
-                        jvm,
-                        int_state,
-                        &match_name.map(|ccstr| MethodName(ccstr)),
-                        &rc,
-                        &view,
-                        search_super,
-                        search_interface,
-                        is_constructor,
-                        None,
-                    )?
-                        .into_iter(),
-                )
-            } else {
-                Either::Right(std::iter::empty())
-            };
-            let fields = if is_field {
-                Either::Left(
-                    get_matching_fields(
-                        jvm,
-                        int_state,
-                        &match_name.map(|ccstr| FieldName(ccstr)),
-                        rc,
-                        view,
-                        search_super,
-                        search_interface,
-                        None,
-                    )?
-                        .into_iter(),
-                )
-            } else {
-                Either::Right(std::iter::empty())
-            };
+            let methods = if is_method { Either::Left(get_matching_methods(jvm, int_state, &match_name.map(|ccstr| MethodName(ccstr)), &rc, &view, search_super, search_interface, is_constructor, None)?.into_iter()) } else { Either::Right(std::iter::empty()) };
+            let fields = if is_field { Either::Left(get_matching_fields(jvm, int_state, &match_name.map(|ccstr| FieldName(ccstr)), rc, view, search_super, search_interface, None)?.into_iter()) } else { Either::Right(std::iter::empty()) };
             methods.chain(fields).collect()
         }
-        Some(matchSig) => {
-            match parse_field_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
-                None => match parse_method_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
-                    None => {
-                        throw_illegal_arg_res(jvm, int_state)?;
-                        unreachable!()
-                    }
-                    Some(md) => {
-                        assert!(is_method);
-                        get_matching_methods(
-                            jvm,
-                            int_state,
-                            &match_name.map(|ccstr| MethodName(ccstr)),
-                            &rc,
-                            &view,
-                            search_super,
-                            search_interface,
-                            is_constructor,
-                            Some(CMethodDescriptor::from_legacy(md, &jvm.string_pool)),
-                        )
-                    }
-                },
-                Some(fd) => {
-                    assert!(is_field);
-                    get_matching_fields(
-                        jvm,
-                        int_state,
-                        &match_name.map(|ccstr| FieldName(ccstr)),
-                        rc,
-                        view,
-                        search_super,
-                        search_interface,
-                        Some(CFieldDescriptor::from_legacy(fd, &jvm.string_pool)),
-                    )
+        Some(matchSig) => match parse_field_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
+            None => match parse_method_descriptor(matchSig.to_str(&jvm.string_pool).as_str()) {
+                None => {
+                    throw_illegal_arg_res(jvm, int_state)?;
+                    unreachable!()
                 }
-            }?
-        }
+                Some(md) => {
+                    assert!(is_method);
+                    get_matching_methods(jvm, int_state, &match_name.map(|ccstr| MethodName(ccstr)), &rc, &view, search_super, search_interface, is_constructor, Some(CMethodDescriptor::from_legacy(md, &jvm.string_pool)))
+                }
+            },
+            Some(fd) => {
+                assert!(is_field);
+                get_matching_fields(jvm, int_state, &match_name.map(|ccstr| FieldName(ccstr)), rc, view, search_super, search_interface, Some(CFieldDescriptor::from_legacy(fd, &jvm.string_pool)))
+            }
+        }?,
     };
     // let res_arr = results.mut_array();
     let mut i = skip;
@@ -185,93 +119,57 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(
     Ok(JavaValue::Int(len as i32))
 }
 
-fn get_matching_fields(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    match_name: &Option<FieldName>,
-    rc: Arc<RuntimeClass<'gc_life>>,
-    view: Arc<dyn ClassView>,
-    search_super: bool,
-    search_interface: bool,
-    fd: Option<CFieldDescriptor>,
-) -> Result<Vec<MemberName<'gc_life>>, WasException> {
-    let filtered = get_all_fields(jvm, int_state, rc, search_interface)?
-        .into_iter()
-        .filter(|(current_rc, method_i)| {
-            let current_view = current_rc.view();
-            if !search_super {
-                if current_view.name() != view.name() {
-                    return false;
-                }
+fn get_matching_fields(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, match_name: &Option<FieldName>, rc: Arc<RuntimeClass<'gc_life>>, view: Arc<dyn ClassView>, search_super: bool, search_interface: bool, fd: Option<CFieldDescriptor>) -> Result<Vec<MemberName<'gc_life>>, WasException> {
+    let filtered = get_all_fields(jvm, int_state, rc, search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+        let current_view = current_rc.view();
+        if !search_super {
+            if current_view.name() != view.name() {
+                return false;
             }
-            let field = current_view.field(*method_i);
-            (match &match_name {
-                None => true,
-                Some(match_name) => field.field_name() == *match_name,
-            }) && (match &fd {
-                None => true,
-                Some(CompressedFieldDescriptor(field_type)) => field_type == &field.field_type(),
-            })
-        });
+        }
+        let field = current_view.field(*method_i);
+        (match &match_name {
+            None => true,
+            Some(match_name) => field.field_name() == *match_name,
+        }) && (match &fd {
+            None => true,
+            Some(CompressedFieldDescriptor(field_type)) => field_type == &field.field_type(),
+        })
+    });
     let mut res = vec![];
     for (field_class, i) in filtered {
         let view = field_class.view();
         let field_view = view.field(i);
         let field_obj = field_object_from_view(jvm, int_state, field_class, field_view)?;
-        res.push(MemberName::new_from_field(
-            jvm,
-            int_state,
-            field_obj.cast_field(),
-        )?)
+        res.push(MemberName::new_from_field(jvm, int_state, field_obj.cast_field())?)
     }
     Ok(res)
 }
 
-fn get_matching_methods(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    match_name: &Option<MethodName>,
-    rc: &Arc<RuntimeClass<'gc_life>>,
-    view: &Arc<dyn ClassView>,
-    search_super: bool,
-    search_interface: bool,
-    is_constructor: bool,
-    md: Option<CMethodDescriptor>,
-) -> Result<Vec<MemberName<'gc_life>>, WasException> {
-    let filtered = get_all_methods(jvm, int_state, rc.clone(), search_interface)?
-        .into_iter()
-        .filter(|(current_rc, method_i)| {
-            let current_view = current_rc.view();
-            if !search_super {
-                if current_view.name() != view.name() {
-                    return false;
-                }
+fn get_matching_methods(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, match_name: &Option<MethodName>, rc: &Arc<RuntimeClass<'gc_life>>, view: &Arc<dyn ClassView>, search_super: bool, search_interface: bool, is_constructor: bool, md: Option<CMethodDescriptor>) -> Result<Vec<MemberName<'gc_life>>, WasException> {
+    let filtered = get_all_methods(jvm, int_state, rc.clone(), search_interface)?.into_iter().filter(|(current_rc, method_i)| {
+        let current_view = current_rc.view();
+        if !search_super {
+            if current_view.name() != view.name() {
+                return false;
             }
-            let method = current_view.method_view_i(*method_i);
-            (match &match_name {
-                None => true,
-                Some(match_name) => match_name == &method.name(),
-            }) && (match &md {
-                None => true,
-                Some(md) => md == method.desc(),
-            }) && if is_constructor {
-                method.name() == MethodName::constructor_init()
-            } else {
-                true
-            }
-        });
+        }
+        let method = current_view.method_view_i(*method_i);
+        (match &match_name {
+            None => true,
+            Some(match_name) => match_name == &method.name(),
+        }) && (match &md {
+            None => true,
+            Some(md) => md == method.desc(),
+        }) && if is_constructor { method.name() == MethodName::constructor_init() } else { true }
+    });
     let mut res = vec![];
     for (method_class, i) in filtered {
         let view = method_class.view();
         let method_view = view.method_view_i(i);
         if method_view.name() == MethodName::constructor_init() {
-            let constructor_obj =
-                Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
-            res.push(MemberName::new_from_constructor(
-                jvm,
-                int_state,
-                constructor_obj,
-            )?)
+            let constructor_obj = Constructor::constructor_object_from_method_view(jvm, int_state, &method_view)?;
+            res.push(MemberName::new_from_constructor(jvm, int_state, constructor_obj)?)
         } else {
             let method_obj = Method::method_object_from_method_view(jvm, int_state, &method_view)?;
             res.push(MemberName::new_from_method(jvm, int_state, method_obj)?)
@@ -280,30 +178,14 @@ fn get_matching_methods(
     Ok(res)
 }
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    args: Vec<JavaValue<'gc_life>>,
-) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     let member_name = args[0].cast_member_name();
-    let name = member_name
-        .get_name_func(jvm, int_state)?
-        .expect("null name?");
+    let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz(jvm))?;
     let field_type_option = member_name.get_field_type(jvm, int_state)?;
     let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
     let empty_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("".to_string()))?;
-    let field = Field::init(
-        jvm,
-        int_state,
-        clazz,
-        name,
-        field_type,
-        0,
-        0,
-        empty_string,
-        vec![],
-    )?;
+    let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, empty_string, vec![])?;
     let res = Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?;
     dbg!(res.to_type());
     Ok(res)

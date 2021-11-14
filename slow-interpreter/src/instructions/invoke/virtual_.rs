@@ -26,58 +26,26 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    method_name: MethodName,
-    expected_descriptor: &CMethodDescriptor,
-) {
+pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //let the main instruction check intresstate inste
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    expected_descriptor: &CMethodDescriptor,
-    target_class: Arc<RuntimeClass<'gc_life>>,
-    target_method: &MethodView,
-    args: Vec<JavaValue<'gc_life>>,
-) -> Result<(), WasException> {
-    invoke_virtual_method_i_impl(
-        jvm,
-        int_state,
-        expected_descriptor,
-        target_class,
-        target_method,
-        args,
-    )
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+    invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
-fn invoke_virtual_method_i_impl<'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: &CMethodDescriptor,
-    target_class: Arc<RuntimeClass<'gc_life>>,
-    target_method: &MethodView,
-    args: Vec<JavaValue<'gc_life>>,
-) -> Result<(), WasException> {
+fn invoke_virtual_method_i_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
 
         let op_stack = current_frame.operand_stack(jvm);
-        let temp_value = op_stack.get(
-            (op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16,
-            CClassName::method_handle().into(),
-        );
+        let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16, CClassName::method_handle().into());
         let method_handle = temp_value.cast_method_handle();
         let form: LambdaForm = method_handle.get_form(jvm)?;
         let vmentry: MemberName = form.get_vmentry(jvm);
-        if target_method.name() == MethodName::method_invoke()
-            || target_method.name() == MethodName::method_invokeBasic()
-            || target_method.name() == MethodName::method_invokeExact()
-        {
+        if target_method.name() == MethodName::method_invoke() || target_method.name() == MethodName::method_invokeBasic() || target_method.name() == MethodName::method_invokeExact() {
             //todo do conversion.
             //todo handle void return
             assert_ne!(expected_descriptor.return_type, CPDType::VoidType);
@@ -96,14 +64,8 @@ fn invoke_virtual_method_i_impl<'gc_life>(
     } else if !target_method.is_abstract() {
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-        setup_virtual_args(
-            interpreter_state,
-            expected_descriptor,
-            &mut args,
-            max_locals,
-        );
-        let next_entry =
-            StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
+        setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
+        let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let frame_for_function = interpreter_state.push_frame(next_entry, jvm);
         match run_function(jvm, interpreter_state) {
             Ok(()) => {
@@ -129,15 +91,8 @@ fn invoke_virtual_method_i_impl<'gc_life>(
     }
 }
 
-pub fn call_vmentry(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    vmentry: MemberName<'gc_life>,
-) -> Result<JavaValue<'gc_life>, WasException> {
-    assert_eq!(
-        vmentry.clone().java_value().to_type(),
-        CClassName::member_name().into()
-    );
+pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, vmentry: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+    assert_eq!(vmentry.clone().java_value().to_type(), CClassName::member_name().into());
     let flags = vmentry.get_flags(jvm) as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
     let invoke_static = ref_kind == JVM_REF_invokeStatic;
@@ -150,28 +105,11 @@ pub fn call_vmentry(
         unimplemented!()
     } else if invoke_static {
         let by_address = ByAddress(vmentry.clone().object());
-        let method_id = *jvm
-            .resolved_method_handles
-            .read()
-            .unwrap()
-            .get(&by_address)
-            .unwrap();
-        let (class, method_i) = jvm
-            .method_table
-            .read()
-            .unwrap()
-            .try_lookup(method_id)
-            .unwrap();
+        let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
+        let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
         let res_method = class_view.method_view_i(method_i);
-        run_static_or_virtual(
-            jvm,
-            interpreter_state,
-            &class,
-            res_method.name(),
-            res_method.desc(),
-            todo!(),
-        )?;
+        run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc(), todo!())?;
         assert!(interpreter_state.throw().is_none());
         let res = interpreter_state.pop_current_operand_stack(Some(CClassName::object().into()));
         Ok(res)
@@ -180,12 +118,7 @@ pub fn call_vmentry(
     }
 }
 
-pub fn setup_virtual_args<'gc_life>(
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: &CMethodDescriptor,
-    args: &mut Vec<JavaValue<'gc_life>>,
-    max_locals: u16,
-) {
+pub fn setup_virtual_args<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16) {
     let mut current_frame = int_state.current_frame_mut();
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
@@ -211,13 +144,7 @@ pub fn setup_virtual_args<'gc_life>(
     args[0] = current_frame.pop(Some(CClassName::object().into()));
 }
 
-pub fn setup_virtual_args2<'gc_life>(
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    expected_descriptor: &CMethodDescriptor,
-    args: &mut Vec<JavaValue<'gc_life>>,
-    max_locals: u16,
-    input_args: Vec<JavaValue<'gc_life>>,
-) {
+pub fn setup_virtual_args2<'gc_life>(int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<JavaValue<'gc_life>>) {
     let mut current_frame = int_state.current_frame_mut();
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
@@ -246,16 +173,9 @@ pub fn setup_virtual_args2<'gc_life>(
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    method_name: MethodName,
-    md: &CMethodDescriptor,
-) -> Result<(), WasException> {
+pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: &CMethodDescriptor) -> Result<(), WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
-    if method_name == MethodName::constructor_init()
-        || method_name == MethodName::constructor_clinit()
-    {
+    if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         panic!() //should have been caught by verifier, though perhaps it is possible to reach this w/ invokedynamic todo
     }
     //todo implement locking on synchronized methods
@@ -267,10 +187,7 @@ pub fn invoke_virtual(
     let this_pointer = {
         let current_frame = int_state.current_frame();
         let operand_stack = &current_frame.operand_stack(jvm);
-        &operand_stack.get(
-            (operand_stack.len() as usize - md.arg_types.len() - 1) as u16,
-            RuntimeType::object(),
-        )
+        &operand_stack.get((operand_stack.len() as usize - md.arg_types.len() - 1) as u16, RuntimeType::object())
     };
     let c = match match this_pointer.unwrap_object() {
         Some(x) => x,
@@ -303,23 +220,10 @@ pub fn invoke_virtual(
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(
-        jvm,
-        int_state,
-        md,
-        final_target_class.clone(),
-        target_method,
-        todo!(),
-    )
+    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, todo!())
 }
 
-pub fn virtual_method_lookup(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    method_name: MethodName,
-    md: &CMethodDescriptor,
-    c: Arc<RuntimeClass<'gc_life>>,
-) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {
+pub fn virtual_method_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {
     let all_methods = get_all_methods(jvm, int_state, c.clone(), false)?;
     let (final_target_class, new_i) = all_methods
         .iter()
@@ -347,12 +251,7 @@ pub fn virtual_method_lookup(
         .unwrap_or_else(|| {
             dbg!(method_name.0.to_str(&jvm.string_pool));
             dbg!(md);
-            dbg!(c
-                .view()
-                .name()
-                .unwrap_object_name()
-                .0
-                .to_str(&jvm.string_pool));
+            dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
             int_state.debug_print_stack_trace(jvm);
             // dbg!(int_state.current_frame().operand_stack_types());
             // dbg!(int_state.current_frame().local_vars_types());

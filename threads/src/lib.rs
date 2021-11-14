@@ -34,8 +34,7 @@ thread_local! {
 
 impl<'vm_life> Threads<'vm_life> {
     pub fn this_thread(&self) -> Arc<Thread> {
-        self.this_thread
-            .with(|thread| unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) })
+        self.this_thread.with(|thread| unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) })
     }
 
     pub fn new(scope: Scope<'vm_life>) -> Threads<'vm_life> {
@@ -45,10 +44,7 @@ impl<'vm_life> Threads<'vm_life> {
             }
             THERE_CAN_ONLY_BE_ONE_THREADS = true;
         }
-        let res = Threads {
-            this_thread: &THIS_THREAD,
-            scope,
-        };
+        let res = Threads { this_thread: &THIS_THREAD, scope };
 
         res.init_signal_handler();
         res
@@ -64,10 +60,7 @@ impl<'vm_life> Threads<'vm_life> {
         let mut res = Thread {
             started,
             join_status: join_status.clone(),
-            pause: PauseStatus {
-                paused_mutex: Mutex::new(false),
-                paused: Condvar::new(),
-            },
+            pause: PauseStatus { paused_mutex: Mutex::new(false), paused: Condvar::new() },
             pthread_id: None,
             rust_join_handle: None,
             thread_start_channel_send: None,
@@ -82,11 +75,7 @@ impl<'vm_life> Threads<'vm_life> {
         let join_handle = builder
             .stack_size(1024 * 1024 * 256) // verifier makes heavy use of recursion.
             .spawn(move |_| unsafe {
-                join_status
-                    .write()
-                    .unwrap()
-                    .alive
-                    .store(true, Ordering::SeqCst);
+                join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
                 thread_info_channel_send.send(pthread_self()).unwrap();
                 let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();
                 func(data);
@@ -138,13 +127,7 @@ impl<'vm_life> Thread<'vm_life> {
         where
             T: FnOnce(Box<dyn Any>),
     {
-        self.thread_start_channel_send
-            .as_ref()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .send(ThreadStartInfo { func, data })
-            .unwrap();
+        self.thread_start_channel_send.as_ref().unwrap().lock().unwrap().send(ThreadStartInfo { func, data }).unwrap();
         self.started.store(true, Ordering::SeqCst);
     }
 
@@ -152,12 +135,7 @@ impl<'vm_life> Thread<'vm_life> {
         unsafe {
             assert_eq!(self.pthread_id.unwrap(), pthread_self());
         }
-        std::mem::drop(
-            self.pause
-                .paused
-                .wait(self.pause.paused_mutex.lock().unwrap())
-                .unwrap(),
-        );
+        std::mem::drop(self.pause.paused.wait(self.pause.paused_mutex.lock().unwrap()).unwrap());
     }
 
     pub fn is_paused(&self) -> bool {
@@ -176,12 +154,7 @@ impl<'vm_life> Thread<'vm_life> {
     pub fn join(&self) {
         let guard = self.join_status.read().unwrap();
         assert!(guard.alive.load(Ordering::SeqCst));
-        std::mem::drop(
-            guard
-                .thread_finished
-                .wait(guard.finished_mutex.lock().unwrap())
-                .unwrap(),
-        );
+        std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
 
     pub unsafe fn is_this_thread(&self) -> bool {
@@ -203,21 +176,13 @@ impl<'vm_life> Threads<'vm_life> {
     fn init_signal_handler(&self) {
         unsafe {
             #[allow(clippy::transmuting_null)]
-                let sa = SigAction::new(
-                SigHandler::SigAction(handler),
-                transmute(0 as libc::c_int),
-                SigSet::empty(),
-            );
+                let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
             sigaction(Signal::SIGUSR1, &sa).unwrap();
         };
     }
 }
 
-extern "C" fn handler(
-    signal_number: libc::c_int,
-    siginfo: *mut libc::siginfo_t,
-    _data: *mut libc::c_void,
-) {
+extern "C" fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
     unsafe {
         assert_eq!(Signal::try_from(signal_number).unwrap(), Signal::SIGUSR1);
 
@@ -243,10 +208,7 @@ pub mod handlers {
     }
 
     pub unsafe fn handle_event(e: AnEvent) {
-        let AnEvent {
-            event_handler,
-            data,
-        } = e;
+        let AnEvent { event_handler, data } = e;
         event_handler(data);
     }
 }

@@ -1,6 +1,4 @@
-use rust_jvm_common::classfile::{
-    AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo,
-};
+use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -15,10 +13,7 @@ pub struct MethodView<'cl> {
 
 impl Clone for MethodView<'_> {
     fn clone(&self) -> Self {
-        Self {
-            class_view: self.class_view,
-            method_i: self.method_i,
-        }
+        Self { class_view: self.class_view, method_i: self.method_i }
     }
 }
 
@@ -30,10 +25,7 @@ impl HasAccessFlags for MethodView<'_> {
 
 impl MethodView<'_> {
     fn from(c: &ClassBackedView, i: u16) -> MethodView {
-        MethodView {
-            class_view: c,
-            method_i: i,
-        }
+        MethodView { class_view: c, method_i: i }
     }
 
     pub fn classview(&self) -> &ClassBackedView {
@@ -57,9 +49,7 @@ impl MethodView<'_> {
     }
 
     pub fn code_attribute(&self) -> Option<&CompressedCode> {
-        self.class_view.backing_class.methods[self.method_i as usize]
-            .code
-            .as_ref()
+        self.class_view.backing_class.methods[self.method_i as usize].code.as_ref()
     }
 
     pub fn real_code_attribute(&self) -> Option<&Code> {
@@ -81,10 +71,7 @@ impl MethodView<'_> {
                         .iter()
                         .map(|entry| {
                             let local_variable_entry = entry;
-                            LocalVariableView {
-                                method_view: self,
-                                local_variable_entry,
-                            }
+                            LocalVariableView { method_view: self, local_variable_entry }
                         })
                         .collect::<Vec<LocalVariableView>>()
                 }),
@@ -98,12 +85,7 @@ impl MethodView<'_> {
         // •  It has a single formal parameter of type Object[].
         // •  It has a return type of Object.
         // •  It has the ACC_VARARGS and ACC_NATIVE flags set.
-        self.class_view.name() == CClassName::method_handle().into()
-            && self.desc().arg_types.len() == 1
-            && self.desc().arg_types[0] == CPDType::array(CPDType::object())
-            && self.desc().return_type == CPDType::object()
-            && self.is_varargs()
-            && self.is_native()
+        self.class_view.name() == CClassName::method_handle().into() && self.desc().arg_types.len() == 1 && self.desc().arg_types[0] == CPDType::array(CPDType::object()) && self.desc().return_type == CPDType::object() && self.is_varargs() && self.is_native()
         //todo
     }
 
@@ -119,21 +101,16 @@ impl MethodView<'_> {
 
     pub fn line_number_table(&self) -> Option<&LineNumberTable> {
         self.method_info().code_attribute().and_then(|attr| {
-            attr.attributes
-                .iter()
-                .find_map(|attr| match &attr.attribute_type {
-                    AttributeType::LineNumberTable(lnt) => Some(lnt),
-                    _ => None,
-                })
+            attr.attributes.iter().find_map(|attr| match &attr.attribute_type {
+                AttributeType::LineNumberTable(lnt) => Some(lnt),
+                _ => None,
+            })
         })
     }
 }
 
 pub enum MethodIterator<'l> {
-    ClassBacked {
-        class_view: &'l ClassBackedView,
-        i: usize,
-    },
+    ClassBacked { class_view: &'l ClassBackedView, i: usize },
     Empty {},
 }
 
@@ -168,10 +145,7 @@ impl LocalVariableView<'_> {
     pub fn name(&self) -> String {
         let cv = self.method_view.class_view;
         let name_i = self.local_variable_entry.name_index;
-        cv.underlying_class.constant_pool[name_i as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        cv.underlying_class.constant_pool[name_i as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn variable_length(&self) -> usize {
@@ -181,10 +155,7 @@ impl LocalVariableView<'_> {
     pub fn desc_str(&self) -> String {
         let cv = self.method_view.class_view;
         let desc_i = self.local_variable_entry.descriptor_index;
-        cv.underlying_class.constant_pool[desc_i as usize]
-            .extract_string_from_utf8()
-            .into_string()
-            .expect("should have validated this earlier maybe todo")
+        cv.underlying_class.constant_pool[desc_i as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
 
     pub fn desc(&self) -> FieldDescriptor {

@@ -10,25 +10,11 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-unsafe fn get_obj_and_name<'gc_life>(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    target_obj: jobject,
-    offset: jlong,
-) -> Result<
-    (
-        Arc<RuntimeClass<'gc_life>>,
-        GcManagedObject<'gc_life>,
-        FieldName,
-    ),
-    WasException,
-> {
+unsafe fn get_obj_and_name<'gc_life>(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass<'gc_life>>, GcManagedObject<'gc_life>, FieldName), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
@@ -46,14 +32,7 @@ unsafe fn get_obj_and_name<'gc_life>(
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    target_obj: jobject,
-    offset: jlong,
-    old: jint,
-    new: jint,
-) -> jboolean {
+unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
     let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
@@ -70,14 +49,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    target_obj: jobject,
-    offset: jlong,
-    old: jlong,
-    new: jlong,
-) -> jboolean {
+unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jlong, new: jlong) -> jboolean {
     let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
@@ -94,14 +66,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    target_obj: jobject,
-    offset: jlong,
-    old: jobject,
-    new: jobject,
-) -> jboolean {
+unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jobject, new: jobject) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let notnull = match from_object(jvm, target_obj) {
@@ -120,11 +85,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
             should_replace
         }
         Object::Object(normal_obj) => {
-            let (rc, notnull, field_name) =
-                match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-                    Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
-                    Err(WasException {}) => return jboolean::MAX,
-                };
+            let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
+                Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
+                Err(WasException {}) => return jboolean::MAX,
+            };
             let mut curval = normal_obj.get_var(jvm, rc.clone(), field_name);
             let old = from_object(jvm, old);
             let (should_replace, new) = do_swap(curval, old, new);
@@ -134,11 +98,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(
     }
 }
 
-pub fn do_swap(
-    curval: JavaValue<'gc_life>,
-    old: Option<GcManagedObject<'gc_life>>,
-    new: JavaValue<'gc_life>,
-) -> (jboolean, JavaValue<'gc_life>) {
+pub fn do_swap(curval: JavaValue<'gc_life>, old: Option<GcManagedObject<'gc_life>>, new: JavaValue<'gc_life>) -> (jboolean, JavaValue<'gc_life>) {
     let should_replace = match curval.unwrap_object() {
         None => match old {
             None => true,

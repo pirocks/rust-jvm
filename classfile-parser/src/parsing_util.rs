@@ -21,10 +21,7 @@ pub(crate) struct ReadParsingContext<'l> {
 impl ParsingContext for ReadParsingContext<'_> {
     fn read8(&mut self) -> Result<u8, ClassfileParsingError> {
         let mut buffer = [0; 1];
-        let bytes_read = self
-            .read
-            .read(&mut buffer)
-            .map_err(|_| ClassfileParsingError::EOF)?;
+        let bytes_read = self.read.read(&mut buffer).map_err(|_| ClassfileParsingError::EOF)?;
         assert_eq!(bytes_read, 1);
         Ok(buffer[0])
     }
@@ -43,12 +40,7 @@ impl ParsingContext for ReadParsingContext<'_> {
         buffer[2] = self.read8()?;
         buffer[3] = self.read8()?;
 
-        Ok(u32::from_be(
-            (buffer[0] as u32)
-                + ((buffer[1] as u32) << 8)
-                + ((buffer[2] as u32) << 16)
-                + ((buffer[3] as u32) << 24),
-        ))
+        Ok(u32::from_be((buffer[0] as u32) + ((buffer[1] as u32) << 8) + ((buffer[2] as u32) << 16) + ((buffer[3] as u32) << 24)))
     }
 
     fn set_constant_pool(&mut self, constant_pool: Vec<ConstantInfo>) {

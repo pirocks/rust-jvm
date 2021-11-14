@@ -55,13 +55,7 @@ pub enum VMExitData {
     InstanceOf,
     Throw,
     InvokeDynamic,
-    InvokeStaticResolveTarget {
-        method_name: MethodName,
-        descriptor: CMethodDescriptor,
-        classname_ref_type: CPRefType,
-        native_start: *mut c_void,
-        native_end: *mut c_void,
-    },
+    InvokeStaticResolveTarget { method_name: MethodName, descriptor: CMethodDescriptor, classname_ref_type: CPRefType, native_start: *mut c_void, native_end: *mut c_void },
     InvokeVirtualResolveTarget {},
     InvokeSpecialResolveTarget {},
     InvokeInterfaceResolveTarget {},
@@ -70,9 +64,7 @@ pub enum VMExitData {
     MultiNewArray,
     ArrayOutOfBounds,
     DebugTestExit,
-    DebugTestExitValue {
-        value: FramePointerOffset,
-    },
+    DebugTestExitValue { value: FramePointerOffset },
     ExitDueToCompletion,
 }
 

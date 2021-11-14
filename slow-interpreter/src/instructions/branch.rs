@@ -5,19 +5,11 @@ use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::stack_entry::StackEntryMut;
 
-pub fn goto_(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    target: i32,
-) {
+pub fn goto_(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, target: i32) {
     *current_frame.pc_offset_mut() = target;
 }
 
-pub fn ifnull(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifnull(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(CClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_none(),
@@ -28,11 +20,7 @@ pub fn ifnull(
     }
 }
 
-pub fn ifnonnull(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifnonnull(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(CClassName::object().into()));
     let succeeds = match val {
         JavaValue::Object(o) => o.is_some(),
@@ -43,11 +31,7 @@ pub fn ifnonnull(
     }
 }
 
-pub fn ifle(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifle(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() <= 0;
     if succeeds {
@@ -55,11 +39,7 @@ pub fn ifle(
     }
 }
 
-pub fn ifgt(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifgt(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() > 0;
     if succeeds {
@@ -67,11 +47,7 @@ pub fn ifgt(
     }
 }
 
-pub fn ifge(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifge(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() >= 0;
     if succeeds {
@@ -79,11 +55,7 @@ pub fn ifge(
     }
 }
 
-pub fn iflt(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn iflt(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
@@ -91,11 +63,7 @@ pub fn iflt(
     }
 }
 
-pub fn ifne(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifne(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() != 0;
     if succeeds {
@@ -103,11 +71,7 @@ pub fn ifne(
     }
 }
 
-pub fn ifeq(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn ifeq(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     //todo dup
     let val = current_frame.pop(Some(RuntimeType::IntType));
     let succeeds = val.unwrap_int() == 0;
@@ -116,11 +80,7 @@ pub fn ifeq(
     }
 }
 
-pub fn if_icmpgt(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmpgt(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 > value2;
@@ -129,11 +89,7 @@ pub fn if_icmpgt(
     }
 }
 
-pub fn if_icmplt(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmplt(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 < value2;
@@ -142,11 +98,7 @@ pub fn if_icmplt(
     }
 }
 
-pub fn if_icmple(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmple(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 <= value2;
@@ -155,11 +107,7 @@ pub fn if_icmple(
     }
 }
 
-pub fn if_icmpge(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmpge(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 >= value2;
@@ -168,11 +116,7 @@ pub fn if_icmpge(
     }
 }
 
-pub fn if_icmpne(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmpne(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 != value2;
@@ -181,11 +125,7 @@ pub fn if_icmpne(
     }
 }
 
-pub fn if_icmpeq(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_icmpeq(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let succeeds = value1 == value2;
@@ -194,11 +134,7 @@ pub fn if_icmpeq(
     }
 }
 
-pub fn if_acmpne(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_acmpne(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::object()));
     let value1 = current_frame.pop(Some(RuntimeType::object()));
     let succeeds = !equal_ref(value2, value1);
@@ -207,11 +143,7 @@ pub fn if_acmpne(
     }
 }
 
-pub fn if_acmpeq(
-    _jvm: &'gc_life JVMState<'gc_life>,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-    offset: i16,
-) {
+pub fn if_acmpeq(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, offset: i16) {
     let value2 = current_frame.pop(Some(RuntimeType::object()));
     let value1 = current_frame.pop(Some(RuntimeType::object()));
     let succeeds = equal_ref(value2, value1);

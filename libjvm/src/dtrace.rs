@@ -6,10 +6,7 @@ unsafe extern "system" fn JVM_DTraceGetVersion(env: *mut JNIEnv) -> jint {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceIsProbeEnabled(
-    env: *mut JNIEnv,
-    method: jmethodID,
-) -> jboolean {
+unsafe extern "system" fn JVM_DTraceIsProbeEnabled(env: *mut JNIEnv, method: jmethodID) -> jboolean {
     u8::from(false)
 }
 

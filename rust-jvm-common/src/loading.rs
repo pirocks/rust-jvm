@@ -144,10 +144,7 @@ impl PartialEq for ClassWithLoader {
 
 impl Clone for ClassWithLoader {
     fn clone(&self) -> Self {
-        ClassWithLoader {
-            class_name: self.class_name.clone(),
-            loader: self.loader.clone(),
-        }
+        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
     }
 }
 

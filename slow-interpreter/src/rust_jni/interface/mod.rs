@@ -14,10 +14,7 @@ use wtf8::Wtf8Buf;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
-use jvmti_jni_bindings::{
-    jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_,
-    jobject, jsize, jstring, jvalue,
-};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -46,17 +43,8 @@ use crate::rust_jni::interface::array::array_region::*;
 use crate::rust_jni::interface::array::new::*;
 use crate::rust_jni::interface::call::call_nonstatic::*;
 use crate::rust_jni::interface::call::call_nonvirtual::{
-    call_nonvirtual_boolean_method, call_nonvirtual_boolean_method_a,
-    call_nonvirtual_boolean_method_v, call_nonvirtual_byte_method, call_nonvirtual_byte_method_a,
-    call_nonvirtual_byte_method_v, call_nonvirtual_char_method, call_nonvirtual_char_method_a,
-    call_nonvirtual_char_method_v, call_nonvirtual_double_method, call_nonvirtual_double_method_a,
-    call_nonvirtual_double_method_v, call_nonvirtual_float_method, call_nonvirtual_float_method_a,
-    call_nonvirtual_float_method_v, call_nonvirtual_int_method, call_nonvirtual_int_method_a,
-    call_nonvirtual_int_method_v, call_nonvirtual_long_method, call_nonvirtual_long_method_a,
-    call_nonvirtual_long_method_v, call_nonvirtual_object_method, call_nonvirtual_object_method_a,
-    call_nonvirtual_object_method_v, call_nonvirtual_short_method, call_nonvirtual_short_method_a,
-    call_nonvirtual_short_method_v, call_nonvirtual_void_method, call_nonvirtual_void_method_a,
-    call_nonvirtual_void_method_v,
+    call_nonvirtual_boolean_method, call_nonvirtual_boolean_method_a, call_nonvirtual_boolean_method_v, call_nonvirtual_byte_method, call_nonvirtual_byte_method_a, call_nonvirtual_byte_method_v, call_nonvirtual_char_method, call_nonvirtual_char_method_a, call_nonvirtual_char_method_v, call_nonvirtual_double_method, call_nonvirtual_double_method_a, call_nonvirtual_double_method_v, call_nonvirtual_float_method, call_nonvirtual_float_method_a, call_nonvirtual_float_method_v, call_nonvirtual_int_method,
+    call_nonvirtual_int_method_a, call_nonvirtual_int_method_v, call_nonvirtual_long_method, call_nonvirtual_long_method_a, call_nonvirtual_long_method_v, call_nonvirtual_object_method, call_nonvirtual_object_method_a, call_nonvirtual_object_method_v, call_nonvirtual_short_method, call_nonvirtual_short_method_a, call_nonvirtual_short_method_v, call_nonvirtual_void_method, call_nonvirtual_void_method_a, call_nonvirtual_void_method_v,
 };
 use crate::rust_jni::interface::call::call_static::*;
 use crate::rust_jni::interface::call::VarargProvider;
@@ -64,17 +52,13 @@ use crate::rust_jni::interface::exception::*;
 use crate::rust_jni::interface::get_field::*;
 use crate::rust_jni::interface::global_ref::*;
 use crate::rust_jni::interface::instance_of::is_instance_of;
-use crate::rust_jni::interface::local_frame::{
-    delete_local_ref, new_local_ref, pop_local_frame, push_local_frame,
-};
+use crate::rust_jni::interface::local_frame::{delete_local_ref, new_local_ref, pop_local_frame, push_local_frame};
 use crate::rust_jni::interface::method::get_method_id;
 use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{
-    from_jclass, from_object, get_interpreter_state, get_object_class, get_state, to_object,
-};
+use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_object_class, get_state, to_object};
 use crate::utils::throw_npe;
 
 //todo this should be in state impl
@@ -83,26 +67,21 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(
-    state: &JVMState,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-) -> *mut *const JNINativeInterface_ {
+pub fn get_interface(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         if refcell.borrow().is_null() {
             let new = get_interface_impl(state, int_state);
             let jni_data_structure_ptr = Box::leak(box new) as *const JNINativeInterface_;
-            refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);//todo leak
+            refcell.replace(Box::leak(box (jni_data_structure_ptr)) as *mut *const JNINativeInterface_);
+            //todo leak
         }
         let new_borrow = refcell.borrow();
         *new_borrow as *mut *const JNINativeInterface_
     })
 }
 
-fn get_interface_impl(
-    state: &JVMState,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-) -> JNINativeInterface_ {
+fn get_interface_impl(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: unsafe { transmute(int_state) },
@@ -169,54 +148,34 @@ fn get_interface_impl(
         CallVoidMethodV: Some(unsafe { transmute(call_void_method_v as *mut c_void) }),
         CallVoidMethodA: Some(call_void_method_a),
         CallNonvirtualObjectMethod: Some(call_nonvirtual_object_method),
-        CallNonvirtualObjectMethodV: Some(unsafe {
-            transmute(call_nonvirtual_object_method_v as *mut c_void)
-        }),
+        CallNonvirtualObjectMethodV: Some(unsafe { transmute(call_nonvirtual_object_method_v as *mut c_void) }),
         CallNonvirtualObjectMethodA: Some(call_nonvirtual_object_method_a),
         CallNonvirtualBooleanMethod: Some(call_nonvirtual_boolean_method),
-        CallNonvirtualBooleanMethodV: Some(unsafe {
-            transmute(call_nonvirtual_boolean_method_v as *mut c_void)
-        }),
+        CallNonvirtualBooleanMethodV: Some(unsafe { transmute(call_nonvirtual_boolean_method_v as *mut c_void) }),
         CallNonvirtualBooleanMethodA: Some(call_nonvirtual_boolean_method_a),
         CallNonvirtualByteMethod: Some(call_nonvirtual_byte_method),
-        CallNonvirtualByteMethodV: Some(unsafe {
-            transmute(call_nonvirtual_byte_method_v as *mut c_void)
-        }),
+        CallNonvirtualByteMethodV: Some(unsafe { transmute(call_nonvirtual_byte_method_v as *mut c_void) }),
         CallNonvirtualByteMethodA: Some(call_nonvirtual_byte_method_a),
         CallNonvirtualCharMethod: Some(call_nonvirtual_char_method),
-        CallNonvirtualCharMethodV: Some(unsafe {
-            transmute(call_nonvirtual_char_method_v as *mut c_void)
-        }),
+        CallNonvirtualCharMethodV: Some(unsafe { transmute(call_nonvirtual_char_method_v as *mut c_void) }),
         CallNonvirtualCharMethodA: Some(call_nonvirtual_char_method_a),
         CallNonvirtualShortMethod: Some(call_nonvirtual_short_method),
-        CallNonvirtualShortMethodV: Some(unsafe {
-            transmute(call_nonvirtual_short_method_v as *mut c_void)
-        }),
+        CallNonvirtualShortMethodV: Some(unsafe { transmute(call_nonvirtual_short_method_v as *mut c_void) }),
         CallNonvirtualShortMethodA: Some(call_nonvirtual_short_method_a),
         CallNonvirtualIntMethod: Some(call_nonvirtual_int_method),
-        CallNonvirtualIntMethodV: Some(unsafe {
-            transmute(call_nonvirtual_int_method_v as *mut c_void)
-        }),
+        CallNonvirtualIntMethodV: Some(unsafe { transmute(call_nonvirtual_int_method_v as *mut c_void) }),
         CallNonvirtualIntMethodA: Some(call_nonvirtual_int_method_a),
         CallNonvirtualLongMethod: Some(call_nonvirtual_long_method),
-        CallNonvirtualLongMethodV: Some(unsafe {
-            transmute(call_nonvirtual_long_method_v as *mut c_void)
-        }),
+        CallNonvirtualLongMethodV: Some(unsafe { transmute(call_nonvirtual_long_method_v as *mut c_void) }),
         CallNonvirtualLongMethodA: Some(call_nonvirtual_long_method_a),
         CallNonvirtualFloatMethod: Some(call_nonvirtual_float_method),
-        CallNonvirtualFloatMethodV: Some(unsafe {
-            transmute(call_nonvirtual_float_method_v as *mut c_void)
-        }),
+        CallNonvirtualFloatMethodV: Some(unsafe { transmute(call_nonvirtual_float_method_v as *mut c_void) }),
         CallNonvirtualFloatMethodA: Some(call_nonvirtual_float_method_a),
         CallNonvirtualDoubleMethod: Some(call_nonvirtual_double_method),
-        CallNonvirtualDoubleMethodV: Some(unsafe {
-            transmute(call_nonvirtual_double_method_v as *mut c_void)
-        }),
+        CallNonvirtualDoubleMethodV: Some(unsafe { transmute(call_nonvirtual_double_method_v as *mut c_void) }),
         CallNonvirtualDoubleMethodA: Some(call_nonvirtual_double_method_a),
         CallNonvirtualVoidMethod: Some(call_nonvirtual_void_method),
-        CallNonvirtualVoidMethodV: Some(unsafe {
-            transmute(call_nonvirtual_void_method_v as *mut c_void)
-        }),
+        CallNonvirtualVoidMethodV: Some(unsafe { transmute(call_nonvirtual_void_method_v as *mut c_void) }),
         CallNonvirtualVoidMethodA: Some(call_nonvirtual_void_method_a),
         GetFieldID: Some(get_field_id),
         GetObjectField: Some(get_object_field),
@@ -239,14 +198,10 @@ fn get_interface_impl(
         SetDoubleField: Some(set_double_field),
         GetStaticMethodID: Some(get_static_method_id),
         CallStaticObjectMethod: Some(call_static_object_method),
-        CallStaticObjectMethodV: Some(unsafe {
-            transmute(call_static_object_method_v as *mut c_void)
-        }),
+        CallStaticObjectMethodV: Some(unsafe { transmute(call_static_object_method_v as *mut c_void) }),
         CallStaticObjectMethodA: Some(call_static_object_method_a),
         CallStaticBooleanMethod: Some(call_static_boolean_method),
-        CallStaticBooleanMethodV: Some(unsafe {
-            transmute(call_static_boolean_method_v as *mut c_void)
-        }),
+        CallStaticBooleanMethodV: Some(unsafe { transmute(call_static_boolean_method_v as *mut c_void) }),
         CallStaticBooleanMethodA: Some(call_static_boolean_method_a),
         CallStaticByteMethod: Some(call_static_byte_method),
         CallStaticByteMethodV: Some(unsafe { transmute(call_static_byte_method_v as *mut c_void) }),
@@ -255,9 +210,7 @@ fn get_interface_impl(
         CallStaticCharMethodV: Some(unsafe { transmute(call_static_char_method_v as *mut c_void) }),
         CallStaticCharMethodA: Some(call_static_char_method_a),
         CallStaticShortMethod: Some(call_static_short_method),
-        CallStaticShortMethodV: Some(unsafe {
-            transmute(call_static_short_method_v as *mut c_void)
-        }),
+        CallStaticShortMethodV: Some(unsafe { transmute(call_static_short_method_v as *mut c_void) }),
         CallStaticShortMethodA: Some(call_static_short_method_a),
         CallStaticIntMethod: Some(call_static_int_method),
         CallStaticIntMethodV: Some(unsafe { transmute(call_static_int_method_v as *mut c_void) }),
@@ -266,14 +219,10 @@ fn get_interface_impl(
         CallStaticLongMethodV: Some(unsafe { transmute(call_static_long_method_v as *mut c_void) }),
         CallStaticLongMethodA: Some(call_static_long_method_a),
         CallStaticFloatMethod: Some(call_static_float_method),
-        CallStaticFloatMethodV: Some(unsafe {
-            transmute(call_static_float_method_v as *mut c_void)
-        }),
+        CallStaticFloatMethodV: Some(unsafe { transmute(call_static_float_method_v as *mut c_void) }),
         CallStaticFloatMethodA: Some(call_static_float_method_a),
         CallStaticDoubleMethod: Some(call_static_double_method),
-        CallStaticDoubleMethodV: Some(unsafe {
-            transmute(call_static_double_method_v as *mut c_void)
-        }),
+        CallStaticDoubleMethodV: Some(unsafe { transmute(call_static_double_method_v as *mut c_void) }),
         CallStaticDoubleMethodA: Some(call_static_double_method_a),
         CallStaticVoidMethod: Some(call_static_void_method),
         CallStaticVoidMethodV: Some(unsafe { transmute(call_static_void_method_v as *mut c_void) }),
@@ -452,11 +401,7 @@ pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
 // RETURNS:
 //
 // Returns a pointer to a Unicode string, or NULL if the operation fails.
-pub unsafe extern "C" fn get_string_chars(
-    env: *mut JNIEnv,
-    str: jstring,
-    is_copy: *mut jboolean,
-) -> *const jchar {
+pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const jchar {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
@@ -466,9 +411,7 @@ pub unsafe extern "C" fn get_string_chars(
     };
     let char_vec = string.value(jvm);
     let mut res = null_mut();
-    jvm.native
-        .native_interface_allocations
-        .allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(char_vec, null_mut(), &mut res as *mut *mut jchar);
     res
 }
 
@@ -498,12 +441,7 @@ pub unsafe extern "C" fn get_string_chars(
 unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let res_object = new_object(
-        jvm,
-        int_state,
-        &from_jclass(jvm, clazz).as_runtime_class(jvm),
-    )
-        .unwrap_object();
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).unwrap_object();
     to_object(res_object)
 }
 
@@ -521,12 +459,7 @@ unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
 // SINCE:
 //
 // JDK/JRE 1.2
-unsafe extern "C" fn to_reflected_method(
-    env: *mut JNIEnv,
-    _cls: jclass,
-    method_id: jmethodID,
-    _is_static: jboolean,
-) -> jobject {
+unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_id: jmethodID, _is_static: jboolean) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_id: usize = transmute(method_id);
@@ -570,10 +503,7 @@ unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
     let int_state = get_interpreter_state(env);
     if let Some(throwing) = int_state.throw() {
         int_state.set_throw(None);
-        match JavaValue::Object(todo!() /*throwing.into()*/)
-            .cast_throwable()
-            .print_stack_trace(jvm, int_state)
-        {
+        match JavaValue::Object(todo!() /*throwing.into()*/).cast_throwable().print_stack_trace(jvm, int_state) {
             Ok(_) => {}
             Err(WasException {}) => {}
         };
@@ -605,10 +535,7 @@ unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
 //
 // JDK/JRE 1.2
 unsafe extern "C" fn fatal_error(_env: *mut JNIEnv, msg: *const ::std::os::raw::c_char) {
-    panic!(
-        "JNI raised a fatal error.\n JNI MSG: {}",
-        CStr::from_ptr(msg).to_string_lossy()
-    )
+    panic!("JNI raised a fatal error.\n JNI MSG: {}", CStr::from_ptr(msg).to_string_lossy())
 }
 
 ///ThrowNew
@@ -633,11 +560,7 @@ unsafe extern "C" fn fatal_error(_env: *mut JNIEnv, msg: *const ::std::os::raw::
 // THROWS:
 //
 // the newly constructed java.lang.Throwable object.
-unsafe extern "C" fn throw_new(
-    env: *mut JNIEnv,
-    clazz: jclass,
-    msg: *const ::std::os::raw::c_char,
-) -> jint {
+unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::std::os::raw::c_char) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (constructor_method_id, java_string_object) = {
@@ -647,40 +570,24 @@ unsafe extern "C" fn throw_new(
             arg_types: vec![CPDType::Ref(CPRefType::Class(CClassName::string()))],
             return_type: CPDType::VoidType,
         };
-        let constructor_method_id =
-            match class_view.lookup_method(MethodName::constructor_init(), &desc) {
-                None => return -1,
-                Some(constructor) => jvm
-                    .method_table
-                    .write()
-                    .unwrap()
-                    .get_method_id(runtime_class.clone(), constructor.method_i() as u16),
-            };
+        let constructor_method_id = match class_view.lookup_method(MethodName::constructor_init(), &desc) {
+            None => return -1,
+            Some(constructor) => jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), constructor.method_i() as u16),
+        };
         let rust_string = match CStr::from_ptr(msg).to_str() {
             Ok(string) => string,
             Err(_) => return -2,
         }
             .to_string();
-        let java_string =
-            match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
-                Ok(java_string) => java_string,
-                Err(WasException {}) => return -4,
-            };
-        (
-            constructor_method_id,
-            to_object(java_string.object().into()),
-        )
+        let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
+            Ok(java_string) => java_string,
+            Err(WasException {}) => return -4,
+        };
+        (constructor_method_id, to_object(java_string.object().into()))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
-    let jvalue_ = jvalue {
-        l: java_string_object,
-    };
-    let obj = new_object(
-        env,
-        clazz,
-        transmute(constructor_method_id),
-        &jvalue_ as *const jvalue,
-    );
+    let jvalue_ = jvalue { l: java_string_object };
+    let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
     int_state.set_throw(
         match from_object(jvm, obj) {
@@ -692,12 +599,7 @@ unsafe extern "C" fn throw_new(
     JNI_OK as i32
 }
 
-unsafe extern "C" fn to_reflected_field(
-    env: *mut JNIEnv,
-    _cls: jclass,
-    field_id: jfieldID,
-    _is_static: jboolean,
-) -> jobject {
+unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id: jfieldID, _is_static: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
 
@@ -713,59 +615,32 @@ unsafe extern "C" fn to_reflected_field(
 }
 
 //shouldn't take class as arg and should be an impl method on Field
-pub fn field_object_from_view(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    class_obj: Arc<RuntimeClass<'gc_life>>,
-    f: FieldView,
-) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().cpdtype();
     let parent_runtime_class = load_class_constant_by_type(jvm, int_state, &field_class_name_)?;
 
     let field_name = f.field_name();
 
     let field_desc_str = f.field_desc();
-    let field_type = parse_field_descriptor(field_desc_str.as_str())
-        .unwrap()
-        .field_type;
+    let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
 
     let modifiers = f.access_flags() as i32;
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let field_name_str = field_name.0.to_str(&jvm.string_pool);
-    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?
-        .intern(jvm, int_state)?;
-    let type_ = JClass::from_type(
-        jvm,
-        int_state,
-        CPDType::from_ptype(&field_type, &jvm.string_pool),
-    )?;
+    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
+    let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
     let signature = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_desc_str))?;
     let annotations_ = vec![]; //todo impl annotations.
 
-    Ok(Field::init(
-        jvm,
-        int_state,
-        clazz,
-        name,
-        type_,
-        modifiers,
-        slot,
-        signature,
-        annotations_,
-    )?
-        .java_value())
+    Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.java_value())
 }
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
     let jvm = get_state(env);
     let method_obj = JavaValue::Object(todo!() /*from_jclass(jvm,method)*/).cast_method();
     let runtime_class = method_obj.get_clazz(jvm).as_runtime_class(jvm);
-    let param_types = method_obj
-        .parameter_types(jvm)
-        .iter()
-        .map(|param| param.as_runtime_class(jvm).cpdtype())
-        .collect_vec();
+    let param_types = method_obj.parameter_types(jvm).iter().map(|param| param.as_runtime_class(jvm).cpdtype()).collect_vec();
     let name_str = method_obj.get_name(jvm).to_rust_string(jvm);
     let name = MethodName(jvm.string_pool.add_name(name_str, false));
     runtime_class
@@ -773,17 +648,8 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
         .view()
         .lookup_method_name(name)
         .iter()
-        .find(|candiate_method| {
-            candiate_method.desc().arg_types
-                == param_types.iter().map(|from| from.clone()).collect_vec()
-        })
-        .map(|method| {
-            jvm.method_table
-                .write()
-                .unwrap()
-                .get_method_id(runtime_class.clone(), method.method_i() as u16)
-                as jmethodID
-        })
+        .find(|candiate_method| candiate_method.desc().arg_types == param_types.iter().map(|from| from.clone()).collect_vec())
+        .map(|method| jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16) as jmethodID)
         .unwrap_or(transmute(-1isize))
 }
 
@@ -791,47 +657,19 @@ unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> 
     let jvm = get_state(env);
     let field_obj = JavaValue::Object(from_object(jvm, method)).cast_field();
     let runtime_class = field_obj.clazz(jvm).as_runtime_class(jvm);
-    let field_name = FieldName(
-        jvm.string_pool
-            .add_name(field_obj.name(jvm).to_rust_string(jvm), false),
-    );
-    runtime_class
-        .view()
-        .fields()
-        .find(|candidate_field| candidate_field.field_name() == field_name)
-        .map(|field| field.field_i())
-        .map(|field_i| {
-            jvm.field_table
-                .write()
-                .unwrap()
-                .get_field_id(runtime_class, field_i as u16) as jfieldID
-        })
-        .unwrap_or(transmute(-1isize))
+    let field_name = FieldName(jvm.string_pool.add_name(field_obj.name(jvm).to_rust_string(jvm), false));
+    runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name).map(|field| field.field_i()).map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID).unwrap_or(transmute(-1isize))
 }
 
 unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    parsed: Arc<Classfile>,
-    current_loader: LoaderName,
-    class_view: ClassBackedView,
-) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
-    let super_class = class_view
-        .super_name()
-        .map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
-    let interfaces = class_view
-        .interfaces()
-        .map(|interface| {
-            check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())
-                .unwrap()
-        })
-        .collect_vec();
+    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
+    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
     let runtime_class = Arc::new(RuntimeClass::Object(RuntimeClassClass {
         class_view: class_view.clone(),
@@ -843,13 +681,7 @@ pub fn define_class_safe(
         status: RwLock::new(ClassStatus::UNPREPARED),
     }));
     let mut class_view_cache = HashMap::new();
-    class_view_cache.insert(
-        ClassWithLoader {
-            class_name,
-            loader: current_loader,
-        },
-        class_view.clone() as Arc<dyn ClassView>,
-    );
+    class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);
     let mut vf = VerifierContext {
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader()),
@@ -859,17 +691,11 @@ pub fn define_class_safe(
         verification_types: Default::default(),
         debug: false,
     };
-    match verify(
-        &mut vf,
-        class_name,
-        LoaderName::BootstrapLoader, /*todo*/
-    ) {
+    match verify(&mut vf, class_name, LoaderName::BootstrapLoader /*todo*/) {
         Ok(_) => {}
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException)) => {
             let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("todo"))?;
-            let to_throw = ClassNotFoundException::new(jvm, int_state, class)?
-                .object()
-                .into();
+            let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().into();
             int_state.set_throw(to_throw);
             return Err(WasException {});
         }
@@ -881,69 +707,32 @@ pub fn define_class_safe(
     let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
-    classes.initiating_loaders.insert(
-        class_name.clone().into(),
-        (current_loader, runtime_class.clone()),
-    );
-    classes
-        .loaded_classes_by_type
-        .entry(current_loader)
-        .or_insert(HashMap::new())
-        .entry(class_name.clone().into())
-        .insert(runtime_class.clone());
-    classes.class_object_pool.insert(
-        ByAddressGcManagedObject(class_object),
-        ByAddress(runtime_class.clone()),
-    );
+    classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
+    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
+    classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
     jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
-    prepare_class(
-        jvm,
-        int_state,
-        Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)),
-        &mut *runtime_class.static_vars(),
-    );
+    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(
-        get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader)
-            .unwrap()
-            .into(),
-    ))
+    Ok(JavaValue::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().into()))
 }
 
-pub unsafe extern "C" fn define_class(
-    env: *mut JNIEnv,
-    name: *const ::std::os::raw::c_char,
-    loader: jobject,
-    buf: *const jbyte,
-    len: jsize,
-) -> jclass {
+pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap(); //todo unused?
-    let loader_name = JavaValue::Object(from_object(jvm, loader))
-        .cast_class_loader()
-        .to_jvm_loader(jvm);
+    let loader_name = JavaValue::Object(from_object(jvm, loader)).cast_class_loader().to_jvm_loader(jvm);
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
     if jvm.config.store_generated_classes {
-        File::create("unsafe_define_class")
-            .unwrap()
-            .write_all(slice)
-            .unwrap();
+        File::create("unsafe_define_class").unwrap().write_all(slice).unwrap();
     }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object(
-        match define_class_safe(
-            jvm,
-            int_state,
-            parsed.clone(),
-            loader_name,
-            ClassBackedView::from(parsed, &jvm.string_pool),
-        ) {
+        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(class_) => class_,
             Err(_) => todo!(),
         }
@@ -951,12 +740,7 @@ pub unsafe extern "C" fn define_class(
     )
 }
 
-pub(crate) unsafe fn push_type_to_operand_stack(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    type_: &CPDType,
-    l: &mut VarargProvider,
-) {
+pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, type_: &CPDType, l: &mut VarargProvider) {
     match type_ {
         CPDType::ByteType => {
             let byte_ = l.arg_byte();

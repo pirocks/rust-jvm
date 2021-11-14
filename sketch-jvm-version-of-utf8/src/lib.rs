@@ -44,19 +44,11 @@ impl JVMString {
     }
 
     pub fn to_wtf8(&self) -> Wtf8Buf {
-        PossiblyJVMString {
-            buf: self.buf.clone(),
-        }
-            .to_regular_utf8(true)
-            .unwrap()
-            .unwrap_wtf8()
+        PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(true).unwrap().unwrap_wtf8()
     }
 
     pub fn to_string(&self) -> Result<String, ValidationError> {
-        let buf = PossiblyJVMString {
-            buf: self.buf.clone(),
-        }
-            .to_regular_utf8(false)?;
+        let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(false)?;
         Ok(buf.unwrap_utf8())
     }
 }
@@ -90,11 +82,7 @@ impl PossiblyJVMString {
     }
 
     fn to_regular_utf8(&self, is_wtf8: bool) -> Result<Utf8OrWtf8, ValidationError> {
-        let mut res = if is_wtf8 {
-            Utf8OrWtf8::new_wtf()
-        } else {
-            Utf8OrWtf8::new_utf()
-        };
+        let mut res = if is_wtf8 { Utf8OrWtf8::new_wtf() } else { Utf8OrWtf8::new_utf() };
         let mut buf_iter = self.buf.iter().peekable();
         loop {
             let x = match buf_iter.next() {
@@ -105,10 +93,7 @@ impl PossiblyJVMString {
                 let codepoint = x as u32;
                 res.push_codepoint(codepoint)?;
             } else if (x >> 5) == 0b110 {
-                let y = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -117,17 +102,11 @@ impl PossiblyJVMString {
                 let codepoint = ((x_u16 & 0x1f) << 6) + (y_u16 & 0x3f);
                 res.push_codepoint(codepoint as u32)?;
             } else if x != 0b11101101 {
-                let y = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -138,17 +117,11 @@ impl PossiblyJVMString {
                 res.push_codepoint(codepoint as u32)?;
             } else {
                 let u = x;
-                let v = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let v = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (v >> 4) != 0b1010 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let w = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let w = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (w >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -166,17 +139,11 @@ impl PossiblyJVMString {
                     }
                 }
                 buf_iter.next().unwrap();
-                let y = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (y >> 4) != 0b1010 {
                     return Err(ValidationError::UnexpectedBits);
                 }
-                let z = buf_iter
-                    .next()
-                    .cloned()
-                    .ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
                 if (z >> 6) != 0b10 {
                     return Err(ValidationError::UnexpectedBits);
                 }
@@ -184,11 +151,7 @@ impl PossiblyJVMString {
                 let z_u32 = z as u32;
                 let v_u32 = v as u32;
                 let w_u32 = w as u32;
-                let codepoint = 0x10000
-                    + ((v_u32 & 0x0f) << 16)
-                    + ((w_u32 & 0x3f) << 10)
-                    + ((y_u32 & 0x0f) << 6)
-                    + (z_u32 & 0x3f);
+                let codepoint = 0x10000 + ((v_u32 & 0x0f) << 16) + ((w_u32 & 0x3f) << 10) + ((y_u32 & 0x0f) << 6) + (z_u32 & 0x3f);
                 res.push_codepoint(codepoint as u32)?;
             }
         }
@@ -210,14 +173,8 @@ impl Utf8OrWtf8 {
     }
     pub fn push_codepoint(&mut self, to_push: u32) -> Result<(), ValidationError> {
         match self {
-            Utf8OrWtf8::Wtf(wtf) => wtf.push(
-                CodePoint::from_u32(to_push as u32)
-                    .ok_or_else(|| panic!("panic for now for debugging todo"))
-                    .unwrap(),
-            ),
-            Utf8OrWtf8::Utf(utf) => {
-                utf.push(char::from_u32(to_push as u32).ok_or(ValidationError::InvalidCodePoint)?)
-            }
+            Utf8OrWtf8::Wtf(wtf) => wtf.push(CodePoint::from_u32(to_push as u32).ok_or_else(|| panic!("panic for now for debugging todo")).unwrap()),
+            Utf8OrWtf8::Utf(utf) => utf.push(char::from_u32(to_push as u32).ok_or(ValidationError::InvalidCodePoint)?),
         }
         Ok(())
     }

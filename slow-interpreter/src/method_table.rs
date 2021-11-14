@@ -21,11 +21,7 @@ pub struct MethodTable<'gc_life> {
 }
 
 impl<'gc_life> MethodTable<'gc_life> {
-    pub fn get_method_id(
-        &mut self,
-        rc: Arc<RuntimeClass<'gc_life>>,
-        index: u16,
-    ) -> MethodTableIndex {
+    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass<'gc_life>>, index: u16) -> MethodTableIndex {
         assert_ne!(index, u16::max_value());
         match match self.index.get(&ByAddress(rc.clone())) {
             Some(x) => x,
@@ -40,11 +36,7 @@ impl<'gc_life> MethodTable<'gc_life> {
         }
     }
 
-    pub fn register_with_table(
-        &mut self,
-        rc: Arc<RuntimeClass<'gc_life>>,
-        method_index: u16,
-    ) -> MethodTableIndex {
+    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, method_index: u16) -> MethodTableIndex {
         assert_ne!(method_index, u16::max_value());
         let res = self.table.len();
         self.table.push((rc.clone(), method_index));
@@ -73,9 +65,6 @@ impl<'gc_life> MethodTable<'gc_life> {
     }
 
     pub fn new() -> Self {
-        Self {
-            table: vec![],
-            index: HashMap::new(),
-        }
+        Self { table: vec![], index: HashMap::new() }
     }
 }

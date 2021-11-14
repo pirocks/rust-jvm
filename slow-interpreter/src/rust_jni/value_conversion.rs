@@ -4,9 +4,7 @@ use std::sync::Arc;
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::{
-    jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort,
-};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::JavaValue;
@@ -43,43 +41,19 @@ pub fn to_native_type(t: &CPDType) -> Type {
 
 pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &CPDType) -> Arg {
     match t {
-        CPDType::ByteType => Arg::new(
-            Box::into_raw(Box::new(j.unwrap_int() as i8))
-                .as_ref()
-                .unwrap() as &jbyte,
-        ),
-        CPDType::CharType => Arg::new(
-            Box::into_raw(Box::new(j.unwrap_int() as u16))
-                .as_ref()
-                .unwrap() as &jchar,
-        ),
-        CPDType::DoubleType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble)
-        }
-        CPDType::FloatType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat)
-        }
-        CPDType::IntType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint)
-        }
-        CPDType::LongType => {
-            Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong)
-        }
+        CPDType::ByteType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte),
+        CPDType::CharType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar),
+        CPDType::DoubleType => Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble),
+        CPDType::FloatType => Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat),
+        CPDType::IntType => Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint),
+        CPDType::LongType => Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong),
         CPDType::Ref(_) => {
             let object_ptr = new_local_ref(env, to_object(j.unwrap_object()));
             drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
-        CPDType::ShortType => Arg::new(
-            Box::into_raw(Box::new(j.unwrap_int() as i16))
-                .as_ref()
-                .unwrap() as &jshort,
-        ),
-        CPDType::BooleanType => Arg::new(
-            Box::into_raw(Box::new(j.unwrap_int() as u8))
-                .as_ref()
-                .unwrap() as &jboolean,
-        ),
+        CPDType::ShortType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort),
+        CPDType::BooleanType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u8)).as_ref().unwrap() as &jboolean),
         _ => panic!(),
     }
 }

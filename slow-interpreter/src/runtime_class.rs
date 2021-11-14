@@ -42,9 +42,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Double => CPDType::DoubleType,
             RuntimeClass::Void => CPDType::VoidType,
             RuntimeClass::Array(arr) => CPDType::Ref(CPRefType::Array(box arr.sub_class.cpdtype())),
-            RuntimeClass::Object(o) => {
-                CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name()))
-            }
+            RuntimeClass::Object(o) => CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name())),
             RuntimeClass::Top => panic!(),
         }
     }
@@ -59,9 +57,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Float => Arc::new(PrimitiveView::Float),
             RuntimeClass::Double => Arc::new(PrimitiveView::Double),
             RuntimeClass::Void => Arc::new(PrimitiveView::Void),
-            RuntimeClass::Array(arr) => Arc::new(ArrayView {
-                sub: arr.sub_class.view(),
-            }),
+            RuntimeClass::Array(arr) => Arc::new(ArrayView { sub: arr.sub_class.view() }),
             RuntimeClass::Object(o) => o.class_view.clone(),
             RuntimeClass::Top => panic!(),
         }
@@ -140,36 +136,12 @@ pub struct RuntimeClassClass<'gc_life> {
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
-    pub fn new(
-        class_view: Arc<dyn ClassView>,
-        field_numbers: HashMap<FieldName, (usize, CPDType)>,
-        recursive_num_fields: usize,
-        static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
-        parent: Option<Arc<RuntimeClass<'gc_life>>>,
-        interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
-        status: RwLock<ClassStatus>,
-    ) -> Self {
-        Self {
-            class_view,
-            field_numbers,
-            recursive_num_fields,
-            static_vars,
-            parent,
-            interfaces,
-            status,
-        }
+    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (usize, CPDType)>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>) -> Self {
+        Self { class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status }
     }
 
     pub fn num_vars(&self) -> usize {
-        self.class_view
-            .fields()
-            .filter(|field| !field.is_static())
-            .count()
-            + self
-            .parent
-            .as_ref()
-            .map(|parent| parent.unwrap_class_class().num_vars())
-            .unwrap_or(0)
+        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
     }
 }
 
@@ -179,12 +151,7 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     }
 }
 
-pub fn prepare_class<'vm_life>(
-    jvm: &'vm_life JVMState<'vm_life>,
-    int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>,
-    classfile: Arc<dyn ClassView>,
-    res: &mut HashMap<FieldName, JavaValue<'vm_life>>,
-) {
+pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, '_>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Ref(ref_) = classfile.type_() {
             if let CPRefType::Class(cn) = ref_ {
@@ -207,11 +174,7 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
     }
 }
 
-pub fn initialize_class(
-    runtime_class: Arc<RuntimeClass<'gc_life>>,
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -247,8 +210,7 @@ pub fn initialize_class(
         locals.push(JavaValue::Top);
     }
 
-    let new_stack =
-        StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
+    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
     let new_function_frame = int_state.push_frame(new_stack, jvm);
     match run_function(jvm, int_state) {

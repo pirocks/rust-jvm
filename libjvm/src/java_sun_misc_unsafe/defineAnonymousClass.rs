@@ -27,24 +27,14 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::{ClassStatus, JVMState};
-use slow_interpreter::runtime_class::{
-    initialize_class, prepare_class, RuntimeClass, RuntimeClassClass,
-};
+use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use slow_interpreter::rust_jni::interface::define_class_safe;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
 use verification::{VerifierContext, verify};
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    parent_class: jobject,
-    byte_array: jbyteArray,
-    patches: jobjectArray,
-) -> jclass {
+unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JNIEnv, the_unsafe: jobject, parent_class: jobject, byte_array: jbyteArray, patches: jobjectArray) -> jclass {
     //todo, big open question here is what if the class has same name as already existing. Also apparently this class should not be part of any loader
 
     let jvm = get_state(env);
@@ -57,23 +47,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(
 
     int_state.debug_print_stack_trace(jvm);
 
-    to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object()) //todo local ref
+    to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())
+    //todo local ref
 }
 
-pub fn defineAnonymousClass(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    mut args: &mut Vec<JavaValue<'gc_life>>,
-) -> JavaValue<'gc_life> {
+pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, mut args: &mut Vec<JavaValue<'gc_life>>) -> JavaValue<'gc_life> {
     let _parent_class = &args[1]; //todo idk what this is for which is potentially problematic
-    let byte_array: Vec<u8> = args[2]
-        .unwrap_array()
-        .unwrap_byte_array(jvm)
-        .iter()
-        .map(|b| *b as u8)
-        .collect();
-    let mut unpatched =
-        parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
+    let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array(jvm).iter().map(|b| *b as u8).collect();
+    let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
     if args[3].unwrap_object().is_some() {
         patch_all(jvm, int_state.current_frame(), &mut args, &mut unpatched);
     }
@@ -83,13 +64,7 @@ pub fn defineAnonymousClass(
 
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
-        File::create(
-            PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool)
-                .class_name_representation(),
-        )
-            .unwrap()
-            .write_all(byte_array.clone().as_slice())
-            .unwrap();
+        File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
         Ok(res) => res,
@@ -97,50 +72,25 @@ pub fn defineAnonymousClass(
     }
 }
 
-fn patch_all(
-    jvm: &'gc_life JVMState<'gc_life>,
-    frame: StackEntryRef,
-    args: &mut Vec<JavaValue<'gc_life>>,
-    unpatched: &mut Classfile,
-) {
+fn patch_all(jvm: &'gc_life JVMState<'gc_life>, frame: StackEntryRef, args: &mut Vec<JavaValue<'gc_life>>, unpatched: &mut Classfile) {
     let cp_entry_patches = args[3].unwrap_array().unwrap_object_array(jvm);
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
-    cp_entry_patches
-        .iter()
-        .enumerate()
-        .for_each(|(i, maybe_patch)| match maybe_patch {
-            None => {}
-            Some(patch) => {
-                patch_single(patch, jvm, &frame, unpatched, i);
-            }
-        });
+    cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| match maybe_patch {
+        None => {}
+        Some(patch) => {
+            patch_single(patch, jvm, &frame, unpatched, i);
+        }
+    });
     let old_name_temp = class_name(&unpatched);
     let old_name = old_name_temp.get_referred_name();
-    let new_name = Wtf8Buf::from_string(format!(
-        "{}/{}",
-        old_name,
-        jvm.classes.read().unwrap().anon_classes.len()
-    ));
+    let new_name = Wtf8Buf::from_string(format!("{}/{}", old_name, jvm.classes.read().unwrap().anon_classes.len()));
     let name_index = unpatched.constant_pool.len() as u16;
-    unpatched.constant_pool.push(ConstantInfo {
-        kind: ConstantKind::Utf8(Utf8 {
-            length: new_name.len() as u16,
-            string: new_name,
-        }),
-    });
-    unpatched.constant_pool.push(ConstantInfo {
-        kind: ConstantKind::Class(Class { name_index }),
-    });
+    unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(Utf8 { length: new_name.len() as u16, string: new_name }) });
+    unpatched.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
     unpatched.this_class = (unpatched.constant_pool.len() - 1) as u16;
 }
 
-fn patch_single(
-    patch: &GcManagedObject<'gc_life>,
-    state: &JVMState<'gc_life>,
-    _frame: &StackEntryRef,
-    unpatched: &mut Classfile,
-    i: usize,
-) {
+fn patch_single(patch: &GcManagedObject<'gc_life>, state: &JVMState<'gc_life>, _frame: &StackEntryRef, unpatched: &mut Classfile, i: usize) {
     let class_name = JavaValue::Object(patch.clone().into()).to_type();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
@@ -155,7 +105,6 @@ fn patch_single(
         let mut anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
         let live_object_i = anon_class_write_guard.len();
         anon_class_write_guard.push(patch.clone());
-        unpatched.constant_pool[i] =
-            ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
+        unpatched.constant_pool[i] = ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
     };
 }

@@ -1,9 +1,6 @@
 use std::ffi::CString;
 
-use jvmti_jni_bindings::{
-    jint, jthreadGroup, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP,
-    jvmtiError_JVMTI_ERROR_NONE, jvmtiThreadGroupInfo,
-};
+use jvmti_jni_bindings::{jint, jthreadGroup, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP, jvmtiError_JVMTI_ERROR_NONE, jvmtiThreadGroupInfo};
 
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state};
@@ -53,43 +50,24 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 /// Error 	Description
 /// JVMTI_ERROR_INVALID_THREAD_GROUP	group is not a thread group object.
 /// JVMTI_ERROR_NULL_POINTER	info_ptr is NULL.
-pub unsafe extern "C" fn get_thread_group_info(
-    env: *mut jvmtiEnv,
-    group: jthreadGroup,
-    info_ptr: *mut jvmtiThreadGroupInfo,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthreadGroup, info_ptr: *mut jvmtiThreadGroupInfo) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadGroupInfo");
     assert!(jvm.vm_live());
-    let thread_group =
-        match JavaValue::Object(todo!() /*from_jclass(jvm,group)*/).try_cast_thread_group() {
-            None => {
-                return jvm.config.tracing.trace_jdwp_function_exit(
-                    tracing_guard,
-                    jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP,
-                )
-            }
-            Some(thread_group) => thread_group,
-        };
+    let thread_group = match JavaValue::Object(todo!() /*from_jclass(jvm,group)*/).try_cast_thread_group() {
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD_GROUP),
+        Some(thread_group) => thread_group,
+    };
     null_check!(info_ptr);
 
-    let name = jvm
-        .native
-        .native_interface_allocations
-        .allocate_cstring(CString::new(thread_group.name(jvm).to_rust_string(jvm)).unwrap());
+    let name = jvm.native.native_interface_allocations.allocate_cstring(CString::new(thread_group.name(jvm).to_rust_string(jvm)).unwrap());
     let info_pointer_writer = info_ptr.as_mut().unwrap();
     info_pointer_writer.name = name;
     info_pointer_writer.is_daemon = thread_group.daemon(jvm);
     info_pointer_writer.max_priority = thread_group.max_priority(jvm);
-    info_pointer_writer.parent =
-        new_local_ref_public(thread_group.parent(jvm).map(|x| x.object()), int_state);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    info_pointer_writer.parent = new_local_ref_public(thread_group.parent(jvm).map(|x| x.object()), int_state);
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Top Thread Groups
@@ -121,17 +99,10 @@ pub unsafe extern "C" fn get_thread_group_info(
 /// Error 	Description
 /// JVMTI_ERROR_NULL_POINTER	group_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	groups_ptr is NULL.
-pub unsafe extern "C" fn get_top_thread_groups(
-    env: *mut jvmtiEnv,
-    group_count_ptr: *mut jint,
-    groups_ptr: *mut *mut jthreadGroup,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_ptr: *mut jint, groups_ptr: *mut *mut jthreadGroup) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetTopThreadGroups");
     null_check!(group_count_ptr);
     null_check!(groups_ptr);
     assert!(jvm.vm_live());
@@ -141,10 +112,6 @@ pub unsafe extern "C" fn get_top_thread_groups(
     let thread_group_object = system_j_thread_group.object();
     let res = new_local_ref_public(thread_group_object.into(), int_state);
 
-    jvm.native
-        .native_interface_allocations
-        .allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.native.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

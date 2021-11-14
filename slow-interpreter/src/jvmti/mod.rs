@@ -50,17 +50,12 @@ pub unsafe fn get_state<'gc_life, 'l>(env: *mut jvmtiEnv) -> &'l JVMState<'gc_li
     &*((**env).reserved1 as *const JVMState)
 }
 
-pub unsafe fn get_interpreter_state<'l>(
-    env: *mut jvmtiEnv,
-) -> &'l mut InterpreterStateGuard<'l, 'l> {
+pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l, 'l> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
 
-pub fn get_jvmti_interface(
-    jvm: &'gc_life JVMState<'gc_life>,
-    _int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-) -> *mut jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
     Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv
 }
@@ -73,10 +68,10 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: Some(resume_thread),
-        StopThread: None, //doesn't need impl not in currently supported capabilities
+        StopThread: None,      //doesn't need impl not in currently supported capabilities
         InterruptThread: None, //doesn't need impl not in currently supported capabilities
         GetThreadInfo: Some(get_thread_info),
-        GetOwnedMonitorInfo: None, //doesn't need impl not in currently supported capabilities
+        GetOwnedMonitorInfo: None,        //doesn't need impl not in currently supported capabilities
         GetCurrentContendedMonitor: None, //doesn't need impl not in currently supported capabilities
         RunAgentThread: Some(run_agent_thread),
         GetTopThreadGroups: Some(get_top_thread_groups),
@@ -107,11 +102,11 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         SetBreakpoint: Some(set_breakpoint),
         ClearBreakpoint: Some(clear_breakpoint),
         reserved40: std::ptr::null_mut(),
-        SetFieldAccessWatch: None, //doesn't need impl not in currently supported capabilities
-        ClearFieldAccessWatch: None, //doesn't need impl not in currently supported capabilities
-        SetFieldModificationWatch: None, //doesn't need impl not in currently supported capabilities
+        SetFieldAccessWatch: None,         //doesn't need impl not in currently supported capabilities
+        ClearFieldAccessWatch: None,       //doesn't need impl not in currently supported capabilities
+        SetFieldModificationWatch: None,   //doesn't need impl not in currently supported capabilities
         ClearFieldModificationWatch: None, //doesn't need impl not in currently supported capabilities
-        IsModifiableClass: None, //doesn't need impl not in currently supported capabilities
+        IsModifiableClass: None,           //doesn't need impl not in currently supported capabilities
         Allocate: Some(allocate),
         Deallocate: Some(deallocate),
         GetClassSignature: Some(get_class_signature),
@@ -139,21 +134,21 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         GetLineNumberTable: Some(get_line_number_table),
         GetMethodLocation: Some(get_method_location),
         GetLocalVariableTable: Some(get_local_variable_table),
-        SetNativeMethodPrefix: None, //doesn't need impl not in currently supported capabilities
+        SetNativeMethodPrefix: None,   //doesn't need impl not in currently supported capabilities
         SetNativeMethodPrefixes: None, //doesn't need impl not in currently supported capabilities
-        GetBytecodes: None,          //doesn't need impl not in currently supported capabilities
+        GetBytecodes: None,            //doesn't need impl not in currently supported capabilities
         IsMethodNative: Some(is_method_native),
         IsMethodSynthetic: Some(is_method_synthetic),
         GetLoadedClasses: Some(get_loaded_classes),
-        GetClassLoaderClasses: None, //doesn't need impl not in currently supported capabilities
-        PopFrame: None, //todo impl. this is really blocking on a bunch of native stuff/jit
+        GetClassLoaderClasses: None,  //doesn't need impl not in currently supported capabilities
+        PopFrame: None,               //todo impl. this is really blocking on a bunch of native stuff/jit
         ForceEarlyReturnObject: None, //doesn't need impl not in currently supported capabilities
-        ForceEarlyReturnInt: None, //doesn't need impl not in currently supported capabilities
-        ForceEarlyReturnLong: None, //doesn't need impl not in currently supported capabilities
-        ForceEarlyReturnFloat: None, //doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnInt: None,    //doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnLong: None,   //doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnFloat: None,  //doesn't need impl not in currently supported capabilities
         ForceEarlyReturnDouble: None, //doesn't need impl not in currently supported capabilities
-        ForceEarlyReturnVoid: None, //doesn't need impl not in currently supported capabilities
-        RedefineClasses: None, //doesn't need impl not in currently supported capabilities
+        ForceEarlyReturnVoid: None,   //doesn't need impl not in currently supported capabilities
+        RedefineClasses: None,        //doesn't need impl not in currently supported capabilities
         GetVersionNumber: Some(get_version_number),
         GetCapabilities: Some(get_capabilities),
         GetSourceDebugExtension: None, //doesn't need impl not in currently supported capabilities
@@ -166,7 +161,7 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         reserved97: std::ptr::null_mut(),
         reserved98: std::ptr::null_mut(),
         reserved99: std::ptr::null_mut(),
-        GetAllStackTraces: None, //todo impl this needs to be atomic, so blocking on better thread story
+        GetAllStackTraces: None,        //todo impl this needs to be atomic, so blocking on better thread story
         GetThreadListStackTraces: None, //todo impl
         GetThreadLocalStorage: Some(get_thread_local_storage),
         SetThreadLocalStorage: Some(set_thread_local_storage),
@@ -174,11 +169,11 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         reserved105: std::ptr::null_mut(),
         GetTag: Some(get_tag),
         SetTag: Some(set_tag),
-        ForceGarbageCollection: None, //todo impl blocking on gc
+        ForceGarbageCollection: None,                //todo impl blocking on gc
         IterateOverObjectsReachableFromObject: None, //todo impl blocking on gc
-        IterateOverReachableObjects: None, //todo impl blocking on gc
-        IterateOverHeap: None,        //todo impl blocking on gc
-        IterateOverInstancesOfClass: None, //todo impl blocking on gc
+        IterateOverReachableObjects: None,           //todo impl blocking on gc
+        IterateOverHeap: None,                       //todo impl blocking on gc
+        IterateOverInstancesOfClass: None,           //todo impl blocking on gc
         reserved113: std::ptr::null_mut(),
         GetObjectsWithTags: None, //todo impl
         FollowReferences: None,   //todo impl blocking on gc
@@ -189,9 +184,9 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         SetJNIFunctionTable: None, //todo impl
         GetJNIFunctionTable: None, //todo impl
         SetEventCallbacks: Some(set_event_callbacks),
-        GenerateEvents: None, //doesn't need impl not in currently supported capabilities
-        GetExtensionFunctions: None, //todo impl
-        GetExtensionEvents: None, //todo impl
+        GenerateEvents: None,            //doesn't need impl not in currently supported capabilities
+        GetExtensionFunctions: None,     //todo impl
+        GetExtensionEvents: None,        //todo impl
         SetExtensionEventCallback: None, //todo impl
         DisposeEnvironment: Some(dispose_environment),
         GetErrorName: None,        //todo impl
@@ -201,27 +196,27 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
         SetSystemProperty: None,            //todo impl
         GetPhase: None,                     //todo impl
         GetCurrentThreadCpuTimerInfo: None, //doesn't need impl not in currently supported capabilities
-        GetCurrentThreadCpuTime: None, //doesn't need impl not in currently supported capabilities
-        GetThreadCpuTimerInfo: None,   //doesn't need impl not in currently supported capabilities
-        GetThreadCpuTime: None,        //doesn't need impl not in currently supported capabilities
-        GetTimerInfo: None,            //todo impl
-        GetTime: None,                 //todo impl
+        GetCurrentThreadCpuTime: None,      //doesn't need impl not in currently supported capabilities
+        GetThreadCpuTimerInfo: None,        //doesn't need impl not in currently supported capabilities
+        GetThreadCpuTime: None,             //doesn't need impl not in currently supported capabilities
+        GetTimerInfo: None,                 //todo impl
+        GetTime: None,                      //todo impl
         GetPotentialCapabilities: Some(get_potential_capabilities),
         reserved141: std::ptr::null_mut(),
         AddCapabilities: Some(add_capabilities),
         RelinquishCapabilities: None,          //todo impl
         GetAvailableProcessors: None,          //todo impl
         GetClassVersionNumbers: None,          //todo impl
-        GetConstantPool: None, //doesn't need impl not in currently supported capabilities
-        GetEnvironmentLocalStorage: None, //todo impl
-        SetEnvironmentLocalStorage: None, //todo impl
+        GetConstantPool: None,                 //doesn't need impl not in currently supported capabilities
+        GetEnvironmentLocalStorage: None,      //todo impl
+        SetEnvironmentLocalStorage: None,      //todo impl
         AddToBootstrapClassLoaderSearch: None, //todo impl
-        SetVerboseFlag: None,  //todo impl
-        AddToSystemClassLoaderSearch: None, //todo impl
-        RetransformClasses: None, //doesn't need impl not in currently supported capabilities
-        GetOwnedMonitorStackDepthInfo: None, //doesn't need impl not in currently supported capabilities
-        GetObjectSize: None,                 //todo impl
-        GetLocalInstance: None,              //todo impl
+        SetVerboseFlag: None,                  //todo impl
+        AddToSystemClassLoaderSearch: None,    //todo impl
+        RetransformClasses: None,              //doesn't need impl not in currently supported capabilities
+        GetOwnedMonitorStackDepthInfo: None,   //doesn't need impl not in currently supported capabilities
+        GetObjectSize: None,                   //todo impl
+        GetLocalInstance: None,                //todo impl
     }
 }
 
@@ -255,15 +250,10 @@ fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface
 // JVMTI_ERROR_INVALID_METHODID	method is not a jmethodID.
 // JVMTI_ERROR_NATIVE_METHOD	method is a native method.
 // JVMTI_ERROR_NULL_POINTER	max_ptr is NULL.
-unsafe extern "C" fn get_max_locals(
-    env: *mut jvmtiEnv,
-    method: jmethodID,
-    max_ptr: *mut jint,
-) -> jvmtiError {
+unsafe extern "C" fn get_max_locals(env: *mut jvmtiEnv, method: jmethodID, max_ptr: *mut jint) -> jvmtiError {
     null_check!(max_ptr);
     let jvm = get_state(env);
-    let (runtime_class, index) = match jvm.method_table.read().unwrap().try_lookup(method as usize)
-    {
+    let (runtime_class, index) = match jvm.method_table.read().unwrap().try_lookup(method as usize) {
         None => return jvmtiError_JVMTI_ERROR_INVALID_METHODID,
         Some(method_id) => method_id,
     };
@@ -307,12 +297,7 @@ unsafe extern "C" fn get_max_locals(
 // JVMTI_ERROR_INVALID_FIELDID	field is not a jfieldID.
 // JVMTI_ERROR_NULL_POINTER	declaring_class_ptr is NULL.
 
-unsafe extern "C" fn get_field_declaring_class(
-    env: *mut jvmtiEnv,
-    _klass: jclass,
-    field: jfieldID,
-    declaring_class_ptr: *mut jclass,
-) -> jvmtiError {
+unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclass, field: jfieldID, declaring_class_ptr: *mut jclass) -> jvmtiError {
     let jvm = get_state(env);
     null_check!(declaring_class_ptr);
     let field_id: FieldId = field as usize;
@@ -364,11 +349,7 @@ unsafe extern "C" fn get_field_declaring_class(
 // Error 	Description
 // JVMTI_ERROR_INVALID_CLASS	klass is not a class object or the class has been unloaded.
 // JVMTI_ERROR_NULL_POINTER	modifiers_ptr is NULL.
-unsafe extern "C" fn get_class_modifiers(
-    env: *mut jvmtiEnv,
-    klass: jclass,
-    modifiers_ptr: *mut jint,
-) -> jvmtiError {
+unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, modifiers_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
     null_check!(modifiers_ptr);
     //handle klass invalid
@@ -377,59 +358,23 @@ unsafe extern "C" fn get_class_modifiers(
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-unsafe extern "C" fn set_local_object(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: jobject,
-) -> jvmtiError {
-    set_local(
-        env,
-        thread,
-        depth,
-        slot,
-        JavaValue::Object(todo!() /*from_jclass(jvm,value)*/),
-    )
+unsafe extern "C" fn set_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jobject) -> jvmtiError {
+    set_local(env, thread, depth, slot, JavaValue::Object(todo!() /*from_jclass(jvm,value)*/))
 }
 
-unsafe extern "C" fn set_local_int(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: jint,
-) -> jvmtiError {
+unsafe extern "C" fn set_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jint) -> jvmtiError {
     set_local(env, thread, depth, slot, JavaValue::Int(value))
 }
 
-unsafe extern "C" fn set_local_long(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: jlong,
-) -> jvmtiError {
+unsafe extern "C" fn set_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jlong) -> jvmtiError {
     set_local(env, thread, depth, slot, JavaValue::Long(value))
 }
 
-unsafe extern "C" fn set_local_double(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: jdouble,
-) -> jvmtiError {
+unsafe extern "C" fn set_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jdouble) -> jvmtiError {
     set_local(env, thread, depth, slot, JavaValue::Double(value))
 }
 
-unsafe extern "C" fn set_local_float(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-    slot: jint,
-    value: jfloat,
-) -> jvmtiError {
+unsafe extern "C" fn set_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jfloat) -> jvmtiError {
     set_local(env, thread, depth, slot, JavaValue::Float(value))
 }
 
@@ -468,11 +413,7 @@ unsafe extern "C" fn set_local_float(
 // JVMTI_ERROR_ILLEGAL_ARGUMENT	depth is less than zero.
 // JVMTI_ERROR_NO_MORE_FRAMES	There are no stack frames at the specified depth.
 
-unsafe extern "C" fn notify_frame_pop(
-    env: *mut jvmtiEnv,
-    thread: jthread,
-    depth: jint,
-) -> jvmtiError {
+unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth: jint) -> jvmtiError {
     let jvm = get_state(env);
     //todo check capability
     let java_thread = get_thread_or_error!(jvm, thread).get_java_thread(jvm);
@@ -529,18 +470,12 @@ unsafe extern "C" fn notify_frame_pop(
 // This function returns either a universal error or one of the following errors
 // Error 	Description
 // JVMTI_ERROR_NULL_POINTER	thread_ptr is NULL.
-unsafe extern "C" fn get_current_thread(
-    env: *mut jvmtiEnv,
-    thread_ptr: *mut jthread,
-) -> jvmtiError {
+unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jthread) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     null_check!(thread_ptr);
     let current_thread = jvm.thread_state.get_current_thread();
-    thread_ptr.write(new_local_ref_public(
-        current_thread.thread_object().object().into(),
-        int_state,
-    ));
+    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().into(), int_state));
     jvmtiError_JVMTI_ERROR_NONE
 }
 
@@ -571,7 +506,8 @@ unsafe extern "C" fn get_current_thread(
 // JVMTI_ERROR_INTERNAL (113)
 //     An unexpected internal error has occurred.
 pub fn universal_error() -> jvmtiError {
-    jvmtiError_JVMTI_ERROR_INTERNAL //todo make this better
+    jvmtiError_JVMTI_ERROR_INTERNAL
+    //todo make this better
 }
 
 pub mod breakpoint;

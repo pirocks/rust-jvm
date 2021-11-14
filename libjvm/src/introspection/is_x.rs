@@ -5,18 +5,13 @@ use std::os::raw::c_int;
 use classfile_parser::code::InstructionTypeNum::f2d;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{
-    jboolean, jclass, jdouble, JNIEnv,
-    JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED, jvmtiError_JVMTI_ERROR_INVALID_CLASS,
-};
+use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED, jvmtiError_JVMTI_ERROR_INVALID_CLASS};
 use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvmti::is::is_array_impl;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{
-    from_jclass, from_object, get_interpreter_state, get_state,
-};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use slow_interpreter::utils::throw_array_out_of_bounds;
 
 #[no_mangle]
@@ -28,10 +23,7 @@ unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {
 unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
     let obj = from_object(jvm, cls);
-    let runtime_class = JavaValue::Object(obj)
-        .cast_class()
-        .expect("todo")
-        .as_runtime_class(jvm);
+    let runtime_class = JavaValue::Object(obj).cast_class().expect("todo").as_runtime_class(jvm);
     (match runtime_class.deref() {
         RuntimeClass::Byte => false,
         RuntimeClass::Boolean => false,
@@ -65,9 +57,6 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    let type_ = JavaValue::Object(from_object(jvm, cls))
-        .cast_class()
-        .expect("todo")
-        .as_type(jvm);
+    let type_ = JavaValue::Object(from_object(jvm, cls)).cast_class().expect("todo").as_type(jvm);
     type_.is_primitive() as jboolean
 }

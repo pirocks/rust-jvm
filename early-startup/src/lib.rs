@@ -68,12 +68,7 @@ pub fn get_regions() -> Regions {
         map_address(large_regions);
         map_address(extra_large_regions);
     }
-    let res = Regions {
-        small_regions,
-        medium_regions,
-        large_regions,
-        extra_large_regions,
-    };
+    let res = Regions { small_regions, medium_regions, large_regions, extra_large_regions };
     // });
     let _maps_after = Mappings::from_pid(unsafe { libc::getpid() }).unwrap();
     res

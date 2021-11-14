@@ -18,15 +18,9 @@ use crate::jvmti::get_state;
 // can_generate_monitor_events             = 1
 // can_tag_objects                         = 1
 
-pub unsafe extern "C" fn get_potential_capabilities(
-    env: *mut jvmtiEnv,
-    capabilities_ptr: *mut jvmtiCapabilities,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_potential_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetPotentialCapabilities");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetPotentialCapabilities");
     //    unsigned int can_tag_objects : 1;
     (*capabilities_ptr).set_can_tag_objects(1);
     //     unsigned int can_generate_field_modification_events : 1;
@@ -115,20 +109,12 @@ pub unsafe extern "C" fn get_potential_capabilities(
     //     unsigned int : 16;
     //     unsigned int : 16;
     //     unsigned int : 16;
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub unsafe extern "C" fn add_capabilities(
-    env: *mut jvmtiEnv,
-    capabilities_ptr: *const jvmtiCapabilities,
-) -> jvmtiError {
+pub unsafe extern "C" fn add_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *const jvmtiCapabilities) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "AddCapabilities");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "AddCapabilities");
     let res = if (*capabilities_ptr).can_generate_field_modification_events() > 0 ||
         (*capabilities_ptr).can_generate_field_access_events() > 0 ||
         (*capabilities_ptr).can_get_bytecodes() > 0 ||
@@ -160,9 +146,7 @@ pub unsafe extern "C" fn add_capabilities(
     } else {
         jvmtiError_JVMTI_ERROR_NONE
     };
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 // can_access_local_variables              = 1
@@ -177,20 +161,10 @@ pub unsafe extern "C" fn add_capabilities(
 // can_maintain_original_method_order      = 1
 // can_generate_monitor_events             = 1
 // can_tag_objects                         = 1
-pub unsafe extern "C" fn get_capabilities(
-    env: *mut jvmtiEnv,
-    capabilities_ptr: *mut jvmtiCapabilities,
-) -> jvmtiError {
+pub unsafe extern "C" fn get_capabilities(env: *mut jvmtiEnv, capabilities_ptr: *mut jvmtiCapabilities) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "GetCapabilities");
-    libc::memset(
-        capabilities_ptr as *mut c_void,
-        0,
-        size_of::<jvmtiCapabilities>(),
-    );
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetCapabilities");
+    libc::memset(capabilities_ptr as *mut c_void, 0, size_of::<jvmtiCapabilities>());
     let mut_borrow: &mut jvmtiCapabilities = &mut *capabilities_ptr;
     mut_borrow.set_can_access_local_variables(1);
     mut_borrow.set_can_generate_single_step_events(1);
@@ -204,7 +178,5 @@ pub unsafe extern "C" fn get_capabilities(
     mut_borrow.set_can_maintain_original_method_order(1);
     mut_borrow.set_can_generate_monitor_events(1);
     mut_borrow.set_can_tag_objects(1);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

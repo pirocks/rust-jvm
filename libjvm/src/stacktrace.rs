@@ -6,20 +6,14 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::attribute_view::SourceFileView;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{
-    jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED,
-};
+use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{
-    from_object, get_interpreter_state, get_state, to_object,
-};
-use slow_interpreter::utils::{
-    throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res,
-};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
@@ -47,11 +41,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                 Some(line_number_table) => {
                     //todo have a lookup function for this
                     let mut cur_line = -1;
-                    for LineNumberTableEntry {
-                        start_pc,
-                        line_number,
-                    } in &line_number_table.line_number_table
-                    {
+                    for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
                         if (*start_pc) <= stack_entry.pc() {
                             cur_line = *line_number as jint;
                         }
@@ -59,29 +49,11 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                     cur_line
                 }
             };
-            let declaring_class_name = JString::from_rust(
-                jvm,
-                int_state,
-                Wtf8Buf::from_string(
-                    PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool)
-                        .class_name_representation(),
-                ),
-            )?;
-            let method_name = JString::from_rust(
-                jvm,
-                int_state,
-                Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool)),
-            )?;
+            let declaring_class_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation()))?;
+            let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool)))?;
             let source_file_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(file))?;
 
-            Ok(Some(StackTraceElement::new(
-                jvm,
-                int_state,
-                declaring_class_name,
-                method_name,
-                source_file_name,
-                line_number,
-            )?))
+            Ok(Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?))
         })
         .collect::<Result<Vec<Option<_>>, WasException>>()
         .expect("todo")
@@ -104,14 +76,12 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(
-        match from_object(jvm, throwable) {
-            Some(x) => x,
-            None => {
-                return throw_npe(jvm, int_state);
-            }
-        },
-    )) {
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(jvm, throwable) {
+        Some(x) => x,
+        None => {
+            return throw_npe(jvm, int_state);
+        }
+    })) {
         Some(x) => x,
         None => return JNI_ERR,
     }
@@ -119,21 +89,15 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetStackTraceElement(
-    env: *mut JNIEnv,
-    throwable: jobject,
-    index: jint,
-) -> jobject {
+unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(
-        match from_object(jvm, throwable) {
-            Some(x) => x,
-            None => {
-                return throw_npe(jvm, int_state);
-            }
-        },
-    )) {
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(jvm, throwable) {
+        Some(x) => x,
+        None => {
+            return throw_npe(jvm, int_state);
+        }
+    })) {
         Some(x) => x,
         None => {
             return throw_illegal_arg(jvm, int_state);

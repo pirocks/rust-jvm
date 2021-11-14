@@ -14,15 +14,11 @@ pub struct BiRangeMap<K: Clone + Ord + Eq, V: Clone + Eq + Hash> {
 
 impl<K: Clone + Ord + Eq + SingleElementRangeable<K>, V: Clone + Eq + Hash> BiRangeMap<K, V> {
     pub fn new() -> Self {
-        Self {
-            left_to_right: Default::default(),
-            right_to_left: Default::default(),
-        }
+        Self { left_to_right: Default::default(), right_to_left: Default::default() }
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        self.left_to_right
-            .insert(key.to_single_element_range(), value.clone());
+        self.left_to_right.insert(key.to_single_element_range(), value.clone());
         let (new_range, _) = self.left_to_right.get_key_value(&key).unwrap();
         self.right_to_left.insert(value, new_range.clone());
     }

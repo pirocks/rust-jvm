@@ -20,17 +20,10 @@ pub fn dup_x1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
     current_frame.push(value1);
 }
 
-pub fn dup_x2(
-    jvm: &'gc_life JVMState<'gc_life>,
-    method_id: MethodId,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-) {
+pub fn dup_x2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-    let Frame {
-        stack_map: OperandStack { data },
-        ..
-    } = &stack_frames[todo!()];
+    let Frame { stack_map: OperandStack { data }, .. } = &stack_frames[todo!()];
     /*let value2_vtype = data[1].clone();*/
     let value1 = current_frame.pop(None); //in principle type doesn't matter
     let value2 = current_frame.pop(None);
@@ -50,17 +43,10 @@ pub fn dup_x2(
     }
 }
 
-pub fn dup2(
-    jvm: &'gc_life JVMState<'gc_life>,
-    method_id: MethodId,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-) {
+pub fn dup2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-    let Frame {
-        stack_map: OperandStack { data },
-        ..
-    } = todo!(); //&stack_frames[&current_pc];
+    let Frame { stack_map: OperandStack { data }, .. } = todo!(); //&stack_frames[&current_pc];
     /*let value1_vtype = if matches!(data[0].clone(),VType::TopType) {
         data[1].clone()
     } else {
@@ -86,23 +72,11 @@ pub fn dup2(
     }
 }
 
-pub fn dup2_x1(
-    jvm: &'gc_life JVMState<'gc_life>,
-    method_id: MethodId,
-    mut current_frame: StackEntryMut<'gc_life, 'l>,
-) {
-    let (rc, count) = jvm
-        .method_table
-        .read()
-        .unwrap()
-        .try_lookup(method_id)
-        .unwrap();
+pub fn dup2_x1(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {
+    let (rc, count) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let current_pc = current_frame.to_ref().pc(jvm);
     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-    let Frame {
-        stack_map: OperandStack { data },
-        ..
-    } = todo!(); //&stack_frames[&current_pc];
+    let Frame { stack_map: OperandStack { data }, .. } = todo!(); //&stack_frames[&current_pc];
     let value1_vtype = data[0].clone();
     dbg!(&value1_vtype);
     let value1 = current_frame.pop(None); //in principle type doesn't matter todo pass it anyway

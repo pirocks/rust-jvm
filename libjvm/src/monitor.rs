@@ -10,11 +10,7 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     let int_state = get_interpreter_state(env);
     let monitor_obj = from_object(jvm, obj).expect("null monitor?");
     let monitor_to_wait = monitor_obj.monitor();
-    let duration = if ms == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(ms as u64))
-    };
+    let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
     monitor_to_wait.wait(jvm, int_state, duration);
 }
 
@@ -22,18 +18,12 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
 unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj)
-        .expect("null monitor?")
-        .monitor()
-        .notify(jvm);
+    from_object(jvm, obj).expect("null monitor?").monitor().notify(jvm);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotifyAll(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj)
-        .expect("null monitor?")
-        .monitor()
-        .notify_all(jvm);
+    from_object(jvm, obj).expect("null monitor?").monitor().notify_all(jvm);
 }

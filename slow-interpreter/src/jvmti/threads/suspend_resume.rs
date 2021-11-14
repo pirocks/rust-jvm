@@ -1,9 +1,4 @@
-use jvmti_jni_bindings::{
-    jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT,
-    jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD,
-    jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE,
-    jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,
-};
+use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
@@ -52,26 +47,15 @@ use crate::threading::{ResumeError, SuspendError};
 /// JVMTI_ERROR_ILLEGAL_ARGUMENT	request_count is less than 0.
 /// JVMTI_ERROR_NULL_POINTER	request_list is NULL.
 /// JVMTI_ERROR_NULL_POINTER	results is NULL.
-pub unsafe extern "C" fn suspend_thread_list(
-    env: *mut jvmtiEnv,
-    request_count: jint,
-    request_list: *const jthread,
-    results: *mut jvmtiError,
-) -> jvmtiError {
+pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "SuspendThreadList");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SuspendThreadList");
     null_check!(request_list);
     null_check!(results);
     assert!(jvm.vm_live());
     if request_count < 0 {
-        return jvm
-            .config
-            .tracing
-            .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
+        return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
     //todo handle checking capabilities
     for i in 0..request_count {
@@ -79,16 +63,10 @@ pub unsafe extern "C" fn suspend_thread_list(
         let suspend_res = suspend_thread_impl(thread_object_raw, jvm, int_state);
         results.offset(i as isize).write(suspend_res);
     }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn suspend_thread_impl(
-    thread_object_raw: jthread,
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-) -> jvmtiError {
+unsafe fn suspend_thread_impl(thread_object_raw: jthread, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> jvmtiError {
     let jthread = get_thread_or_error!(jvm, thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
     match java_thread.suspend_thread(jvm, int_state, false) {
@@ -134,14 +112,9 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
     //todo check capabilities
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "SuspendThread");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SuspendThread");
     let res = suspend_thread_impl(thread, jvm, int_state);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 ///Resume Thread
@@ -176,14 +149,9 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
     let jvm = get_state(env);
     //todo handle capabilities for this
     assert!(jvm.vm_live());
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "ResumeThread");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "ResumeThread");
     let res = resume_thread_impl(jvm, thread);
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, res)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, res)
 }
 
 /// Resume Thread List
@@ -223,17 +191,9 @@ pub unsafe extern "C" fn resume_thread(env: *mut jvmtiEnv, thread: jthread) -> j
 /// JVMTI_ERROR_ILLEGAL_ARGUMENT	request_count is less than 0.
 /// JVMTI_ERROR_NULL_POINTER	request_list is NULL.
 /// JVMTI_ERROR_NULL_POINTER	results is NULL.
-pub unsafe extern "C" fn resume_thread_list(
-    env: *mut jvmtiEnv,
-    request_count: jint,
-    request_list: *const jthread,
-    results: *mut jvmtiError,
-) -> jvmtiError {
+pub unsafe extern "C" fn resume_thread_list(env: *mut jvmtiEnv, request_count: jint, request_list: *const jthread, results: *mut jvmtiError) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm
-        .config
-        .tracing
-        .trace_jdwp_function_enter(jvm, "ResumeThreadList");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "ResumeThreadList");
     assert!(jvm.vm_live());
     null_check!(request_list);
     null_check!(results);
@@ -243,13 +203,9 @@ pub unsafe extern "C" fn resume_thread_list(
     //todo handle capabilities;
     for i in 0..request_count {
         let jthreadp = request_list.offset(i as isize).read();
-        results
-            .offset(i as isize)
-            .write(resume_thread_impl(jvm, jthreadp));
+        results.offset(i as isize).write(resume_thread_impl(jvm, jthreadp));
     }
-    jvm.config
-        .tracing
-        .trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 unsafe fn resume_thread_impl(jvm: &'gc_life JVMState<'gc_life>, thread_raw: jthread) -> jvmtiError {

@@ -1,9 +1,6 @@
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{
-    jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray,
-    jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize,
-};
+use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::interpreter::WasException;
@@ -12,12 +9,7 @@ use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
-pub unsafe extern "C" fn new_object_array(
-    env: *mut JNIEnv,
-    len: jsize,
-    clazz: jclass,
-    init: jobject,
-) -> jobjectArray {
+pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let type_ = from_jclass(jvm, clazz).as_type(jvm);
     let res = new_array(env, len, type_);
@@ -72,21 +64,10 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
         the_vec.push(default_value(elem_type.clone()))
     }
     new_local_ref_public(
-        Some(
-            jvm.allocate_object(Object::Array(
-                match ArrayObject::new_array(
-                    jvm,
-                    int_state,
-                    the_vec,
-                    elem_type,
-                    jvm.thread_state
-                        .new_monitor("monitor for jni created byte array".to_string()),
-                ) {
-                    Ok(arr) => arr,
-                    Err(WasException {}) => return null_mut(),
-                },
-            )),
-        ),
+        Some(jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state, the_vec, elem_type, jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())) {
+            Ok(arr) => arr,
+            Err(WasException {}) => return null_mut(),
+        }))),
         int_state,
     )
 }

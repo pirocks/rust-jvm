@@ -9,9 +9,7 @@ use slow_interpreter::java::lang::class_loader::ClassLoader;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{
-    from_jclass, from_object, get_interpreter_state, get_state, to_object,
-};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::sun::misc::launcher::ext_class_loader::ExtClassLoader;
 use slow_interpreter::sun::misc::launcher::Launcher;
 
@@ -34,16 +32,8 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>,
-    loader_name: LoaderName,
-) -> jobject {
-    new_local_ref_public(
-        jvm.get_loader_obj(loader_name)
-            .map(|loader| loader.object()),
-        int_state,
-    )
+unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, loader_name: LoaderName) -> jobject {
+    new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object()), int_state)
 }
 
 //from Java_java_lang_SecurityManager_classLoaderDepth0
@@ -91,12 +81,7 @@ unsafe extern "system" fn JVM_ClassLoaderDepth(env: *mut JNIEnv) -> jint {
 //todo and also checkPackageAccess
 
 #[no_mangle]
-unsafe extern "system" fn JVM_LoadClass0(
-    env: *mut JNIEnv,
-    obj: jobject,
-    currClass: jclass,
-    currClassName: jstring,
-) -> jclass {
+unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currClass: jclass, currClassName: jstring) -> jclass {
     panic!("As far as I can tell this method isn't used by anything so its curious this code is being run");
 }
 
@@ -113,11 +98,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
     let int_state = get_interpreter_state(env);
     for stack_entry in int_state.cloned_stack_snapshot(jvm) {
         if !stack_entry.privileged_frame() {
-            return new_local_ref_public(
-                jvm.get_loader_obj(stack_entry.loader())
-                    .map(|class_loader| class_loader.object()),
-                int_state,
-            );
+            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
         }
     }
     return new_local_ref_public(
@@ -136,10 +117,6 @@ unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> j
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let runtime_class = from_jclass(jvm, cls).as_runtime_class(jvm);
-    let loader_name = jvm
-        .classes
-        .read()
-        .unwrap()
-        .get_initiating_loader(&runtime_class);
+    let loader_name = jvm.classes.read().unwrap().get_initiating_loader(&runtime_class);
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }

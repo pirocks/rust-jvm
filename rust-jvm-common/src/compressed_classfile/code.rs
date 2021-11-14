@@ -106,16 +106,8 @@ pub enum CompressedInstructionInfo {
     fstore_2,
     fstore_3,
     fsub,
-    getfield {
-        name: FieldName,
-        desc: CFieldDescriptor,
-        target_class: CClassName,
-    },
-    getstatic {
-        name: FieldName,
-        desc: CFieldDescriptor,
-        target_class: CClassName,
-    },
+    getfield { name: FieldName, desc: CFieldDescriptor, target_class: CClassName },
+    getstatic { name: FieldName, desc: CFieldDescriptor, target_class: CClassName },
     goto_(i16),
     goto_w(i32),
     i2b,
@@ -162,27 +154,10 @@ pub enum CompressedInstructionInfo {
     ineg,
     instanceof(CPDType),
     invokedynamic(CPIndex),
-    invokeinterface {
-        method_name: MethodName,
-        descriptor: CMethodDescriptor,
-        classname_ref_type: CPRefType,
-        count: NonZeroU8,
-    },
-    invokespecial {
-        method_name: MethodName,
-        descriptor: CMethodDescriptor,
-        classname_ref_type: CPRefType,
-    },
-    invokestatic {
-        method_name: MethodName,
-        descriptor: CMethodDescriptor,
-        classname_ref_type: CPRefType,
-    },
-    invokevirtual {
-        method_name: MethodName,
-        descriptor: CMethodDescriptor,
-        classname_ref_type: CPRefType,
-    },
+    invokeinterface { method_name: MethodName, descriptor: CMethodDescriptor, classname_ref_type: CPRefType, count: NonZeroU8 },
+    invokespecial { method_name: MethodName, descriptor: CMethodDescriptor, classname_ref_type: CPRefType },
+    invokestatic { method_name: MethodName, descriptor: CMethodDescriptor, classname_ref_type: CPRefType },
+    invokevirtual { method_name: MethodName, descriptor: CMethodDescriptor, classname_ref_type: CPRefType },
     ior,
     irem,
     ireturn,
@@ -235,25 +210,14 @@ pub enum CompressedInstructionInfo {
     lxor,
     monitorenter,
     monitorexit,
-    multianewarray {
-        type_: CPDType,
-        dimensions: NonZeroU8,
-    },
+    multianewarray { type_: CPDType, dimensions: NonZeroU8 },
     new(CClassName),
     newarray(Atype),
     nop,
     pop,
     pop2,
-    putfield {
-        name: FieldName,
-        desc: CFieldDescriptor,
-        target_class: CClassName,
-    },
-    putstatic {
-        name: FieldName,
-        desc: CFieldDescriptor,
-        target_class: CClassName,
-    },
+    putfield { name: FieldName, desc: CFieldDescriptor, target_class: CClassName },
+    putstatic { name: FieldName, desc: CFieldDescriptor, target_class: CClassName },
     ret(u8),
     return_,
     saload,
@@ -471,12 +435,7 @@ impl CInstructionInfo {
             CompressedInstructionInfo::sastore => 1,
             CompressedInstructionInfo::sipush(_) => 3,
             CompressedInstructionInfo::swap => 1,
-            CompressedInstructionInfo::tableswitch(box TableSwitch {
-                default: _,
-                low: _,
-                high: _,
-                offsets,
-            }) => {
+            CompressedInstructionInfo::tableswitch(box TableSwitch { default: _, low: _, high: _, offsets }) => {
                 let pad_and_bytecode = 4 - (starting_offset % 4);
                 pad_and_bytecode + 4 + 4 + 4 + offsets.len() as u16 * 4
             }

@@ -13,9 +13,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{
-    jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue,
-};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -43,23 +41,14 @@ pub struct FrameView<'gc_life, 'l> {
 
 impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn new(ptr: *mut c_void, call_stack: &'l JavaStack, current_ip: *mut c_void) -> Self {
-        let res = Self {
-            frame_ptr: ptr,
-            call_stack,
-            phantom_data: PhantomData::default(),
-            current_ip,
-        };
+        let res = Self { frame_ptr: ptr, call_stack, phantom_data: PhantomData::default(), current_ip };
         let _header = res.get_header();
         res
     }
 
     fn get_header(&self) -> &FrameHeader {
         let res = unsafe { (self.frame_ptr as *const FrameHeader).as_ref() }.unwrap();
-        let FrameHeader {
-            magic_part_1,
-            magic_part_2,
-            ..
-        } = *res;
+        let FrameHeader { magic_part_1, magic_part_2, .. } = *res;
         assert_eq!(magic_part_1, MAGIC_1_EXPECTED);
         assert_eq!(magic_part_2, MAGIC_2_EXPECTED);
         res
@@ -95,29 +84,17 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
 
     pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<ByteCodeOffset, Opaque> {
         let methodid = self.get_header().methodid;
-        let byte_code_offset = jvm
-            .jit_state
-            .with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(self.current_ip))?;
-        let (rc, method_i) = jvm
-            .method_table
-            .read()
-            .unwrap()
-            .try_lookup(methodid)
-            .unwrap();
+        let byte_code_offset = jvm.jit_state.with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(self.current_ip))?;
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         Ok(byte_code_offset.1)
     }
 
     pub fn bytecode_index(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<u16, Opaque> {
-        let saved_instruction_pointer =
-            self.call_stack.saved_registers.unwrap().instruction_pointer;
+        let saved_instruction_pointer = self.call_stack.saved_registers.unwrap().instruction_pointer;
         let methodid = self.get_header().methodid;
-        let byte_code_offset = jvm.jit_state.with(|jit_state| {
-            jit_state
-                .borrow()
-                .ip_to_bytecode_pc(saved_instruction_pointer)
-        })?;
+        let byte_code_offset = jvm.jit_state.with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(saved_instruction_pointer))?;
         Ok(byte_code_offset.0)
     }
 
@@ -158,22 +135,14 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Ok(this_function.get(&pc.0).unwrap().stack_map.len() as u16)
     }
 
-    pub fn stack_types(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> Result<Vec<RuntimeType>, Opaque> {
+    pub fn stack_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Vec<RuntimeType>, Opaque> {
         let methodid = self.get_header().methodid;
         if methodid == usize::MAX {
             panic!()
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        let stack_map = &function_frame_type
-            .get(&methodid)
-            .unwrap()
-            .get(&pc.0)
-            .unwrap()
-            .stack_map;
+        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc.0).unwrap().stack_map;
         let mut res = vec![];
         for vtype in &stack_map.data {
             res.push(vtype.to_runtime_type());
@@ -196,27 +165,13 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        let locals = &function_frame_type
-            .get(&methodid)
-            .unwrap()
-            .get(&pc.0)
-            .unwrap()
-            .locals;
+        let locals = &function_frame_type.get(&methodid).unwrap().get(&pc.0).unwrap().locals;
         Ok(locals.len() as u16)
     }
 
-    fn get_operand_stack_base(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> Result<*mut c_void, Opaque> {
+    fn get_operand_stack_base(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<*mut c_void, Opaque> {
         //todo should be based of actual layout instead of this
-        Ok(unsafe {
-            self.frame_ptr.offset(
-                (size_of::<FrameHeader>()
-                    + size_of::<u64>() * (dbg!(self.max_locals(jvm)?) as usize))
-                    as isize,
-            )
-        })
+        Ok(unsafe { self.frame_ptr.offset((size_of::<FrameHeader>() + size_of::<u64>() * (dbg!(self.max_locals(jvm)?) as usize)) as isize) })
     }
 
     fn get_local_var_base(&self) -> *mut c_void {
@@ -275,11 +230,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
     }
 
-    pub(crate) fn read_target(
-        jvm: &'gc_life JVMState<'gc_life>,
-        target: *const c_void,
-        expected_type: RuntimeType,
-    ) -> JavaValue<'gc_life> {
+    pub(crate) fn read_target(jvm: &'gc_life JVMState<'gc_life>, target: *const c_void, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         // dbg!("read",target,&expected_type);
         unsafe {
             match expected_type {
@@ -302,8 +253,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
                             if ptr.as_ptr() == usize::MAX as *mut c_void {
                                 todo!()
                             }
-                            let res =
-                                JavaValue::Object(GcManagedObject::from_native(ptr, jvm).into());
+                            let res = JavaValue::Object(GcManagedObject::from_native(ptr, jvm).into());
                             // res.self_check();
                             res
                         }
@@ -319,10 +269,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let mut res = vec![];
         loop {
             unsafe {
-                if start == null_mut()
-                    || start == transmute(0xDEADDEADDEADDEADusize)
-                    || start == self.call_stack.top
-                {
+                if start == null_mut() || start == transmute(0xDEADDEADDEADDEADusize) || start == self.call_stack.top {
                     break;
                 }
                 res.push(start as usize);
@@ -339,17 +286,11 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let current_depth = *operand_stack_depth;
         *operand_stack_depth += 1;
         let operand_stack_base = self.get_operand_stack_base(todo!()).unwrap();
-        let target = unsafe {
-            operand_stack_base.offset(((current_depth as usize) * size_of::<jlong>()) as isize)
-        };
+        let target = unsafe { operand_stack_base.offset(((current_depth as usize) * size_of::<jlong>()) as isize) };
         Self::write_target(target, j)
     }
 
-    pub fn pop_operand_stack(
-        &mut self,
-        jvm: &'gc_life JVMState<'gc_life>,
-        expected_type: Option<RuntimeType>,
-    ) -> Option<JavaValue<'gc_life>> {
+    pub fn pop_operand_stack(&mut self, jvm: &'gc_life JVMState<'gc_life>, expected_type: Option<RuntimeType>) -> Option<JavaValue<'gc_life>> {
         let operand_stack_depth_mut = self.get_frame_info_mut().operand_stack_depth_mut();
         let current_depth = *operand_stack_depth_mut;
         if current_depth == 0 {
@@ -359,9 +300,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let new_current_depth = *operand_stack_depth_mut;
         let type_ = self.get_frame_info_mut().pop_operand_stack().unwrap();
         let operand_stack_base = self.get_operand_stack_base(todo!()).unwrap();
-        let target = unsafe {
-            operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize)
-        };
+        let target = unsafe { operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize) };
         let res = Self::read_target(jvm, target, expected_type.unwrap_or(type_.clone()));
         Some(res)
     }
@@ -370,75 +309,38 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         self.get_frame_info().operand_stack_types()
     }
 
-    pub fn set_local_var(
-        &mut self,
-        _jvm: &'gc_life JVMState<'gc_life>,
-        i: u16,
-        jv: JavaValue<'gc_life>,
-    ) {
-        self.get_frame_info_mut()
-            .set_local_var_type(jv.to_type(), i as usize);
-        let target = unsafe {
-            self.get_local_var_base()
-                .offset((i as isize) * size_of::<jlong>() as isize)
-        };
+    pub fn set_local_var(&mut self, _jvm: &'gc_life JVMState<'gc_life>, i: u16, jv: JavaValue<'gc_life>) {
+        self.get_frame_info_mut().set_local_var_type(jv.to_type(), i as usize);
+        let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::write_target(target, jv)
     }
 
-    pub fn get_local_var(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-        i: u16,
-        expected_type: RuntimeType,
-    ) -> JavaValue<'gc_life> {
-        let target = unsafe {
-            self.get_local_var_base()
-                .offset((i as isize) * size_of::<jlong>() as isize)
-        };
+    pub fn get_local_var(&self, jvm: &'gc_life JVMState<'gc_life>, i: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+        let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::read_target(jvm, target, expected_type)
     }
 
-    pub fn get_operand_stack(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-        from_start: u16,
-        expected_type: RuntimeType,
-    ) -> JavaValue<'gc_life> {
+    pub fn get_operand_stack(&self, jvm: &'gc_life JVMState<'gc_life>, from_start: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         let operand_stack_base = self.get_operand_stack_base(jvm).unwrap();
-        let target = unsafe {
-            operand_stack_base.offset((from_start as isize) * size_of::<jlong>() as isize)
-        };
+        let target = unsafe { operand_stack_base.offset((from_start as isize) * size_of::<jlong>() as isize) };
         Self::read_target(jvm, target, expected_type)
     }
 
     pub fn set_operand_stack(&mut self, from_start: u16, to_set: JavaValue<'gc_life>) {
-        let target = unsafe {
-            self.get_operand_stack_base(todo!())
-                .unwrap()
-                .offset((from_start as isize) * size_of::<jlong>() as isize)
-        };
+        let target = unsafe { self.get_operand_stack_base(todo!()).unwrap().offset((from_start as isize) * size_of::<jlong>() as isize) };
         Self::write_target(target, to_set)
     }
 
-    pub fn as_stack_entry_partially_correct(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> StackEntry<'gc_life> {
+    pub fn as_stack_entry_partially_correct(&self, jvm: &'gc_life JVMState<'gc_life>) -> StackEntry<'gc_life> {
         match self.operand_stack_length(jvm) {
             Ok(_) => {}
             Err(_) => {
-                return StackEntry::new_completely_opaque_frame(
-                    LoaderName::BootstrapLoader,
-                    vec![],
-                );
+                return StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
             }
         }
 
         let operand_stack_types = self.stack_types(jvm).unwrap();
-        assert_eq!(
-            self.operand_stack_length(jvm).unwrap() as usize,
-            operand_stack_types.len()
-        );
+        assert_eq!(self.operand_stack_length(jvm).unwrap() as usize, operand_stack_types.len());
         let operand_stack = operand_stack_types
             .iter()
             .enumerate()
@@ -449,12 +351,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             })
             .rev()
             .collect_vec();
-        let (class_pointer, method_i) = jvm
-            .method_table
-            .read()
-            .unwrap()
-            .try_lookup(self.method_id().unwrap())
-            .unwrap();
+        let (class_pointer, method_i) = jvm.method_table.read().unwrap().try_lookup(self.method_id().unwrap()).unwrap();
         /*let local_vars = locals_types.iter().enumerate().map(|(i, ptype)| {
             match ptype {
                 RuntimeType::TopType => JavaValue::Top,
@@ -464,14 +361,8 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let loader = self.loader(jvm);
         StackEntry {
             loader: loader,
-            opaque_frame_optional: Some(OpaqueFrameOptional {
-                class_pointer,
-                method_i,
-            }),
-            non_native_data: Some(NonNativeFrameData {
-                pc: self.pc(jvm).unwrap().0,
-                pc_offset: 0xDDDDDDD,
-            }),
+            opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
+            non_native_data: Some(NonNativeFrameData { pc: self.pc(jvm).unwrap().0, pc_offset: 0xDDDDDDD }),
             local_vars: vec![],
             operand_stack,
             native_local_refs: Default::default(),
@@ -514,9 +405,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn get_local_refs(&self) -> Vec<HashSet<jobject>> {
         match self.get_frame_info() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => native_local_refs.clone(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.clone(),
             FrameInfo::JavaFrame { .. } => panic!(),
         }
     }
@@ -524,9 +413,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn set_local_refs_top_frame(&mut self, new: HashSet<jobject>) {
         match self.get_frame_info_mut() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => {
+            FrameInfo::Native { native_local_refs, .. } => {
                 *native_local_refs.last_mut().unwrap() = new;
             }
             FrameInfo::JavaFrame { .. } => panic!(),
@@ -536,9 +423,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn pop_local_refs(&mut self) -> HashSet<jobject> {
         match self.get_frame_info_mut() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => native_local_refs.pop().unwrap(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.pop().unwrap(),
             FrameInfo::JavaFrame { .. } => panic!(),
         }
     }
@@ -546,9 +431,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn push_local_refs(&mut self, to_push: HashSet<jobject>) {
         match self.get_frame_info_mut() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => native_local_refs.push(to_push),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.push(to_push),
             FrameInfo::JavaFrame { .. } => panic!(),
         }
     }
@@ -556,9 +439,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn pop(&mut self) -> Option<HashSet<jobject>> {
         match self.get_frame_info_mut() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => native_local_refs.pop(),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.pop(),
             FrameInfo::JavaFrame { .. } => panic!(),
         }
     }
@@ -566,9 +447,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
     pub fn push(&mut self, jobjects: HashSet<jobject>) {
         match self.get_frame_info_mut() {
             FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native {
-                native_local_refs, ..
-            } => native_local_refs.push(jobjects),
+            FrameInfo::Native { native_local_refs, .. } => native_local_refs.push(jobjects),
             FrameInfo::JavaFrame { .. } => panic!(),
         }
     }
@@ -598,16 +477,9 @@ impl<'vm_life> Iterator for StackIter<'vm_life, '_> {
     type Item = StackEntry<'vm_life>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_frame != self.top
-            && self.current_ip != Some(0x0000010080000000 as *mut c_void)
-        {
+        if self.current_frame != self.top && self.current_ip != Some(0x0000010080000000 as *mut c_void) {
             //todo cnstant
-            let frame_view = FrameView::new(
-                self.current_frame,
-                self.java_stack,
-                self.current_ip
-                    .unwrap_or(self.java_stack.saved_registers.unwrap().instruction_pointer),
-            );
+            let frame_view = FrameView::new(self.current_frame, self.java_stack, self.current_ip.unwrap_or(self.java_stack.saved_registers.unwrap().instruction_pointer));
             let header = frame_view.get_header();
             self.current_ip = Some(header.prev_rip);
             let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));
@@ -650,10 +522,7 @@ pub enum StackEntryMut<'gc_life, 'l> {
     /*LegacyInterpreter {
         entry: &'l mut StackEntry
     },*/
-    Jit {
-        frame_view: FrameView<'gc_life, 'l>,
-        jvm: &'gc_life JVMState<'gc_life>,
-    },
+    Jit { frame_view: FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
 }
 
 impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
@@ -680,9 +549,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
     pub fn to_ref(&self) -> StackEntryRef<'gc_life, 'l> {
         match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => StackEntryRef::LegacyInterpreter { entry },*/
-            StackEntryMut::Jit { frame_view, .. } => StackEntryRef::Jit {
-                frame_view: frame_view.clone(),
-            },
+            StackEntryMut::Jit { frame_view, .. } => StackEntryRef::Jit { frame_view: frame_view.clone() },
         }
     }
 
@@ -742,10 +609,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         }
     }
 
-    pub fn operand_stack_ref(
-        &'k mut self,
-        _jvm: &'gc_life JVMState<'gc_life>,
-    ) -> OperandStackRef<'gc_life, 'l, 'k> {
+    pub fn operand_stack_ref(&'k mut self, _jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
         match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 OperandStackRef::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
@@ -777,10 +641,7 @@ pub enum LocalVarsMut<'gc_life, 'l, 'k> {
     /*LegacyInterpreter {
         vars: &'l mut Vec<JavaValue<'gc_life>>
     },*/
-    Jit {
-        frame_view: &'k mut FrameView<'gc_life, 'l>,
-        jvm: &'gc_life JVMState<'gc_life>,
-    },
+    Jit { frame_view: &'k mut FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
 }
 
 impl<'gc_life, 'l, 'k> LocalVarsMut<'gc_life, 'l, 'k> {
@@ -797,19 +658,14 @@ pub enum LocalVarsRef<'gc_life, 'l, 'k> {
     /*    LegacyInterpreter {
         vars: &'l Vec<JavaValue>
     },*/
-    Jit {
-        frame_view: &'k FrameView<'gc_life, 'l>,
-        jvm: &'gc_life JVMState<'gc_life>,
-    },
+    Jit { frame_view: &'k FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
 }
 
 impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
     pub fn get(&self, i: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         match self {
             /*LocalVarsRef::LegacyInterpreter { .. } => todo!(),*/
-            LocalVarsRef::Jit { frame_view, jvm } => {
-                frame_view.get_local_var(jvm, i, expected_type)
-            }
+            LocalVarsRef::Jit { frame_view, jvm } => frame_view.get_local_var(jvm, i, expected_type),
         }
     }
 
@@ -818,11 +674,7 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
             LocalVarsRef::Jit { frame_view, .. } => match frame_view.get_frame_info() {
                 FrameInfo::FullyOpaque { .. } => panic!(),
                 FrameInfo::Native { .. } => panic!(),
-                FrameInfo::JavaFrame {
-                    num_locals,
-                    locals_types,
-                    ..
-                } => {
+                FrameInfo::JavaFrame { num_locals, locals_types, .. } => {
                     assert_eq!(locals_types.len(), *num_locals as usize);
 
                     *num_locals as usize
@@ -836,10 +688,7 @@ pub enum OperandStackRef<'gc_life, 'l, 'k> {
     /*LegacyInterpreter {
         operand_stack: &'l Vec<JavaValue>
     },*/
-    Jit {
-        frame_view: &'k FrameView<'gc_life, 'l>,
-        jvm: &'gc_life JVMState<'gc_life>,
-    },
+    Jit { frame_view: &'k FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
 }
 
 impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
@@ -850,9 +699,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     pub fn len(&self) -> u16 {
         match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackRef::Jit { frame_view, jvm } => {
-                frame_view.operand_stack_length(jvm).unwrap()
-            }
+            OperandStackRef::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm).unwrap(),
         }
     }
 
@@ -863,9 +710,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
         match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackRef::Jit { frame_view, jvm } => {
-                frame_view.get_operand_stack(jvm, from_start, expected_type)
-            }
+            OperandStackRef::Jit { frame_view, jvm } => frame_view.get_operand_stack(jvm, from_start, expected_type),
         }
     }
 
@@ -876,10 +721,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     }
     pub fn types_vals(&self) -> Vec<JavaValue<'gc_life>> {
         match self {
-            OperandStackRef::Jit { frame_view, jvm } => frame_view
-                .as_stack_entry_partially_correct(jvm)
-                .operand_stack
-                .clone(),
+            OperandStackRef::Jit { frame_view, jvm } => frame_view.as_stack_entry_partially_correct(jvm).operand_stack.clone(),
         }
     }
 }
@@ -888,10 +730,7 @@ pub enum OperandStackMut<'gc_life, 'l, 'k> {
     /*    LegacyInterpreter {
         operand_stack: &'l mut Vec<JavaValue<'gc_life>>
     }*/
-    Jit {
-        frame_view: &'k mut FrameView<'gc_life, 'l>,
-        jvm: &'gc_life JVMState<'gc_life>,
-    },
+    Jit { frame_view: &'k mut FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
 }
 
 impl OperandStackMut<'gc_life, 'l, 'k> {
@@ -927,9 +766,7 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
     pub fn len(&self) -> usize {
         (match self {
             /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
-            OperandStackMut::Jit { frame_view, jvm } => {
-                frame_view.operand_stack_length(jvm).unwrap()
-            }
+            OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm).unwrap(),
         }) as usize
     }
 }
@@ -961,10 +798,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         }
     }
 
-    pub fn try_class_pointer(
-        &self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> Option<Arc<RuntimeClass<'gc_life>>> {
+    pub fn try_class_pointer(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<Arc<RuntimeClass<'gc_life>>> {
         match self {
             /*            StackEntryRef::LegacyInterpreter { entry, .. } => {
                             entry.try_class_pointer().cloned()
@@ -972,12 +806,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             */
             StackEntryRef::Jit { frame_view, .. } => {
                 let method_id = frame_view.method_id()?;
-                let (rc, _) = jvm
-                    .method_table
-                    .read()
-                    .unwrap()
-                    .try_lookup(method_id)
-                    .unwrap();
+                let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                 Some(rc)
             }
         }
@@ -1008,21 +837,13 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => { entry.method_i() }*/
             StackEntryRef::Jit { frame_view, .. } => {
                 let method_id = frame_view.method_id().unwrap();
-                let (_, method_i) = jvm
-                    .method_table
-                    .read()
-                    .unwrap()
-                    .try_lookup(method_id)
-                    .unwrap();
+                let (_, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                 method_i
             }
         }
     }
 
-    pub fn operand_stack(
-        &'k self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> OperandStackRef<'gc_life, 'l, 'k> {
+    pub fn operand_stack(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
         match self {
             /*StackEntryRef::LegacyInterpreter { .. } => todo!(),*/
             StackEntryRef::Jit { frame_view, .. } => OperandStackRef::Jit { frame_view, jvm },
@@ -1036,19 +857,14 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         }
     }
 
-    pub fn native_local_refs(
-        &self,
-    ) -> &mut Vec<BiMap<ByAddress<GcManagedObject<'gc_life>>, jobject>> {
+    pub fn native_local_refs(&self) -> &mut Vec<BiMap<ByAddress<GcManagedObject<'gc_life>>, jobject>> {
         match self {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => todo!("{:?}", entry),*/
             StackEntryRef::Jit { frame_view, .. } => todo!("{:?}", frame_view),
         }
     }
 
-    pub fn local_vars(
-        &'l self,
-        jvm: &'gc_life JVMState<'gc_life>,
-    ) -> LocalVarsRef<'gc_life, 'l, 'k> {
+    pub fn local_vars(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> LocalVarsRef<'gc_life, 'l, 'k> {
         match self {
             /*            StackEntryRef::LegacyInterpreter { entry } => {
                             LocalVarsRef::LegacyInterpreter { vars: entry.local_vars(jvm) }
@@ -1060,10 +876,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
 }
 
 impl<'gc_life> StackEntry<'gc_life> {
-    pub fn new_completely_opaque_frame(
-        loader: LoaderName,
-        operand_stack: Vec<JavaValue<'gc_life>>,
-    ) -> Self {
+    pub fn new_completely_opaque_frame(loader: LoaderName, operand_stack: Vec<JavaValue<'gc_life>>) -> Self {
         //need a better name here
         Self {
             loader,
@@ -1075,24 +888,10 @@ impl<'gc_life> StackEntry<'gc_life> {
         }
     }
 
-    pub fn new_java_frame(
-        jvm: &'gc_life JVMState<'gc_life>,
-        class_pointer: Arc<RuntimeClass<'gc_life>>,
-        method_i: u16,
-        args: Vec<JavaValue<'gc_life>>,
-    ) -> Self {
-        let max_locals = class_pointer
-            .view()
-            .method_view_i(method_i)
-            .code_attribute()
-            .unwrap()
-            .max_locals;
+    pub fn new_java_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
+        let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
-        let loader = jvm
-            .classes
-            .read()
-            .unwrap()
-            .get_initiating_loader(&class_pointer);
+        let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
         let mut guard = jvm.method_table.write().unwrap();
         let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
         let class_view = class_pointer.view();
@@ -1101,36 +900,18 @@ impl<'gc_life> StackEntry<'gc_life> {
         let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
         Self {
             loader,
-            opaque_frame_optional: Some(OpaqueFrameOptional {
-                class_pointer,
-                method_i,
-            }),
-            non_native_data: Some(NonNativeFrameData {
-                pc: 0,
-                pc_offset: 0,
-            }),
+            opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
+            non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
             local_vars: args,
             operand_stack,
             native_local_refs: vec![],
         }
     }
 
-    pub fn new_native_frame(
-        jvm: &'gc_life JVMState<'gc_life>,
-        class_pointer: Arc<RuntimeClass<'gc_life>>,
-        method_i: u16,
-        args: Vec<JavaValue<'gc_life>>,
-    ) -> Self {
+    pub fn new_native_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
         Self {
-            loader: jvm
-                .classes
-                .read()
-                .unwrap()
-                .get_initiating_loader(&class_pointer),
-            opaque_frame_optional: Some(OpaqueFrameOptional {
-                class_pointer,
-                method_i,
-            }),
+            loader: jvm.classes.read().unwrap().get_initiating_loader(&class_pointer),
+            opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
             non_native_data: None,
             local_vars: args,
             operand_stack: vec![],
@@ -1216,10 +997,7 @@ impl<'gc_life> StackEntry<'gc_life> {
             None => return true,
             Some(i) => i,
         };
-        self.class_pointer()
-            .view()
-            .method_view_i(method_i)
-            .is_native()
+        self.class_pointer().view().method_view_i(method_i).is_native()
     }
 
     pub fn convert_to_native(&mut self) {
@@ -1227,17 +1005,11 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 
     pub fn operand_stack_types(&self) -> Vec<RuntimeType> {
-        self.operand_stack()
-            .iter()
-            .map(|type_| type_.to_type())
-            .collect()
+        self.operand_stack().iter().map(|type_| type_.to_type()).collect()
     }
 
     pub fn local_vars_types(&self) -> Vec<RuntimeType> {
-        self.local_vars()
-            .iter()
-            .map(|type_| type_.to_type())
-            .collect()
+        self.local_vars().iter().map(|type_| type_.to_type()).collect()
     }
 
     pub fn loader(&self) -> LoaderName {
