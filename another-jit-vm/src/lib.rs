@@ -14,7 +14,7 @@ use std::sync::RwLock;
 
 use iced_x86::{Code, Instruction, MemoryOperand, Register};
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, r15};
-use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_SHARED, PROT_EXEC, PROT_READ, PROT_WRITE};
+use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
@@ -23,21 +23,21 @@ pub struct MethodImplementationID(usize);
 
 pub struct MethodOffset(usize);
 
-pub struct VMStateInner<T: Sized> {
+pub struct VMStateInner<'vm_state_life, T: Sized> {
     method_id_max: MethodImplementationID,
-    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>>,
+    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent) -> VMExitAction<T> + 'vm_state_life>>,
     code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
     code_regions_to_method: RangeMap<*mut c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
 }
 
-pub struct VMState<T: Sized> {
-    inner: RwLock<VMStateInner<T>>,
+pub struct VMState<'vm_state_life, T: Sized> {
+    inner: RwLock<VMStateInner<'vm_state_life, T>>,
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
 }
 
-impl<T> Drop for VMState<T> {
+impl<T> Drop for VMState<'_, T> {
     fn drop(&mut self) {
         let res = unsafe { libc::munmap(self.mmaped_code_region_base, self.mmaped_code_size) };
         if res != 0 {
@@ -49,7 +49,7 @@ impl<T> Drop for VMState<T> {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithIP {
-    rip: *mut c_void,
+    pub rip: *mut c_void,
     saved_registers_without_ip: SavedRegistersWithoutIP,
 }
 
@@ -80,8 +80,11 @@ impl SavedRegistersWithoutIP {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct VMExitEvent {
-    saved_guest_registers: SavedRegistersWithIP,
+    pub method: MethodImplementationID,
+    pub method_base_address: *mut c_void,
+    pub saved_guest_registers: SavedRegistersWithIP,
 }
 
 pub enum VMExitAction<T: Sized> {
@@ -95,9 +98,9 @@ struct JITContext {
     vm_native_saved_registers: SavedRegistersWithIP,
 }
 
-impl<T> VMState<T> {
+impl<'vm_state_life, T> VMState<'vm_state_life, T> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
-    pub fn new() -> VMState<T> {
+    pub fn new() -> VMState<'vm_state_life, T> {
         const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
         unsafe {
             let mmaped_code_region_base = libc::mmap(null_mut(), DEFAULT_CODE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0) as *mut c_void;
@@ -318,7 +321,9 @@ impl<T> VMState<T> {
             Some(method_implementation) => {
                 let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap();
                 let vm_exit_event = VMExitEvent {
-                    saved_guest_registers: guest_registers
+                    method: *method_implementation,
+                    method_base_address: inner_read_guard.code_regions.get(method_implementation).unwrap().start,
+                    saved_guest_registers: guest_registers,
                 };
                 return handler(&vm_exit_event);
             }
@@ -338,13 +343,18 @@ impl<T> VMState<T> {
         }
     }
 
-    pub fn add_method_implementation(&self, method: Method<T>) {
+    pub fn get_new_base_address(&self) -> BaseAddress {
+        BaseAddress(self.inner.read().unwrap().max_ptr)
+    }
+
+    pub fn add_method_implementation(&self, method: Method<'vm_state_life, T>, base_address: BaseAddress) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
         let Method { code, exit_handler } = method;
         inner_guard.exit_handlers.insert(current_method_id, exit_handler);
         let new_method_base = inner_guard.max_ptr;
+        assert_eq!(base_address.0, new_method_base);
         let code_len = code.len();
         let end_of_new_method = unsafe {
             inner_guard.max_ptr.offset(code_len as isize)
@@ -354,17 +364,21 @@ impl<T> VMState<T> {
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base, code_len); }
+        current_method_id
     }
 }
+
+#[must_use]
+pub struct BaseAddress(pub *const c_void);
 
 pub struct VMExitLabel {
     before_exit_label: CodeLabel,
     after_exit_label: CodeLabel,
 }
 
-pub struct Method<T: Sized> {
+pub struct Method<'vm_state_life, T: Sized> {
     pub code: Vec<u8>,
-    pub exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T>>,
+    pub exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T> + 'vm_state_life>,
 }
 
 

@@ -1182,7 +1182,8 @@ impl JITedCodeState {
                 IRInstr::CopyRegister { .. } => todo!(),
                 IRInstr::BinaryBitAnd { .. } => todo!(),
                 IRInstr::ForwardBitScan { .. } => todo!(),
-                IRInstr::WithAssembler { .. } => {}
+                IRInstr::WithAssembler { .. } => todo!(),
+                IRInstr::IRNewFrame { .. } => todo!(),
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);

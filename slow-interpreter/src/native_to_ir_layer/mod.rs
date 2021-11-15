@@ -1,15 +1,18 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
+use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
+use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
-use iced_x86::code_asm::{CodeAssembler, qword_ptr, rbp};
+use iced_x86::code_asm::{CodeAssembler, qword_ptr, rax, rbp};
+use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
 use memoffset::offset_of;
 
-use another_jit_vm::{Method, MethodImplementationID, SavedRegistersWithoutIP, VMState};
+use another_jit_vm::{BaseAddress, Method, MethodImplementationID, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
 use classfile_parser::code::InstructionTypeNum::new;
 
 use crate::gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
@@ -21,12 +24,36 @@ pub struct IRMethodID(usize);
 
 pub struct IRVMStateInner {
     // each IR function is distinct single java methods may many ir methods
-    current_implementation: HashMap<IRMethodID, MethodImplementationID>,
+    ir_method_id_max: IRMethodID,
+    current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
+    method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructOffset, IRInstructIndex>>,
+    method_ir: HashMap<IRMethodID, Vec<IRInstr>>,// index
     // function_ir_mapping: HashMap<IRMethodID, !>,
 }
 
-pub struct IRVMState {
-    native_vm: VMState<u64>,
+impl IRVMStateInner {
+    pub fn new() -> Self {
+        Self {
+            ir_method_id_max: IRMethodID(0),
+            current_implementation: Default::default(),
+            method_ir_offsets: Default::default(),
+            method_ir: Default::default(),
+        }
+    }
+
+    pub fn add_function_ir_offsets(&mut self, current_ir_id: IRMethodID, new_instruction_offsets: Vec<IRInstructOffset>, assembly_index_to_ir_instruct_index: HashMap<AssemblyInstructionIndex, IRInstructIndex>) {
+        let mut res = BiHashMap::new();
+        for (i, instruction_offset) in new_instruction_offsets.into_iter().enumerate() {
+            let assembly_instruction_index = AssemblyInstructionIndex(i);
+            let ir_instruction_index = assembly_index_to_ir_instruct_index.get(&assembly_instruction_index).unwrap();
+            res.insert(instruction_offset, *ir_instruction_index);
+        }
+        self.method_ir_offsets.insert(current_ir_id, res);
+    }
+}
+
+pub struct IRVMState<'vm_state_life> {
+    native_vm: VMState<'vm_state_life, u64>,
     inner: RwLock<IRVMStateInner>,
 }
 
@@ -35,7 +62,6 @@ pub struct IRVMState {
 pub struct IRStack {
     mmaped_top: *mut c_void,
 }
-
 
 pub struct UnPackedIRFrameHeader {
     prev_rip: *mut c_void,
@@ -87,7 +113,6 @@ impl IRStack {
     }
 }
 
-
 //iters up from position on stack
 pub struct IRStackIter {
     current_rbp: *mut c_void,
@@ -111,102 +136,158 @@ pub struct IRStackEntry {
     rbp: *mut c_void,
 }
 
-impl IRVMState {
+impl IRVMState<'vm_state_life> {
     pub fn new() -> Self {
         Self {
             native_vm: VMState::new(),
-            inner: RwLock::new(IRVMStateInner {
-                current_implementation: Default::default(),
-                // function_ir_mapping: Default::default(),
-            }),
+            inner: RwLock::new(IRVMStateInner::new()),
         }
     }
 
     pub fn run_method(&self, method_id: IRMethodID) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
-        let current_implemntation = inner_read_guard.current_implementation.get(&method_id).unwrap();
+        let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        self.native_vm.launch_vm(*current_implemntation, SavedRegistersWithoutIP::new_with_all_zero())
+        self.native_vm.launch_vm(current_implementation, SavedRegistersWithoutIP::new_with_all_zero())
     }
 
-    fn debug_print_instructions(block: &InstructionBlock) {
+    fn debug_print_instructions(assembler: &CodeAssembler) {
         let mut formatted_instructions = String::new();
         let mut formatter = IntelFormatter::default();
         for (i, instruction) in assembler.instructions().iter().enumerate() {
             formatter.format(instruction, &mut formatted_instructions);
         }
-        eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
+        eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&self, instructions: Vec<IRInstr>) -> IRMethodID {
+    pub fn add_function(&'vm_state_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent) -> VMExitAction<u64>>) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
-        let next_id = MethodId(inner_guard.current_implementation.len());
+        let current_ir_id = inner_guard.ir_method_id_max;
+        inner_guard.ir_method_id_max.0 += 1;
         let mut assembler = CodeAssembler::new(64).unwrap();
-        Self::add_function_from_ir(&mut assembler, instructions);
-        let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
-        Self::debug_print_instructions(&block);
-
+        let (code_assembler, assembly_index_to_ir_instruct_index) = add_function_from_ir(instructions);
+        Self::debug_print_instructions(&assembler);
+        let base_address = self.native_vm.get_new_base_address();
+        let block = InstructionBlock::new(assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
+        let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructOffset(new_instruction_offset as usize)).collect_vec();
+        inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
+        let vm_exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<u64> + 'vm_state_life> = box move |vm_exit_event: &VMExitEvent| {
+            vm_exit_handler(self, vm_exit_event, ir_exit_handler.deref())
+        };
+        let code = result.code_buffer;
 
-        self.native_vm.add_method_implementation(Method {
+        let method_implementation_id = self.native_vm.add_method_implementation(Method {
             code,
-            exit_handler,
-        });
-        inner_guard.current_implementation.get(&)
-        todo!()
+            exit_handler: vm_exit_handler,
+        }, base_address);
+        inner_guard.current_implementation.insert(current_ir_id, method_implementation_id);
+        current_ir_id
     }
+}
 
-    fn add_function_from_ir(assembler: &mut CodeAssembler, instructions: Vec<IRInstr>) {
-        for (i, instruction) in instructions.into_iter().enumerate() {
-            match instruction {
-                IRInstr::LoadFPRelative { from, to } => {
-                    //stack grows down
-                    assembler.mov(to.to_native_64(), rbp - from.0).unwrap();
-                }
-                IRInstr::StoreFPRelative { from, to } => {
-                    assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap();
-                }
-                IRInstr::Load { .. } => todo!(),
-                IRInstr::Store { .. } => todo!(),
-                IRInstr::CopyRegister { .. } => todo!(),
-                IRInstr::Add { .. } => todo!(),
-                IRInstr::Sub { .. } => todo!(),
-                IRInstr::Div { .. } => todo!(),
-                IRInstr::Mod { .. } => todo!(),
-                IRInstr::Mul { .. } => todo!(),
-                IRInstr::BinaryBitAnd { .. } => todo!(),
-                IRInstr::ForwardBitScan { .. } => todo!(),
-                IRInstr::Const32bit { .. } => todo!(),
-                IRInstr::Const64bit { .. } => todo!(),
-                IRInstr::BranchToLabel { .. } => todo!(),
-                IRInstr::LoadLabel { .. } => todo!(),
-                IRInstr::LoadRBP { .. } => todo!(),
-                IRInstr::WriteRBP { .. } => todo!(),
-                IRInstr::BranchEqual { .. } => todo!(),
-                IRInstr::BranchNotEqual { .. } => todo!(),
-                IRInstr::Return { .. } => todo!(),
-                IRInstr::VMExit { .. } => todo!(),
-                IRInstr::GrowStack { .. } => todo!(),
-                IRInstr::LoadSP { .. } => todo!(),
-                IRInstr::WithAssembler { .. } => todo!(),
-                IRInstr::FNOP => todo!(),
-                IRInstr::Label(_) => todo!(),
-                IRInstr::IRNewFrame {
-                    current_frame_size,
-                    return_to_rip
-                } => {
-                    let return_to_rip = return_to_rip.to_native_64();
-                    assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_1_OFFSET), MAGIC_1_EXPECTED).unwrap();
-                    assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_2_OFFSET), MAGIC_2_EXPECTED).unwrap();
+fn vm_exit_handler(ir_vm_state: &'vm_state_life IRVMState<'vm_state_life>, vm_exit_event: &VMExitEvent, ir_exit_handler: &(dyn Fn(&IRVMExitEvent) -> VMExitAction<u64> + 'vm_state_life)) -> VMExitAction<u64> {
+    let implementation_id = vm_exit_event.method;
+    let exit_address = vm_exit_event.saved_guest_registers.rip;
+    let exit_method_base_address = vm_exit_event.method_base_address;
+    let offset = unsafe { exit_method_base_address.offset_from(exit_address) };
+    if offset < 0 {
+        panic!()
+    }
+    assert!(offset < 1024 * 1024);// methods over a megabyte prob aren't a thing
+    let inner_read_guard = ir_vm_state.inner.read().unwrap();
+    let ir_method_id = *inner_read_guard.current_implementation.get_by_right(&implementation_id).unwrap();
 
-                    assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET), rbp).unwrap();
-                    assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET), return_to_rip).unwrap();
-                }
-            }
+    let ir_vm_exit_event = IRVMExitEvent {
+        inner: &vm_exit_event,
+        ir_method: ir_method_id,
+        ir_instruct: todo!(),
+    };
+
+    ir_exit_handler(&ir_vm_exit_event)
+}
+
+
+fn add_function_from_ir(instructions: Vec<IRInstr>) -> (CodeAssembler, HashMap<AssemblyInstructionIndex, IRInstructIndex>) {
+    let mut assembler = CodeAssembler::new(64).unwrap();
+    let mut res = HashMap::new();
+    for (i, instruction) in instructions.into_iter().enumerate() {
+        let assembly_instruction_index = AssemblyInstructionIndex(assembler.instructions().len());
+        let ir_instruction_index = IRInstructIndex(i);
+        res.insert(assembly_instruction_index, ir_instruction_index);
+        single_ir_to_native(&mut assembler, instruction);
+    }
+    (assembler, res)
+}
+
+fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr) {
+    match instruction {
+        IRInstr::LoadFPRelative { from, to } => {
+            //stack grows down
+            assembler.mov(to.to_native_64(), rbp - from.0).unwrap();
         }
-        todo!()
-    }
+        IRInstr::StoreFPRelative { from, to } => {
+            assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap();
+        }
+        IRInstr::Load { .. } => todo!(),
+        IRInstr::Store { .. } => todo!(),
+        IRInstr::CopyRegister { .. } => todo!(),
+        IRInstr::Add { .. } => todo!(),
+        IRInstr::Sub { .. } => todo!(),
+        IRInstr::Div { .. } => todo!(),
+        IRInstr::Mod { .. } => todo!(),
+        IRInstr::Mul { .. } => todo!(),
+        IRInstr::BinaryBitAnd { .. } => todo!(),
+        IRInstr::ForwardBitScan { .. } => todo!(),
+        IRInstr::Const32bit { .. } => todo!(),
+        IRInstr::Const64bit { .. } => todo!(),
+        IRInstr::BranchToLabel { .. } => todo!(),
+        IRInstr::LoadLabel { .. } => todo!(),
+        IRInstr::LoadRBP { .. } => todo!(),
+        IRInstr::WriteRBP { .. } => todo!(),
+        IRInstr::BranchEqual { .. } => todo!(),
+        IRInstr::BranchNotEqual { .. } => todo!(),
+        IRInstr::Return { .. } => todo!(),
+        IRInstr::VMExit { .. } => todo!(),
+        IRInstr::GrowStack { .. } => todo!(),
+        IRInstr::LoadSP { .. } => todo!(),
+        IRInstr::WithAssembler { .. } => todo!(),
+        IRInstr::FNOP => todo!(),
+        IRInstr::Label(_) => todo!(),
+        IRInstr::IRNewFrame {
+            current_frame_size,
+            temp_register,
+            return_to_rip
+        } => {
+            let return_to_rip = return_to_rip.to_native_64();
+            let temp_register = temp_register.to_native_64();
+            assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
+            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
+            assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
+            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
 
-    fn single_ir_to_native(assembler: &mut CodeAssembler) {}
+            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
+            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
+        }
+    }
+}
+
+
+//index is an index, offset is a byte offset from method start
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct IRInstructIndex(usize);
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct IRInstructOffset(usize);
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct AssemblyInstructionIndex(usize);
+
+
+pub struct IRVMExitEvent<'l> {
+    inner: &'l VMExitEvent,
+    ir_method: IRMethodID,
+    ir_instruct: IRInstructIndex,
 }

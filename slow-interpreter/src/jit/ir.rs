@@ -76,6 +76,7 @@ pub enum IRInstr {
     WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
     IRNewFrame {
         current_frame_size: usize,
+        temp_register: Register,
         return_to_rip: Register,
     },
     FNOP,
