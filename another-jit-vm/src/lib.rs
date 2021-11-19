@@ -50,28 +50,28 @@ impl<T> Drop for VMState<'_, T> {
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithIP {
     pub rip: *mut c_void,
-    saved_registers_without_ip: SavedRegistersWithoutIP,
+    pub saved_registers_without_ip: SavedRegistersWithoutIP,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithoutIP {
-    rax: *mut c_void,
-    rbx: *mut c_void,
-    rcx: *mut c_void,
-    rdx: *mut c_void,
-    rsi: *mut c_void,
-    rdi: *mut c_void,
-    rbp: *mut c_void,
-    rsp: *mut c_void,
-    r8: *mut c_void,
-    r9: *mut c_void,
-    r10: *mut c_void,
-    r11: *mut c_void,
-    r12: *mut c_void,
-    r13: *mut c_void,
-    r14: *mut c_void,
-    xsave_area: [u64; 64],
+    pub rax: *mut c_void,
+    pub rbx: *mut c_void,
+    pub rcx: *mut c_void,
+    pub rdx: *mut c_void,
+    pub rsi: *mut c_void,
+    pub rdi: *mut c_void,
+    pub rbp: *mut c_void,
+    pub rsp: *mut c_void,
+    pub r8: *mut c_void,
+    pub r9: *mut c_void,
+    pub r10: *mut c_void,
+    pub r11: *mut c_void,
+    pub r12: *mut c_void,
+    pub r13: *mut c_void,
+    pub r14: *mut c_void,
+    pub xsave_area: [u64; 64],
 }
 
 impl SavedRegistersWithoutIP {

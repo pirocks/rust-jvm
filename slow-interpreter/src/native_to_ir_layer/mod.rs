@@ -7,7 +7,8 @@ use std::sync::RwLock;
 
 use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
-use iced_x86::code_asm::{CodeAssembler, qword_ptr, rax, rbp};
+use iced_x86::CC_b::c;
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
 use memoffset::offset_of;
@@ -17,6 +18,7 @@ use classfile_parser::code::InstructionTypeNum::new;
 
 use crate::gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::jit::ir::IRInstr;
+use crate::jit::LabelName;
 use crate::method_table::MethodId;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
@@ -161,7 +163,7 @@ impl IRVMState<'vm_state_life> {
         eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_state_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent) -> VMExitAction<u64>>) -> IRMethodID {
+    pub fn add_function(&'vm_state_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent) -> VMExitAction<u64> + 'vm_state_life>) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -195,14 +197,17 @@ fn vm_exit_handler(ir_vm_state: &'vm_state_life IRVMState<'vm_state_life>, vm_ex
     if offset < 0 {
         panic!()
     }
-    assert!(offset < 1024 * 1024);// methods over a megabyte prob aren't a thing
+    let offset = IRInstructOffset(offset as usize);
+    assert!(offset.0 < 1024 * 1024);// methods over a megabyte prob aren't a thing
     let inner_read_guard = ir_vm_state.inner.read().unwrap();
     let ir_method_id = *inner_read_guard.current_implementation.get_by_right(&implementation_id).unwrap();
+    let ir_instruct_index = inner_read_guard.method_ir_offsets.get(&ir_method_id).unwrap().get_by_left(&offset).unwrap();
+
 
     let ir_vm_exit_event = IRVMExitEvent {
         inner: &vm_exit_event,
         ir_method: ir_method_id,
-        ir_instruct: todo!(),
+        ir_instruct: *ir_instruct_index,
     };
 
     ir_exit_handler(&ir_vm_exit_event)
@@ -212,16 +217,17 @@ fn vm_exit_handler(ir_vm_state: &'vm_state_life IRVMState<'vm_state_life>, vm_ex
 fn add_function_from_ir(instructions: Vec<IRInstr>) -> (CodeAssembler, HashMap<AssemblyInstructionIndex, IRInstructIndex>) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut res = HashMap::new();
+    let mut labels = HashMap::new();
     for (i, instruction) in instructions.into_iter().enumerate() {
         let assembly_instruction_index = AssemblyInstructionIndex(assembler.instructions().len());
         let ir_instruction_index = IRInstructIndex(i);
         res.insert(assembly_instruction_index, ir_instruction_index);
-        single_ir_to_native(&mut assembler, instruction);
+        single_ir_to_native(&mut assembler, instruction, &mut labels);
     }
     (assembler, res)
 }
 
-fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr) {
+fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labels: &mut HashMap<LabelName,CodeLabel>) {
     match instruction {
         IRInstr::LoadFPRelative { from, to } => {
             //stack grows down
@@ -242,7 +248,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr) {
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { .. } => todo!(),
         IRInstr::Const64bit { .. } => todo!(),
-        IRInstr::BranchToLabel { .. } => todo!(),
+        IRInstr::BranchToLabel { label } => {
+            let code_label = labels.entry(label).or_insert_with(||assembler.create_label());
+            assembler.jmp(code_label.clone()).unwrap();
+        },
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
@@ -254,7 +263,12 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr) {
         IRInstr::LoadSP { .. } => todo!(),
         IRInstr::WithAssembler { .. } => todo!(),
         IRInstr::FNOP => todo!(),
-        IRInstr::Label(_) => todo!(),
+        IRInstr::Label(label) => {
+            let label_name = label.name;
+            let code_label = labels.entry(label_name).or_insert_with(||assembler.create_label());
+            assembler.set_label(code_label);
+            assembler.nop().unwrap();
+        },
         IRInstr::IRNewFrame {
             current_frame_size,
             temp_register,
@@ -287,7 +301,7 @@ pub struct AssemblyInstructionIndex(usize);
 
 
 pub struct IRVMExitEvent<'l> {
-    inner: &'l VMExitEvent,
-    ir_method: IRMethodID,
-    ir_instruct: IRInstructIndex,
+    pub inner: &'l VMExitEvent,
+    pub ir_method: IRMethodID,
+    pub ir_instruct: IRInstructIndex,
 }

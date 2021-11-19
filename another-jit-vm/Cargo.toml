@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 memoffset = "0.6.4"
 rangemap = "0.1.13"
-nix = "0.23.0"
+nix = "0.23"
 libc = "0.2.107"
 bimap = "0.6.1"
 

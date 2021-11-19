@@ -13,8 +13,6 @@ test = true
 
 
 [dependencies]
-ntest_timeout = "0.3.0"
-timebomb = "0.1.2"
 rust-jvm-common = { path = "../rust-jvm-common" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 num-traits = "0.2"

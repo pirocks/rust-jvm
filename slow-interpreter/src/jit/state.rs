@@ -11,10 +11,12 @@ use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 use std::sync::{Arc, MutexGuard};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 use std::thread::{LocalKey, Thread};
 
 use bimap::BiHashMap;
+use crossbeam::epoch::Atomic;
 use iced_x86::{BlockEncoder, Formatter, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rsp};
@@ -105,7 +107,7 @@ impl JITedCodeState {
             current_jit_instr: IRInstructionIndex(0),
             exits: HashMap::new(),
             labels: HashMap::new(),
-            labeler: Labeler { current_label: 0 },
+            labeler: Labeler { current_label: AtomicU32::new(0) },
             top_level_exit_code: null_mut(),
             address_to_byte_code_offset: HashMap::new(),
             function_starts: HashMap::new(),
@@ -1691,13 +1693,12 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
 }
 
 pub struct Labeler {
-    current_label: u32,
+    current_label: AtomicU32,
 }
 
 impl Labeler {
-    pub fn new_label(&mut self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
-        let current_label = self.current_label.checked_add(1).unwrap();
-        self.current_label = current_label;
+    pub fn new_label(&self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
+        let current_label = self.current_label.fetch_add(1, Ordering::SeqCst);
         let res = LabelName(current_label);
         labels_vec.push(IRLabel { name: res });
         res
