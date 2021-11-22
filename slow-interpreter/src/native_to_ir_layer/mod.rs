@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -15,8 +16,9 @@ use memoffset::offset_of;
 
 use another_jit_vm::{BaseAddress, Method, MethodImplementationID, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
 use classfile_parser::code::InstructionTypeNum::new;
+use verification::verifier::Frame;
 
-use crate::gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::jit::ir::IRInstr;
 use crate::jit::LabelName;
 use crate::method_table::MethodId;
@@ -28,6 +30,7 @@ pub struct IRVMStateInner {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
     current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
+    frame_sizes: HashMap<IRMethodID, usize>,
     method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructOffset, IRInstructIndex>>,
     method_ir: HashMap<IRMethodID, Vec<IRInstr>>,// index
     // function_ir_mapping: HashMap<IRMethodID, !>,
@@ -38,6 +41,7 @@ impl IRVMStateInner {
         Self {
             ir_method_id_max: IRMethodID(0),
             current_implementation: Default::default(),
+            frame_sizes: Default::default(),
             method_ir_offsets: Default::default(),
             method_ir: Default::default(),
         }
@@ -63,13 +67,14 @@ pub struct IRVMState<'vm_state_life> {
 // will have IR instruct for new frame, so IR also knows about frames
 pub struct IRStack {
     mmaped_top: *mut c_void,
+    max_stack: usize,
 }
 
 pub struct UnPackedIRFrameHeader {
     prev_rip: *mut c_void,
     prev_rbp: *mut c_void,
-    ignored_java_data1: Option<*mut c_void>,
-    ignored_java_data2: Option<*mut c_void>,
+    ir_method_id: IRMethodID,
+    method_id_ignored: u64,
     magic_1: u64,
     magic_2: u64,
     // as above but grows down
@@ -83,6 +88,8 @@ pub struct UnPackedIRFrameHeader {
 
 pub const FRAME_HEADER_PREV_RIP_OFFSET: usize = 0;
 pub const FRAME_HEADER_PREV_RBP_OFFSET: usize = 8;
+pub const FRAME_HEADER_IR_METHOD_ID_OFFSET: usize = 16;
+pub const FRAME_HEADER_METHOD_ID_OFFSET: usize = 24;
 pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = 32;
 pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = 40;
 
@@ -91,27 +98,111 @@ impl IRStack {
         pub const MAX_STACK: usize = 1024 * 1024 * 1024;
         let mmaped_top = unsafe { libc::mmap(null_mut(), MAX_STACK, PROT_READ | PROT_WRITE, MAP_NORESERVE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0) };
         Self {
-            mmaped_top
+            mmaped_top,
+            max_stack: MAX_STACK,
         }
     }
 
-    unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
-        let rip_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RIP_OFFSET as isize)) as *const *mut c_void;
-        let rbp_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RBP_OFFSET as isize)) as *const *mut c_void;
-        let magic1_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_1_OFFSET as isize)) as *const u64;
-        let magic2_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_2_OFFSET as isize)) as *const u64;
-        let magic_1 = magic1_ptr.read();
-        let magic_2 = magic2_ptr.read();
-        assert_eq!(magic_1, MAGIC_1_EXPECTED);
-        assert_eq!(magic_2, MAGIC_2_EXPECTED);
-        UnPackedIRFrameHeader {
-            prev_rip: rip_ptr.read(),
-            prev_rbp: rbp_ptr.read(),
-            ignored_java_data1: None,
-            ignored_java_data2: None,
-            magic_1,
-            magic_2,
+
+    pub unsafe fn frame_at(&mut self, frame_pointer: *mut c_void) -> IRFrame {
+        if self.mmaped_top.offset_from(frame_pointer) > self.max_stack as isize || frame_pointer > self.mmaped_top {
+            panic!()
         }
+        let frame_header = read_frame_ir_header(frame_pointer);
+
+        IRFrame {
+            ptr: frame_pointer,
+            ir_stack: self,
+        }
+    }
+
+    pub unsafe fn frame_iter(&self, start_frame: *mut c_void) -> IRFrameIter {
+        IRFrameIter {
+            ir_stack: self,
+            current_frame_ptr: Some(start_frame),
+        }
+    }
+}
+
+// has ref b/c not valid to access this after top level stack has been modified
+pub struct IRFrameIter<'l> {
+    ir_stack: &'l IRStack,
+    current_frame_ptr: Option<*mut c_void>,
+}
+
+impl<'l> Iterator for IRFrameIter<'l> {
+    type Item = IRFrame<'l>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res = unsafe { self.ir_stack.frame_at(self.current_frame_ptr?) };
+        if self.current_frame_ptr? == self.ir_stack.mmaped_top {
+            self.current_frame_ptr = None;
+        }
+        Some(res)
+    }
+}
+
+// has ref b/c not valid to access this after top level stack has been modified
+pub struct IRFrame<'l> {
+    ptr: *mut c_void,
+    ir_stack: &'l IRStack,
+}
+
+impl IRFrame<'_> {
+    pub fn header(&self) -> UnPackedIRFrameHeader {
+        unsafe { read_frame_ir_header(self.ptr) }
+    }
+
+    pub fn read_at_offset(&self, offset: FramePointerOffset) -> u64 {
+        unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).read() }
+    }
+
+    pub fn write_at_offset(&mut self, offset: FramePointerOffset, to_write: u64) {
+        unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).write(to_write) }
+    }
+
+
+    pub fn ir_method_id(&self) -> IRMethodID {
+        let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_IR_METHOD_ID_OFFSET));
+        let frame_header = unsafe { read_frame_ir_header(self.ptr) };
+        assert_eq!(res, frame_header.ir_method_id.0 as u64);
+        IRMethodID(res as usize)
+    }
+
+
+    pub fn method_id(&self) -> MethodId {
+        let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
+        let frame_header = unsafe { read_frame_ir_header(self.ptr) };
+        assert_eq!(res, frame_header.method_id_ignored);
+        MethodID(res as usize)
+    }
+
+    pub fn prev_rbp(&self) -> *mut c_void {
+        let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_PREV_RBP_OFFSET));
+        let frame_header = unsafe { read_frame_ir_header(self.ptr) };
+        assert_eq!(res, frame_header.prev_rbp as u64);
+        res as *mut c_void
+    }
+}
+
+unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
+    let rip_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RIP_OFFSET as isize)) as *const *mut c_void;
+    let rbp_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RBP_OFFSET as isize)) as *const *mut c_void;
+    let magic1_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_1_OFFSET as isize)) as *const u64;
+    let magic2_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_2_OFFSET as isize)) as *const u64;
+    let ir_method_id_ptr = frame_pointer.offset(-(FRAME_HEADER_IR_METHOD_ID_OFFSET as isize)) as *const usize;
+    let method_id_ptr = frame_pointer.offset(-(FRAME_HEADER_METHOD_ID_OFFSET as isize)) as *const u64;
+    let magic_1 = magic1_ptr.read();
+    let magic_2 = magic2_ptr.read();
+    assert_eq!(magic_1, MAGIC_1_EXPECTED);
+    assert_eq!(magic_2, MAGIC_2_EXPECTED);
+    UnPackedIRFrameHeader {
+        prev_rip: rip_ptr.read(),
+        prev_rbp: rbp_ptr.read(),
+        ir_method_id: IRMethodID(*ir_method_id_ptr),
+        method_id_ignored: *method_id_ptr,
+        magic_1,
+        magic_2,
     }
 }
 
@@ -126,7 +217,7 @@ impl Iterator for IRStackIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let frame_pointer = self.current_rbp;
-        let ir_stack_read = unsafe { IRStack::read_frame_ir_header(frame_pointer) };
+        let ir_stack_read = unsafe { read_frame_ir_header(frame_pointer) };
         self.current_rbp = ir_stack_read.prev_rbp;
         Some(IRStackEntry {
             rbp: frame_pointer
@@ -227,7 +318,7 @@ fn add_function_from_ir(instructions: Vec<IRInstr>) -> (CodeAssembler, HashMap<A
     (assembler, res)
 }
 
-fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labels: &mut HashMap<LabelName,CodeLabel>) {
+fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labels: &mut HashMap<LabelName, CodeLabel>) {
     match instruction {
         IRInstr::LoadFPRelative { from, to } => {
             //stack grows down
@@ -249,9 +340,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::Const32bit { .. } => todo!(),
         IRInstr::Const64bit { .. } => todo!(),
         IRInstr::BranchToLabel { label } => {
-            let code_label = labels.entry(label).or_insert_with(||assembler.create_label());
+            let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
             assembler.jmp(code_label.clone()).unwrap();
-        },
+        }
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
@@ -265,10 +356,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::FNOP => todo!(),
         IRInstr::Label(label) => {
             let label_name = label.name;
-            let code_label = labels.entry(label_name).or_insert_with(||assembler.create_label());
+            let code_label = labels.entry(label_name).or_insert_with(|| assembler.create_label());
             assembler.set_label(code_label);
             assembler.nop().unwrap();
-        },
+        }
         IRInstr::IRNewFrame {
             current_frame_size,
             temp_register,
