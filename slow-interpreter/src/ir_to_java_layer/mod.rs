@@ -1,20 +1,26 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::mem::size_of;
+use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
 
+use iced_x86::ConditionCode::o;
 use itertools::Itertools;
 
 use another_jit_vm::VMExitAction;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JavaValue, JVMState};
+use crate::gc_memory_layout_common::FramePointerOffset;
+use crate::java_values::GcManagedObject;
 use crate::jit::{ByteCodeOffset, MethodResolver, VMExitType};
 use crate::jit::ir::IRInstr;
 use crate::jit::state::Labeler;
 use crate::method_table::MethodId;
-use crate::native_to_ir_layer::{IRMethodID, IRStack, IRVMExitEvent, IRVMState, IRVMStateInner};
+use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRMethodID, IRStack, IRVMExitEvent, IRVMState, IRVMStateInner};
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub struct ExitNumber(u64);
@@ -135,24 +141,126 @@ fn compile_to_ir(resolver: &MethodResolver<'vm_life>, cinstructions: &[&Compress
     initial_ir.into_iter().map(|(_, ir)| ir).collect_vec()
 }
 
-pub struct JavaStack2<'vm_life> {
+pub struct JavaStack2<'vm_life, 'ir_vm_life, 'native_vm_life> {
     java_vm_state: &'vm_life JavaVMStateWrapperInner<'vm_life>,
-    inner: IRStack,
+    inner: IRStack<'ir_vm_life, 'native_vm_life>,
 }
 
 
-impl JavaStack2 {
-    pub fn frame_at(&mut self, frame_pointer: *mut c_void) -> RuntimeJavaStackFrame {
+impl<'vm_life, 'ir_vm_life, 'native_vm_life> JavaStack2<'vm_life, 'ir_vm_life, 'native_vm_life> {
+    pub fn frame_at(&self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameRef<'_, 'vm_life, 'ir_vm_life, 'native_vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(frame_pointer) };
         let ir_method_id = ir_frame.ir_method_id();
         let method_id = ir_frame.method_id();
         let ir_method_id_2 = self.java_vm_state.method_id_to_ir_method_id.get(&method_id).unwrap();
         assert_eq!(ir_method_id_2, &ir_method_id);
+        RuntimeJavaStackFrameRef {
+            frame_ptr: frame_pointer,
+            ir_ref: ir_frame,
+            jvm,
+            max_locals: jvm.max_locals_by_method_id(method_id),
+        }
+    }
+
+    pub fn mut_frame_at(&mut self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameMut<'_, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+        let ir_frame = unsafe { self.inner.frame_at(frame_pointer) };
+        let ir_method_id = ir_frame.ir_method_id();
+        let method_id = ir_frame.method_id();
+        let ir_method_id_2 = *self.java_vm_state.method_id_to_ir_method_id.get(&method_id).unwrap();
+        assert_eq!(ir_method_id_2, ir_method_id);
+        let ir_frame_mut = unsafe { self.inner.frame_at_mut(frame_pointer) };
+        RuntimeJavaStackFrameMut {
+            frame_ptr: frame_pointer,
+            ir_mut: ir_frame_mut,
+            jvm,
+            max_locals: jvm.max_locals_by_method_id(method_id),
+        }
     }
 }
 
-// has phantom data b/c not valid to access this after top level stack has been modified
-pub struct RuntimeJavaStackFrame<'l, 'vm_life> {
-    frame_ptr: *mut c_void,
-    phantom: PhantomData<&'l JavaStack2<'vm_life>>,
+pub struct RuntimeJavaStackFrameRef<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+    frame_ptr: *const c_void,
+    ir_ref: IRFrameRef<'l, 'ir_vm_life, 'native_vm_life>,
+    jvm: &'vm_life JVMState<'vm_life>,
+    max_locals: u16,
+}
+
+impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life, '_, '_> {
+    pub fn method_id(&self) -> MethodId {
+        self.ir_ref.method_id()
+    }
+
+    fn read_target(&self, offset: FramePointerOffset, rtype: RuntimeType) -> JavaValue<'vm_life> {
+        let res = self.ir_ref.read_at_offset(offset);
+        match rtype {
+            RuntimeType::IntType => JavaValue::Int(res as i32),
+            RuntimeType::FloatType => JavaValue::Float(f32::from_le_bytes((res as u32).to_le_bytes())),
+            RuntimeType::DoubleType => JavaValue::Double(f64::from_le_bytes((res as f64).to_le_bytes())),
+            RuntimeType::LongType => JavaValue::Long(res as i64),
+            RuntimeType::Ref(ref_) => {
+                let ptr = res as *mut c_void;
+                JavaValue::Object(NonNull::new(ptr).map(|nonnull| GcManagedObject::from_native(nonnull, self.jvm)))
+            }
+            RuntimeType::TopType => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
+        let offset = FramePointerOffset(self.max_locals as usize * size_of::<u64>() + n * size_of::<u64>());
+        self.read_target(offset, rtype)
+    }
+
+    pub fn nth_local(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
+        let offset = FramePointerOffset(n * size_of::<u64>());
+        self.read_target(offset, rtype)
+    }
+}
+
+pub struct RuntimeJavaStackFrameMut<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+    frame_ptr: *const c_void,
+    ir_mut: IRFrameMut<'l, 'ir_vm_life, 'native_vm_life>,
+    jvm: &'vm_life JVMState<'vm_life>,
+    max_locals: u16,
+}
+
+impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+        RuntimeJavaStackFrameRef {
+            frame_ptr: self.frame_ptr,
+            ir_ref: self.ir_mut.downgrade(),
+            jvm: self.jvm,
+            max_locals: self.max_locals,
+        }
+    }
+
+    fn write_target(&mut self, offset: FramePointerOffset, jv: JavaValue<'vm_life>) {
+        let to_write = match jv {
+            JavaValue::Long(long) => { long as u64 }
+            JavaValue::Int(int) => { int as u64 }
+            JavaValue::Short(short) => { short as u64 }
+            JavaValue::Byte(byte) => { byte as u64 }
+            JavaValue::Boolean(boolean) => { boolean as u64 }
+            JavaValue::Char(char) => { char as u64 }
+            JavaValue::Float(float) => { u32::from_le_bytes(float.to_le_bytes()) as u64 }
+            JavaValue::Double(double) => { u64::from_le_bytes(double.to_le_bytes()) }
+            JavaValue::Object(obj) => {
+                match obj {
+                    None => 0u64,
+                    Some(obj) => {
+                        obj.raw_ptr_usize() as u64
+                    }
+                }
+            }
+            JavaValue::Top => {
+                panic!()
+            }
+        };
+        self.ir_mut.write_at_offset(offset, to_write);
+    }
+
+    pub fn set_nth_local(&mut self, n: usize, jv: JavaValue<'vm_life>) {
+        let offset = FramePointerOffset(n * size_of::<u64>());
+    }
 }

@@ -23,7 +23,7 @@ use crate::jit::ir::IRInstr;
 use crate::jit::LabelName;
 use crate::method_table::MethodId;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct IRMethodID(usize);
 
 pub struct IRVMStateInner {
@@ -65,9 +65,10 @@ pub struct IRVMState<'vm_state_life> {
 
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames
-pub struct IRStack {
+pub struct IRStack<'l, 'native_vm_state_life> {
     mmaped_top: *mut c_void,
     max_stack: usize,
+    ir_vm_state: &'l IRVMState<'native_vm_state_life>,
 }
 
 pub struct UnPackedIRFrameHeader {
@@ -93,30 +94,41 @@ pub const FRAME_HEADER_METHOD_ID_OFFSET: usize = 24;
 pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = 32;
 pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = 40;
 
-impl IRStack {
-    pub fn new() -> Self {
+impl<'ir_vm_life, 'native_vm_life> IRStack<'ir_vm_life, 'native_vm_life> {
+    pub fn new(ir_vm_state: &'ir_vm_life IRVMState<'native_vm_life>) -> Self {
         pub const MAX_STACK: usize = 1024 * 1024 * 1024;
         let mmaped_top = unsafe { libc::mmap(null_mut(), MAX_STACK, PROT_READ | PROT_WRITE, MAP_NORESERVE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0) };
         Self {
             mmaped_top,
             max_stack: MAX_STACK,
+            ir_vm_state,
         }
     }
 
 
-    pub unsafe fn frame_at(&mut self, frame_pointer: *mut c_void) -> IRFrame {
+    pub unsafe fn frame_at(&'l self, frame_pointer: *mut c_void) -> IRFrameRef<'l, 'ir_vm_life, 'native_vm_life> {
         if self.mmaped_top.offset_from(frame_pointer) > self.max_stack as isize || frame_pointer > self.mmaped_top {
             panic!()
         }
         let frame_header = read_frame_ir_header(frame_pointer);
-
-        IRFrame {
+        IRFrameRef {
             ptr: frame_pointer,
             ir_stack: self,
         }
     }
 
-    pub unsafe fn frame_iter(&self, start_frame: *mut c_void) -> IRFrameIter {
+    pub unsafe fn frame_at_mut(&'l mut self, frame_pointer: *mut c_void) -> IRFrameMut<'l, 'ir_vm_life, 'native_vm_life> {
+        if self.mmaped_top.offset_from(frame_pointer) > self.max_stack as isize || frame_pointer > self.mmaped_top {
+            panic!()
+        }
+        let frame_header = read_frame_ir_header(frame_pointer);
+        IRFrameMut {
+            ptr: frame_pointer,
+            ir_stack: self,
+        }
+    }
+
+    pub unsafe fn frame_iter(&self, start_frame: *mut c_void) -> IRFrameIter<'_, 'ir_vm_life, 'native_vm_life> {
         IRFrameIter {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -125,40 +137,42 @@ impl IRStack {
 }
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIter<'l> {
-    ir_stack: &'l IRStack,
+pub struct IRFrameIter<'l, 'k, 'm> {
+    ir_stack: &'l IRStack<'k, 'm>,
     current_frame_ptr: Option<*mut c_void>,
 }
 
-impl<'l> Iterator for IRFrameIter<'l> {
-    type Item = IRFrame<'l>;
+impl<'l, 'k, 'm> Iterator for IRFrameIter<'l, 'k, 'm> {
+    type Item = IRFrameRef<'l, 'k, 'm>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = unsafe { self.ir_stack.frame_at(self.current_frame_ptr?) };
-        if self.current_frame_ptr? == self.ir_stack.mmaped_top {
-            self.current_frame_ptr = None;
+        unsafe {
+            if self.current_frame_ptr? == self.ir_stack.mmaped_top {
+                self.current_frame_ptr = None;
+            } else {
+                let new_current_frame_size = *self.ir_stack.ir_vm_state.inner.read().unwrap().frame_sizes.get(&self.ir_stack.frame_at(res.prev_rbp()).ir_method_id()).unwrap();
+                assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
+                self.current_frame_ptr = Some(res.prev_rbp());
+            }
         }
         Some(res)
     }
 }
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrame<'l> {
-    ptr: *mut c_void,
-    ir_stack: &'l IRStack,
+pub struct IRFrameRef<'l, 'k, 'm> {
+    ptr: *const c_void,
+    ir_stack: &'l IRStack<'k, 'm>,
 }
 
-impl IRFrame<'_> {
+impl IRFrameRef<'_, '_, '_> {
     pub fn header(&self) -> UnPackedIRFrameHeader {
         unsafe { read_frame_ir_header(self.ptr) }
     }
 
     pub fn read_at_offset(&self, offset: FramePointerOffset) -> u64 {
         unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).read() }
-    }
-
-    pub fn write_at_offset(&mut self, offset: FramePointerOffset, to_write: u64) {
-        unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).write(to_write) }
     }
 
 
@@ -174,7 +188,7 @@ impl IRFrame<'_> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
         let frame_header = unsafe { read_frame_ir_header(self.ptr) };
         assert_eq!(res, frame_header.method_id_ignored);
-        MethodID(res as usize)
+        res as usize
     }
 
     pub fn prev_rbp(&self) -> *mut c_void {
@@ -184,6 +198,26 @@ impl IRFrame<'_> {
         res as *mut c_void
     }
 }
+
+// has ref b/c not valid to access this after top level stack has been modified
+pub struct IRFrameMut<'l, 'k, 'm> {
+    ptr: *const c_void,
+    ir_stack: &'l mut IRStack<'k, 'm>,
+}
+
+impl<'l, 'k, 'm> IRFrameMut<'l, 'k, 'm> {
+    pub fn downgrade(self) -> IRFrameRef<'l, 'k, 'm> {
+        IRFrameRef {
+            ptr: self.ptr,
+            ir_stack: self.ir_stack,
+        }
+    }
+
+    pub fn write_at_offset(&mut self, offset: FramePointerOffset, to_write: u64) {
+        unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).write(to_write) }
+    }
+}
+
 
 unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
     let rip_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RIP_OFFSET as isize)) as *const *mut c_void;
@@ -205,6 +239,7 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
         magic_2,
     }
 }
+
 
 //iters up from position on stack
 pub struct IRStackIter {

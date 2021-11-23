@@ -377,6 +377,13 @@ impl<'gc_life> JVMState<'gc_life> {
     pub fn jvmti_state(&self) -> Option<&JVMTIState> {
         self.native.jvmti_state.as_ref()
     }
+
+    pub fn max_locals_by_method_id(&self, method_id: MethodId) -> u16 {
+        let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.code_attribute().unwrap().max_locals
+    }
 }
 
 type CodeIndex = u16;
