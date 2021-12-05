@@ -31,8 +31,8 @@ pub struct VMStateInner<'vm_state_life, T: Sized> {
     max_ptr: *mut c_void,
 }
 
-pub struct VMState<'vm_state_life, T: Sized> {
-    inner: RwLock<VMStateInner<'vm_state_life, T>>,
+pub struct VMState<'vm_life, T: Sized> {
+    inner: RwLock<VMStateInner<'vm_life, T>>,
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
 }
@@ -249,7 +249,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
             "mov [r15 + {r12_native_offset_const}], r12",
             "mov [r15 + {r13_native_offset_const}], r13",
             "mov [r15 + {r14_native_offset_const}], r14",
-            "xstor [r15 + {xsave_area_native_offset_const}]",
+            "xsave [r15 + {xsave_area_native_offset_const}]",
             "lea rax, [rip+__rust_jvm_internal_after_enter]",
             "mov [r15 + {rip_native_offset_const}], rax",
             //load expected register values
@@ -269,7 +269,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
             "mov r13,[r15 + {r13_guest_offset_const}]",
             "mov r14,[r15 + {r14_guest_offset_const}]",
             "xrstor [r15 + {xsave_area_guest_offset_const}]",
-            "call qword [r15 + rdi_guest_offset_const]",
+            "call qword ptr [r15 + rdi_guest_offset_const]",
             "__rust_jvm_internal_after_enter:",
             in(reg) jit_context_pointer,
             // rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,

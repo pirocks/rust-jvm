@@ -93,10 +93,10 @@ impl<'gc_life> ThreadState<'gc_life> {
                 if let Some(jvmti) = jvm.jvmti_state() {
                     jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
                 }
-                let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]), jvm); //todo think this is correct, check
+                let push_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![])); //todo think this is correct, check
                 //handle any excpetions from here
                 int_state.pop_frame(jvm, push_guard, false);
-                let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]), jvm);
+                let main_frame_guard = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]));
                 run_main(args, jvm, &mut int_state).unwrap();
                 //todo handle exception exit from main
                 int_state.pop_frame(jvm, main_frame_guard, false);
@@ -121,7 +121,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             locals.push(JavaValue::Top);
         }
         let initialize_system_frame = StackEntry::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard = int_state.push_frame(initialize_system_frame, jvm);
+        let init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         match run_function(&jvm, int_state) {
             Ok(_) => {}
@@ -185,7 +185,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             }
         }
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
-        let frame_for_bootstrapping = new_int_state.push_frame(frame, jvm);
+        let frame_for_bootstrapping = new_int_state.push_frame(frame);
         let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
         // let class_rc = check_loaded_class(jvm,&mut new_int_state, CClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
@@ -279,7 +279,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
         }
 
-        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name, vec![]), jvm);
+        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntry::new_completely_opaque_frame(loader_name, vec![]));
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
             JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
             interpreter_state_guard.set_throw(None);

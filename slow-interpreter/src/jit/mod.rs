@@ -21,6 +21,7 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
+use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
 use crate::jit::ir::{IRInstr, IRLabel, Register};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit::state::birangemap::BiRangeMap;
@@ -36,7 +37,7 @@ pub mod state;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct LabelName(u32);
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+/*#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum VMExitType {
     ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
     RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
@@ -56,7 +57,7 @@ pub enum VMExitType {
     Todo {},
     NPE {},
     AllocateVariableSizeArrayANewArray { target_type_sub_type: CPDType, len_offset: FramePointerOffset, res_write_offset: FramePointerOffset },
-}
+}*/
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct CompiledCodeID(pub u32);

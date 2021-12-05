@@ -67,7 +67,7 @@ pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: 
         }
         args[0..i].reverse();
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let function_call_frame = interpreter_state.push_frame(next_entry, jvm);
+        let function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
             Ok(_) => {
                 if !jvm.config.compiled_mode_active {

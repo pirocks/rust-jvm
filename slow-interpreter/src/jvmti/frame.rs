@@ -58,10 +58,10 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
     }
     // assert!(*java_thread.suspended.suspended.lock().unwrap());//todo technically need to support non-suspended threads as well
 
-    let frame_count: i32 = match java_thread.interpreter_state.read().unwrap().deref() {
+    let frame_count: i32 = todo!()/*match java_thread.interpreter_state.read().unwrap().deref() {
         /*InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),*/
         InterpreterState::Jit { .. } => todo!(),
-    };
+    }*/;
     count_ptr.write(frame_count as i32);
 
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -120,10 +120,10 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
     let read_guard = thread.interpreter_state.read().unwrap();
-    let call_stack_guard: Vec<StackEntry> = match read_guard.deref() {
+    let call_stack_guard: Vec<StackEntry> = todo!()/*match read_guard.deref() {
         /*InterpreterState::LegacyInterpreter { call_stack, .. } => { call_stack }*/
         InterpreterState::Jit { .. } => todo!(),
-    };
+    }*/;
     let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
         None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
         Some(stack_entry) => stack_entry,

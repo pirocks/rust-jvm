@@ -34,6 +34,7 @@ use crate::field_table::FieldTable;
 use crate::gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
+use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressGcManagedObject, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
@@ -42,6 +43,7 @@ use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::{MethodId, MethodTable};
 use crate::native_allocation::NativeAllocator;
+use crate::native_to_ir_layer::IRVMState;
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
@@ -68,6 +70,7 @@ pub struct Native {
 
 pub struct JVMState<'gc_life> {
     pub config: JVMConfig,
+    pub java_vm_state: JavaVMStateWrapper<'gc_life>,
     pub gc: &'gc_life GC<'gc_life>,
     pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
     pub native_libaries: NativeLibraries<'gc_life>,
@@ -257,6 +260,7 @@ impl<'gc_life> JVMState<'gc_life> {
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             function_frame_type_data: Default::default(),
+            java_vm_state: JavaVMStateWrapper::new()
         };
         (args, jvm)
     }

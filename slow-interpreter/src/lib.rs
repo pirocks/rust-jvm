@@ -96,7 +96,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
     let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
-    let main_frame_guard = int_state.push_frame(stack_entry, jvm);
+    let main_frame_guard = int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
     jvm.include_name_field.store(true, Ordering::SeqCst);
@@ -127,7 +127,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]), jvm);
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(), vec![]));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

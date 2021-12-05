@@ -212,7 +212,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
 
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
     //todo these java frames may have to be converted to native?
-    let new_function_frame = int_state.push_frame(new_stack, jvm);
+    let new_function_frame = int_state.push_frame(new_stack);
     match run_function(jvm, int_state) {
         Ok(()) => {
             if !jvm.config.compiled_mode_active {

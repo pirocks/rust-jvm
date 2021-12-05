@@ -2,25 +2,29 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::size_of;
+use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
 
 use iced_x86::ConditionCode::o;
 use itertools::Itertools;
+use libc::read;
 
 use another_jit_vm::VMExitAction;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JavaValue, JVMState};
+use crate::{check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::gc_memory_layout_common::FramePointerOffset;
+use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, VMExitType};
 use crate::java_values::GcManagedObject;
-use crate::jit::{ByteCodeOffset, MethodResolver, VMExitType};
+use crate::jit::{ByteCodeOffset, MethodResolver};
 use crate::jit::ir::IRInstr;
 use crate::jit::state::Labeler;
 use crate::method_table::MethodId;
 use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRMethodID, IRStack, IRVMExitEvent, IRVMState, IRVMStateInner};
+use crate::runtime_class::RuntimeClass;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub struct ExitNumber(u64);
@@ -34,40 +38,57 @@ pub struct JavaVMStateWrapperInner<'gc_life> {
 
 pub enum JavaExitAction {}
 
+pub enum VMExitEvent<'vm_life> {
+    Allocate { size: usize, return_to: *mut c_void },
+    TopLevelExitEvent {
+        //todo when this stuff is registers can't have gc.
+        _return: JavaValue<'vm_life>
+    },
+}
+
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, java_stack: &mut JavaStack2, method_id: MethodId, vm_exit_type: &VMExitType) -> VMExitAction<u64> {
+    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, method_id: MethodId, vm_exit_type: &VMExitType) -> VMExitAction<u64> {
         match vm_exit_type {
-            VMExitType::ResolveInvokeStatic { .. } => todo!(),
-            VMExitType::RunNativeStatic { .. } => todo!(),
-            VMExitType::ResolveInvokeSpecial { .. } => todo!(),
-            VMExitType::InvokeSpecialNative { .. } => todo!(),
-            VMExitType::InitClass { .. } => todo!(),
-            VMExitType::NeedNewRegion { .. } => todo!(),
-            VMExitType::PutStatic { .. } => todo!(),
-            VMExitType::Allocate { res, loader, bytecode_size, ptypeview } => {
+            VMExitType::Allocate(AllocateVMExit {}) => {
+                let size_register = AllocateVMExit::SIZE;
+                let res_register = AllocateVMExit::RES;
+                let saved_registers = todo!();
+                /*let rc = check_loaded_class_force_loader(jvm, int_state, &ptypeview, loader).unwrap();
+                int_state.get_java_stack().saved_registers = save;
+                let allocated = match rc.deref() {
+                    RuntimeClass::Array(_) => todo!(),
+                    RuntimeClass::Object(obj) => JavaValue::new_object(jvm, rc).unwrap(),
+                    _ => panic!(),
+                };*/
                 todo!()
             }
-            VMExitType::LoadString { .. } => todo!(),
-            VMExitType::LoadClass { .. } => todo!(),
-            VMExitType::Throw { .. } => todo!(),
-            VMExitType::MonitorEnter { .. } => todo!(),
-            VMExitType::MonitorExit { .. } => todo!(),
-            VMExitType::Trace { .. } => todo!(),
-            VMExitType::TopLevelReturn { .. } => todo!(),
-            VMExitType::Todo { .. } => todo!(),
-            VMExitType::NPE { .. } => todo!(),
-            VMExitType::AllocateVariableSizeArrayANewArray { .. } => todo!(),
+            VMExitType::TopLevelReturn { .. } => {
+                VMExitAction::ExitVMCompletely { return_data: todo!() }
+            }
         }
     }
 }
 
 pub struct JavaVMStateWrapper<'vm_life> {
-    ir: IRVMState<'vm_life>,
-    inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
+    pub ir: IRVMState<'vm_life>,
+    pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     labeler: Labeler,
 }
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
+    pub fn new() -> Self {
+        Self {
+            ir: IRVMState::new(),
+            inner: RwLock::new(JavaVMStateWrapperInner {
+                method_id_to_ir_method_id: Default::default(),
+                max_exit_number: ExitNumber(0),
+                exit_types: Default::default(),
+                method_exit_handlers: Default::default(),
+            }),
+            labeler: Labeler::new(),
+        }
+    }
+
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
         let compressed_code = resolver.get_compressed_code(method_id);
         let CompressedCode {
@@ -107,11 +128,11 @@ fn compile_to_ir(resolver: &MethodResolver<'vm_life>, cinstructions: &[&Compress
                             current_offset,
                             IRInstr::VMExit {
                                 exit_label,
-                                exit_type: VMExitType::ResolveInvokeStatic {
+                                exit_type: todo!()/*VMExitType::ResolveInvokeStatic {
                                     method_name: *method_name,
                                     desc: descriptor.clone(),
                                     target_class: CPDType::Ref(classname_ref_type.clone()),
-                                },
+                                }*/,
                             },
                         ));
                     }
@@ -122,11 +143,11 @@ fn compile_to_ir(resolver: &MethodResolver<'vm_life>, cinstructions: &[&Compress
                                 current_offset,
                                 IRInstr::VMExit {
                                     exit_label,
-                                    exit_type: VMExitType::RunNativeStatic {
+                                    exit_type: todo!()/*VMExitType::RunNativeStatic {
                                         method_name: *method_name,
                                         desc: descriptor.clone(),
                                         target_class: CPDType::Ref(classname_ref_type.clone()),
-                                    },
+                                    }*/,
                                 },
                             ));
                         } else {
@@ -141,19 +162,25 @@ fn compile_to_ir(resolver: &MethodResolver<'vm_life>, cinstructions: &[&Compress
     initial_ir.into_iter().map(|(_, ir)| ir).collect_vec()
 }
 
-pub struct JavaStack2<'vm_life, 'ir_vm_life, 'native_vm_life> {
-    java_vm_state: &'vm_life JavaVMStateWrapperInner<'vm_life>,
-    inner: IRStack<'ir_vm_life, 'native_vm_life>,
+pub struct JavaStack2<'vm_life> {
+    java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
+    inner: IRStack<'vm_life>,
 }
 
 
-impl<'vm_life, 'ir_vm_life, 'native_vm_life> JavaStack2<'vm_life, 'ir_vm_life, 'native_vm_life> {
-    pub fn frame_at(&self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameRef<'_, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+impl<'vm_life> JavaStack2<'vm_life> {
+    pub fn new(java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>) -> Self {
+        Self {
+            java_vm_state,
+            inner: IRStack::new(&java_vm_state.ir),
+        }
+    }
+    pub fn frame_at(&self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(frame_pointer) };
         let ir_method_id = ir_frame.ir_method_id();
         let method_id = ir_frame.method_id();
-        let ir_method_id_2 = self.java_vm_state.method_id_to_ir_method_id.get(&method_id).unwrap();
-        assert_eq!(ir_method_id_2, &ir_method_id);
+        let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get(&method_id).unwrap();
+        assert_eq!(ir_method_id_2, ir_method_id);
         RuntimeJavaStackFrameRef {
             frame_ptr: frame_pointer,
             ir_ref: ir_frame,
@@ -162,11 +189,11 @@ impl<'vm_life, 'ir_vm_life, 'native_vm_life> JavaStack2<'vm_life, 'ir_vm_life, '
         }
     }
 
-    pub fn mut_frame_at(&mut self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameMut<'_, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+    pub fn mut_frame_at(&mut self, frame_pointer: *mut c_void, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameMut<'_, 'vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(frame_pointer) };
         let ir_method_id = ir_frame.ir_method_id();
         let method_id = ir_frame.method_id();
-        let ir_method_id_2 = *self.java_vm_state.method_id_to_ir_method_id.get(&method_id).unwrap();
+        let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get(&method_id).unwrap();
         assert_eq!(ir_method_id_2, ir_method_id);
         let ir_frame_mut = unsafe { self.inner.frame_at_mut(frame_pointer) };
         RuntimeJavaStackFrameMut {
@@ -176,16 +203,20 @@ impl<'vm_life, 'ir_vm_life, 'native_vm_life> JavaStack2<'vm_life, 'ir_vm_life, '
             max_locals: jvm.max_locals_by_method_id(method_id),
         }
     }
+
+    pub fn write_frame(&self, frame_pointer: *mut c_void, method_id: Option<MethodId>, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>) {
+        todo!()
+    }
 }
 
-pub struct RuntimeJavaStackFrameRef<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+pub struct RuntimeJavaStackFrameRef<'l, 'vm_life> {
     frame_ptr: *const c_void,
-    ir_ref: IRFrameRef<'l, 'ir_vm_life, 'native_vm_life>,
+    ir_ref: IRFrameRef<'l, 'vm_life>,
     jvm: &'vm_life JVMState<'vm_life>,
     max_locals: u16,
 }
 
-impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life, '_, '_> {
+impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
     pub fn method_id(&self) -> MethodId {
         self.ir_ref.method_id()
     }
@@ -218,15 +249,15 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life, '_, '_> {
     }
 }
 
-pub struct RuntimeJavaStackFrameMut<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+pub struct RuntimeJavaStackFrameMut<'l, 'vm_life> {
     frame_ptr: *const c_void,
-    ir_mut: IRFrameMut<'l, 'ir_vm_life, 'native_vm_life>,
+    ir_mut: IRFrameMut<'l, 'vm_life>,
     jvm: &'vm_life JVMState<'vm_life>,
     max_locals: u16,
 }
 
-impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
-    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life, 'ir_vm_life, 'native_vm_life> {
+impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life> {
+    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life> {
         RuntimeJavaStackFrameRef {
             frame_ptr: self.frame_ptr,
             ir_ref: self.ir_mut.downgrade(),
@@ -262,5 +293,21 @@ impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l
 
     pub fn set_nth_local(&mut self, n: usize, jv: JavaValue<'vm_life>) {
         let offset = FramePointerOffset(n * size_of::<u64>());
+    }
+}
+
+pub mod vm_exit_abi {
+    use crate::jit::ir::Register;
+
+    pub struct AllocateVMExit;
+
+    impl AllocateVMExit {
+        pub const RES: Register = Register(1);
+        pub const SIZE: Register = Register(2);
+    }
+
+    pub enum VMExitType {
+        Allocate(AllocateVMExit),
+        TopLevelReturn {},
     }
 }
