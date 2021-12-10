@@ -1287,7 +1287,7 @@ impl JITedCodeState {
         // problem here is that a function call overwrites the old old ip
         let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
         drop(temp);
-        let new_base_address = jit_state.borrow_mut().add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader() });
+        let new_base_address = jit_state.borrow_mut().add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader(jvm) });
         let new_code_id = *jit_state.borrow().function_addresses.get(&new_base_address).unwrap();
         let start_byte_code_addresses = jit_state.borrow().address_to_byte_code_offset.get(&new_code_id).unwrap().get_reverse(&return_to_byte_code_offset).unwrap().clone();
         let restart_execution_at = start_byte_code_addresses.start;

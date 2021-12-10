@@ -60,7 +60,7 @@ pub fn defineAnonymousClass(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
-    let current_loader = int_state.current_loader();
+    let current_loader = int_state.current_loader(jvm);
 
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {

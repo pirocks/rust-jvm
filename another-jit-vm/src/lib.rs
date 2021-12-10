@@ -33,6 +33,7 @@ pub struct VMStateInner<'vm_state_life, T: Sized> {
 
 pub struct VMState<'vm_life, T: Sized> {
     inner: RwLock<VMStateInner<'vm_life, T>>,
+    //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
 }

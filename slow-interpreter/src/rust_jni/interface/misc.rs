@@ -79,14 +79,14 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = JavaValue::Object(sub_not_null.into()).cast_class().unwrap().as_type(jvm);
     let sup_type = JavaValue::Object(sup_not_null.into()).cast_class().unwrap().as_type(jvm);
 
-    let loader = &int_state.current_loader();
+    let loader = &int_state.current_loader(jvm);
     let sub_vtype = sub_type.to_verification_type(*loader);
     let sup_vtype = sup_type.to_verification_type(*loader);
 
     //todo should this be current loader?
     let vf = VerifierContext {
         live_pool_getter: jvm.get_live_object_pool_getter(),
-        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
+        classfile_getter: jvm.get_class_getter(int_state.current_loader(jvm)),
         string_pool: &jvm.string_pool,
         class_view_cache: Mutex::new(Default::default()),
         current_loader: loader.clone(),

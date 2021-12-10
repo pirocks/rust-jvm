@@ -5,8 +5,10 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLockWriteGuard};
 
+use iced_x86::CC_b::c;
 use itertools::Itertools;
 
+use classfile_parser::code::InstructionTypeNum::new;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
@@ -15,7 +17,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::JavaStack2;
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
@@ -24,21 +26,23 @@ use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, Sta
 use crate::threading::JavaThread;
 
 pub struct InterpreterState<'gc_life> {
-    call_stack: JavaStack2<'gc_life>,
+    call_stack: OwnedJavaStack<'gc_life>,
     jvm: &'gc_life JVMState<'gc_life>,
+    current_stack_position: JavaStackPosition,
 }
 
 impl<'gc_life> InterpreterState<'gc_life> {
-    pub(crate) fn new(jvm: &'gc_life JVMState<'gc_life>, thread_status_ptr: *mut JavaStatus) -> Self {
-        let call_stack = JavaStack2::new(&jvm.java_vm_state);
+    pub(crate) fn new(jvm: &'gc_life JVMState<'gc_life>) -> Self {
         InterpreterState {
-            call_stack,
+            call_stack: OwnedJavaStack::new(&jvm.java_vm_state, jvm),
             jvm,
+            current_stack_position: JavaStackPosition::Top,
         }
     }
 }
 
 pub struct InterpreterStateGuard<'vm_life, 'interpreter_guard> {
+    //todo these internals need to change to reflect that we need to halt thread to get current rbp.
     pub(crate) int_state: Option<RwLockWriteGuard<'interpreter_guard, InterpreterState<'vm_life>>>,
     pub(crate) thread: Arc<JavaThread<'vm_life>>,
     pub(crate) registered: bool,
@@ -74,16 +78,13 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         Self { int_state: option, thread: thread.clone(), registered: true }
     }
 
-    pub fn java_stack(&mut self) -> &mut JavaStack2<'gc_life> {
+    pub fn java_stack(&mut self) -> &mut OwnedJavaStack<'gc_life> {
         let interpreter_state = self.int_state.as_mut().unwrap().deref_mut();
         &mut interpreter_state.call_stack
     }
 
-    pub fn current_loader(&self) -> LoaderName {
-        todo!()
-        /*match self.int_state.as_ref().unwrap().deref() {
-            InterpreterState::Jit { jvm, .. } => self.current_frame().loader(jvm),
-        }*/
+    pub fn current_loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
+        self.current_frame().loader(jvm)
     }
 
     pub fn current_class_view(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<dyn ClassView> {
@@ -91,16 +92,15 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_frame(&'_ self) -> StackEntryRef<'gc_life, '_> {
-        /*let interpreter_state = self.int_state.as_ref().unwrap();
+        let interpreter_state = self.int_state.as_ref().unwrap();
         match interpreter_state.deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                StackEntryRef::LegacyInterpreter { entry: call_stack.last().unwrap() }
-            }*/
-            InterpreterState::Jit { call_stack, jvm } => StackEntryRef::Jit {
-                frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack, call_stack.saved_registers.unwrap().instruction_pointer),
-            },
-        }*/
-        todo!()
+            InterpreterState { call_stack, jvm, current_stack_position } => {
+                let frame_at = call_stack.frame_at(*current_stack_position, jvm);
+                StackEntryRef {
+                    frame_view: frame_at
+                }
+            }
+        }
     }
 
     pub fn current_frame_mut(&'k mut self) -> StackEntryMut<'gc_life, 'k> {
@@ -246,80 +246,20 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 
     pub fn push_frame(&mut self, frame: StackEntry<'gc_life>) -> FramePushGuard {
         let int_state = self.int_state.as_mut().unwrap().deref_mut();
-        let InterpreterState { call_stack, jvm } = int_state;
-        let StackEntry { loader, opaque_frame_optional, non_native_data, local_vars, operand_stack, native_local_refs } = frame;
-        call_stack.write_frame(todo!(), todo!(), todo!(), todo!());
-
-        /*let int_state = self.int_state.as_mut().unwrap().deref_mut();
-        match int_state {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                call_stack.push(frame)
-            }*/
-            InterpreterState::Jit { call_stack, .. } => {
-                let StackEhttps://twitter.com/orchidcorsetry?lang=enntry { loader, opaque_frame_optional, non_native_data, local_vars, operand_stack, native_local_refs } = frame;
-                let is_top_frame = call_stack.top == call_stack.saved_registers.unwrap().frame_pointer;
-                let return_to_rip = if is_top_frame {
-                    Some(jvm.jit_state.with(|jit_state| jit_state.borrow().top_level_exit_code))
-                } else {
-                    // None
-                    Some(jvm.jit_state.with(|jit_state| jit_state.borrow().top_level_exit_code))
-                };
-                if let Some(NonNativeFrameData { pc, pc_offset }) = non_native_data {
-                    if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
-                        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
-                        let class_view = class_pointer.view();
-                        let method_view = class_view.method_view_i(method_i);
-                        let code = method_view.code_attribute().unwrap();
-                        let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-                        let frame_vtype = match function_frame_type.get(&(method_id as usize)) {
-                            None => {
-                                let (rc, index) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-                                let view = rc.view();
-                                let method_view = view.method_view_i(index);
-                                dbg!(method_view.name().0.to_str(&jvm.string_pool));
-                                dbg!(view.name().unwrap_object_name().0.to_str(&jvm.string_pool));
-                                panic!()
-                            }
-                            Some(frame_vtype) => frame_vtype,
-                        }; //TODO MAKE SAFE TYPE WRAPPERS FOR METHOD ID AND I
-                        let memory_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());
-                        // assert!(operand_stack.is_empty());//todo setup operand stack
-                        unsafe {
-                            call_stack.push_frame(
-                                &memory_layout,
-                                FrameInfo::JavaFrame {
-                                    method_id,
-                                    num_locals: code.max_locals,
-                                    loader,
-                                    java_pc: pc,
-                                    pc_offset,
-                                    operand_stack_depth: operand_stack.len() as u16,
-                                    operand_stack_types: operand_stack.iter().map(|t| t.to_type()).collect_vec(),
-                                    locals_types: vec![RuntimeType::TopType; code.max_locals as usize],
-                                },
-                                return_to_rip,
-                                jvm,
-                            );
-                        }
-                        for (i, local_var) in local_vars.into_iter().enumerate() {
-                            self.current_frame_mut().local_vars_mut().set(i as u16, local_var);
-                        }
-                    } else {
-                        panic!()
-                    }
-                } else if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
-                    let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
-                    unsafe { call_stack.push_frame(&NativeStackframeMemoryLayout {}, FrameInfo::Native { method_id, loader, operand_stack_depth: 0, native_local_refs, operand_stack_types: vec![] }, return_to_rip, jvm) }
-                } else {
-                    unsafe { call_stack.push_frame(&FullyOpaqueFrame { max_stack: 0, max_frame: 0 }, FrameInfo::FullyOpaque { loader, operand_stack_depth: 0, operand_stack_types: vec![] }, return_to_rip, jvm) }
-                }
-                /*for operand in operand_stack {
-                    self.current_frame_mut().operand_stack_mut().push(operand);
-                }*/
+        let InterpreterState { call_stack, jvm, current_stack_position } = int_state;
+        let StackEntry { loader, opaque_frame_id, opaque_frame_optional, non_native_data, local_vars, operand_stack, native_local_refs } = frame;
+        assert!(non_native_data.is_none() || non_native_data.unwrap().pc == 0);
+        let method_id = if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
+            OpaqueFrameIdOrMethodID::Method { method_id: jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i) as u64 }
+        } else {
+            OpaqueFrameIdOrMethodID::Opaque {
+                opaque_id: opaque_frame_id.unwrap()
             }
         };
-        FramePushGuard::default()*/
-        todo!()
+        let new_current_frame_position = call_stack.push_frame(*current_stack_position, method_id, local_vars, operand_stack);
+        int_state.current_stack_position = new_current_frame_position;
+
+        FramePushGuard { _correctly_exited: false }
     }
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {

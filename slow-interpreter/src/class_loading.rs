@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
+use iced_x86::OpCodeOperandKind::cl;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
@@ -25,6 +26,7 @@ use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressGcManagedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -87,7 +89,7 @@ pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_stat
             for interface in class.view().interfaces() {
                 check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
             }
-            assert!(int_state.throw().is_none());
+            // assert!(int_state.throw().is_none());
             let res = initialize_class(class, jvm, int_state)?;
             res.set_status(ClassStatus::INITIALIZED);
             Ok(res)
@@ -102,7 +104,7 @@ pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) ->
 }
 
 pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
-    let loader = int_state.current_loader();
+    let loader = int_state.current_loader(jvm);
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
@@ -210,9 +212,9 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                     Ok(x) => x,
                     Err(_) => {
-                        let class_name_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string()))?;
+                        let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
+                        let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
 
-                        dbg!(class_name.0.to_str(&jvm.string_pool));
                         let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
                         int_state.set_throw(exception.into());
                         return Err(WasException);
@@ -260,6 +262,13 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 }));
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
+                let method_resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
+                for method in class_view.methods() {
+                    if method.code_attribute().is_some() {
+                        let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method.method_i());
+                        jvm.java_vm_state.add_method(jvm, &method_resolver, method_id)
+                    }
+                }
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object.clone()), ByAddress(res.clone()));

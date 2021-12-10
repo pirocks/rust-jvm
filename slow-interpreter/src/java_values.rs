@@ -1015,6 +1015,7 @@ pub union NativeJavaValue<'gc_life> {
     double: f64,
     pub(crate) object: *mut c_void,
     phantom_data: PhantomData<&'gc_life ()>,
+    pub as_u64: u64
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {

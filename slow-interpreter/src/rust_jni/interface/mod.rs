@@ -684,7 +684,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);
     let mut vf = VerifierContext {
         live_pool_getter: jvm.get_live_object_pool_getter(),
-        classfile_getter: jvm.get_class_getter(int_state.current_loader()),
+        classfile_getter: jvm.get_class_getter(int_state.current_loader(jvm)),
         string_pool: &jvm.string_pool,
         class_view_cache: Mutex::new(class_view_cache),
         current_loader: LoaderName::BootstrapLoader, //todo

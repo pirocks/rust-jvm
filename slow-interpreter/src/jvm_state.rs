@@ -34,6 +34,7 @@ use crate::field_table::FieldTable;
 use crate::gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
+use crate::ir_to_java_layer::compiler::JavaCompilerMethodAndFrameData;
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
@@ -89,6 +90,7 @@ pub struct JVMState<'gc_life> {
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
     pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<u16, Frame>>>,
+    pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
 }
 
 pub struct Classes<'gc_life> {
@@ -260,7 +262,8 @@ impl<'gc_life> JVMState<'gc_life> {
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             function_frame_type_data: Default::default(),
-            java_vm_state: JavaVMStateWrapper::new()
+            java_vm_state: JavaVMStateWrapper::new(),
+            java_function_frame_data: Default::default()
         };
         (args, jvm)
     }

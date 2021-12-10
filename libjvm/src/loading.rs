@@ -28,7 +28,7 @@ unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
 unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let loader_name = int_state.current_loader();
+    let loader_name = int_state.current_loader(jvm);
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 

@@ -175,7 +175,7 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
 }
 
 pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
-    assert!(int_state.throw().is_none());
+    // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
     //todo create a extract string which takes index. same for classname

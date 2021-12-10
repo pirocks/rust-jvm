@@ -408,7 +408,7 @@ pub mod string {
             let mut vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
             let array_object = ArrayObject {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
-                loader: int_state.current_loader(),
+                loader: int_state.current_loader(jvm),
                 len: vec1.len() as i32,
                 elems: vec1.as_mut_slice(),
                 phantom_data: Default::default(),
