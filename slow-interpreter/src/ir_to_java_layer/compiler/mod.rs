@@ -1,20 +1,27 @@
 use std::collections::HashMap;
 use std::mem::size_of;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::consts::const_64;
+use crate::ir_to_java_layer::compiler::dup::dup;
+use crate::ir_to_java_layer::compiler::invoke::invokestatic;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
+use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
 use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
 use crate::jit::ir::{IRInstr, IRLabel, Register};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::method_table::MethodId;
 use crate::native_to_ir_layer::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET};
+use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::FrameView;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -109,30 +116,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         };
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                match resolver.lookup_static(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
-                    None => {
-                        let exit_label = labeler.new_label(&mut labels);
-                        initial_ir.push(
-                            IRInstr::VMExit {
-                                exit_label,
-                                exit_type: todo!(),
-                            },
-                        );
-                    }
-                    Some((method_id, is_native)) => {
-                        if is_native {
-                            let exit_label = labeler.new_label(&mut labels);
-                            initial_ir.push(
-                                IRInstr::VMExit {
-                                    exit_label,
-                                    exit_type: todo!(),
-                                },
-                            );
-                        } else {
-                            todo!()
-                        }
-                    }
-                }
+                initial_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
                 initial_ir.extend(return_void(method_frame_data));
@@ -185,6 +169,61 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::goto_(offset) => {
                 initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
+            CompressedInstructionInfo::new(ccn) => {
+                match resolver.lookup_type_loaded(&(*ccn).into()) {
+                    None => {
+                        let exit_label = todo!();
+                        initial_ir.push(
+                            IRInstr::VMExit2 {
+                                exit_type: VMExitType::LoadClassAndRecompile,
+                                r10: Register(10),
+                            },
+                        );
+                    }
+                    Some((loaded_class, loader)) => {
+                        todo!()
+                    }
+                }
+            }
+            CompressedInstructionInfo::dup => {
+                initial_ir.extend(dup(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
+                match resolver.lookup_type_loaded(&CPDType::Ref(classname_ref_type.clone())) {
+                    None => {
+                        let exit_label = labeler.new_label(&mut labels);
+                        initial_ir.push(
+                            IRInstr::VMExit2 {
+                                exit_type: VMExitType::LoadClassAndRecompile,
+                                r10: Register(10),
+                            },
+                        );
+                    }
+                    Some(_) => {
+                        todo!()
+                    }
+                }
+            }
+            CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
+                match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
+                    None => {
+                        let exit_label = labeler.new_label(&mut labels);
+                        initial_ir.push(
+                            IRInstr::VMExit2 {
+                                exit_type: VMExitType::LoadClassAndRecompile,
+                                r10: Register(10),
+                            },
+                        );
+                    }
+                    Some((method_id, is_native)) => {
+                        if is_native {
+                            todo!()
+                        } else {
+                            todo!()
+                        }
+                    }
+                }
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -194,80 +233,47 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     initial_ir.into_iter().collect_vec()
 }
 
-pub mod returns {
-    use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+pub mod invoke {
+    use itertools::Either;
+
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+    use rust_jvm_common::compressed_classfile::names::MethodName;
+
+    use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+    use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
     use crate::jit::ir::{IRInstr, Register};
+    use crate::jit::MethodResolver;
 
-    pub fn ireturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-        let return_temp = Register(0);
-
-        array_into_iter([
-            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: return_temp },
-            IRInstr::Return {
-                return_val: Some(Register(0)),
-                temp_register_1: Register(1),
-                temp_register_2: Register(2),
-                temp_register_3: Register(3),
-                temp_register_4: Register(4),
-                frame_size: method_frame_data.full_frame_size(),
-            }])
-    }
-
-    pub fn return_void(method_frame_data: &JavaCompilerMethodAndFrameData) -> impl Iterator<Item=IRInstr> {
-        array_into_iter([IRInstr::Return {
-            return_val: None,
-            temp_register_1: Register(1),
-            temp_register_2: Register(2),
-            temp_register_3: Register(3),
-            temp_register_4: Register(4),
-            frame_size: method_frame_data.full_frame_size(),
-        }])
-    }
-}
-
-pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, n: u64) -> impl Iterator<Item=IRInstr> {
-    let const_register = Register(0);
-
-    array_into_iter([
-        IRInstr::Const64bit { to: const_register, const_: n },
-        IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
-    ])
-}
-
-pub mod branching {
-    use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-    use crate::jit::ByteCodeOffset;
-    use crate::jit::ir::{IRInstr, Register};
-
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-    pub enum ReferenceEqualityType {
-        NE,
-        EQ,
-    }
-
-    pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_equality: ReferenceEqualityType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
-        let value1 = Register(0);
-        let value2 = Register(1);
-        let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
-        let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
-
-        let compare_instr = match ref_equality {
-            ReferenceEqualityType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
-            ReferenceEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label }
-        };
-        array_into_iter([
-            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-            compare_instr
-        ])
-    }
-
-    pub fn goto_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
-        let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
-        let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
-        array_into_iter([IRInstr::BranchToLabel { label: target_label }])
+    pub fn invokestatic(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, method_name: MethodName, descriptor: &CMethodDescriptor, classname_ref_type: &CPRefType) -> impl Iterator<Item=IRInstr> {
+        match resolver.lookup_static(CPDType::Ref(classname_ref_type.clone()), method_name, descriptor.clone()) {
+            None => {
+                let before_exit_label = current_instr_data.compiler_labeler.label_at(current_instr_data.current_offset);
+                Either::Left(array_into_iter([IRInstr::VMExit {
+                    before_exit_label,
+                    after_exit_label: None,
+                    exit_type: VMExitType::LoadClassAndRecompile,
+                }]))
+            }
+            Some((method_id, is_native)) => {
+                Either::Right(if is_native {
+                    let exit_label = current_instr_data.compiler_labeler.label_at(current_instr_data.current_offset);
+                    array_into_iter([IRInstr::VMExit2 {
+                        exit_type: VMExitType::RunStaticNative,
+                        r10: Register(10),
+                    }])
+                } else {
+                    todo!()
+                })
+            }
+        }
     }
 }
+
+pub mod dup;
+pub mod returns;
+pub mod consts;
+pub mod branching;
+
 
 pub fn aload_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, n: u16) -> impl Iterator<Item=IRInstr> {
     //todo have register allocator

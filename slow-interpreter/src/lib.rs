@@ -9,6 +9,7 @@
 #![feature(in_band_lifetimes)]
 #![feature(destructuring_assignment)]
 #![feature(asm)]
+// #![feature(asm_const)]
 #![feature(thread_id_value)]
 #![feature(unboxed_closures)]
 #![feature(exclusive_range_pattern)]

@@ -40,6 +40,7 @@ use crate::instructions::special::*;
 use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OwnedJavaStack};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
 use crate::jit::state::JITedCodeState;
@@ -64,40 +65,44 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
-        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
-            jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
-            // todo!("copy current args over. ");
-            match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
-                Ok(res) => {
-                    assert!(res.is_none());
-                    return Ok(());
-                    /*match res {
-                        Either::Left(res) => todo!(),
-                        Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {
-                            let rc = check_loaded_class(jvm, interpreter_state, CPDType::Ref(classname_ref_type))?;
-                            let view = rc.view();
-                            let method_view = view.lookup_method(method_name, &descriptor).unwrap();
-                            let code = method_view.code_attribute().unwrap();
-                            let invoke_target_method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-                            let guard = jvm.function_frame_type_data.read().unwrap();
-                            let frame_vtype = guard.get(&invoke_target_method_id).unwrap();
-                            let stack_frame_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());//todo use stack frame layouts instead
-                            let sorted_instructions = code.instructions.iter().sorted_by_key(|(offset, _)| *offset).map(|(_, instr)| instr.clone()).collect();
-                            let mut compiled_methods_guard = jvm.compiled_methods.write().unwrap();
-                            compiled_methods_guard.add_method(invoke_target_method_id, sorted_instructions, &stack_frame_layout);
-                            compiled_methods_guard.run_method(invoke_target_method_id, interpreter_state.get_java_stack()).unwrap();
-                            drop(compiled_methods_guard);//tos=do deadlock in exit hadnler
+        jvm.java_vm_state.add_method(jvm, &resolver, method_id);
+        let owned_stack = OwnedJavaStack::new(&jvm.java_vm_state, jvm);
+        let function_res = jvm.java_vm_state.run_method(jvm, &owned_stack, method_id, JavaStackPosition::Top);
+        todo!("actually do something with function res")
+        /*        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
+                    jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
+                    // todo!("copy current args over. ");
+                    match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
+                        Ok(res) => {
+                            assert!(res.is_none());
+                            return Ok(());
+                            /*match res {
+                                Either::Left(res) => todo!(),
+                                Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {
+                                    let rc = check_loaded_class(jvm, interpreter_state, CPDType::Ref(classname_ref_type))?;
+                                    let view = rc.view();
+                                    let method_view = view.lookup_method(method_name, &descriptor).unwrap();
+                                    let code = method_view.code_attribute().unwrap();
+                                    let invoke_target_method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+                                    let guard = jvm.function_frame_type_data.read().unwrap();
+                                    let frame_vtype = guard.get(&invoke_target_method_id).unwrap();
+                                    let stack_frame_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());//todo use stack frame layouts instead
+                                    let sorted_instructions = code.instructions.iter().sorted_by_key(|(offset, _)| *offset).map(|(_, instr)| instr.clone()).collect();
+                                    let mut compiled_methods_guard = jvm.compiled_methods.write().unwrap();
+                                    compiled_methods_guard.add_method(invoke_target_method_id, sorted_instructions, &stack_frame_layout);
+                                    compiled_methods_guard.run_method(invoke_target_method_id, interpreter_state.get_java_stack()).unwrap();
+                                    drop(compiled_methods_guard);//tos=do deadlock in exit hadnler
 
 
-                            todo!("compile and restore ")
+                                    todo!("compile and restore ")
+                                }
+                                _ => todo!()
+                            }*/
                         }
-                        _ => todo!()
-                    }*/
-                }
-                Err(_) => todo!(),
-            }
-        });
-        result
+                        Err(_) => todo!(),
+                    }
+                });
+        */        //result
     } else {
         run_function_interpreted(&jvm, interpreter_state)
     }

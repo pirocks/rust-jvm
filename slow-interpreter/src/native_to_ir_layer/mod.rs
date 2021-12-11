@@ -15,11 +15,12 @@ use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
 use memoffset::offset_of;
 
-use another_jit_vm::{BaseAddress, Method, MethodImplementationID, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
+use another_jit_vm::{BaseAddress, Method, MethodImplementationID, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMExitLabel, VMState};
 use classfile_parser::code::InstructionTypeNum::new;
 use verification::verifier::Frame;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
 use crate::jit::ir::IRInstr;
 use crate::jit::LabelName;
 use crate::method_table::MethodId;
@@ -55,8 +56,6 @@ impl IRVMStateInner {
         let mut res = BiHashMap::new();
         for (i, instruction_offset) in new_instruction_offsets.into_iter().enumerate() {
             let assembly_instruction_index = AssemblyInstructionIndex(i);
-            dbg!(assembly_instruction_index);
-            dbg!(&assembly_index_to_ir_instruct_index);
             let ir_instruction_index = assembly_index_to_ir_instruct_index.get(&assembly_instruction_index).unwrap();
             res.insert(instruction_offset, *ir_instruction_index);
         }
@@ -165,6 +164,8 @@ impl OwnedIRStack {
 
     unsafe fn validate_frame_pointer(&self, frame_pointer: *mut c_void) {
         if self.mmaped_top.offset_from(frame_pointer) > self.max_stack as isize || frame_pointer > self.mmaped_top {
+            dbg!(self.mmaped_top);
+            dbg!(frame_pointer);
             panic!()
         }
     }
@@ -330,12 +331,17 @@ impl IRVMState<'vm_state_life> {
         }
     }
 
-    pub fn run_method(&self, method_id: IRMethodID) -> u64 {
+    pub fn run_method(&self, method_id: IRMethodID, ir_stack: &OwnedIRStack, frame_pointer: *mut c_void) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        self.native_vm.launch_vm(current_implementation, SavedRegistersWithoutIP::new_with_all_zero())
+        unsafe { ir_stack.validate_frame_pointer(frame_pointer); }
+        let frame_pointer = ir_stack.mmaped_top;
+        let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
+        initial_registers.rbp = frame_pointer;
+        initial_registers.rsp = frame_pointer;
+        self.native_vm.launch_vm(current_implementation, initial_registers)
     }
 
     fn debug_print_instructions(assembler: &CodeAssembler) {
@@ -464,7 +470,15 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
             assembler.ret().unwrap();
         },
-        IRInstr::VMExit { .. } => todo!(),
+        IRInstr::VMExit2 { exit_type, r10 } => {
+            let VMExitLabel { ../*before_exit_label, after_exit_label*/ } = VMState::<u64>::gen_vm_exit(assembler, r10.0);
+            /*labels.entry(before_exit_label_name).insert(before_exit_label);
+            if let Some(after_exit_label_name) = after_exit_label_name{
+                //todo this clobbers previous labels for that entry
+                //todo fix labels
+                labels.entry(after_exit_label_name).insert(after_exit_label);
+            }*/
+        },
         IRInstr::GrowStack { .. } => todo!(),
         IRInstr::LoadSP { .. } => todo!(),
         IRInstr::WithAssembler { .. } => todo!(),
@@ -490,6 +504,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
         }
+        IRInstr::VMExit { .. } => panic!("legacy")
     }
 }
 

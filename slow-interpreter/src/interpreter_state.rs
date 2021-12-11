@@ -249,11 +249,14 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         let InterpreterState { call_stack, jvm, current_stack_position } = int_state;
         let StackEntry { loader, opaque_frame_id, opaque_frame_optional, non_native_data, local_vars, operand_stack, native_local_refs } = frame;
         assert!(non_native_data.is_none() || non_native_data.unwrap().pc == 0);
-        let method_id = if let Some(OpaqueFrameOptional { class_pointer, method_i }) = opaque_frame_optional {
-            OpaqueFrameIdOrMethodID::Method { method_id: jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i) as u64 }
-        } else {
-            OpaqueFrameIdOrMethodID::Opaque {
-                opaque_id: opaque_frame_id.unwrap()
+        let method_id = match opaque_frame_optional {
+            Some(OpaqueFrameOptional { class_pointer, method_i }) => {
+                OpaqueFrameIdOrMethodID::Method { method_id: jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i) as u64 }
+            }
+            None => {
+                OpaqueFrameIdOrMethodID::Opaque {
+                    opaque_id: opaque_frame_id.unwrap()
+                }
             }
         };
         let new_current_frame_position = call_stack.push_frame(*current_stack_position, method_id, local_vars, operand_stack);

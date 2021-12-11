@@ -1,4 +1,5 @@
 #![feature(asm)]
+#![feature(asm_const)]
 // save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
@@ -12,8 +13,7 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::{Code, Instruction, MemoryOperand, Register};
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, r15};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, r10, r15};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
@@ -77,7 +77,24 @@ pub struct SavedRegistersWithoutIP {
 
 impl SavedRegistersWithoutIP {
     pub fn new_with_all_zero() -> Self {
-        todo!()
+        Self {
+            rax: null_mut(),
+            rbx: null_mut(),
+            rcx: null_mut(),
+            rdx: null_mut(),
+            rsi: null_mut(),
+            rdi: null_mut(),
+            rbp: null_mut(),
+            rsp: null_mut(),
+            r8: null_mut(),
+            r9: null_mut(),
+            r10: null_mut(),
+            r11: null_mut(),
+            r12: null_mut(),
+            r13: null_mut(),
+            r14: null_mut(),
+            xsave_area: [0; 64],
+        }
     }
 }
 
@@ -123,6 +140,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
     pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> T {
         let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
+        dbg!(branch_to);
         let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, guest_registers);
         assert_eq!(rip_guest_offset, RIP_GUEST_OFFSET_CONST);
         let rax_guest_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
@@ -157,7 +175,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
         assert_eq!(r14_guest_offset, R14_GUEST_OFFSET_CONST);
         let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
         assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
-        let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
+        let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET_CONST);
         let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rax_native_offset, RAX_NATIVE_OFFSET_CONST);
@@ -230,83 +248,84 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
 
     #[allow(named_asm_labels)]
     fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitAction<T> {
+        dbg!(jit_context.guest_registers.rip);
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
             //save all registers to avoid breaking stuff
             "mov r15, {0}",
-            "mov [r15 + {rax_native_offset_const}], rax",
-            "mov [r15 + {rbx_native_offset_const}], rbx",
-            "mov [r15 + {rcx_native_offset_const}], rcx",
-            "mov [r15 + {rdx_native_offset_const}], rdx",
-            "mov [r15 + {rsi_native_offset_const}], rsi",
-            "mov [r15 + {rdi_native_offset_const}], rdi",
-            "mov [r15 + {rbp_native_offset_const}], rbp",
-            "mov [r15 + {rsp_native_offset_const}], rsp",
-            "mov [r15 + {r8_native_offset_const}], r8",
-            "mov [r15 + {r9_native_offset_const}], r9",
-            "mov [r15 + {r10_native_offset_const}], r10",
-            "mov [r15 + {r11_native_offset_const}], r11",
-            "mov [r15 + {r12_native_offset_const}], r12",
-            "mov [r15 + {r13_native_offset_const}], r13",
-            "mov [r15 + {r14_native_offset_const}], r14",
-            "xsave [r15 + {xsave_area_native_offset_const}]",
+            "mov [r15 + {__rust_jvm_rax_native_offset_const}], rax",
+            "mov [r15 + {__rust_jvm_rbx_native_offset_const}], rbx",
+            "mov [r15 + {__rust_jvm_rcx_native_offset_const}], rcx",
+            "mov [r15 + {__rust_jvm_rdx_native_offset_const}], rdx",
+            "mov [r15 + {__rust_jvm_rsi_native_offset_const}], rsi",
+            "mov [r15 + {__rust_jvm_rdi_native_offset_const}], rdi",
+            "mov [r15 + {__rust_jvm_rbp_native_offset_const}], rbp",
+            "mov [r15 + {__rust_jvm_rsp_native_offset_const}], rsp",
+            "mov [r15 + {__rust_jvm_r8_native_offset_const}], r8",
+            "mov [r15 + {__rust_jvm_r9_native_offset_const}], r9",
+            "mov [r15 + {__rust_jvm_r10_native_offset_const}], r10",
+            "mov [r15 + {__rust_jvm_r11_native_offset_const}], r11",
+            "mov [r15 + {__rust_jvm_r12_native_offset_const}], r12",
+            "mov [r15 + {__rust_jvm_r13_native_offset_const}], r13",
+            "mov [r15 + {__rust_jvm_r14_native_offset_const}], r14",
+            // "xsave [r15 + {__rust_jvm_xsave_area_native_offset_const}]",
             "lea rax, [rip+__rust_jvm_internal_after_enter]",
-            "mov [r15 + {rip_native_offset_const}], rax",
+            "mov [r15 + {__rust_jvm_rip_native_offset_const}], rax",
             //load expected register values
-            "mov rax,[r15 + {rax_guest_offset_const}]",
-            "mov rbx,[r15 + {rbx_guest_offset_const}]",
-            "mov rcx,[r15 + {rcx_guest_offset_const}]",
-            "mov rdx,[r15 + {rdx_guest_offset_const}]",
-            "mov rsi,[r15 + {rsi_guest_offset_const}]",
-            "mov rdi,[r15 + {rdi_guest_offset_const}]",
-            "mov rbp,[r15 + {rbp_guest_offset_const}]",
-            "mov rsp,[r15 + {rsp_guest_offset_const}]",
-            "mov r8,[r15 + {r8_guest_offset_const}]",
-            "mov r9,[r15 + {r9_guest_offset_const}]",
-            "mov r10,[r15 + {r10_guest_offset_const}]",
-            "mov r11,[r15 + {r11_guest_offset_const}]",
-            "mov r12,[r15 + {r12_guest_offset_const}]",
-            "mov r13,[r15 + {r13_guest_offset_const}]",
-            "mov r14,[r15 + {r14_guest_offset_const}]",
-            "xrstor [r15 + {xsave_area_guest_offset_const}]",
-            "call qword ptr [r15 + rdi_guest_offset_const]",
+            "mov rax,[r15 + {__rust_jvm_rax_guest_offset_const}]",
+            "mov rbx,[r15 + {__rust_jvm_rbx_guest_offset_const}]",
+            "mov rcx,[r15 + {__rust_jvm_rcx_guest_offset_const}]",
+            "mov rdx,[r15 + {__rust_jvm_rdx_guest_offset_const}]",
+            "mov rsi,[r15 + {__rust_jvm_rsi_guest_offset_const}]",
+            "mov rdi,[r15 + {__rust_jvm_rdi_guest_offset_const}]",
+            "mov rbp,[r15 + {__rust_jvm_rbp_guest_offset_const}]",
+            "mov rsp,[r15 + {__rust_jvm_rsp_guest_offset_const}]",
+            "mov r8,[r15 + {__rust_jvm_r8_guest_offset_const}]",
+            "mov r9,[r15 + {__rust_jvm_r9_guest_offset_const}]",
+            "mov r10,[r15 + {__rust_jvm_r10_guest_offset_const}]",
+            "mov r11,[r15 + {__rust_jvm_r11_guest_offset_const}]",
+            "mov r12,[r15 + {__rust_jvm_r12_guest_offset_const}]",
+            "mov r13,[r15 + {__rust_jvm_r13_guest_offset_const}]",
+            "mov r14,[r15 + {__rust_jvm_r14_guest_offset_const}]",
+            // "xrstor [r15 + {__rust_jvm_xsave_area_guest_offset_const}]",
+            "call qword ptr [r15 + {__rust_jvm_rip_guest_offset_const}]",
             "__rust_jvm_internal_after_enter:",
             in(reg) jit_context_pointer,
-            // rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
-            rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
-            rbx_guest_offset_const = const RBX_GUEST_OFFSET_CONST,
-            rcx_guest_offset_const = const RCX_GUEST_OFFSET_CONST,
-            rdx_guest_offset_const = const RDX_GUEST_OFFSET_CONST,
-            rsi_guest_offset_const = const RSI_GUEST_OFFSET_CONST,
-            rdi_guest_offset_const = const RDI_GUEST_OFFSET_CONST,
-            rbp_guest_offset_const = const RBP_GUEST_OFFSET_CONST,
-            rsp_guest_offset_const = const RSP_GUEST_OFFSET_CONST,
-            r8_guest_offset_const = const R8_GUEST_OFFSET_CONST,
-            r9_guest_offset_const = const R9_GUEST_OFFSET_CONST,
-            r10_guest_offset_const = const R10_GUEST_OFFSET_CONST,
-            r11_guest_offset_const = const R11_GUEST_OFFSET_CONST,
-            r12_guest_offset_const = const R12_GUEST_OFFSET_CONST,
-            r13_guest_offset_const = const R13_GUEST_OFFSET_CONST,
-            r14_guest_offset_const = const R14_GUEST_OFFSET_CONST,
-            xsave_area_guest_offset_const = const XSAVE_AREA_GUEST_OFFSET_CONST,
-            rip_native_offset_const = const RIP_NATIVE_OFFSET_CONST,
-            rax_native_offset_const = const RAX_NATIVE_OFFSET_CONST,
-            rbx_native_offset_const = const RBX_NATIVE_OFFSET_CONST,
-            rcx_native_offset_const = const RCX_NATIVE_OFFSET_CONST,
-            rdx_native_offset_const = const RDX_NATIVE_OFFSET_CONST,
-            rsi_native_offset_const = const RSI_NATIVE_OFFSET_CONST,
-            rdi_native_offset_const = const RDI_NATIVE_OFFSET_CONST,
-            rbp_native_offset_const = const RBP_NATIVE_OFFSET_CONST,
-            rsp_native_offset_const = const RSP_NATIVE_OFFSET_CONST,
-            r8_native_offset_const = const R8_NATIVE_OFFSET_CONST,
-            r9_native_offset_const = const R9_NATIVE_OFFSET_CONST,
-            r10_native_offset_const = const R10_NATIVE_OFFSET_CONST,
-            r11_native_offset_const = const R11_NATIVE_OFFSET_CONST,
-            r12_native_offset_const = const R12_NATIVE_OFFSET_CONST,
-            r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
-            r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
-            xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
+            __rust_jvm_rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
+            __rust_jvm_rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
+            __rust_jvm_rbx_guest_offset_const = const RBX_GUEST_OFFSET_CONST,
+            __rust_jvm_rcx_guest_offset_const = const RCX_GUEST_OFFSET_CONST,
+            __rust_jvm_rdx_guest_offset_const = const RDX_GUEST_OFFSET_CONST,
+            __rust_jvm_rsi_guest_offset_const = const RSI_GUEST_OFFSET_CONST,
+            __rust_jvm_rdi_guest_offset_const = const RDI_GUEST_OFFSET_CONST,
+            __rust_jvm_rbp_guest_offset_const = const RBP_GUEST_OFFSET_CONST,
+            __rust_jvm_rsp_guest_offset_const = const RSP_GUEST_OFFSET_CONST,
+            __rust_jvm_r8_guest_offset_const = const R8_GUEST_OFFSET_CONST,
+            __rust_jvm_r9_guest_offset_const = const R9_GUEST_OFFSET_CONST,
+            __rust_jvm_r10_guest_offset_const = const R10_GUEST_OFFSET_CONST,
+            __rust_jvm_r11_guest_offset_const = const R11_GUEST_OFFSET_CONST,
+            __rust_jvm_r12_guest_offset_const = const R12_GUEST_OFFSET_CONST,
+            __rust_jvm_r13_guest_offset_const = const R13_GUEST_OFFSET_CONST,
+            __rust_jvm_r14_guest_offset_const = const R14_GUEST_OFFSET_CONST,
+            // __rust_jvm_xsave_area_guest_offset_const = const XSAVE_AREA_GUEST_OFFSET_CONST,
+            __rust_jvm_rip_native_offset_const = const RIP_NATIVE_OFFSET_CONST,
+            __rust_jvm_rax_native_offset_const = const RAX_NATIVE_OFFSET_CONST,
+            __rust_jvm_rbx_native_offset_const = const RBX_NATIVE_OFFSET_CONST,
+            __rust_jvm_rcx_native_offset_const = const RCX_NATIVE_OFFSET_CONST,
+            __rust_jvm_rdx_native_offset_const = const RDX_NATIVE_OFFSET_CONST,
+            __rust_jvm_rsi_native_offset_const = const RSI_NATIVE_OFFSET_CONST,
+            __rust_jvm_rdi_native_offset_const = const RDI_NATIVE_OFFSET_CONST,
+            __rust_jvm_rbp_native_offset_const = const RBP_NATIVE_OFFSET_CONST,
+            __rust_jvm_rsp_native_offset_const = const RSP_NATIVE_OFFSET_CONST,
+            __rust_jvm_r8_native_offset_const = const R8_NATIVE_OFFSET_CONST,
+            __rust_jvm_r9_native_offset_const = const R9_NATIVE_OFFSET_CONST,
+            __rust_jvm_r10_native_offset_const = const R10_NATIVE_OFFSET_CONST,
+            __rust_jvm_r11_native_offset_const = const R11_NATIVE_OFFSET_CONST,
+            __rust_jvm_r12_native_offset_const = const R12_NATIVE_OFFSET_CONST,
+            __rust_jvm_r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
+            __rust_jvm_r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
+            // __rust_jvm_xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
             )
         }
         self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers)
@@ -331,12 +350,15 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
         }
     }
 
-    pub fn gen_vm_exit(assembler: &mut CodeAssembler) -> VMExitLabel {
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler, temp_register_r10: u8) -> VMExitLabel {
+        assert_eq!(temp_register_r10, 10);
         let mut before_exit_label = assembler.create_label();
         let mut after_exit_label = assembler.create_label();
         assembler.set_label(&mut before_exit_label).unwrap();
-        assembler.add_instruction(Instruction::with2(Code::Mov_rm64_r64, MemoryOperand::with_base_displ(Register::R15, RIP_GUEST_OFFSET_CONST as i64), Register::RIP).unwrap()).unwrap();
-        assembler.jmp(r15 + RIP_NATIVE_OFFSET_CONST).unwrap();
+        todo!("implement register saving");
+        assembler.lea(r10, qword_ptr(before_exit_label)).unwrap();
+        assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, r10).unwrap();
+        assembler.jmp(qword_ptr(r15 + RIP_NATIVE_OFFSET_CONST)).unwrap();
         assembler.set_label(&mut after_exit_label).unwrap();
         VMExitLabel {
             before_exit_label,
@@ -373,8 +395,8 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
 pub struct BaseAddress(pub *const c_void);
 
 pub struct VMExitLabel {
-    before_exit_label: CodeLabel,
-    after_exit_label: CodeLabel,
+    pub before_exit_label: CodeLabel,
+    pub after_exit_label: CodeLabel,
 }
 
 pub struct Method<'vm_state_life, T: Sized> {
@@ -401,20 +423,22 @@ pub const R13_GUEST_OFFSET_CONST: usize = 104 + 8;
 pub const R14_GUEST_OFFSET_CONST: usize = 112 + 8;
 pub const XSAVE_AREA_GUEST_OFFSET_CONST: usize = 120 + 8;
 
-pub const RIP_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096 + 0;
-pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + 120 + 4096 + 8;
-pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + 120 + 4096 + 8;
-pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + 120 + 4096 + 8;
-pub const RDX_NATIVE_OFFSET_CONST: usize = 24 + 120 + 4096 + 8;
-pub const RSI_NATIVE_OFFSET_CONST: usize = 32 + 120 + 4096 + 8;
-pub const RDI_NATIVE_OFFSET_CONST: usize = 40 + 120 + 4096 + 8;
-pub const RBP_NATIVE_OFFSET_CONST: usize = 48 + 120 + 4096 + 8;
-pub const RSP_NATIVE_OFFSET_CONST: usize = 56 + 120 + 4096 + 8;
-pub const R8_NATIVE_OFFSET_CONST: usize = 64 + 120 + 4096 + 8;
-pub const R9_NATIVE_OFFSET_CONST: usize = 72 + 120 + 4096 + 8;
-pub const R10_NATIVE_OFFSET_CONST: usize = 80 + 120 + 4096 + 8;
-pub const R11_NATIVE_OFFSET_CONST: usize = 88 + 120 + 4096 + 8;
-pub const R12_NATIVE_OFFSET_CONST: usize = 96 + 120 + 4096 + 8;
-pub const R13_NATIVE_OFFSET_CONST: usize = 104 + 120 + 4096 + 8;
-pub const R14_NATIVE_OFFSET_CONST: usize = 112 + 120 + 4096 + 8;
-pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = 120 + 120 + 4096 + 8;
+pub const XSAVE_SIZE: usize = 64 * 8;
+
+pub const RIP_NATIVE_OFFSET_CONST: usize = 0 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 0;
+pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RDX_NATIVE_OFFSET_CONST: usize = 24 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RSI_NATIVE_OFFSET_CONST: usize = 32 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RDI_NATIVE_OFFSET_CONST: usize = 40 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RBP_NATIVE_OFFSET_CONST: usize = 48 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const RSP_NATIVE_OFFSET_CONST: usize = 56 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R8_NATIVE_OFFSET_CONST: usize = 64 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R9_NATIVE_OFFSET_CONST: usize = 72 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R10_NATIVE_OFFSET_CONST: usize = 80 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R11_NATIVE_OFFSET_CONST: usize = 88 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R12_NATIVE_OFFSET_CONST: usize = 96 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R13_NATIVE_OFFSET_CONST: usize = 104 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const R14_NATIVE_OFFSET_CONST: usize = 112 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
+pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = XSAVE_AREA_GUEST_OFFSET_CONST + 120 + XSAVE_SIZE + 8;

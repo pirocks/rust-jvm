@@ -14,10 +14,10 @@ use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, OwnedIRStack};
 pub struct OwnedJavaStack<'vm_life> {
     jvm: &'vm_life JVMState<'vm_life>,
     java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
-    inner: OwnedIRStack,
+    pub(crate) inner: OwnedIRStack,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum OpaqueFrameIdOrMethodID {
     Opaque {
         opaque_id: u64,
@@ -120,7 +120,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             JavaStackPosition::Frame { frame_pointer } => {
                 let current_frame = self.frame_at(java_stack_position, self.jvm);
                 let frame_size = current_frame.ir_ref.frame_size(&self.java_vm_state.ir);
-                let new_frame_pointer = unsafe { frame_pointer.offset(frame_size as isize) };
+                let new_frame_pointer = unsafe { frame_pointer.offset(-(frame_size as isize)) };
                 JavaStackPosition::Frame { frame_pointer: new_frame_pointer }
             }
             JavaStackPosition::Top => JavaStackPosition::Frame { frame_pointer: self.inner.mmaped_top }

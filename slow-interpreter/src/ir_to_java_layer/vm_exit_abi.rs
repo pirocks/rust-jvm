@@ -9,5 +9,7 @@ impl AllocateVMExit {
 
 pub enum VMExitType {
     Allocate(AllocateVMExit),
+    LoadClassAndRecompile,
+    RunStaticNative,
     TopLevelReturn {},
 }

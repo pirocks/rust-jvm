@@ -92,6 +92,18 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
+    pub fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+        let classes_guard = self.jvm.classes.read().unwrap();
+        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        assert_eq!(loader_name, self.loader);
+        let view = rc.view();
+        let method_view = view.lookup_method(name, &desc).unwrap();
+        assert!(!method_view.is_static());
+        let mut method_table_guard = self.jvm.method_table.write().unwrap();
+        let method_id = method_table_guard.get_method_id(rc.clone(), method_view.method_i());
+        Some((method_id, method_view.is_native()))
+    }
+
     pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
@@ -104,8 +116,9 @@ impl<'gc_life> MethodResolver<'gc_life> {
     }
 
     pub fn lookup_type_loaded(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
-        let rc = self.jvm.classes.read().unwrap().is_loaded(cpdtype)?;
-        let loader = self.jvm.classes.read().unwrap().get_initiating_loader(&rc);
+        let read_guard = self.jvm.classes.read().unwrap();
+        let rc = read_guard.is_loaded(cpdtype)?;
+        let loader = read_guard.get_initiating_loader(&rc);
         Some((rc, loader))
     }
 

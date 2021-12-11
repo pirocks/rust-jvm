@@ -800,18 +800,9 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 
     pub fn try_class_pointer(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<Arc<RuntimeClass<'gc_life>>> {
-        /*match self {
-            /*            StackEntryRef::LegacyInterpreter { entry, .. } => {
-                            entry.try_class_pointer().cloned()
-                        }
-            */
-            StackEntryRef::Jit { frame_view, .. } => {
-                let method_id = frame_view.method_id()?;
-                let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-                Some(rc)
-            }
-        }*/
-        todo!()
+        let method_id = self.frame_view.ir_ref.method_id()?;
+        let rc = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0;
+        Some(rc)
     }
 
     pub fn class_pointer(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
@@ -837,15 +828,8 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 
     pub fn method_i(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPIndex {
-        /*match self {
-            /*StackEntryRef::LegacyInterpreter { entry, .. } => { entry.method_i() }*/
-            StackEntryRef::Jit { frame_view, .. } => {
-                let method_id = frame_view.method_id().unwrap();
-                let (_, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-                method_i
-            }
-        }*/
-        todo!()
+        let method_id = self.frame_view.ir_ref.method_id().unwrap();
+        jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }
 
     pub fn operand_stack(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {

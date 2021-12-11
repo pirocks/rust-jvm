@@ -159,7 +159,7 @@ impl JITedCodeState {
         let nop = CompressedInstruction { offset: 0, instruction_size: 0, info: CompressedInstructionInfo::nop };
         let ir = ToIR {
             labels,
-            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { exit_label, exit_type: VMExitType::TopLevelReturn {} }, nop)],
+            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: None, exit_type: VMExitType::TopLevelReturn {} }, nop)],
             function_start_label: start_label,
         };
 
@@ -390,7 +390,7 @@ impl JITedCodeState {
                     match resolver.lookup_type_loaded(&cpd_type) {
                         None => {
                             let exit_label = self.labeler.new_label(&mut labels);
-                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: todo!()/*VMExitType::InitClass { target_class: cpd_type }*/ }));
+                            initial_ir.push((current_offset, IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: todo!(), exit_type: todo!()/*VMExitType::InitClass { target_class: cpd_type }*/ }));
                         }
                         Some((rc, _)) => {
                             let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(name).unwrap();
@@ -410,7 +410,7 @@ impl JITedCodeState {
                             initial_ir.push((current_offset, IRInstr::BranchToLabel { label: after_npe_label }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: npe_label })));
                             let npe_exit_label = self.labeler.new_label(&mut labels);
-                            initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: todo!()/*VMExitType::Todo {}*/ }));
+                            initial_ir.push((current_offset, IRInstr::VMExit { before_exit_label: npe_exit_label, after_exit_label: todo!(), exit_type: todo!()/*VMExitType::Todo {}*/ }));
                             initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_npe_label })))
                         }
                     }
@@ -433,7 +433,8 @@ impl JITedCodeState {
                             initial_ir.push((
                                 current_offset,
                                 IRInstr::VMExit {
-                                    exit_label,
+                                    before_exit_label: exit_label,
+                                    after_exit_label: None,
                                     exit_type: todo!()/*VMExitType::ResolveInvokeSpecial {
                                         method_name: *method_name,
                                         desc: descriptor.clone(),
@@ -499,7 +500,8 @@ impl JITedCodeState {
                             initial_ir.push((
                                 current_offset,
                                 IRInstr::VMExit {
-                                    exit_label,
+                                    before_exit_label: exit_label,
+                                    after_exit_label: None,
                                     exit_type: todo!()/*VMExitType::Trace { values: vec![("obj pointer".to_string(), load_to_location)] }*/,
                                 },
                             ));
@@ -542,7 +544,8 @@ impl JITedCodeState {
                     initial_ir.push((
                         current_offset,
                         IRInstr::VMExit {
-                            exit_label,
+                            before_exit_label: exit_label,
+                            after_exit_label: todo!(),
                             exit_type: todo!()/*VMExitType::MonitorEnter { ref_offset: layout.operand_stack_entry(current_byte_code_instr_count, 0) }*/,
                         },
                     ));
@@ -552,7 +555,8 @@ impl JITedCodeState {
                     initial_ir.push((
                         current_offset,
                         IRInstr::VMExit {
-                            exit_label,
+                            before_exit_label: exit_label,
+                            after_exit_label: todo!(),
                             exit_type: todo!()/*VMExitType::MonitorExit { ref_offset: layout.operand_stack_entry(current_byte_code_instr_count, 0) }*/,
                         },
                     ));
@@ -621,7 +625,7 @@ impl JITedCodeState {
         match resolver.lookup_type_loaded(&cpd_type) {
             None => {
                 let exit_label = self.labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label, exit_type: todo!()/*VMExitType::InitClass { target_class: cpd_type }*/ }));
+                initial_ir.push((current_offset, IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: todo!(), exit_type: todo!()/*VMExitType::InitClass { target_class: cpd_type }*/ }));
             }
             Some((rc, _)) => {
                 let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(name).unwrap();
@@ -641,7 +645,7 @@ impl JITedCodeState {
                 initial_ir.push((current_offset, IRInstr::BranchToLabel { label: after_npe_label }));
                 initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: npe_label })));
                 let npe_exit_label = self.labeler.new_label(&mut labels);
-                initial_ir.push((current_offset, IRInstr::VMExit { exit_label: npe_exit_label, exit_type: todo!()/*VMExitType::NPE {}*/ }));
+                initial_ir.push((current_offset, IRInstr::VMExit { before_exit_label: npe_exit_label, after_exit_label: todo!(), exit_type: todo!()/*VMExitType::NPE {}*/ }));
                 initial_ir.push((current_offset, IRInstr::Label(IRLabel { name: after_npe_label })))
             }
         }
@@ -652,7 +656,8 @@ impl JITedCodeState {
         initial_ir.push((
             current_offset,
             IRInstr::VMExit {
-                exit_label,
+                before_exit_label: exit_label,
+                after_exit_label: todo!(),
                 exit_type: todo!()/*VMExitType::Throw { res: layout.operand_stack_entry(current_byte_code_instr_count, 0) }*/,
             },
         ));
@@ -665,7 +670,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::LoadString { string: str.clone(), res: layout.operand_stack_entry(next_byte_code_instr_count, 0) }*/,
                     },
                 ))
@@ -675,7 +681,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::LoadClass {
                             class_type: type_.clone(),
                             res: layout.operand_stack_entry(next_byte_code_instr_count, 0),
@@ -697,7 +704,8 @@ impl JITedCodeState {
         initial_ir.push((
             current_offset,
             IRInstr::VMExit {
-                exit_label,
+                before_exit_label: exit_label,
+                after_exit_label: todo!(),
                 exit_type: todo!()/*VMExitType::PutStatic {
                     target_class: CPDType::Ref(CPRefType::Class(*target_class)),
                     target_type: desc.0.clone(),
@@ -721,7 +729,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::ResolveInvokeStatic {
                             method_name: *method_name,
                             desc: descriptor.clone(),
@@ -736,7 +745,8 @@ impl JITedCodeState {
                     initial_ir.push((
                         current_offset,
                         IRInstr::VMExit {
-                            exit_label,
+                            before_exit_label: exit_label,
+                            after_exit_label: todo!(),
                             exit_type: todo!()/*VMExitType::RunNativeStatic {
                                 method_name: *method_name,
                                 desc: descriptor.clone(),
@@ -760,7 +770,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::ResolveInvokeSpecial {
                             method_name: *method_name,
                             desc: descriptor.clone(),
@@ -775,7 +786,8 @@ impl JITedCodeState {
                     initial_ir.push((
                         current_offset,
                         IRInstr::VMExit {
-                            exit_label,
+                            before_exit_label: exit_label,
+                            after_exit_label: todo!(),
                             exit_type: todo!()/*VMExitType::InvokeSpecialNative {
                                 method_name: *method_name,
                                 desc: descriptor.clone(),
@@ -870,7 +882,8 @@ impl JITedCodeState {
         initial_ir.push((
             current_offset,
             IRInstr::VMExit {
-                exit_label,
+                before_exit_label: exit_label,
+                after_exit_label: todo!(),
                 exit_type: todo!()/*VMExitType::AllocateVariableSizeArrayANewArray {
                     target_type_sub_type: cpdtype.clone(),
                     len_offset: layout.operand_stack_entry(current_byte_code_instr_count, 0),
@@ -887,7 +900,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::InitClass { target_class: CPDType::Ref(CPRefType::Class(*class_name)) }*/,
                     },
                 ))
@@ -1012,7 +1026,8 @@ impl JITedCodeState {
                 initial_ir.push((
                     current_offset,
                     IRInstr::VMExit {
-                        exit_label,
+                        before_exit_label: exit_label,
+                        after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::Allocate {
                             ptypeview: rc.cpdtype(),
                             loader,
@@ -1082,7 +1097,7 @@ impl JITedCodeState {
                     assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
                     assembler.jne(iced_labels[&label]).unwrap()
                 }
-                IRInstr::VMExit { exit_label, exit_type } => {
+                IRInstr::VMExit { before_exit_label: exit_label, exit_type, .. } => {
                     let native_stack_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
                     let native_frame_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
                     let native_instruction_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, instruction_pointer)) as i64;
@@ -1187,6 +1202,7 @@ impl JITedCodeState {
                 IRInstr::ForwardBitScan { .. } => todo!(),
                 IRInstr::WithAssembler { .. } => todo!(),
                 IRInstr::IRNewFrame { .. } => todo!(),
+                IRInstr::VMExit2 { .. } => {}
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
@@ -1321,6 +1337,7 @@ impl JITedCodeState {
         }
     }
 
+    #[allow(unknown_lints)]
     #[allow(named_asm_labels)]
     #[allow(unaligned_references)]
     unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
@@ -1363,7 +1380,7 @@ impl JITedCodeState {
             //     pub magic_part_2: u64,
             // }
             let old_java_ip: *mut c_void;
-            asm!(
+            /*asm!(
             "push rbx",
             "push rbp",
             "push r12",
@@ -1407,7 +1424,8 @@ impl JITedCodeState {
             new_stack_pointer_offset = const 32,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)),
             new_frame_pointer_offset = const 40,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)),
             new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
-            );
+            );*/
+            todo!();
             jit_code_context.java_saved.instruction_pointer = old_java_ip;
             //major todo java_stack is mutably borrowed multiple times here b/c recursive exits
             java_stack.saved_registers = Some(jit_code_context.java_saved.clone());

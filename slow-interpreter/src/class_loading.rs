@@ -263,12 +263,12 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
                 let method_resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
-                for method in class_view.methods() {
-                    if method.code_attribute().is_some() {
-                        let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method.method_i());
-                        jvm.java_vm_state.add_method(jvm, &method_resolver, method_id)
-                    }
-                }
+                // for method in class_view.methods() {
+                //     if method.code_attribute().is_some() {
+                //         let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method.method_i());
+                //         jvm.java_vm_state.add_method(jvm, &method_resolver, method_id)
+                //     }
+                // }
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object.clone()), ByAddress(res.clone()));

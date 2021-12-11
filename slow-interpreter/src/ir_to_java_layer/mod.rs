@@ -20,12 +20,13 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData};
-use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, VMExitType};
 use crate::java_values::GcManagedObject;
 use crate::jit::{ByteCodeOffset, MethodResolver};
 use crate::jit::ir::{IRInstr, Register};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
+use crate::jit_common::java_stack::JavaStack;
 use crate::method_table::MethodId;
 use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRMethodID, IRVMExitEvent, IRVMState, IRVMStateInner, OwnedIRStack};
 use crate::runtime_class::RuntimeClass;
@@ -69,6 +70,12 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             VMExitType::TopLevelReturn { .. } => {
                 VMExitAction::ExitVMCompletely { return_data: todo!() }
             }
+            VMExitType::LoadClassAndRecompile => {
+                todo!()
+            }
+            VMExitType::RunStaticNative => {
+                todo!()
+            }
         }
     }
 }
@@ -95,19 +102,6 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
-        // let compressed_code = resolver.get_compressed_code(method_id);
-        // let CompressedCode {
-        //     instructions,
-        //     max_locals,
-        //     max_stack,
-        //     exception_table,
-        //     stack_map_table
-        // } = compressed_code;
-        // let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
-        // let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        // let frames = function_frame_type.get(&method_id).unwrap();
-        // let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16)).collect(); //todo major dup
-        // let current_layout = NaiveStackframeLayout::from_stack_depth(stack_depth, max_locals, max_stack);
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
@@ -121,6 +115,14 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let ir_method_id = self.ir.add_function(ir_instructions, ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
+    }
+
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, java_stack: &OwnedJavaStack, method_id: MethodId, location: JavaStackPosition) -> u64 {
+        let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get(&method_id).unwrap();
+        self.ir.run_method(ir_method_id, &java_stack.inner, match location {
+            JavaStackPosition::Frame { frame_pointer } => frame_pointer,
+            JavaStackPosition::Top => java_stack.inner.mmaped_top
+        })
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {

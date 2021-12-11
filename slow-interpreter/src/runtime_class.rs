@@ -5,11 +5,13 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
+use rust_jvm_common::loading::LoaderName;
 
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::{default_value, JavaValue};
+use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::stack_entry::StackEntry;
 
@@ -210,7 +212,13 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
         locals.push(JavaValue::Top);
     }
 
-    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), clinit.method_i() as u16, locals);
+    let method_i = clinit.method_i() as u16;
+    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
+
+    let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
+
+    jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: LoaderName::BootstrapLoader }, method_id);//todo loader
+
     //todo these java frames may have to be converted to native?
     let new_function_frame = int_state.push_frame(new_stack);
     match run_function(jvm, int_state) {
