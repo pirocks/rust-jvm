@@ -7,8 +7,10 @@ use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, Compres
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
-use crate::jit::{ByteCodeOffset, MethodResolver};
-use crate::jit::ir::{IRInstr, Register};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
+use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
+use crate::jit::ir::{IRInstr, IRLabel, Register};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::method_table::MethodId;
@@ -24,6 +26,7 @@ pub struct JavaCompilerMethodAndFrameData {
     max_stack: u16,
     stack_depth_by_index: Vec<u16>,
     code_by_index: Vec<CompressedInstruction>,
+    index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -40,10 +43,11 @@ impl JavaCompilerMethodAndFrameData {
             max_stack: code.max_stack,
             stack_depth_by_index: stack_depth,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
+            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (ByteCodeOffset(*bytecode_offset), ByteCodeIndex(index as u16))).collect(),
         }
     }
 
-    pub fn lookup_operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
+    pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
         FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals + self.stack_depth_by_index[index.0 as usize] - from_end) as usize * size_of::<u64>())
     }
 
@@ -57,15 +61,42 @@ impl JavaCompilerMethodAndFrameData {
     }
 }
 
-pub struct CurrentInstructionCompilerData {
+pub struct CurrentInstructionCompilerData<'l, 'k> {
     current_index: ByteCodeIndex,
     next_index: ByteCodeIndex,
+    current_offset: ByteCodeOffset,
+    compiler_labeler: &'k mut CompilerLabeler<'l>,
+}
+
+pub struct CompilerLabeler<'l> {
+    labeler: &'l Labeler,
+    labels_vec: Vec<IRLabel>,
+    label_to_offset: HashMap<ByteCodeIndex, LabelName>,
+    index_by_bytecode_offset: &'l HashMap<ByteCodeOffset, ByteCodeIndex>,
+}
+
+impl<'l> CompilerLabeler<'l> {
+    pub fn label_at(&mut self, byte_code_offset: ByteCodeOffset) -> LabelName {
+        let byte_code_index = self.index_by_bytecode_offset[&byte_code_offset];
+        let labels_vec = &mut self.labels_vec;
+        let label_to_offset = &mut self.label_to_offset;
+        let labeler = self.labeler;
+        *label_to_offset.entry(byte_code_index).or_insert_with(|| {
+            labeler.new_label(labels_vec)
+        })
+    }
 }
 
 pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<IRInstr> {
     let cinstructions: &[CompressedInstruction] = method_frame_data.code_by_index.as_slice();
     let mut initial_ir: Vec<IRInstr> = vec![];
     let mut labels = vec![];
+    let mut compiler_labeler = CompilerLabeler {
+        labeler,
+        labels_vec: vec![],
+        label_to_offset: Default::default(),
+        index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
+    };
     for (i, compressed_instruction) in cinstructions.iter().enumerate() {
         let current_offset = ByteCodeOffset(compressed_instruction.offset);
         let current_index = ByteCodeIndex(i as u16);
@@ -73,6 +104,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         let current_instr_data = CurrentInstructionCompilerData {
             current_index,
             next_index,
+            current_offset,
+            compiler_labeler: &mut compiler_labeler,
         };
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
@@ -82,11 +115,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         initial_ir.push(
                             IRInstr::VMExit {
                                 exit_label,
-                                exit_type: todo!()/*VMExitType::ResolveInvokeStatic {
-                                method_name: *method_name,
-                                desc: descriptor.clone(),
-                                target_class: CPDType::Ref(classname_ref_type.clone()),
-                            }*/,
+                                exit_type: todo!(),
                             },
                         );
                     }
@@ -96,11 +125,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                             initial_ir.push(
                                 IRInstr::VMExit {
                                     exit_label,
-                                    exit_type: todo!()/*VMExitType::RunNativeStatic {
-                                    method_name: *method_name,
-                                    desc: descriptor.clone(),
-                                    target_class: CPDType::Ref(classname_ref_type.clone()),
-                                }*/,
+                                    exit_type: todo!(),
                                 },
                             );
                         } else {
@@ -110,14 +135,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 }
             }
             CompressedInstructionInfo::return_ => {
-                initial_ir.push(IRInstr::Return {
-                    return_val: None,
-                    temp_register_1: Register(1),
-                    temp_register_2: Register(2),
-                    temp_register_3: Register(3),
-                    temp_register_4: Register(4),
-                    frame_size: method_frame_data.full_frame_size(),
-                });
+                initial_ir.extend(return_void(method_frame_data));
+            }
+            CompressedInstructionInfo::ireturn => {
+                initial_ir.extend(ireturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::aload_0 => {
                 initial_ir.extend(aload_n(method_frame_data, &current_instr_data, 0));
@@ -134,7 +155,36 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::aload(n) => {
                 initial_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
             }
-            CompressedInstructionInfo::if_acmpne(offset) => {}
+            CompressedInstructionInfo::if_acmpne(offset) => {
+                initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
+            }
+            CompressedInstructionInfo::if_acmpeq(offset) => {
+                initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::EQ, *offset as i32));
+            }
+            CompressedInstructionInfo::iconst_0 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 0))
+            }
+            CompressedInstructionInfo::iconst_1 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 1))
+            }
+            CompressedInstructionInfo::iconst_2 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 2))
+            }
+            CompressedInstructionInfo::iconst_3 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 3))
+            }
+            CompressedInstructionInfo::iconst_4 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 4))
+            }
+            CompressedInstructionInfo::iconst_5 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 5))
+            }
+            CompressedInstructionInfo::iconst_m1 => {
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, -1i64 as u64))
+            }
+            CompressedInstructionInfo::goto_(offset) => {
+                initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -144,20 +194,90 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     initial_ir.into_iter().collect_vec()
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ReferenceEqualityType {
-    NE,
-    EQ,
+pub mod returns {
+    use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+    use crate::jit::ir::{IRInstr, Register};
+
+    pub fn ireturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+        let return_temp = Register(0);
+
+        array_into_iter([
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: return_temp },
+            IRInstr::Return {
+                return_val: Some(Register(0)),
+                temp_register_1: Register(1),
+                temp_register_2: Register(2),
+                temp_register_3: Register(3),
+                temp_register_4: Register(4),
+                frame_size: method_frame_data.full_frame_size(),
+            }])
+    }
+
+    pub fn return_void(method_frame_data: &JavaCompilerMethodAndFrameData) -> impl Iterator<Item=IRInstr> {
+        array_into_iter([IRInstr::Return {
+            return_val: None,
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            temp_register_3: Register(3),
+            temp_register_4: Register(4),
+            frame_size: method_frame_data.full_frame_size(),
+        }])
+    }
 }
 
-pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, ref_equality: ReferenceEqualityType, bytecode_offset: ByteCodeOffset) -> impl Iterator<Item=IRInstr> {}
+pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, n: u64) -> impl Iterator<Item=IRInstr> {
+    let const_register = Register(0);
 
+    array_into_iter([
+        IRInstr::Const64bit { to: const_register, const_: n },
+        IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub mod branching {
+    use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+    use crate::jit::ByteCodeOffset;
+    use crate::jit::ir::{IRInstr, Register};
+
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+    pub enum ReferenceEqualityType {
+        NE,
+        EQ,
+    }
+
+    pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_equality: ReferenceEqualityType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
+        let value1 = Register(0);
+        let value2 = Register(1);
+        let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
+        let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
+
+        let compare_instr = match ref_equality {
+            ReferenceEqualityType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
+            ReferenceEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label }
+        };
+        array_into_iter([
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+            compare_instr
+        ])
+    }
+
+    pub fn goto_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
+        let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
+        let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
+        array_into_iter([IRInstr::BranchToLabel { label: target_label }])
+    }
+}
 
 pub fn aload_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, n: u16) -> impl Iterator<Item=IRInstr> {
     //todo have register allocator
     let temp = Register(0);
-    <[IRInstr; 2]>::into_iter([
+    array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.local_var_entry(current_instr_data.current_index, n), to: temp },
         IRInstr::StoreFPRelative { from: temp, to: method_frame_data.local_var_entry(current_instr_data.next_index, 0) }
     ])
+}
+
+pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {
+    <[T; N]>::into_iter(array)
 }

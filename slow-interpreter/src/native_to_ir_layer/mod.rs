@@ -434,7 +434,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::BinaryBitAnd { .. } => todo!(),
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { .. } => todo!(),
-        IRInstr::Const64bit { .. } => todo!(),
+        IRInstr::Const64bit { const_, to } => {
+            assembler.mov(to.to_native_64(), const_).unwrap();
+        },
         IRInstr::BranchToLabel { label } => {
             let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
             assembler.jmp(code_label.clone()).unwrap();
@@ -443,7 +445,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
         IRInstr::BranchEqual { .. } => todo!(),
-        IRInstr::BranchNotEqual { .. } => todo!(),
+        IRInstr::BranchNotEqual { a, b, label, } => {
+            let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
+            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            assembler.jne(code_label.clone()).unwrap();
+        },
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
             if let Some(return_register) = return_val {
                 assert_ne!(temp_register_1.to_native_64(), rax);
