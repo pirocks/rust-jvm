@@ -122,7 +122,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 /// JVMTI_ERROR_NULL_POINTER	classes_ptr is NULL.
 pub unsafe extern "C" fn get_loaded_classes<'gc_life>(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
     let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
-    let int_state: &'gc_life mut InterpreterStateGuard<'gc_life, '_> = get_interpreter_state(env);
+    let int_state: &'gc_life mut InterpreterStateGuard<'gc_life> = get_interpreter_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 

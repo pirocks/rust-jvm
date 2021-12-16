@@ -11,6 +11,7 @@ use crate::java_values::GcManagedObject;
 use crate::method_table::MethodId;
 use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, OwnedIRStack};
 
+
 pub struct OwnedJavaStack<'vm_life> {
     jvm: &'vm_life JVMState<'vm_life>,
     java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
@@ -65,7 +66,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         let ir_method_id = ir_frame.ir_method_id();
         let max_locals = if let Some(method_id) = ir_frame.method_id() {
-            let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get(&method_id).unwrap();
+            let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
             assert_eq!(ir_method_id_2, ir_method_id);
             Some(jvm.max_locals_by_method_id(method_id))
         } else {
@@ -83,7 +84,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         let ir_method_id = ir_frame.ir_method_id();
         let max_locals = if let Some(method_id) = ir_frame.method_id() {
-            let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get(&method_id).unwrap();
+            let ir_method_id_2 = *self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
             assert_eq!(ir_method_id_2, ir_method_id);
             jvm.max_locals_by_method_id(method_id)
         } else {

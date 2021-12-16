@@ -84,7 +84,7 @@ pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
 pub mod native_tracing;
 
-pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
+pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -117,7 +117,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     Result::Ok(())
 }
 
-fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<String>) {
+fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").java_value());
@@ -128,7 +128,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     local_vars.set(0, arg_array);
 }
 
-fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<(), WasException> {
     let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(jvm), vec![]));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);

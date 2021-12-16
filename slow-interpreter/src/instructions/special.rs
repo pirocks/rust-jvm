@@ -18,7 +18,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
-pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
+pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let array_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
         Some(x) => x,
@@ -30,7 +30,7 @@ pub fn arraylength(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
     current_frame.push(JavaValue::Int(array.len() as i32));
 }
 
-pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
+pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, cpdtype: &CPDType) {
     let possibly_null = int_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object();
     if possibly_null.is_none() {
         int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
@@ -94,7 +94,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     //todo dup with instance off
 }
 
-pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
+pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, cpdtype: &CPDType) {
     let possibly_null = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
@@ -107,7 +107,7 @@ pub fn invoke_instanceof(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     }
 }
 
-pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, unwrapped: GcManagedObject<'gc_life>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
+pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, unwrapped: GcManagedObject<'gc_life>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -143,17 +143,17 @@ pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     Ok(())
 }
 
-fn runtime_super_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, inherits: &Arc<RuntimeClass<'gc_life>>) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
+fn runtime_super_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if inherits.view().super_name().is_some() { Some(check_initing_or_inited_class(jvm, int_state, inherits.view().super_name().unwrap().into())?) } else { None })
 }
 
-fn runtime_interface_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, i: InterfaceView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+fn runtime_interface_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, i: InterfaceView) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let intf_name = i.interface_name();
     check_initing_or_inited_class(jvm, int_state, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> Result<bool, WasException> {
+pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> Result<bool, WasException> {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
         if parent.cpdtype() == CClassName::object().into() || parent.cpdtype() == CClassName::cloneable().into() || parent.cpdtype() == CClassName::serializable().into() {

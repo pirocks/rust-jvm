@@ -1,6 +1,5 @@
 #![feature(box_syntax)]
 #![feature(entry_insert)]
-#![feature(with_options)]
 #![feature(in_band_lifetimes)]
 //#![feature(asm)]
 #![allow(non_snake_case)]

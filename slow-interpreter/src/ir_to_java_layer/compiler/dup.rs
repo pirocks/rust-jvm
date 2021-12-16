@@ -1,7 +1,8 @@
+use another_jit_vm::Register;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::jit::ir::{IRInstr, Register};
+use crate::jit::ir::{IRInstr};
 
-pub fn dup(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+pub fn dup<'vm_life>(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let temp_register = Register(0);
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: temp_register },

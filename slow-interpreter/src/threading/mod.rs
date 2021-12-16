@@ -43,7 +43,7 @@ pub struct ThreadState<'gc_life> {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc_life>>>,
     monitors: RwLock<Vec<Arc<Monitor2>>>,
-    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static>>>>,
+    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static>>>>,
     pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
 }
 
@@ -76,7 +76,7 @@ impl<'gc_life> ThreadState<'gc_life> {
                 //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
                 //     InterpreterState::Jit { .. } => {}//todo!()
                 // });
-                let mut int_state = InterpreterStateGuard::new(jvm, main_thread.clone(), main_thread.interpreter_state.write().unwrap().into());
+                let mut int_state = InterpreterStateGuard::new(jvm, main_thread.clone(), todo!()/*main_thread.interpreter_state.write().unwrap().into()*/);
                 main_thread.notify_alive(jvm); //is this too early?
                 int_state.register_interpreter_state_guard(jvm);
                 jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
@@ -107,7 +107,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         main_send
     }
 
-    fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
+    fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
@@ -164,7 +164,7 @@ impl<'gc_life> ThreadState<'gc_life> {
             java_tid: 0,
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
-            interpreter_state: RwLock::new(InterpreterState::new(jvm)),
+            // interpreter_state: RwLock::new(InterpreterState::new(jvm)),
             invisible_to_java: true,
             jvmti_events_enabled: Default::default(),
             thread_local_storage: RwLock::new(null_mut()),
@@ -173,7 +173,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive(jvm);
-        let mut new_int_state = InterpreterStateGuard::new(jvm, bootstrap_thread.clone(), bootstrap_thread.interpreter_state.write().unwrap().into());
+        let mut new_int_state = InterpreterStateGuard::new(jvm, bootstrap_thread.clone(), InterpreterState::new(jvm)/*bootstrap_thread.interpreter_state.write().unwrap().into()*/);
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
@@ -251,7 +251,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
+    pub fn start_thread_from_obj(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
         let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
 
         let (send, recv) = channel();
@@ -271,8 +271,8 @@ impl<'gc_life> ThreadState<'gc_life> {
 
     fn foo(jvm: &'gc_life JVMState<'gc_life>, java_thread: Arc<JavaThread<'gc_life>>, loader_name: LoaderName) {
         let java_thread_clone: Arc<JavaThread<'gc_life>> = java_thread.clone();
-        let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
-        let mut interpreter_state_guard: InterpreterStateGuard<'gc_life, '_> = InterpreterStateGuard::new(jvm, java_thread_clone, option); // { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
+        // let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
+        let mut interpreter_state_guard: InterpreterStateGuard<'gc_life> = InterpreterStateGuard::new(jvm, java_thread_clone, todo!()); // { int_state: java_thread.interpreter_state.write().unwrap().into(), thread: &java_thread };
         interpreter_state_guard.register_interpreter_state_guard(jvm);
 
         if let Some(jvmti) = jvm.jvmti_state() {
@@ -327,7 +327,7 @@ pub struct JavaThread<'vm_life> {
     pub java_tid: JavaThreadId,
     underlying_thread: Thread<'vm_life>,
     thread_object: RwLock<Option<JThread<'vm_life>>>,
-    pub interpreter_state: RwLock<InterpreterState<'vm_life>>,
+    // pub interpreter_state: RwLock<InterpreterState<'vm_life>>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
@@ -345,7 +345,7 @@ impl<'gc_life> JavaThread<'gc_life> {
             java_tid: thread_obj.tid(jvm),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
-            interpreter_state: RwLock::new(InterpreterState::new(jvm)),
+            // interpreter_state: RwLock::new(InterpreterState::new(jvm)),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
@@ -401,7 +401,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -411,7 +411,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+    pub fn unpark(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<(), WasException> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -420,7 +420,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }

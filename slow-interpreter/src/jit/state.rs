@@ -28,6 +28,7 @@ use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use num::Integer;
 use thread_priority::ThreadId;
+use another_jit_vm::Register;
 
 use classfile_view::view::HasAccessFlags;
 use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
@@ -46,12 +47,12 @@ use crate::gc_memory_layout_common::RegionData;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
+use crate::ir_to_java_layer::vm_exit_abi::VMExitTypeWithArgs;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::{ByteCodeOffset, CompiledCodeID, IRInstructionIndex, LabelName, MethodResolver, NotSupported, ToIR, ToNative, transition_stack_frame, TransitionType};
-use crate::jit::ir::{IRInstr, IRLabel, Register};
+use crate::jit::ir::{IRInstr, IRLabel};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::{JitCodeContext, RuntimeTypeInfo};
 use crate::jit_common::java_stack::JavaStack;
@@ -78,7 +79,7 @@ pub struct JITedCodeState {
     function_starts: HashMap<CompiledCodeID, LabelName>,
     opaque: HashSet<CompiledCodeID>,
     current_jit_instr: IRInstructionIndex,
-    exits: HashMap<*mut c_void, VMExitType>,
+    exits: HashMap<*mut c_void, VMExitTypeWithArgs>,
     labels: HashMap<LabelName, *mut c_void>,
     labeler: Labeler,
     pub top_level_exit_code: *mut c_void,
@@ -159,7 +160,7 @@ impl JITedCodeState {
         let nop = CompressedInstruction { offset: 0, instruction_size: 0, info: CompressedInstructionInfo::nop };
         let ir = ToIR {
             labels,
-            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: None, exit_type: VMExitType::TopLevelReturn {} }, nop)],
+            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: None, exit_type: VMExitTypeWithArgs::TopLevelReturn {} }, nop)],
             function_start_label: start_label,
         };
 
@@ -1098,6 +1099,7 @@ impl JITedCodeState {
                     assembler.jne(iced_labels[&label]).unwrap()
                 }
                 IRInstr::VMExit { before_exit_label: exit_label, exit_type, .. } => {
+                    todo!();
                     let native_stack_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
                     let native_frame_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
                     let native_instruction_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, instruction_pointer)) as i64;
@@ -1202,7 +1204,7 @@ impl JITedCodeState {
                 IRInstr::ForwardBitScan { .. } => todo!(),
                 IRInstr::WithAssembler { .. } => todo!(),
                 IRInstr::IRNewFrame { .. } => todo!(),
-                IRInstr::VMExit2 { .. } => {}
+                IRInstr::VMExit2 { .. } => todo!()
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
@@ -1293,7 +1295,7 @@ impl JITedCodeState {
         install_at
     }
 
-    pub fn recompile_method_and_restart(jit_state: &RefCell<JITedCodeState>, methodid: usize, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, code: &CompressedCode, old_java_ip: *mut c_void, transition_type: TransitionType) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub fn recompile_method_and_restart(jit_state: &RefCell<JITedCodeState>, methodid: usize, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, code: &CompressedCode, old_java_ip: *mut c_void, transition_type: TransitionType) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         transition_stack_frame(transition_type, todo!()/*int_state.java_stack()*/);
         let instruct_pointer = todo!()/*int_state.java_stack().saved_registers().instruction_pointer*/;
         assert_eq!(instruct_pointer, old_java_ip);
@@ -1310,7 +1312,7 @@ impl JITedCodeState {
         unsafe { Self::resume_method(jit_state, restart_execution_at, jvm, int_state, methodid, new_code_id) }
     }
 
-    pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let res = unsafe {
             let jit_state_ = jit_state.borrow();
             let code_id = *jit_state_.method_id_to_code.get_by_left(&methodid).unwrap();
@@ -1340,7 +1342,7 @@ impl JITedCodeState {
     #[allow(unknown_lints)]
     #[allow(named_asm_labels)]
     #[allow(unaligned_references)]
-    unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
             //todo reacrchited pushing/popping of frames storing sp.
             let java_stack: &mut JavaStack = todo!();//int_state.java_stack();
@@ -1458,14 +1460,14 @@ impl JITedCodeState {
     }
 
     #[allow(named_asm_labels)]
-    pub unsafe fn run_method(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub unsafe fn run_method(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let target_ip = jitstate.borrow().function_addresses.get_reverse(&compiled_id).unwrap().start;
         drop(jitstate.borrow_mut());
         JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
 
     #[allow(unaligned_references)]
-    fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitType, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
+    fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         // int_state.debug_print_stack_trace(jvm);
         todo!()
         /*        match exit_type {
@@ -1883,7 +1885,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 }
 
-pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<JavaValue<'gc_life>> {
+pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<JavaValue<'gc_life>> {
     if is_virtual {
         todo!()
     }

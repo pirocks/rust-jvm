@@ -62,7 +62,7 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
     new_local_ref_internal(rust_obj, interpreter_state)
 }
 
-pub unsafe fn new_local_ref_public<'gc_life>(rust_obj: Option<GcManagedObject<'gc_life>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> jobject {
+pub unsafe fn new_local_ref_public<'gc_life>(rust_obj: Option<GcManagedObject<'gc_life>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>) -> jobject {
     if rust_obj.is_none() {
         return null_mut();
     }
@@ -70,7 +70,7 @@ pub unsafe fn new_local_ref_public<'gc_life>(rust_obj: Option<GcManagedObject<'g
     //todo use match
 }
 
-unsafe fn new_local_ref_internal<'gc_life>(rust_obj: GcManagedObject<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> jobject {
+unsafe fn new_local_ref_internal<'gc_life>(rust_obj: GcManagedObject<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>) -> jobject {
     let c_obj = to_object(rust_obj.clone().into());
     let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();
     new_local_ref_frame.insert(c_obj);
@@ -98,21 +98,21 @@ fn get_top_local_ref_frame<'l>(interpreter_state: &'l InterpreterStateGuard) -> 
     current_native_local_refs(interpreter_state).pop().unwrap()
 }
 
-fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, new: HashSet<jobject>) {
+fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>, new: HashSet<jobject>) {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).set_local_refs_top_frame(new),
     }*/
 }
 
-fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> HashSet<jobject> {
+fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>) -> HashSet<jobject> {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs(),
     }*/
 }
 
-fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, to_push: HashSet<jobject>) {
+fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>, to_push: HashSet<jobject>) {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push),

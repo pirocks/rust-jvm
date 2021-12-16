@@ -184,13 +184,13 @@ fn register_native_with_lib_java_loading(jni_context: &NativeLibraries<'gc_life>
     }
 }
 
-pub fn get_all_methods(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, WasException> {
+pub fn get_all_methods(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, WasException> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_methods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, include_interface: bool) -> Result<(), WasException> {
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
@@ -219,13 +219,13 @@ fn get_all_methods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     Ok(())
 }
 
-pub fn get_all_fields(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, WasException> {
+pub fn get_all_fields(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, WasException> {
     let mut res = vec![];
     get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_fields_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });

@@ -21,8 +21,8 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
-use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
-use crate::jit::ir::{IRInstr, IRLabel, Register};
+use crate::ir_to_java_layer::vm_exit_abi::VMExitTypeWithArgs;
+use crate::jit::ir::{IRInstr, IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::java_stack::JavaStack;
@@ -139,6 +139,13 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let method_view = view.method_view_i(method_i);
         method_view.code_attribute().unwrap().clone()
     }
+
+    pub fn num_args(&self, method_id: MethodId) -> u16{
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.num_args() as u16
+    }
 }
 
 pub struct ToIR {
@@ -151,7 +158,7 @@ pub struct ToNative {
     code: Vec<u8>,
     new_labels: HashMap<LabelName, *mut c_void>,
     bytecode_offset_to_address: BiRangeMap<*mut c_void, (u16, ByteCodeOffset, CInstruction)>,
-    exits: HashMap<LabelName, VMExitType>,
+    exits: HashMap<LabelName, VMExitTypeWithArgs>,
     function_start_label: LabelName,
 }
 

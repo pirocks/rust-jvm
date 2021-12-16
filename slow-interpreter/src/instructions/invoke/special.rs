@@ -13,7 +13,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
-pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
+pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
     let target_class = match check_initing_or_inited_class(jvm, int_state, method_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return,
@@ -22,7 +22,7 @@ pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), todo!());
 }
 
-pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'interpreter_guard>, parsed_descriptor: &CMethodDescriptor, target_m_i: u16, final_target_class: Arc<RuntimeClass<'gc_life>>, input_args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>, parsed_descriptor: &CMethodDescriptor, target_m_i: u16, final_target_class: Arc<RuntimeClass<'gc_life>>, input_args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
     if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {

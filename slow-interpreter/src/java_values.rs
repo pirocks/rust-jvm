@@ -164,7 +164,8 @@ impl<'gc_life> GC<'gc_life> {
     }
 
     pub fn gc_jvm(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        if !jvm.vm_live() {
+        todo!()
+        /*if !jvm.vm_live() {
             return;
         }
         let interpreter_states = jvm
@@ -177,12 +178,13 @@ impl<'gc_life> GC<'gc_life> {
                 unsafe {
                     jt.gc_suspend();
                 }
-                let guard = InterpreterStateGuard {
+                todo!()
+                /*let guard = InterpreterStateGuard {
                     int_state: Some(jt.interpreter_state.write().unwrap()),
                     thread: jt.clone(),
                     registered: false,
                 };
-                (guard.cloned_stack_snapshot(jvm), guard.throw())
+                (guard.cloned_stack_snapshot(jvm), guard.throw())*/
             })
             .collect_vec();
         let mut roots = HashSet::new();
@@ -190,9 +192,10 @@ impl<'gc_life> GC<'gc_life> {
             // dbg!(interpreter_states.len());
             for (stack, throw) in interpreter_states {
                 // dbg!(stack.len());
-                if let Some(throw) = throw {
+                /*if let Some(throw) = throw {
                     roots.insert(throw.raw_ptr);
-                }
+                }*/
+                todo!();
                 for stack_entry in stack {
                     // dbg!(stack_entry.operand_stack.len());
                     // dbg!(stack_entry.local_vars().len());
@@ -222,7 +225,7 @@ impl<'gc_life> GC<'gc_life> {
         {
             roots.insert(root.raw_ptr);
         }
-        self.gc_with_roots(todo!() /*roots*/)
+        self.gc_with_roots(todo!() /*roots*/)*/
     }
 
     pub fn new(regions: early_startup::Regions) -> Self {
@@ -639,7 +642,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             jv => (*jv).clone(),
         }
     }
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<JavaValue<'gc_life>, WasException> {
+    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
         Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, int_state, vec![], CPDType::ByteType, jvm.thread_state.new_monitor("".to_string()))?)))))
     }
 
@@ -661,7 +664,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             .into()
     }
 
-    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
+    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -917,7 +920,7 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         }
     }
 
-    pub fn object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, object_array: Vec<JavaValue<'gc_life>>, class_type: CPDType) -> Result<Object<'gc_life, 'gc_life>, WasException> {
+    pub fn object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, object_array: Vec<JavaValue<'gc_life>>, class_type: CPDType) -> Result<Object<'gc_life, 'gc_life>, WasException> {
         Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
     }
 
@@ -928,11 +931,11 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         }
     }
 
-    pub fn monitor_unlock(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+    pub fn monitor_unlock(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>) {
         self.monitor().unlock(jvm, int_state).unwrap();
     }
 
-    pub fn monitor_lock<'k>(&'_ self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'k>) {
+    pub fn monitor_lock<'k>(&'_ self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
         let monitor_to_lock = self.monitor();
         monitor_to_lock.lock(jvm, int_state).unwrap();
     }
@@ -990,7 +993,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
         todo!()
     }
 
-    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
+    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
         check_resolved_class(jvm, int_state, CPDType::Ref(CPRefType::Array(box type_.clone())))?;
         Ok(Self {
             whole_array_runtime_class: todo!(),
@@ -1019,7 +1022,7 @@ pub union NativeJavaValue<'gc_life> {
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {
-    pub fn to_java_value(&self, ptype: CPDType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
+    pub fn to_java_value(&self, ptype: &CPDType, jvm: &'gc_life JVMState<'gc_life>) -> JavaValue<'gc_life> {
         unsafe {
             match ptype {
                 CPDType::ByteType => JavaValue::Byte(self.byte),

@@ -17,7 +17,7 @@ use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resol
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn MHN_resolve(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     //so as far as I can find this is undocumented.
     //so as far as I can figure out we have a method name and a class
     //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -81,7 +81,7 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
     let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
@@ -227,7 +227,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     Ok(member_name.java_value())
 }
 
-fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
     let object = new_object(jvm, int_state, &linkage_error).unwrap_object();
     int_state.set_throw(object);

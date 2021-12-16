@@ -64,7 +64,7 @@ pub fn dload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
     current_frame.push(java_val)
 }
 
-pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) {
+pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
     let mut current_frame = int_state.current_frame_mut();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let temp = current_frame.pop(Some(CClassName::object().into()));
@@ -80,7 +80,7 @@ pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterS
     current_frame.push(jv_res.clone())
 }
 
-pub fn caload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
+pub fn caload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
     let index = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
     let temp = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
     let unborrowed = temp.unwrap_array();

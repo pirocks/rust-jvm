@@ -119,7 +119,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     if !thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
-    let read_guard = thread.interpreter_state.read().unwrap();
+    let read_guard = todo!();
     let call_stack_guard: Vec<StackEntry> = todo!()/*match read_guard.deref() {
         /*InterpreterState::LegacyInterpreter { call_stack, .. } => { call_stack }*/
         InterpreterState::Jit { .. } => todo!(),

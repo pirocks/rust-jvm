@@ -3,6 +3,7 @@ use std::mem::size_of;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use another_jit_vm::Register;
 
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -14,9 +15,9 @@ use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::invoke::invokestatic;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
-use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
+use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
 use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
-use crate::jit::ir::{IRInstr, IRLabel, Register};
+use crate::jit::ir::{IRInstr, IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::method_table::MethodId;
@@ -34,6 +35,7 @@ pub struct JavaCompilerMethodAndFrameData {
     stack_depth_by_index: Vec<u16>,
     code_by_index: Vec<CompressedInstruction>,
     index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
+
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -175,8 +177,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         let exit_label = todo!();
                         initial_ir.push(
                             IRInstr::VMExit2 {
-                                exit_type: VMExitType::LoadClassAndRecompile,
-                                r10: Register(10),
+                                exit_type: IRVMExitType::LoadClassAndRecompile{ class: todo!() },
                             },
                         );
                     }
@@ -194,8 +195,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         let exit_label = labeler.new_label(&mut labels);
                         initial_ir.push(
                             IRInstr::VMExit2 {
-                                exit_type: VMExitType::LoadClassAndRecompile,
-                                r10: Register(10),
+                                exit_type: IRVMExitType::LoadClassAndRecompile{ class: todo!() },
                             },
                         );
                     }
@@ -210,8 +210,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         let exit_label = labeler.new_label(&mut labels);
                         initial_ir.push(
                             IRInstr::VMExit2 {
-                                exit_type: VMExitType::LoadClassAndRecompile,
-                                r10: Register(10),
+                                exit_type: IRVMExitType::LoadClassAndRecompile{ class: todo!() },
                             },
                         );
                     }
@@ -240,26 +239,32 @@ pub mod invoke {
     use rust_jvm_common::compressed_classfile::names::MethodName;
 
     use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-    use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
-    use crate::jit::ir::{IRInstr, Register};
+    use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
+    use crate::jit::ir::{IRInstr};
     use crate::jit::MethodResolver;
 
     pub fn invokestatic(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, method_name: MethodName, descriptor: &CMethodDescriptor, classname_ref_type: &CPRefType) -> impl Iterator<Item=IRInstr> {
-        match resolver.lookup_static(CPDType::Ref(classname_ref_type.clone()), method_name, descriptor.clone()) {
+        let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
+        match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
             None => {
                 let before_exit_label = current_instr_data.compiler_labeler.label_at(current_instr_data.current_offset);
-                Either::Left(array_into_iter([IRInstr::VMExit {
-                    before_exit_label,
-                    after_exit_label: None,
-                    exit_type: VMExitType::LoadClassAndRecompile,
+                Either::Left(array_into_iter([IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::LoadClassAndRecompile{
+                        class: class_as_cpdtype
+                    },
                 }]))
             }
             Some((method_id, is_native)) => {
                 Either::Right(if is_native {
                     let exit_label = current_instr_data.compiler_labeler.label_at(current_instr_data.current_offset);
+                    let num_args = resolver.num_args(method_id);
+                    let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index,num_args);
                     array_into_iter([IRInstr::VMExit2 {
-                        exit_type: VMExitType::RunStaticNative,
-                        r10: Register(10),
+                        exit_type: IRVMExitType::RunStaticNative {
+                            method_id,
+                            arg_start_frame_offset,
+                            num_args
+                        },
                     }])
                 } else {
                     todo!()

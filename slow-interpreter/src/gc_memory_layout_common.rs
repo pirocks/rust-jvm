@@ -104,7 +104,7 @@ unsafe impl Sync for MemoryRegions {}
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct AllocatedTypeID(u64);
+pub struct AllocatedTypeID(pub u64);
 
 //never directly accessed from native code to make syncing this somewhat sane.
 // instead native code should get a view of this

@@ -1,6 +1,7 @@
+use another_jit_vm::Register;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::ByteCodeOffset;
-use crate::jit::ir::{IRInstr, Register};
+use crate::jit::ir::{IRInstr};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReferenceEqualityType {

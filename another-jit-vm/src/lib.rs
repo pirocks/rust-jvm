@@ -13,32 +13,72 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, r10, r15};
+use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel, ebx, ecx, edx, qword_ptr, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r15, r8, r8d, r9, r9d, rax, rbp, rbx, rcx, rdi, rdx, rsi, rsp};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Register(pub u8);
+
+
+impl Register {
+    pub fn to_native_64(&self) -> AsmRegister64 {
+        match self.0 {
+            0 => panic!(),
+            1 => rbx,
+            2 => rcx,
+            3 => rdx,
+            4 => r8,
+            5 => r9,
+            6 => r10,
+            7 => r11,
+            8 => r12,
+            9 => r13,
+            10 => r14,
+            _ => todo!(),
+        }
+    }
+
+    pub fn to_native_32(&self) -> AsmRegister32 {
+        match self.0 {
+            0 => panic!(),
+            1 => ebx,
+            2 => ecx,
+            3 => edx,
+            4 => r8d,
+            5 => r9d,
+            6 => r10d,
+            7 => r11d,
+            8 => r12d,
+            9 => r13d,
+            10 => r14d,
+            _ => todo!(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MethodImplementationID(usize);
 
 pub struct MethodOffset(usize);
 
-pub struct VMStateInner<'vm_state_life, T: Sized> {
+pub struct VMStateInner<'vm_state_life, T: Sized, ExtraData> {
     method_id_max: MethodImplementationID,
-    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent) -> VMExitAction<T> + 'vm_state_life>>,
+    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>>,
     code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
     code_regions_to_method: RangeMap<*mut c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
 }
 
-pub struct VMState<'vm_life, T: Sized> {
-    inner: RwLock<VMStateInner<'vm_life, T>>,
+pub struct VMState<'vm_life, T: Sized, ExtraData> {
+    inner: RwLock<VMStateInner<'vm_life, T, ExtraData>>,
     //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
 }
 
-impl<T> Drop for VMState<'_, T> {
+impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {
     fn drop(&mut self) {
         let res = unsafe { libc::munmap(self.mmaped_code_region_base, self.mmaped_code_size) };
         if res != 0 {
@@ -96,6 +136,23 @@ impl SavedRegistersWithoutIP {
             xsave_area: [0; 64],
         }
     }
+
+    pub fn get_register(&self, register: Register) -> u64 {
+        (match register.0 {
+            0 => self.rax,
+            1 => self.rbx,
+            2 => self.rcx,
+            3 => self.rdx,
+            4 => self.r8,
+            5 => self.r9,
+            6 => self.r10,
+            7 => self.r11,
+            8 => self.r12,
+            9 => self.r13,
+            10 => self.r14,
+            _ => todo!()
+        }) as u64
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -116,9 +173,10 @@ struct JITContext {
     vm_native_saved_registers: SavedRegistersWithIP,
 }
 
-impl<'vm_state_life, T> VMState<'vm_state_life, T> {
+
+impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
-    pub fn new() -> VMState<'vm_state_life, T> {
+    pub fn new() -> Self {
         const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
         unsafe {
             let mmaped_code_region_base = libc::mmap(null_mut(), DEFAULT_CODE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0) as *mut c_void;
@@ -136,8 +194,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
         }
     }
 
-
-    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> T {
+    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &mut ExtraData) -> T {
         let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
         dbg!(branch_to);
@@ -234,7 +291,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
             },
         };
         loop {
-            let vm_exit_action = self.run_method_impl(&mut jit_context);
+            let vm_exit_action = self.run_method_impl(&mut jit_context, extra);
             match vm_exit_action {
                 VMExitAction::ExitVMCompletely { return_data } => {
                     return return_data;
@@ -247,8 +304,7 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
     }
 
     #[allow(named_asm_labels)]
-    fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitAction<T> {
-        dbg!(jit_context.guest_registers.rip);
+    fn run_method_impl(&self, jit_context: &mut JITContext, extra: &mut ExtraData) -> VMExitAction<T> {
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
@@ -291,6 +347,21 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
             // "xrstor [r15 + {__rust_jvm_xsave_area_guest_offset_const}]",
             "call qword ptr [r15 + {__rust_jvm_rip_guest_offset_const}]",
             "__rust_jvm_internal_after_enter:",
+            "mov rax, [r15 + {__rust_jvm_rax_native_offset_const}]",
+            "mov rbx, [r15 + {__rust_jvm_rbx_native_offset_const}]",
+            "mov rcx, [r15 + {__rust_jvm_rcx_native_offset_const}]",
+            "mov rdx, [r15 + {__rust_jvm_rdx_native_offset_const}]",
+            "mov rsi, [r15 + {__rust_jvm_rsi_native_offset_const}]",
+            "mov rdi, [r15 + {__rust_jvm_rdi_native_offset_const}]",
+            "mov rbp, [r15 + {__rust_jvm_rbp_native_offset_const}]",
+            "mov rsp, [r15 + {__rust_jvm_rsp_native_offset_const}]",
+            "mov r8, [r15 + {__rust_jvm_r8_native_offset_const}]",
+            "mov r9, [r15 + {__rust_jvm_r9_native_offset_const}]",
+            "mov r10, [r15 + {__rust_jvm_r10_native_offset_const}]",
+            "mov r11, [r15 + {__rust_jvm_r11_native_offset_const}]",
+            "mov r12, [r15 + {__rust_jvm_r12_native_offset_const}]",
+            "mov r13, [r15 + {__rust_jvm_r13_native_offset_const}]",
+            "mov r14, [r15 + {__rust_jvm_r14_native_offset_const}]",
             in(reg) jit_context_pointer,
             __rust_jvm_rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
             __rust_jvm_rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
@@ -326,12 +397,42 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
             __rust_jvm_r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
             __rust_jvm_r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
             // __rust_jvm_xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
+            // out("xmm0") _,
+            // out("xmm1") _,
+            // out("xmm2") _,
+            // out("xmm3") _,
+            // out("xmm4") _,
+            // out("xmm5") _,
+            // out("xmm6") _,
+            // out("xmm8") _,
+            // out("xmm9") _,
+            // out("xmm10") _,
+            // out("xmm11") _,
+            // out("xmm12") _,
+            // out("xmm13") _,
+            // out("xmm14") _,
+            // out("xmm15") _,
+            out("ymm0") _,
+            out("ymm1") _,
+            out("ymm2") _,
+            out("ymm3") _,
+            out("ymm4") _,
+            out("ymm5") _,
+            out("ymm6") _,
+            out("ymm8") _,
+            out("ymm9") _,
+            out("ymm10") _,
+            out("ymm11") _,
+            out("ymm12") _,
+            out("ymm13") _,
+            out("ymm14") _,
+            out("ymm15") _,
             )
         }
-        self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers)
+        self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers, extra)
     }
 
-    fn handle_vm_exit(&self, guest_rip: *mut c_void, guest_registers: SavedRegistersWithIP) -> VMExitAction<T> {
+    fn handle_vm_exit(&self, guest_rip: *mut c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
         let inner_read_guard = self.inner.read().unwrap();
         let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
         match method_implementation {
@@ -342,35 +443,42 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
                 let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap();
                 let vm_exit_event = VMExitEvent {
                     method: *method_implementation,
-                    method_base_address: inner_read_guard.code_regions.get(method_implementation).unwrap().start,
+                    method_base_address: dbg!(inner_read_guard.code_regions.get(method_implementation).unwrap().start),
                     saved_guest_registers: guest_registers,
                 };
-                return handler(&vm_exit_event);
+                return handler(&vm_exit_event, extra);
             }
         }
     }
 
-    pub fn gen_vm_exit(assembler: &mut CodeAssembler, temp_register_r10: u8) -> VMExitLabel {
-        assert_eq!(temp_register_r10, 10);
-        let mut before_exit_label = assembler.create_label();
-        let mut after_exit_label = assembler.create_label();
-        assembler.set_label(&mut before_exit_label).unwrap();
-        todo!("implement register saving");
-        assembler.lea(r10, qword_ptr(before_exit_label)).unwrap();
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel) {
+        assembler.set_label(before_exit_label).unwrap();
+        assembler.mov(r15 + RAX_GUEST_OFFSET_CONST, rax).unwrap();
+        assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
+        assembler.mov(r15 + RCX_GUEST_OFFSET_CONST, rcx).unwrap();
+        assembler.mov(r15 + RDX_GUEST_OFFSET_CONST, rdx).unwrap();
+        assembler.mov(r15 + RDI_GUEST_OFFSET_CONST, rdi).unwrap();
+        assembler.mov(r15 + RSI_GUEST_OFFSET_CONST, rsi).unwrap();
+        assembler.mov(r15 + RBP_GUEST_OFFSET_CONST, rbp).unwrap();
+        assembler.mov(r15 + RSP_GUEST_OFFSET_CONST, rsp).unwrap();
+        assembler.mov(r15 + R8_GUEST_OFFSET_CONST, r8).unwrap();
+        assembler.mov(r15 + R9_GUEST_OFFSET_CONST, r9).unwrap();
+        assembler.mov(r15 + R10_GUEST_OFFSET_CONST, r10).unwrap();
+        assembler.mov(r15 + R11_GUEST_OFFSET_CONST, r11).unwrap();
+        assembler.mov(r15 + R12_GUEST_OFFSET_CONST, r12).unwrap();
+        assembler.mov(r15 + R13_GUEST_OFFSET_CONST, r13).unwrap();
+        assembler.mov(r15 + R14_GUEST_OFFSET_CONST, r14).unwrap();
+        assembler.lea(r10, qword_ptr(before_exit_label.clone())).unwrap();//safe to clober r10 b/c it was saved
         assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, r10).unwrap();
         assembler.jmp(qword_ptr(r15 + RIP_NATIVE_OFFSET_CONST)).unwrap();
-        assembler.set_label(&mut after_exit_label).unwrap();
-        VMExitLabel {
-            before_exit_label,
-            after_exit_label,
-        }
+        assembler.set_label(after_exit_label).unwrap();
     }
 
     pub fn get_new_base_address(&self) -> BaseAddress {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, method: Method<'vm_state_life, T>, base_address: BaseAddress) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, method: Method<'vm_state_life, T, ExtraData>, base_address: BaseAddress) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -385,6 +493,8 @@ impl<'vm_state_life, T> VMState<'vm_state_life, T> {
         let method_range = new_method_base..end_of_new_method;
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
+        dbg!(&inner_guard.code_regions_to_method);
+        dbg!(&inner_guard.code_regions);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base, code_len); }
         current_method_id
@@ -399,9 +509,9 @@ pub struct VMExitLabel {
     pub after_exit_label: CodeLabel,
 }
 
-pub struct Method<'vm_state_life, T: Sized> {
+pub struct Method<'vm_state_life, T: Sized, ExtraData> {
     pub code: Vec<u8>,
-    pub exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<T> + 'vm_state_life>,
+    pub exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>,
 }
 
 

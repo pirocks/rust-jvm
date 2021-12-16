@@ -42,7 +42,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc_life>(env: *mut jvmtiEnv, thread: 
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive(jvm);
 
-            let mut int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), java_thread.interpreter_state.write().unwrap().into());
+            let mut int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), todo!());
             int_state.register_interpreter_state_guard(jvm);
             jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut int_state, java_thread.thread_object());
 

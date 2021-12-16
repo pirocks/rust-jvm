@@ -15,12 +15,14 @@ use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
 use memoffset::offset_of;
 
-use another_jit_vm::{BaseAddress, Method, MethodImplementationID, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMExitLabel, VMState};
+use another_jit_vm::{BaseAddress, Method, MethodImplementationID, Register, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMExitLabel, VMState};
 use classfile_parser::code::InstructionTypeNum::new;
 use verification::verifier::Frame;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use crate::ir_to_java_layer::vm_exit_abi::VMExitType;
+use crate::InterpreterStateGuard;
+use crate::ir_to_java_layer::java_stack::JavaStackPosition;
+use crate::ir_to_java_layer::vm_exit_abi::{RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::jit::ir::IRInstr;
 use crate::jit::LabelName;
 use crate::method_table::MethodId;
@@ -33,14 +35,14 @@ pub struct IRVMStateInner {
     ir_method_id_max: IRMethodID,
     current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
     frame_sizes: HashMap<IRMethodID, usize>,
-    method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructOffset, IRInstructIndex>>,
+    method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructNativeOffset, IRInstructIndex>>,
     method_ir: HashMap<IRMethodID, Vec<IRInstr>>,
     // index
-    opaque_method_to_or_method_id: HashMap<u64, IRMethodID>
+    opaque_method_to_or_method_id: HashMap<u64, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
 }
 
-impl IRVMStateInner {
+impl  IRVMStateInner {
     pub fn new() -> Self {
         Self {
             ir_method_id_max: IRMethodID(0),
@@ -48,11 +50,11 @@ impl IRVMStateInner {
             frame_sizes: Default::default(),
             method_ir_offsets: Default::default(),
             method_ir: Default::default(),
-            opaque_method_to_or_method_id: Default::default()
+            opaque_method_to_or_method_id: Default::default(),
         }
     }
 
-    pub fn add_function_ir_offsets(&mut self, current_ir_id: IRMethodID, new_instruction_offsets: Vec<IRInstructOffset>, assembly_index_to_ir_instruct_index: HashMap<AssemblyInstructionIndex, IRInstructIndex>) {
+    pub fn add_function_ir_offsets(&mut self, current_ir_id: IRMethodID, new_instruction_offsets: Vec<IRInstructNativeOffset>, assembly_index_to_ir_instruct_index: HashMap<AssemblyInstructionIndex, IRInstructIndex>) {
         let mut res = BiHashMap::new();
         for (i, instruction_offset) in new_instruction_offsets.into_iter().enumerate() {
             let assembly_instruction_index = AssemblyInstructionIndex(i);
@@ -64,7 +66,7 @@ impl IRVMStateInner {
 }
 
 pub struct IRVMState<'vm_life> {
-    native_vm: VMState<'vm_life, u64>,
+    native_vm: VMState<'vm_life, u64, InterpreterStateGuard<'vm_life>>,
     inner: RwLock<IRVMStateInner>,
 }
 
@@ -239,7 +241,7 @@ impl IRFrameRef<'_> {
     pub fn method_id(&self) -> Option<MethodId> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
         if res as i64 == -1i64 {
-            return None
+            return None;
         }
         let frame_header = unsafe { read_frame_ir_header(self.ptr) };
         assert_eq!(res, frame_header.method_id_ignored);
@@ -323,7 +325,7 @@ pub struct IRStackEntry {
     rbp: *mut c_void,
 }
 
-impl IRVMState<'vm_state_life> {
+impl<'vm_life> IRVMState<'vm_life> {
     pub fn new() -> Self {
         Self {
             native_vm: VMState::new(),
@@ -331,17 +333,18 @@ impl IRVMState<'vm_state_life> {
         }
     }
 
-    pub fn run_method(&self, method_id: IRMethodID, ir_stack: &OwnedIRStack, frame_pointer: *mut c_void) -> u64 {
+    pub fn run_method(&self, method_id: IRMethodID, int_state: &mut InterpreterStateGuard<'vm_life>, frame_pointer: *mut c_void) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
+        let ir_stack = &mut int_state.java_stack().inner;
         unsafe { ir_stack.validate_frame_pointer(frame_pointer); }
         let frame_pointer = ir_stack.mmaped_top;
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = frame_pointer;
         initial_registers.rsp = frame_pointer;
-        self.native_vm.launch_vm(current_implementation, initial_registers)
+        self.native_vm.launch_vm(current_implementation, initial_registers, int_state)
     }
 
     fn debug_print_instructions(assembler: &CodeAssembler) {
@@ -354,7 +357,7 @@ impl IRVMState<'vm_state_life> {
         eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_state_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent) -> VMExitAction<u64> + 'vm_state_life>) -> IRMethodID {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life>) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -363,10 +366,16 @@ impl IRVMState<'vm_state_life> {
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
-        let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructOffset(new_instruction_offset as usize)).collect_vec();
+        let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
-        let vm_exit_handler: Box<dyn Fn(&VMExitEvent) -> VMExitAction<u64> + 'vm_state_life> = box move |vm_exit_event: &VMExitEvent| {
-            vm_exit_handler(self, vm_exit_event, ir_exit_handler.deref())
+        let vm_exit_handler: Box<dyn Fn(&VMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life> = box move |vm_exit_event: &VMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life>| {
+            todo!("need to update current frame for int_state, or make new guard");
+            let new_int_state = InterpreterStateGuard{
+                int_state: (),
+                thread: Arc::new(()),
+                registered: false
+            };
+            vm_exit_handler(self, vm_exit_event, int_state, ir_exit_handler.deref())
         };
         let code = result.code_buffer;
 
@@ -379,28 +388,37 @@ impl IRVMState<'vm_state_life> {
     }
 }
 
-fn vm_exit_handler(ir_vm_state: &'vm_state_life IRVMState<'vm_state_life>, vm_exit_event: &VMExitEvent, ir_exit_handler: &(dyn Fn(&IRVMExitEvent) -> VMExitAction<u64> + 'vm_state_life)) -> VMExitAction<u64> {
+fn vm_exit_handler<'vm_life>(ir_vm_state: &'vm_life IRVMState<'vm_life>, vm_exit_event: &VMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life>, ir_exit_handler: &(dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life)) -> VMExitAction<u64> {
     let implementation_id = vm_exit_event.method;
     let exit_address = vm_exit_event.saved_guest_registers.rip;
     let exit_method_base_address = vm_exit_event.method_base_address;
-    let offset = unsafe { exit_method_base_address.offset_from(exit_address) };
+    let offset = unsafe { exit_address.offset_from(exit_method_base_address) };
+    dbg!(implementation_id);
+    dbg!(exit_address);
+    dbg!(offset);
     if offset < 0 {
         panic!()
     }
-    let offset = IRInstructOffset(offset as usize);
-    assert!(offset.0 < 1024 * 1024);// methods over a megabyte prob aren't a thing
+    assert!(offset < 1024 * 1024);// methods over a megabyte prob aren't a thing
+
+    // let offset = IRInstructNativeOffset(offset as usize);
     let inner_read_guard = ir_vm_state.inner.read().unwrap();
     let ir_method_id = *inner_read_guard.current_implementation.get_by_right(&implementation_id).unwrap();
-    let ir_instruct_index = inner_read_guard.method_ir_offsets.get(&ir_method_id).unwrap().get_by_left(&offset).unwrap();
+    // let method_offsets = inner_read_guard.method_ir_offsets.get(&ir_method_id).unwrap();
+    // dbg!(method_offsets);
+    // dbg!(offset);
+    // let ir_instruct_index = method_offsets.get_by_left(&offset).unwrap();
 
+    let exit_type = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
 
     let ir_vm_exit_event = IRVMExitEvent {
         inner: &vm_exit_event,
         ir_method: ir_method_id,
-        ir_instruct: *ir_instruct_index,
+        exit_type,
+        exiting_frame_position: JavaStackPosition::Frame { frame_pointer: vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp },
     };
 
-    ir_exit_handler(&ir_vm_exit_event)
+    ir_exit_handler(&ir_vm_exit_event, int_state)
 }
 
 
@@ -442,7 +460,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::Const32bit { .. } => todo!(),
         IRInstr::Const64bit { const_, to } => {
             assembler.mov(to.to_native_64(), const_).unwrap();
-        },
+        }
         IRInstr::BranchToLabel { label } => {
             let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
             assembler.jmp(code_label.clone()).unwrap();
@@ -455,7 +473,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jne(code_label.clone()).unwrap();
-        },
+        }
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
             if let Some(return_register) = return_val {
                 assert_ne!(temp_register_1.to_native_64(), rax);
@@ -469,16 +487,13 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             //load prev fram pointer
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
             assembler.ret().unwrap();
-        },
-        IRInstr::VMExit2 { exit_type, r10 } => {
-            let VMExitLabel { ../*before_exit_label, after_exit_label*/ } = VMState::<u64>::gen_vm_exit(assembler, r10.0);
-            /*labels.entry(before_exit_label_name).insert(before_exit_label);
-            if let Some(after_exit_label_name) = after_exit_label_name{
-                //todo this clobbers previous labels for that entry
-                //todo fix labels
-                labels.entry(after_exit_label_name).insert(after_exit_label);
-            }*/
-        },
+        }
+        IRInstr::VMExit2 { exit_type } => {
+            let mut before_exit_label = assembler.create_label();
+            let mut after_exit_label = assembler.create_label();
+            exit_type.gen_assembly(assembler, &mut before_exit_label, &mut after_exit_label, vec![Register(1),Register(2),Register(3),Register(4),Register(5)]);
+            VMState::<u64, InterpreterStateGuard>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label);
+        }
         IRInstr::GrowStack { .. } => todo!(),
         IRInstr::LoadSP { .. } => todo!(),
         IRInstr::WithAssembler { .. } => todo!(),
@@ -515,7 +530,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
 pub struct IRInstructIndex(usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct IRInstructOffset(usize);
+pub struct IRInstructNativeOffset(usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct AssemblyInstructionIndex(usize);
@@ -538,5 +553,6 @@ impl std::iter::Step for AssemblyInstructionIndex {
 pub struct IRVMExitEvent<'l> {
     pub inner: &'l VMExitEvent,
     pub ir_method: IRMethodID,
-    pub ir_instruct: IRInstructIndex,
+    pub exit_type: RuntimeVMExitInput,
+    exiting_frame_position: JavaStackPosition,
 }

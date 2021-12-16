@@ -15,7 +15,7 @@ use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
@@ -28,7 +28,7 @@ pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let _ = invoke_static_impl(jvm, int_state, &expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.view().method_view_i(target_method_i));
 }
 
-pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method_i: u16, target_method: &MethodView) -> Result<(), WasException> {
+pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method_i: u16, target_method: &MethodView) -> Result<(), WasException> {
     let mut args = vec![];
     let mut current_frame = interpreter_state.current_frame_mut();
     let target_class_view = target_class.view();

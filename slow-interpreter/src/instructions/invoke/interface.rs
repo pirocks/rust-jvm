@@ -10,7 +10,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::java_values::JavaValue;
 
-pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) {
+pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) {
     // invoke_interface.count;//todo use this?
     let _target_class = check_initing_or_inited_class(jvm, int_state, CPDType::Ref(cpreftype));
     let desc_len = expected_descriptor.arg_types.len();
