@@ -28,7 +28,7 @@ pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_li
     &(*((**env).reserved0 as *const JVMState))
 }
 
-pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l> {
+pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l,'interpreter_guard> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }

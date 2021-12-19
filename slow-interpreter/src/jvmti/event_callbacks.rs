@@ -134,7 +134,7 @@ pub struct ExceptionEvent {
 }
 
 impl SharedLibJVMTI {
-    pub fn vm_inited(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, main_thread: Arc<JavaThread<'gc_life>>) {
+    pub fn vm_inited(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, main_thread: Arc<JavaThread<'gc_life>>) {
         if *self.vm_init_enabled.read().unwrap() {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]));
@@ -147,7 +147,7 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn thread_start(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, jthread: JThread<'gc_life>) {
+    pub fn thread_start(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, jthread: JThread<'gc_life>) {
         if *self.thread_start_enabled.read().unwrap() {
             let event_handling_frame = int_state.push_frame(StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]));
             while !jvm.vm_live() {} //todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
@@ -161,7 +161,7 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn class_prepare(&self, jvm: &'gc_life JVMState<'gc_life>, class: &CClassName, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+    pub fn class_prepare(&self, jvm: &'gc_life JVMState<'gc_life>, class: &CClassName, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(jvm), vec![]));
@@ -177,7 +177,7 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, method: MethodId, location: i64, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+    pub fn breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, method: MethodId, location: i64, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(jvm), vec![]));
@@ -189,7 +189,7 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn frame_pop(&self, jvm: &'gc_life JVMState<'gc_life>, method: MethodId, was_popped_by_exception: jboolean, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+    pub fn frame_pop(&self, jvm: &'gc_life JVMState<'gc_life>, method: MethodId, was_popped_by_exception: jboolean, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(jvm), vec![]));
@@ -204,7 +204,7 @@ impl SharedLibJVMTI {
 
 #[allow(non_snake_case)]
 pub trait DebuggerEventConsumer {
-    unsafe fn VMInit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, vminit: VMInitEvent);
+    unsafe fn VMInit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, vminit: VMInitEvent);
 
     fn VMInit_enable(&self, trace: &TracingSettings);
     fn VMInit_disable(&self, trace: &TracingSettings);
@@ -214,12 +214,12 @@ pub trait DebuggerEventConsumer {
     fn VMDeath_enable(&self, trace: &TracingSettings);
     fn VMDeath_disable(&self, trace: &TracingSettings);
 
-    unsafe fn ThreadStart(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ThreadStartEvent);
+    unsafe fn ThreadStart(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ThreadStartEvent);
 
     fn ThreadStart_enable(&self, trace: &TracingSettings);
     fn ThreadStart_disable(&self, trace: &TracingSettings);
 
-    unsafe fn Exception(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ExceptionEvent);
+    unsafe fn Exception(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ExceptionEvent);
 
     fn Exception_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn Exception_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
@@ -229,7 +229,7 @@ pub trait DebuggerEventConsumer {
     fn ThreadEnd_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn ThreadEnd_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
 
-    unsafe fn ClassPrepare(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ClassPrepareEvent);
+    unsafe fn ClassPrepare(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ClassPrepareEvent);
 
     fn ClassPrepare_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn ClassPrepare_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
@@ -238,18 +238,18 @@ pub trait DebuggerEventConsumer {
     fn GarbageCollectionFinish_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn GarbageCollectionFinish_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
 
-    unsafe fn Breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: BreakpointEvent);
+    unsafe fn Breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: BreakpointEvent);
     fn Breakpoint_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn Breakpoint_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
 
-    unsafe fn FramePop(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: FramePopEvent);
+    unsafe fn FramePop(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: FramePopEvent);
     fn FramePop_enable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
     fn FramePop_disable(&self, jvm: &'gc_life JVMState<'gc_life>, tid: Option<Arc<JavaThread<'gc_life>>>);
 }
 
 #[allow(non_snake_case)]
 impl DebuggerEventConsumer for SharedLibJVMTI {
-    unsafe fn VMInit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, vminit: VMInitEvent) {
+    unsafe fn VMInit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, vminit: VMInitEvent) {
         jvm.config.tracing.trace_event_trigger("VMInit");
         let VMInitEvent { thread } = vminit;
         let jvmti = get_jvmti_interface(jvm, int_state);
@@ -286,7 +286,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.vm_death_enabled.write().unwrap() = false;
     }
 
-    unsafe fn ThreadStart(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ThreadStartEvent) {
+    unsafe fn ThreadStart(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ThreadStartEvent) {
         jvm.config.tracing.trace_event_trigger("ThreadStart");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
@@ -307,7 +307,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         *self.thread_start_enabled.write().unwrap() = false;
     }
 
-    unsafe fn Exception(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ExceptionEvent) {
+    unsafe fn Exception(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ExceptionEvent) {
         let jni_env = get_interface(jvm, int_state);
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
@@ -345,7 +345,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         SharedLibJVMTI::disable_impl(jvm, tid, &disabler, "ThreadEnd")
     }
 
-    unsafe fn ClassPrepare(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: ClassPrepareEvent) {
+    unsafe fn ClassPrepare(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: ClassPrepareEvent) {
         jvm.config.tracing.trace_event_trigger("ClassPrepare");
         let jvmti_env = get_jvmti_interface(jvm, int_state); //todo deal with these leaks
         let jni_env = get_interface(jvm, int_state);
@@ -388,7 +388,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         SharedLibJVMTI::disable_impl(jvm, tid, &disabler, "GarbageCollectionFinish")
     }
 
-    unsafe fn Breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: BreakpointEvent) {
+    unsafe fn Breakpoint(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: BreakpointEvent) {
         jvm.config.tracing.trace_event_trigger("Breakpoint");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let jni_env = get_interface(jvm, int_state);
@@ -414,7 +414,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         SharedLibJVMTI::disable_impl(jvm, tid, &disabler, "Breakpoint")
     }
 
-    unsafe fn FramePop(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, event: FramePopEvent) {
+    unsafe fn FramePop(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, event: FramePopEvent) {
         jvm.config.tracing.trace_event_trigger("FramePop");
         //todo dup with above
         let jvmti_env = get_jvmti_interface(jvm, int_state);
@@ -443,7 +443,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn agent_load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> jvmtiError {
+    pub fn agent_load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jvmtiError {
         unsafe {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();

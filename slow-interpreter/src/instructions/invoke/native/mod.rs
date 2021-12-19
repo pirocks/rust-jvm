@@ -21,15 +21,15 @@ use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let view = &class.view();
-    let before = int_state.current_frame().operand_stack(jvm).len();
+    // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
-    assert_eq!(before, int_state.current_frame().operand_stack(jvm).len());
+    // assert_eq!(before, int_state.current_frame().operand_stack(jvm).len());
     let method = view.method_view_i(method_i);
-    if !method.is_static() {
+    /*if !method.is_static() {
         assert_ne!(before, 0);
-    }
+    }*/
     assert!(method.is_native());
 
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
@@ -71,7 +71,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         .into_iter()
         .collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
-        int_state.debug_print_stack_trace(jvm);
+        // int_state.debug_print_stack_trace(jvm);
     }
     let parsed = method.desc();
     /*let mut args = vec![];
@@ -139,7 +139,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     }
 }
 
-fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, method_view: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {

@@ -50,12 +50,12 @@ pub unsafe fn get_state<'gc_life, 'l>(env: *mut jvmtiEnv) -> &'l JVMState<'gc_li
     &*((**env).reserved1 as *const JVMState)
 }
 
-pub unsafe fn get_interpreter_state<'l>(env: *mut jvmtiEnv) -> &'l mut InterpreterStateGuard<'l> {
+pub unsafe fn get_interpreter_state<'gc_life,'l, 'k>(env: *mut jvmtiEnv) -> &'k mut InterpreterStateGuard<'gc_life,'k> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
 
-pub fn get_jvmti_interface(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> *mut jvmtiEnv {
+pub fn get_jvmti_interface(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
     Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv
 }
@@ -439,6 +439,7 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
             int_state: todo!(),
             thread: java_thread,
             registered: false,
+            jvm
         };
         action(&mut int_state_not_ref)
     }

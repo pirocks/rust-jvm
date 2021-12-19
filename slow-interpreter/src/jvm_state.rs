@@ -358,10 +358,10 @@ impl<'gc_life> JVMState<'gc_life> {
         field_numbers
     }
 
-    pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'l mut InterpreterStateGuard<'l> {
+    pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l,'interpreter_guard> {
         assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
-        let res = transmute::<&mut InterpreterStateGuard<'static>, &mut InterpreterStateGuard<'l>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
+        let res = transmute::<&mut InterpreterStateGuard<'static,'static>, &mut InterpreterStateGuard<'l,'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
         assert!(res.registered);
         res
     }
@@ -419,7 +419,7 @@ pub struct NativeLibraries<'gc_life> {
 }
 
 impl<'gc_life> NativeLibraries<'gc_life> {
-    pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, path: &OsString, name: String) {
+    pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());

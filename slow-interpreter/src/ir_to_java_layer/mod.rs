@@ -42,7 +42,7 @@ pub struct JavaVMStateWrapperInner<'gc_life> {
     method_id_to_ir_method_id: BiHashMap<MethodId, IRMethodID>,
     max_exit_number: ExitNumber,
     // exit_types: HashMap<ExitNumber, VMExitTypeWithArgs>,
-    method_exit_handlers: HashMap<ExitNumber, Box<dyn Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
+    method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l ,'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
 
 pub enum JavaExitAction {}
@@ -56,7 +56,7 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
+    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
         match vm_exit_type {
             RuntimeVMExitInput::Allocate { type_, return_to_ptr } => {
                 todo!()
@@ -108,7 +108,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
-        let ir_exit_handler = box move |ir_vm_exit_event: &IRVMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life>| {
+        let ir_exit_handler = box move |ir_vm_exit_event: &IRVMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life, '_>| {
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();
@@ -122,7 +122,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life>, method_id: MethodId, location: JavaStackPosition) -> u64 {
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life,'_>, method_id: MethodId, location: JavaStackPosition) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
         let mmapped_top = int_state.java_stack().inner.mmaped_top;
         self.ir.run_method(ir_method_id, int_state, match location {

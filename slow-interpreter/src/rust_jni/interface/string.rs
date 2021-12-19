@@ -72,7 +72,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     new_local_ref_public(string, int_state)
 }
 
-pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),

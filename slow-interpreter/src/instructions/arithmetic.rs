@@ -132,7 +132,7 @@ pub fn ishr(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
     current_frame.push(JavaValue::Int(value1 >> (value2 & 63)));
 }
 
-pub fn iushr(int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn iushr(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let value2 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int() as u32;
     let value1 = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int() as u32;

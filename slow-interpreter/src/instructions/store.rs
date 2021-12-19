@@ -51,7 +51,7 @@ pub fn fstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
     current_frame.local_vars_mut().set(n, jv);
 }
 
-pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -65,7 +65,7 @@ pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     arrar_ref_o.unwrap_array().set_i(jvm, index, JavaValue::Char(char_));
 }
 
-pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int() as jbyte; // int value is truncated
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -80,7 +80,7 @@ pub fn bastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     array_ref.set_i(jvm, index, JavaValue::Byte(val));
 }
 
-pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_short();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -95,7 +95,7 @@ pub fn sastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     array_ref.set_i(jvm, index, JavaValue::Short(val));
 }
 
-pub fn fastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn fastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::FloatType)).unwrap_float();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -109,7 +109,7 @@ pub fn fastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     array_ref.set_i(jvm, index, JavaValue::Float(val));
 }
 
-pub fn dastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn dastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::DoubleType)).unwrap_double();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -123,7 +123,7 @@ pub fn dastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     array_ref.set_i(jvm, index, JavaValue::Double(val));
 }
 
-pub fn iastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn iastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -138,7 +138,7 @@ pub fn iastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
     array_ref.set_i(jvm, index, JavaValue::Int(int_));
 }
 
-pub fn aastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn aastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::object()));
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
@@ -161,7 +161,7 @@ pub fn istore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
     current_frame.local_vars_mut().set(n, JavaValue::Int(object_ref.unwrap_int()));
 }
 
-pub fn lastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) {
+pub fn lastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
     let mut current_frame = int_state.current_frame_mut();
     let val = current_frame.pop(Some(RuntimeType::LongType)).unwrap_long();
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();

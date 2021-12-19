@@ -1,10 +1,11 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
@@ -19,8 +20,8 @@ use another_jit_vm::{BaseAddress, Method, MethodImplementationID, Register, Save
 use classfile_parser::code::InstructionTypeNum::new;
 use verification::verifier::Frame;
 
+use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use crate::InterpreterStateGuard;
 use crate::ir_to_java_layer::java_stack::JavaStackPosition;
 use crate::ir_to_java_layer::vm_exit_abi::{RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::jit::ir::IRInstr;
@@ -42,7 +43,7 @@ pub struct IRVMStateInner {
     // function_ir_mapping: HashMap<IRMethodID, !>,
 }
 
-impl  IRVMStateInner {
+impl IRVMStateInner {
     pub fn new() -> Self {
         Self {
             ir_method_id_max: IRMethodID(0),
@@ -66,7 +67,7 @@ impl  IRVMStateInner {
 }
 
 pub struct IRVMState<'vm_life> {
-    native_vm: VMState<'vm_life, u64, InterpreterStateGuard<'vm_life>>,
+    native_vm: VMState<'vm_life, u64, (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)>,
     inner: RwLock<IRVMStateInner>,
 }
 
@@ -333,7 +334,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         }
     }
 
-    pub fn run_method(&self, method_id: IRMethodID, int_state: &mut InterpreterStateGuard<'vm_life>, frame_pointer: *mut c_void) -> u64 {
+    pub fn run_method(&self, method_id: IRMethodID, int_state: &mut InterpreterStateGuard<'vm_life, 'l>, frame_pointer: *mut c_void) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -344,7 +345,8 @@ impl<'vm_life> IRVMState<'vm_life> {
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = frame_pointer;
         initial_registers.rsp = frame_pointer;
-        self.native_vm.launch_vm(current_implementation, initial_registers, int_state)
+        drop(int_state.int_state.take());
+        self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm))
     }
 
     fn debug_print_instructions(assembler: &CodeAssembler) {
@@ -357,7 +359,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life>) -> IRMethodID {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life, '_>) -> VMExitAction<u64> + 'vm_life>) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -368,15 +370,13 @@ impl<'vm_life> IRVMState<'vm_life> {
         let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
-        let vm_exit_handler: Box<dyn Fn(&VMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life> = box move |vm_exit_event: &VMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life>| {
-            todo!("need to update current frame for int_state, or make new guard");
-            let new_int_state = InterpreterStateGuard{
-                int_state: (),
-                thread: Arc::new(()),
-                registered: false
+        let vm_exit_handler: Box<dyn Fn(&VMExitEvent, &mut (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)) -> VMExitAction<u64> + 'vm_life> =
+            box move |vm_exit_event: &VMExitEvent, (java_thread, current_stack_position, jvm)| {
+                let mut guard = java_thread.interpreter_state.lock().unwrap();
+                guard.deref_mut().current_stack_position = *current_stack_position;
+                let mut new_int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), guard);
+                vm_exit_handler(self, vm_exit_event, &mut new_int_state, ir_exit_handler.deref())
             };
-            vm_exit_handler(self, vm_exit_event, int_state, ir_exit_handler.deref())
-        };
         let code = result.code_buffer;
 
         let method_implementation_id = self.native_vm.add_method_implementation(Method {
@@ -388,7 +388,7 @@ impl<'vm_life> IRVMState<'vm_life> {
     }
 }
 
-fn vm_exit_handler<'vm_life>(ir_vm_state: &'vm_life IRVMState<'vm_life>, vm_exit_event: &VMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life>, ir_exit_handler: &(dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life>) -> VMExitAction<u64> + 'vm_life)) -> VMExitAction<u64> {
+fn vm_exit_handler<'vm_life, 'l>(ir_vm_state: &'vm_life IRVMState<'vm_life>, vm_exit_event: &VMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life, 'l>, ir_exit_handler: &(dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life, 'l>) -> VMExitAction<u64> + 'vm_life)) -> VMExitAction<u64> {
     let implementation_id = vm_exit_event.method;
     let exit_address = vm_exit_event.saved_guest_registers.rip;
     let exit_method_base_address = vm_exit_event.method_base_address;
@@ -491,7 +491,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::VMExit2 { exit_type } => {
             let mut before_exit_label = assembler.create_label();
             let mut after_exit_label = assembler.create_label();
-            exit_type.gen_assembly(assembler, &mut before_exit_label, &mut after_exit_label, vec![Register(1),Register(2),Register(3),Register(4),Register(5)]);
+            exit_type.gen_assembly(assembler, &mut before_exit_label, &mut after_exit_label, vec![Register(1), Register(2), Register(3), Register(4), Register(5)]);
             VMState::<u64, InterpreterStateGuard>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label);
         }
         IRInstr::GrowStack { .. } => todo!(),

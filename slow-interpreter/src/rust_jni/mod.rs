@@ -43,7 +43,7 @@ impl<'gc_life> NativeLibraries<'gc_life> {
     }
 }
 
-pub fn call<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
+pub fn call<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -63,7 +63,7 @@ pub fn call<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     Ok(if method_view.is_static() { Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?) } else { Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?) })
 }
 
-pub fn call_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn call_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {

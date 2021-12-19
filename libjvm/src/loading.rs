@@ -32,7 +32,7 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, loader_name: LoaderName) -> jobject {
+unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, loader_name: LoaderName) -> jobject {
     new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object()), int_state)
 }
 

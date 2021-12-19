@@ -63,7 +63,7 @@ pub struct MethodImplementationID(usize);
 
 pub struct MethodOffset(usize);
 
-pub struct VMStateInner<'vm_state_life, T: Sized, ExtraData> {
+pub struct VMStateInner<'vm_state_life, T: Sized, ExtraData: 'vm_state_life> {
     method_id_max: MethodImplementationID,
     exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>>,
     code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
@@ -194,7 +194,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &mut ExtraData) -> T {
+    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
         let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
         dbg!(branch_to);
@@ -291,7 +291,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
             },
         };
         loop {
-            let vm_exit_action = self.run_method_impl(&mut jit_context, extra);
+            let vm_exit_action = self.run_method_impl(&mut jit_context, &mut extra);
             match vm_exit_action {
                 VMExitAction::ExitVMCompletely { return_data } => {
                     return return_data;
@@ -478,7 +478,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, method: Method<'vm_state_life, T, ExtraData>, base_address: BaseAddress) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, method: Method<'vm_state_life,T, ExtraData>, base_address: BaseAddress) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -509,7 +509,7 @@ pub struct VMExitLabel {
     pub after_exit_label: CodeLabel,
 }
 
-pub struct Method<'vm_state_life, T: Sized, ExtraData> {
+pub struct Method<'vm_state_life,T: Sized, ExtraData: 'vm_state_life> {
     pub code: Vec<u8>,
     pub exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>,
 }

@@ -153,7 +153,7 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     }
 }
 
-pub fn prepare_class<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
+pub fn prepare_class<'vm_life, 'l>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life,'l>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Ref(ref_) = classfile.type_() {
             if let CPRefType::Class(cn) = ref_ {
@@ -176,7 +176,7 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
     }
 }
 
-pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first

@@ -837,7 +837,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             /*StackEntryRef::LegacyInterpreter { .. } => todo!(),*/
             StackEntryRef::Jit { frame_view, .. } => OperandStackRef::Jit { frame_view, jvm },
         }*/
-        todo!()
+        OperandStackRef::Jit { frame_view: self.frame_view(jvm), jvm }
     }
 
     pub fn is_native(&self) -> bool {

@@ -38,7 +38,7 @@ fn main() {
     let mut store_generated_options = false;
     let mut debug_print_exceptions = false;
     let mut assertions_enabled: bool = false;
-    let mut libjdwp: OsString = OsString::from_str("/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjdwp.so").unwrap();
+    let mut libjdwp: OsString = OsString::from_str("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64/libjdwp.so").unwrap();
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("A jvm written partially in rust");

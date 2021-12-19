@@ -53,7 +53,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     Ok(if method.desc().return_type == CPDType::VoidType { None } else { int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into() })
 }
 
-unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life>, parsed: &CMethodDescriptor) {
+unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed: &CMethodDescriptor) {
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }

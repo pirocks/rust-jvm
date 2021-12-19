@@ -9,7 +9,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_util::new_object;
 use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
 
-pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, classname: CClassName) {
+pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classname: CClassName) {
     let target_classfile = match check_initing_or_inited_class(jvm, int_state, classname.into()) {
         Ok(x) => x,
         Err(WasException {}) => {
@@ -22,7 +22,7 @@ pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     int_state.push_current_operand_stack(obj);
 }
 
-pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, cpdtype: &CPDType) {
+pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cpdtype: &CPDType) {
     let len = match int_state.current_frame_mut().pop(Some(RuntimeType::IntType)) {
         JavaValue::Int(i) => i,
         _ => panic!(),
@@ -33,13 +33,13 @@ pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     }
 }
 
-pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, len: i32, t: CPDType) -> Result<(), WasException> {
+pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, len: i32, t: CPDType) -> Result<(), WasException> {
     check_resolved_class(jvm, int_state, t.clone())?;
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::null(), t)?;
     Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()))))
 }
 
-pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, a_type: Atype) {
+pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, a_type: Atype) {
     let count = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
     let type_ = match a_type {
         Atype::TChar => CPDType::CharType,
@@ -61,7 +61,7 @@ pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     int_state.push_current_operand_stack(JavaValue::Object(new_array));
 }
 
-pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life>, dims: u8, type_: &CPDType) {
+pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, dims: u8, type_: &CPDType) {
     if let Err(_) = check_resolved_class(jvm, int_state, type_.clone()) {
         return;
     };
