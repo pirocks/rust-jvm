@@ -792,8 +792,8 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             Some(x) => x,
             None => {
                 //opaque frame todo, should lookup loader by opaque id
-                return LoaderName::BootstrapLoader
-            },
+                return LoaderName::BootstrapLoader;
+            }
         };
         let rc = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0;
         jvm.classes.read().unwrap().get_initiating_loader(&rc)
@@ -841,11 +841,17 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 
     pub fn is_native(&self) -> bool {
-        /*match self {
-            /*StackEntryRef::LegacyInterpreter { entry, .. } => entry.is_native(),*/
-            StackEntryRef::Jit { frame_view, .. } => frame_view.is_native(),
-        }*/
-        todo!()
+        let res = match self.frame_view.ir_ref.method_id() {
+            None => false,
+            Some(method_id) => {
+                self.frame_view.jvm.is_native_by_method_id(method_id)
+            }
+        };
+
+        if res {
+            assert!(self.frame_view.ir_ref.ir_method_id().is_none());
+        }
+        res
     }
 
     pub fn native_local_refs(&self) -> &mut Vec<BiMap<ByAddress<GcManagedObject<'gc_life>>, jobject>> {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
@@ -13,7 +13,7 @@ use iced_x86::ConditionCode::{o, s};
 use itertools::Itertools;
 use libc::read;
 
-use another_jit_vm::VMExitAction;
+use another_jit_vm::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -42,7 +42,7 @@ pub struct JavaVMStateWrapperInner<'gc_life> {
     method_id_to_ir_method_id: BiHashMap<MethodId, IRMethodID>,
     max_exit_number: ExitNumber,
     // exit_types: HashMap<ExitNumber, VMExitTypeWithArgs>,
-    method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l ,'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
+    method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
 
 pub enum JavaExitAction {}
@@ -56,27 +56,31 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
+    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
         match vm_exit_type {
             RuntimeVMExitInput::Allocate { type_, return_to_ptr } => {
                 todo!()
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
-            RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, return_to_ptr } => {
+            RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let mut args_jv = vec![];
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
                 let arg_types = &method_view.desc().arg_types;
                 unsafe {
-                    for (i,cpdtype) in (0..*num_args).zip(arg_types.iter()) {
+                    for (i, cpdtype) in (0..*num_args).zip(arg_types.iter()) {
                         let arg_ptr = arg_start.offset(-(i as isize)) as *const u64;//stack grows down
                         let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
                         args_jv.push(native_jv.to_java_value(cpdtype, jvm))
                     }
                 }
-                run_native_method(jvm, int_state, rc, method_i, args_jv).unwrap();
-                todo!()
+                assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+                let res = run_native_method(jvm, int_state, rc, method_i, args_jv).unwrap();
+                if let Some(res) = res {
+                    unsafe { (*res_ptr).write(transmute::<NativeJavaValue<'_>,NativeJavaValue<'static>>(res.to_native())) }
+                };
+                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
             RuntimeVMExitInput::TopLevelReturn => todo!()
         }
@@ -122,9 +126,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life,'_>, method_id: MethodId, location: JavaStackPosition) -> u64 {
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life, '_>, method_id: MethodId, location: JavaStackPosition) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
         let mmapped_top = int_state.java_stack().inner.mmaped_top;
+        assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         self.ir.run_method(ir_method_id, int_state, match location {
             JavaStackPosition::Frame { frame_pointer } => frame_pointer,
             JavaStackPosition::Top => mmapped_top
@@ -132,13 +137,17 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
+        self.try_lookup_ir_method_id(opaque_or_not).unwrap()
+    }
+
+    pub fn try_lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> Option<IRMethodID> {
         match opaque_or_not {
             OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
-                self.ir.lookup_opaque_ir_method_id(opaque_id)
+                Some(self.ir.lookup_opaque_ir_method_id(opaque_id))
             }
             OpaqueFrameIdOrMethodID::Method { method_id } => {
                 let read_guard = self.inner.read().unwrap();
-                *read_guard.method_id_to_ir_method_id.get_by_left(&(method_id as usize)).unwrap()
+                read_guard.method_id_to_ir_method_id.get_by_left(&(method_id as usize)).cloned()
             }
         }
     }

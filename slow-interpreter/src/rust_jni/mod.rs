@@ -64,6 +64,7 @@ pub fn call<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
 }
 
 pub fn call_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {

@@ -3,9 +3,11 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
+use crate::gc_memory_layout_common::FramePointerOffset;
 
 use crate::interpreter_state::InterpreterState;
 use crate::InterpreterStateGuard;
+use crate::ir_to_java_layer::java_stack::NativeFrameInfo;
 use crate::java_values::GcManagedObject;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use crate::stack_entry::FrameView;
@@ -100,10 +102,8 @@ fn get_top_local_ref_frame<'l>(interpreter_state: &'l InterpreterStateGuard) -> 
 }
 
 fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, new: HashSet<jobject>) {
-    todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
-        /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
-        InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).set_local_refs_top_frame(new),
-    }*/
+    let data = interpreter_state.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo;
+    unsafe { *data.as_mut().unwrap().native_local_refs.last_mut().unwrap() = new; }
 }
 
 fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> HashSet<jobject> {
@@ -121,8 +121,7 @@ fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGua
 }
 
 fn current_native_local_refs<'l>(interpreter_state: &'l InterpreterStateGuard) -> Vec<HashSet<jobject>> {
-    todo!()/*match interpreter_state.int_state.as_ref().unwrap().deref() {
-        /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
-        InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).get_local_refs(),
-    }*/
+    assert!(interpreter_state.current_frame().is_native());
+    let data = interpreter_state.current_frame().frame_view.ir_ref.data(1)[0] as usize as *const NativeFrameInfo;
+    unsafe { data.as_ref().unwrap().native_local_refs.clone() }
 }

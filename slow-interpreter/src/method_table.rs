@@ -50,13 +50,10 @@ impl<'gc_life> MethodTable<'gc_life> {
                 class_methods.insert(method_index, res);
             }
         }
-        // dbg!(&res);
         res
     }
 
     pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass<'gc_life>>, u16)> {
-        // dbg!(id);
-        // dbg!(self.table.len());
         if id < self.table.len() {
             self.table[id].clone().into()
         } else {

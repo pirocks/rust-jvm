@@ -94,6 +94,18 @@ pub struct SavedRegistersWithIP {
     pub saved_registers_without_ip: SavedRegistersWithoutIP,
 }
 
+impl SavedRegistersWithIP {
+    pub fn apply_diff(&mut self, diff: SavedRegistersWithIPDiff) {
+        let SavedRegistersWithIPDiff { rip, saved_registers_without_ip } = diff;
+        if let Some(rip) = rip {
+            self.rip = rip;
+        }
+        if let Some(_saved_registers_without_ip) = saved_registers_without_ip {
+            todo!()
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithoutIP {
@@ -155,6 +167,32 @@ impl SavedRegistersWithoutIP {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct SavedRegistersWithIPDiff {
+    pub rip: Option<*mut c_void>,
+    pub saved_registers_without_ip: Option<SavedRegistersWithoutIPDiff>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct SavedRegistersWithoutIPDiff {
+    pub rax: Option<*mut c_void>,
+    pub rbx: Option<*mut c_void>,
+    pub rcx: Option<*mut c_void>,
+    pub rdx: Option<*mut c_void>,
+    pub rsi: Option<*mut c_void>,
+    pub rdi: Option<*mut c_void>,
+    pub rbp: Option<*mut c_void>,
+    pub rsp: Option<*mut c_void>,
+    pub r8: Option<*mut c_void>,
+    pub r9: Option<*mut c_void>,
+    pub r10: Option<*mut c_void>,
+    pub r11: Option<*mut c_void>,
+    pub r12: Option<*mut c_void>,
+    pub r13: Option<*mut c_void>,
+    pub r14: Option<*mut c_void>,
+    pub xsave_area: Option<[u64; 64]>,
+}
+
 #[derive(Copy, Clone)]
 pub struct VMExitEvent {
     pub method: MethodImplementationID,
@@ -164,7 +202,7 @@ pub struct VMExitEvent {
 
 pub enum VMExitAction<T: Sized> {
     ExitVMCompletely { return_data: T },
-    ReturnTo { return_register_state: SavedRegistersWithIP },
+    ReturnTo { return_register_state: SavedRegistersWithIPDiff },
 }
 
 #[repr(C)]
@@ -297,7 +335,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
                     return return_data;
                 }
                 VMExitAction::ReturnTo { return_register_state } => {
-                    jit_context.guest_registers = return_register_state;
+                    jit_context.guest_registers.apply_diff(return_register_state);
                 }
             }
         }
@@ -305,6 +343,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
 
     #[allow(named_asm_labels)]
     fn run_method_impl(&self, jit_context: &mut JITContext, extra: &mut ExtraData) -> VMExitAction<T> {
+        eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp,jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
@@ -397,21 +436,6 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
             __rust_jvm_r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
             __rust_jvm_r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
             // __rust_jvm_xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
-            // out("xmm0") _,
-            // out("xmm1") _,
-            // out("xmm2") _,
-            // out("xmm3") _,
-            // out("xmm4") _,
-            // out("xmm5") _,
-            // out("xmm6") _,
-            // out("xmm8") _,
-            // out("xmm9") _,
-            // out("xmm10") _,
-            // out("xmm11") _,
-            // out("xmm12") _,
-            // out("xmm13") _,
-            // out("xmm14") _,
-            // out("xmm15") _,
             out("ymm0") _,
             out("ymm1") _,
             out("ymm2") _,
@@ -429,6 +453,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
             out("ymm15") _,
             )
         }
+        eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp,jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
         self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers, extra)
     }
 
@@ -443,7 +468,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
                 let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap();
                 let vm_exit_event = VMExitEvent {
                     method: *method_implementation,
-                    method_base_address: dbg!(inner_read_guard.code_regions.get(method_implementation).unwrap().start),
+                    method_base_address: inner_read_guard.code_regions.get(method_implementation).unwrap().start,
                     saved_guest_registers: guest_registers,
                 };
                 return handler(&vm_exit_event, extra);
@@ -478,7 +503,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, method: Method<'vm_state_life,T, ExtraData>, base_address: BaseAddress) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, method: Method<'vm_state_life, T, ExtraData>, base_address: BaseAddress) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -493,8 +518,6 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         let method_range = new_method_base..end_of_new_method;
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
-        dbg!(&inner_guard.code_regions_to_method);
-        dbg!(&inner_guard.code_regions);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base, code_len); }
         current_method_id
@@ -509,7 +532,7 @@ pub struct VMExitLabel {
     pub after_exit_label: CodeLabel,
 }
 
-pub struct Method<'vm_state_life,T: Sized, ExtraData: 'vm_state_life> {
+pub struct Method<'vm_state_life, T: Sized, ExtraData: 'vm_state_life> {
     pub code: Vec<u8>,
     pub exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>,
 }

@@ -18,7 +18,7 @@ use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
-use classfile_view::view::{ClassBackedView, ClassView};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
@@ -390,6 +390,20 @@ impl<'gc_life> JVMState<'gc_life> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         method_view.code_attribute().unwrap().max_locals
+    }
+
+    pub fn is_native_by_method_id(&self, method_id: MethodId) -> bool {
+        let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.is_native()
+    }
+
+    pub fn num_args_by_method_id(&self, method_id: MethodId) -> u16 {
+        let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.desc().arg_types.len() as u16
     }
 }
 

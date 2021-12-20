@@ -12,6 +12,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
 use crate::ir_to_java_layer::compiler::ByteCodeIndex;
+use crate::java_values::NativeJavaValue;
 use crate::jit::MethodResolver;
 use crate::JVMState;
 use crate::method_table::MethodId;
@@ -156,6 +157,7 @@ pub enum RuntimeVMExitInput {
         method_id: MethodId,
         arg_start: *mut c_void,
         num_args: u16,
+        res_ptr: *mut NativeJavaValue<'static>,
         return_to_ptr: *mut c_void,
 
     },
@@ -193,6 +195,7 @@ impl RuntimeVMExitInput {
                     method_id: register_state.saved_registers_without_ip.get_register(RunStaticNative::METHODID) as MethodId,
                     arg_start: register_state.saved_registers_without_ip.get_register(RunStaticNative::ARG_START) as *mut c_void,
                     num_args: register_state.saved_registers_without_ip.get_register(RunStaticNative::NUM_ARGS) as u16,
+                    res_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RES) as *mut NativeJavaValue,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RESTART_IP) as *mut c_void
                 }
             },

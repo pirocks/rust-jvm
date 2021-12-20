@@ -17,7 +17,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
@@ -244,6 +244,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn throw(&self) -> Option<GcManagedObject<'gc_life>> {
+        None
         /*match self.int_state.as_ref() {
             None => {
                 match self.thread.interpreter_state.read().unwrap().deref() {
@@ -262,7 +263,6 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 InterpreterState::Jit { call_stack, jvm } => unsafe { from_object(jvm, call_stack.throw()) },
             },
         }*/
-        todo!()
     }
 
     pub fn push_frame(&mut self, frame: StackEntry<'gc_life>) -> FramePushGuard {
@@ -287,8 +287,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
-        /*frame_push_guard._correctly_exited = true;
-        let depth = match self.int_state.as_mut().unwrap().deref_mut() {
+        frame_push_guard._correctly_exited = true;
+        /*let depth = match self.int_state.as_mut().unwrap().deref_mut() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 call_stack.len()
             }*/
@@ -314,9 +314,11 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             InterpreterState::Jit { call_stack, .. } => unsafe {
                 call_stack.pop_frame();
             },
-        };
-        assert!(self.thread.is_alive());*/
-        todo!()
+        };*/
+        if self.current_frame().is_native() {
+            unsafe { drop(Box::from_raw(self.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo)) }
+        }
+        assert!(self.thread.is_alive());
     }
 
     pub fn call_stack_depth(&self) -> usize {

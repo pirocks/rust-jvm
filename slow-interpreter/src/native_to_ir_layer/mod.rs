@@ -4,7 +4,8 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
-use std::ptr::null_mut;
+use std::ptr::{null_mut, slice_from_raw_parts};
+use std::slice::from_raw_parts;
 use std::sync::{Arc, RwLock};
 
 use bimap::BiHashMap;
@@ -29,7 +30,7 @@ use crate::jit::LabelName;
 use crate::method_table::MethodId;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct IRMethodID(usize);
+pub struct IRMethodID(pub usize);
 
 pub struct IRVMStateInner {
     // each IR function is distinct single java methods may many ir methods
@@ -173,7 +174,7 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *mut c_void, prev_rbp: *mut c_void, ir_method_id: IRMethodID, method_id: Option<MethodId>, data: Vec<u64>) {
+    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *mut c_void, prev_rbp: *mut c_void, ir_method_id: IRMethodID, method_id: Option<MethodId>, data: &[u64]) {
         self.validate_frame_pointer(frame_pointer);
         let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *mut c_void;
         prev_rip_ptr.write(prev_rip);
@@ -187,6 +188,10 @@ impl OwnedIRStack {
         ir_method_id_ptr.write(ir_method_id.0 as u64);
         let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut u64;
         method_id_ptr.write(method_id.unwrap_or((-1isize) as usize) as u64);
+        for (i,data_elem) in data.iter().cloned().enumerate(){
+            let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i)as *mut u64;
+            data_elem_ptr.write(data_elem)
+        }
     }
 }
 
@@ -206,7 +211,8 @@ impl<'l, 'k> Iterator for IRFrameIter<'l, 'k> {
             if self.current_frame_ptr? == self.ir_stack.mmaped_top {
                 self.current_frame_ptr = None;
             } else {
-                let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes.get(&self.ir_stack.frame_at(res.prev_rbp()).ir_method_id()).unwrap();
+                let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
+                let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes.get(&option.unwrap()).unwrap();
                 assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
                 self.current_frame_ptr = Some(res.prev_rbp());
             }
@@ -231,11 +237,14 @@ impl IRFrameRef<'_> {
     }
 
 
-    pub fn ir_method_id(&self) -> IRMethodID {
+    pub fn ir_method_id(&self) -> Option<IRMethodID> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_IR_METHOD_ID_OFFSET));
         let frame_header = unsafe { read_frame_ir_header(self.ptr) };
         assert_eq!(res, frame_header.ir_method_id.0 as u64);
-        IRMethodID(res as usize)
+        if res == u64::MAX{
+            return None
+        }
+        Some(IRMethodID(res as usize))
     }
 
 
@@ -257,7 +266,12 @@ impl IRFrameRef<'_> {
     }
 
     pub fn frame_size(&self, ir_vm_state: &IRVMState) -> usize {
-        *ir_vm_state.inner.read().unwrap().frame_sizes.get(&self.ir_method_id()).unwrap()
+        *ir_vm_state.inner.read().unwrap().frame_sizes.get(&self.ir_method_id().unwrap()).unwrap()
+    }
+
+    pub fn data(&self,amount: usize) -> &[u64]{
+        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET) as *const u64 };
+        unsafe { from_raw_parts(data_raw_ptr, amount) }
     }
 }
 
@@ -344,7 +358,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         let frame_pointer = ir_stack.mmaped_top;
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = frame_pointer;
-        initial_registers.rsp = frame_pointer;
+        unsafe { initial_registers.rsp = frame_pointer.sub(2); }
         drop(int_state.int_state.take());
         self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm))
     }
@@ -375,6 +389,7 @@ impl<'vm_life> IRVMState<'vm_life> {
                 let mut guard = java_thread.interpreter_state.lock().unwrap();
                 guard.deref_mut().current_stack_position = *current_stack_position;
                 let mut new_int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), guard);
+                new_int_state.register_interpreter_state_guard(jvm);
                 vm_exit_handler(self, vm_exit_event, &mut new_int_state, ir_exit_handler.deref())
             };
         let code = result.code_buffer;
@@ -393,9 +408,6 @@ fn vm_exit_handler<'vm_life, 'l>(ir_vm_state: &'vm_life IRVMState<'vm_life>, vm_
     let exit_address = vm_exit_event.saved_guest_registers.rip;
     let exit_method_base_address = vm_exit_event.method_base_address;
     let offset = unsafe { exit_address.offset_from(exit_method_base_address) };
-    dbg!(implementation_id);
-    dbg!(exit_address);
-    dbg!(offset);
     if offset < 0 {
         panic!()
     }
