@@ -184,7 +184,7 @@ pub fn inherits_from(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inter
 }
 
 pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, w: &Wide) {
-    match w {
+    /*match w {
         Wide::Iload(WideIload { index }) => iload(jvm, current_frame, *index),
         Wide::Fload(WideFload { index }) => fload(jvm, current_frame, *index),
         Wide::Aload(WideAload { index }) => aload(current_frame, *index),
@@ -202,5 +202,6 @@ pub fn wide(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<
             val += *const_ as i32;
             current_frame.local_vars_mut().set(*index, JavaValue::Int(val));
         }
-    }
+    }*/
+    todo!()
 }

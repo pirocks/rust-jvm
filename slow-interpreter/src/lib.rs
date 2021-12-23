@@ -98,11 +98,11 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
     let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
-    let main_frame_guard = int_state.push_frame(stack_entry);
+    let mut main_frame_guard = int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
     jvm.include_name_field.store(true, Ordering::SeqCst);
-    match run_function(&jvm, int_state) {
+    match run_function(&jvm, int_state, &mut main_frame_guard) {
         Ok(_) => {
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, main_frame_guard, false);

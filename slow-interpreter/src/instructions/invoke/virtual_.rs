@@ -66,8 +66,8 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let frame_for_function = interpreter_state.push_frame(next_entry);
-        match run_function(jvm, interpreter_state) {
+        let mut frame_for_function = interpreter_state.push_frame(next_entry);
+        match run_function(jvm, interpreter_state, &mut frame_for_function) {
             Ok(()) => {
                 assert!(!interpreter_state.throw().is_some());
                 if !jvm.config.compiled_mode_active {

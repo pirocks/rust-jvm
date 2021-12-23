@@ -220,8 +220,8 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
     jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: LoaderName::BootstrapLoader }, method_id);//todo loader
 
     //todo these java frames may have to be converted to native?
-    let new_function_frame = int_state.push_frame(new_stack);
-    match run_function(jvm, int_state) {
+    let mut new_function_frame = int_state.push_frame(new_stack);
+    match run_function(jvm, int_state, &mut new_function_frame) {
         Ok(()) => {
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, new_function_frame, true);

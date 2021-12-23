@@ -3,11 +3,12 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::JavaValue;
-use crate::stack_entry::StackEntryMut;
+use crate::stack_entry::{LocalVarsRef, StackEntryMut};
 use crate::utils::throw_array_out_of_bounds;
 
-pub fn aload<'gc_life, 'l>(/*jvm: &'gc_life JVMState<'gc_life>,*/ mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let ref_: JavaValue<'gc_life> = current_frame.local_vars().get(n, RuntimeType::object());
+pub fn aload(/*jvm: &'gc_life JVMState<'gc_life>,*/ mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
+    let locals = current_frame.local_vars();
+    let ref_: JavaValue<'gc_life> = locals.get(n, RuntimeType::object());
     match ref_ {
         JavaValue::Object(_) => {}
         _ => {

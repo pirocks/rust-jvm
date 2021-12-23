@@ -73,6 +73,7 @@ fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC
     let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope, gc);
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
+    jvm_ref.java_vm_state.add_top_level_vm_exit();
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object();
     let thread_state = &jvm_ref.thread_state;

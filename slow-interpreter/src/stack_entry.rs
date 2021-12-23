@@ -21,13 +21,14 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 
 use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use crate::ir_to_java_layer::java_stack::{OwnedJavaStack, RuntimeJavaStackFrameRef};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jit::ByteCodeOffset;
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::method_table::MethodId;
+use crate::native_to_ir_layer::IRMethodID;
 use crate::runtime_class::RuntimeClass;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -42,7 +43,7 @@ pub struct FrameView<'gc_life, 'l> {
 }
 
 impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
-    pub fn new(ptr: *mut c_void, call_stack: &'l OwnedJavaStack<'gc_life>, current_ip: *mut c_void) -> Self {
+    pub fn new(ptr: *mut c_void, call_stack: &'l mut OwnedJavaStack<'gc_life>, current_ip: *mut c_void) -> Self {
         let res = Self { frame_ptr: ptr, call_stack, phantom_data: PhantomData::default(), current_ip };
         let _header = res.get_header();
         res
@@ -523,8 +524,7 @@ pub struct StackEntry<'gc_life> {
 }
 
 pub struct StackEntryMut<'gc_life, 'l> {
-    frame_view: FrameView<'gc_life, 'l>,
-    jvm: &'gc_life JVMState<'gc_life>,
+    pub frame_view: RuntimeJavaStackFrameMut<'l, 'gc_life>,
 }
 
 impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
@@ -568,7 +568,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn local_vars(&'k self) -> LocalVarsRef<'gc_life, 'k, 'l> {
+    pub fn local_vars(&'k self) -> LocalVarsRef<'gc_life, 'l, 'k> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry } => {
                 LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut(jvm) }
@@ -597,7 +597,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn operand_stack_mut(&'k mut self) -> OperandStackMut<'gc_life, 'l, 'k> {
+    pub fn operand_stack_mut(&'k mut self) -> OperandStackMut<'gc_life, 'l> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
@@ -727,30 +727,29 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
     }
 }
 
-pub enum OperandStackMut<'gc_life, 'l, 'k> {
-    /*    LegacyInterpreter {
-        operand_stack: &'l mut Vec<JavaValue<'gc_life>>
-    }*/
-    Jit { frame_view: &'k mut FrameView<'gc_life, 'l>, jvm: &'gc_life JVMState<'gc_life> },
+pub struct  OperandStackMut<'gc_life, 'l> {
+    pub(crate) frame_view: RuntimeJavaStackFrameMut<'l, 'gc_life>,
 }
 
-impl OperandStackMut<'gc_life, 'l, 'k> {
+impl OperandStackMut<'gc_life, 'l> {
     pub fn push(&mut self, j: JavaValue<'gc_life>) {
-        match self {
+        /*match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.push(j);
             }*/
             OperandStackMut::Jit { frame_view, .. } => frame_view.push_operand_stack(j),
-        }
+        }*/
+        todo!()
     }
 
     pub fn pop(&mut self, rtype: Option<RuntimeType>) -> Option<JavaValue<'gc_life>> {
-        match self {
+        /*match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
                 operand_stack.pop()
             }*/
             OperandStackMut::Jit { frame_view, jvm } => frame_view.pop_operand_stack(jvm, rtype),
-        }
+        }*/
+        todo!()
     }
 
     pub fn insert(&mut self, index: usize, j: JavaValue<'gc_life>) {
@@ -765,10 +764,11 @@ impl OperandStackMut<'gc_life, 'l, 'k> {
     }
 
     pub fn len(&self) -> usize {
-        (match self {
+        /*(match self {
             /*OperandStackMut::LegacyInterpreter { .. } => todo!(),*/
             OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm).unwrap(),
-        }) as usize
+        }) as usize*/
+        todo!()
     }
 }
 

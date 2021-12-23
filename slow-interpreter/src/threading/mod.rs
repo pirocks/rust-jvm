@@ -121,9 +121,9 @@ impl<'gc_life> ThreadState<'gc_life> {
             locals.push(JavaValue::Top);
         }
         let initialize_system_frame = StackEntry::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard = int_state.push_frame(initialize_system_frame);
+        let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
-        match run_function(&jvm, int_state) {
+        match run_function(&jvm, int_state, &mut init_frame_guard) {
             Ok(_) => {}
             Err(_) => todo!(),
         }

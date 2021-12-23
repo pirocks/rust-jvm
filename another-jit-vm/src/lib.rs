@@ -6,23 +6,40 @@
 // have another layer above this which gets rid of native points and does everytthing in terms of IR
 // have java layer above that
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
 use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel, ebx, ecx, edx, qword_ptr, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r15, r8, r8d, r9, r9d, rax, rbp, rbx, rcx, rdi, rdx, rsi, rsp};
+use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel, ebx, ecx, edx, qword_ptr, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r15, r8, r8d, r9, r9d, rax, rbp, rbx, rcx, rdx, rsp};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Register(pub u8);
 
 
 impl Register {
+    pub fn guest_offset_const(&self) ->usize{
+        match self.0 {
+            0 => panic!(),
+            1 => RBX_GUEST_OFFSET_CONST,
+            2 => RCX_GUEST_OFFSET_CONST,
+            3 => RDX_GUEST_OFFSET_CONST,
+            4 => R8_GUEST_OFFSET_CONST,
+            5 => R9_GUEST_OFFSET_CONST,
+            6 => R10_GUEST_OFFSET_CONST,
+            7 => R11_GUEST_OFFSET_CONST,
+            8 => R12_GUEST_OFFSET_CONST,
+            9 => R13_GUEST_OFFSET_CONST,
+            10 => R14_GUEST_OFFSET_CONST,
+            _ => todo!(),
+        }
+    }
+
     pub fn to_native_64(&self) -> AsmRegister64 {
         match self.0 {
             0 => panic!(),
@@ -66,8 +83,8 @@ pub struct MethodOffset(usize);
 pub struct VMStateInner<'vm_state_life, T: Sized, ExtraData: 'vm_state_life> {
     method_id_max: MethodImplementationID,
     exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>>,
-    code_regions: HashMap<MethodImplementationID, Range<*mut c_void>>,
-    code_regions_to_method: RangeMap<*mut c_void, MethodImplementationID>,
+    code_regions: HashMap<MethodImplementationID, Range<*const c_void>>,
+    code_regions_to_method: RangeMap<*const c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
 }
 
@@ -76,6 +93,12 @@ pub struct VMState<'vm_life, T: Sized, ExtraData> {
     //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
+}
+
+impl<T, ExtraData> VMState<'_,T,ExtraData> {
+    pub fn lookup_method_addresses(&self, method_implementation_id: MethodImplementationID) -> Range<*const c_void>{
+        self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
+    }
 }
 
 impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {
@@ -196,7 +219,7 @@ pub struct SavedRegistersWithoutIPDiff {
 #[derive(Copy, Clone)]
 pub struct VMExitEvent {
     pub method: MethodImplementationID,
-    pub method_base_address: *mut c_void,
+    pub method_base_address: *const c_void,
     pub saved_guest_registers: SavedRegistersWithIP,
 }
 
@@ -233,9 +256,8 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
     }
 
     pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
-        let code_region: Range<*mut c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
+        let code_region: Range<*const c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
-        dbg!(branch_to);
         let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, guest_registers);
         assert_eq!(rip_guest_offset, RIP_GUEST_OFFSET_CONST);
         let rax_guest_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
@@ -305,7 +327,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
         let mut jit_context = JITContext {
-            guest_registers: SavedRegistersWithIP { rip: branch_to, saved_registers_without_ip: initial_registers },
+            guest_registers: SavedRegistersWithIP { rip: branch_to as *mut c_void, saved_registers_without_ip: initial_registers },
             vm_native_saved_registers: SavedRegistersWithIP {
                 rip: null_mut(),
                 saved_registers_without_ip: SavedRegistersWithoutIP {
@@ -384,7 +406,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
             "mov r13,[r15 + {__rust_jvm_r13_guest_offset_const}]",
             "mov r14,[r15 + {__rust_jvm_r14_guest_offset_const}]",
             // "xrstor [r15 + {__rust_jvm_xsave_area_guest_offset_const}]",
-            "call qword ptr [r15 + {__rust_jvm_rip_guest_offset_const}]",
+            "jmp qword ptr [r15 + {__rust_jvm_rip_guest_offset_const}]",
             "__rust_jvm_internal_after_enter:",
             "mov rax, [r15 + {__rust_jvm_rax_native_offset_const}]",
             "mov rbx, [r15 + {__rust_jvm_rbx_native_offset_const}]",
@@ -457,7 +479,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers, extra)
     }
 
-    fn handle_vm_exit(&self, guest_rip: *mut c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
+    fn handle_vm_exit(&self, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
         let inner_read_guard = self.inner.read().unwrap();
         let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
         match method_implementation {
@@ -476,23 +498,27 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         }
     }
 
-    pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel) {
+    pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers_to_save: HashSet<Register>) {
         assembler.set_label(before_exit_label).unwrap();
         assembler.mov(r15 + RAX_GUEST_OFFSET_CONST, rax).unwrap();
         assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
-        assembler.mov(r15 + RCX_GUEST_OFFSET_CONST, rcx).unwrap();
-        assembler.mov(r15 + RDX_GUEST_OFFSET_CONST, rdx).unwrap();
-        assembler.mov(r15 + RDI_GUEST_OFFSET_CONST, rdi).unwrap();
-        assembler.mov(r15 + RSI_GUEST_OFFSET_CONST, rsi).unwrap();
+        for register in registers_to_save {
+            assembler.mov(r15 + register.guest_offset_const(), register.to_native_64()).unwrap();
+        }
+        // assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
+        // assembler.mov(r15 + RCX_GUEST_OFFSET_CONST, rcx).unwrap();
+        // assembler.mov(r15 + RDX_GUEST_OFFSET_CONST, rdx).unwrap();
+        // assembler.mov(r15 + RDI_GUEST_OFFSET_CONST, rdi).unwrap();
+        // assembler.mov(r15 + RSI_GUEST_OFFSET_CONST, rsi).unwrap();
         assembler.mov(r15 + RBP_GUEST_OFFSET_CONST, rbp).unwrap();
         assembler.mov(r15 + RSP_GUEST_OFFSET_CONST, rsp).unwrap();
-        assembler.mov(r15 + R8_GUEST_OFFSET_CONST, r8).unwrap();
-        assembler.mov(r15 + R9_GUEST_OFFSET_CONST, r9).unwrap();
-        assembler.mov(r15 + R10_GUEST_OFFSET_CONST, r10).unwrap();
-        assembler.mov(r15 + R11_GUEST_OFFSET_CONST, r11).unwrap();
-        assembler.mov(r15 + R12_GUEST_OFFSET_CONST, r12).unwrap();
-        assembler.mov(r15 + R13_GUEST_OFFSET_CONST, r13).unwrap();
-        assembler.mov(r15 + R14_GUEST_OFFSET_CONST, r14).unwrap();
+        // assembler.mov(r15 + R8_GUEST_OFFSET_CONST, r8).unwrap();
+        // assembler.mov(r15 + R9_GUEST_OFFSET_CONST, r9).unwrap();
+        // assembler.mov(r15 + R10_GUEST_OFFSET_CONST, r10).unwrap();
+        // assembler.mov(r15 + R11_GUEST_OFFSET_CONST, r11).unwrap();
+        // assembler.mov(r15 + R12_GUEST_OFFSET_CONST, r12).unwrap();
+        // assembler.mov(r15 + R13_GUEST_OFFSET_CONST, r13).unwrap();
+        // assembler.mov(r15 + R14_GUEST_OFFSET_CONST, r14).unwrap();
         assembler.lea(r10, qword_ptr(before_exit_label.clone())).unwrap();//safe to clober r10 b/c it was saved
         assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, r10).unwrap();
         assembler.jmp(qword_ptr(r15 + RIP_NATIVE_OFFSET_CONST)).unwrap();
@@ -509,7 +535,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         inner_guard.method_id_max.0 += 1;
         let Method { code, exit_handler } = method;
         inner_guard.exit_handlers.insert(current_method_id, exit_handler);
-        let new_method_base = inner_guard.max_ptr;
+        let new_method_base = inner_guard.max_ptr as *const c_void;
         assert_eq!(base_address.0, new_method_base);
         let code_len = code.len();
         let end_of_new_method = unsafe {
@@ -519,7 +545,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
-        unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base, code_len); }
+        unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
         current_method_id
     }
 }

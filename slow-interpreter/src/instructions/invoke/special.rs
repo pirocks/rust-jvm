@@ -40,8 +40,8 @@ pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state:
         setup_virtual_args2(interpreter_state, &parsed_descriptor, &mut args, max_locals, input_args);
         assert!(args[0].unwrap_object().is_some());
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
-        let function_call_frame = interpreter_state.push_frame(next_entry);
-        match run_function(jvm, interpreter_state) {
+        let mut function_call_frame = interpreter_state.push_frame(next_entry);
+        match run_function(jvm, interpreter_state,&mut function_call_frame) {
             Ok(()) => {
                 if !jvm.config.compiled_mode_active {
                     interpreter_state.pop_frame(jvm, function_call_frame, false);

@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::ffi::c_void;
 use std::ops::{Deref, Rem};
 use std::sync::Arc;
 
@@ -39,7 +40,7 @@ use crate::instructions::return_::*;
 use crate::instructions::special::*;
 use crate::instructions::store::*;
 use crate::instructions::switch::*;
-use crate::interpreter_state::InterpreterStateGuard;
+use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OwnedJavaStack};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
@@ -56,7 +57,13 @@ static mut INSTRUCTION_COUNT: u64 = 0;
 
 static mut ITERATION_COUNT: u64 = 0;
 
-pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+pub struct FrameToRunOn {
+    pub frame_pointer: JavaStackPosition,
+    pub size: usize,
+}
+
+//takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
+pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<(), WasException> {
     if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
@@ -66,8 +73,13 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
         jvm.java_vm_state.add_method(jvm, &resolver, method_id);
-        // let mut owned_stack = OwnedJavaStack::new(&jvm.java_vm_state, jvm);
-        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id, JavaStackPosition::Top);
+        let frame_to_run_on = FrameToRunOn {
+            frame_pointer: interpreter_state.current_frame().frame_view.position(),
+            size: interpreter_state.current_frame().frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir),
+        };
+        let top_level_return_function_id = jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
+        interpreter_state.current_frame_mut().frame_view.set_prev_rip(top_level_return_function_id,jvm);
+        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id, frame_to_run_on);
         todo!("actually do something with function res")
         /*        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
                     jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
@@ -108,7 +120,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     }
 }
 
-fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let view = interpreter_state.current_class_view(jvm).clone();
     let method_i = interpreter_state.current_method_i(jvm);
     let method = view.method_view_i(method_i);
@@ -242,13 +254,13 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
     Ok(())
 }
 
-pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let thread = interpreter_state.thread.clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
 }
 
-fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
+fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let offset = interpreter_state.current_pc_offset();
     let mut pc = interpreter_state.current_pc();
     if offset > 0 {
@@ -259,7 +271,7 @@ fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGua
     interpreter_state.set_current_pc(pc);
 }
 
-fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, methodid: MethodId) {
+fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
     let stop = match jvm.jvmti_state() {
         None => false,
@@ -275,7 +287,7 @@ fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     }
 }
 
-pub fn monitor_for_function(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
+pub fn monitor_for_function(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
     if synchronized {
         let monitor: Arc<Monitor2> = if method.is_static() {
             let class_object = get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();
@@ -293,7 +305,7 @@ pub fn monitor_for_function(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
 
 pub static mut TIMES: usize = 0;
 
-fn run_single_instruction(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, instruct: &CInstructionInfo, method_id: MethodId) {
+fn run_single_instruction(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, instruct: &CInstructionInfo, method_id: MethodId) {
     unsafe {
         TIMES += 1;
         if TIMES % 10_000_000 == 0 && jvm.vm_live() && jvm.thread_state.get_main_thread().is_this_thread() {
@@ -537,7 +549,7 @@ fn l2d(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
     current_frame.push(JavaValue::Double(val as f64))
 }
 
-fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, target: i32) {
+fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, target: i32) {
     let next_instruct = (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
     interpreter_state.set_current_pc_offset(target);
@@ -707,7 +719,7 @@ fn dcmpg(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc
     dcmp_common(jvm, current_frame, val2, val1)
 }
 
-fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
+fn athrow(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
     let exception_obj = {
         let value = interpreter_state.pop_current_operand_stack(Some(CClassName::throwable().into()));
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();

@@ -143,8 +143,6 @@ impl JITedCodeState {
         let address_to_bytecode_for_this_method = self.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
         let address_to_bytecode_index_for_this_method = self.address_to_byte_code_index.get(&compiled_code_id).unwrap();
         let address_to_code = self.address_to_byte_code_compressed_code.get(&compiled_code_id).unwrap();
-        dbg!(address_to_code);
-        dbg!(address_to_code.get(&instruct_pointer).unwrap());
         let bytecode_offset = address_to_bytecode_for_this_method.values().cloned().collect_vec();
         Ok(bytecode_offset)
     }
@@ -160,7 +158,9 @@ impl JITedCodeState {
         let nop = CompressedInstruction { offset: 0, instruction_size: 0, info: CompressedInstructionInfo::nop };
         let ir = ToIR {
             labels,
-            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()), (ByteCodeOffset(0), IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: None, exit_type: VMExitTypeWithArgs::TopLevelReturn {} }, nop)],
+            ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()),
+                     (ByteCodeOffset(0), IRInstr::VMExit { before_exit_label: exit_label, after_exit_label: None, exit_type: VMExitTypeWithArgs::TopLevelReturn {} }, nop)
+            ],
             function_start_label: start_label,
         };
 

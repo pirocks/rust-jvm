@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use std::sync::RwLock;
 
 use bimap::BiHashMap;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -68,6 +68,12 @@ impl RunStaticNative {
     pub const RESTART_IP: Register = Register(5); //methodid
 }
 
+pub struct TopLevelReturn;
+
+impl TopLevelReturn {
+    pub const RES: Register = Register(2);
+}
+
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct LoadClassAndRecompileStaticArgs {
     class_type: CPDType,
@@ -119,7 +125,8 @@ impl IRVMExitType {
 
             }
             IRVMExitType::TopLevelReturn => {
-                todo!()
+                assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
+                assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
         }
     }
@@ -161,13 +168,14 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *mut c_void,
 
     },
-    TopLevelReturn,
+    TopLevelReturn{
+        return_value: u64
+    },
 }
 
 impl RuntimeVMExitInput {
     pub fn from_register_state(register_state: &SavedRegistersWithIP) -> Self {
         let SavedRegistersWithoutIP {
-            rbx,
             rcx,
             rdx,
             rsi,
@@ -199,7 +207,11 @@ impl RuntimeVMExitInput {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RESTART_IP) as *mut c_void
                 }
             },
-            RawVMExitType::TopLevelReturn => todo!(),
+            RawVMExitType::TopLevelReturn => {
+                RuntimeVMExitInput::TopLevelReturn{
+                    return_value: register_state.saved_registers_without_ip.get_register(TopLevelReturn::RES)
+                }
+            },
         }
     }
 }

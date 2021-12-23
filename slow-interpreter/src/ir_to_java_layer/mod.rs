@@ -21,12 +21,13 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::run_native_method;
+use crate::interpreter::FrameToRunOn;
 use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
-use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, RuntimeVMExitInput, VMExitTypeWithArgs};
+use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
-use crate::jit::{ByteCodeOffset, MethodResolver};
+use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
 use crate::jit::ir::IRInstr;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit_common::java_stack::JavaStack;
@@ -82,7 +83,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
-            RuntimeVMExitInput::TopLevelReturn => todo!()
+            RuntimeVMExitInput::TopLevelReturn { return_value }=> {
+                VMExitAction::ExitVMCompletely { return_data: *return_value }
+            }
         }
     }
 }
@@ -96,7 +99,7 @@ pub struct JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn new() -> Self {
-        Self {
+        let mut res = Self {
             ir: IRVMState::new(),
             inner: RwLock::new(JavaVMStateWrapperInner {
                 method_id_to_ir_method_id: Default::default(),
@@ -105,7 +108,18 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
-        }
+        };
+        res
+    }
+
+    pub fn add_top_level_vm_exit(&'vm_life self) {
+        let ir_method_id = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }],box |event,_int_state|{
+            match &event.exit_type {
+                RuntimeVMExitInput::TopLevelReturn { return_value } => VMExitAction::ExitVMCompletely { return_data: *return_value },
+                _ => panic!()
+            }
+        });
+        self.ir.init_top_level_exit_id(dbg!(ir_method_id))
     }
 
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
@@ -126,14 +140,17 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life, '_>, method_id: MethodId, location: JavaStackPosition) -> u64 {
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life, '_>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
         let mmapped_top = int_state.java_stack().inner.mmaped_top;
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-        self.ir.run_method(ir_method_id, int_state, match location {
+        //todo calculate stack pointer based of frame size
+        let frame_pointer = match frame_to_run_on.frame_pointer {
             JavaStackPosition::Frame { frame_pointer } => frame_pointer,
             JavaStackPosition::Top => mmapped_top
-        })
+        };
+        let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
+        self.ir.run_method(ir_method_id, int_state, frame_pointer,stack_pointer)
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {

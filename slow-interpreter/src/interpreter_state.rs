@@ -17,7 +17,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
@@ -124,18 +124,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn current_frame_mut(&'k mut self) -> StackEntryMut<'gc_life, 'k> {
-        /*let interpreter_state = self.int_state.as_mut().unwrap().deref_mut();
+    pub fn current_frame_mut(&'_ mut self) -> StackEntryMut<'gc_life, '_> {
+        let interpreter_state: &'_ mut InterpreterState<'gc_life> = self.int_state.as_mut().unwrap();
         match interpreter_state {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                StackEntryMut::LegacyInterpreter { entry: call_stack.last_mut().unwrap() }
-            }*/
-            InterpreterState::Jit { call_stack, jvm } => StackEntryMut::Jit {
-                frame_view: FrameView::new(call_stack.current_frame_ptr(), call_stack, call_stack.saved_registers.unwrap().instruction_pointer),
-                jvm,
-            },
-        }*/
-        todo!()
+            InterpreterState { call_stack, jvm, current_stack_position } => {
+                let jvm: &'gc_life JVMState<'gc_life> = jvm;
+                let call_stack: &'_ mut OwnedJavaStack<'gc_life> = call_stack;
+                let frame_at: RuntimeJavaStackFrameMut<'_, 'gc_life> = call_stack.mut_frame_at(*current_stack_position, jvm);
+                StackEntryMut {
+                    frame_view: frame_at,
+                }
+            }
+        }
     }
 
     pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc_life> {

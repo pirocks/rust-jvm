@@ -1,3 +1,4 @@
+use nix::sys::signal::type_of_thread_id;
 use jvmti_jni_bindings::jbyte;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -5,11 +6,11 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::stack_entry::StackEntryMut;
+use crate::stack_entry::{LocalVarsMut, StackEntryMut};
 use crate::utils::throw_npe;
 
 pub fn astore(mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let object_ref: JavaValue<'gc_life> = current_frame.pop(Some(RuntimeType::object()));
+    /*let object_ref: JavaValue<'gc_life> = current_frame.pop(Some(RuntimeType::object()));
     match &object_ref {
         JavaValue::Object(_) => {}
         _ => {
@@ -18,11 +19,12 @@ pub fn astore(mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
         }
     }
     let mut vars_mut = current_frame.local_vars_mut();
-    vars_mut.set(n, object_ref);
+    vars_mut.set(n, object_ref);*/
+    todo!()
 }
 
 pub fn lstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let val = current_frame.pop(Some(RuntimeType::LongType));
+    /*let val = current_frame.pop(Some(RuntimeType::LongType));
     match val {
         JavaValue::Long(_) => {}
         _ => {
@@ -30,11 +32,12 @@ pub fn lstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
             panic!()
         }
     }
-    current_frame.local_vars_mut().set(n, val);
+    current_frame.local_vars_mut().set(n, val);*/
+    todo!()
 }
 
 pub fn dstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let jv = current_frame.pop(Some(RuntimeType::DoubleType));
+    /*let jv = current_frame.pop(Some(RuntimeType::DoubleType));
     match jv {
         JavaValue::Double(_) => {}
         _ => {
@@ -42,13 +45,16 @@ pub fn dstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMu
             panic!()
         }
     }
-    current_frame.local_vars_mut().set(n, jv);
+    current_frame.local_vars_mut().set(n, jv);*/
+    todo!()
 }
 
 pub fn fstore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let jv = current_frame.pop(Some(RuntimeType::FloatType));
+    /*let jv: JavaValue<'gc_life> = current_frame.pop(Some(RuntimeType::FloatType));
     jv.unwrap_float();
-    current_frame.local_vars_mut().set(n, jv);
+    let mut vars_mut: LocalVarsMut<'gc_life,'l,'_> = current_frame.local_vars_mut();
+    vars_mut.set(n, jv);*/
+    todo!()
 }
 
 pub fn castore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
@@ -157,8 +163,9 @@ pub fn aastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpreter
 }
 
 pub fn istore(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let object_ref = current_frame.pop(Some(RuntimeType::IntType));
-    current_frame.local_vars_mut().set(n, JavaValue::Int(object_ref.unwrap_int()));
+    /*let object_ref = current_frame.pop(Some(RuntimeType::IntType));
+    current_frame.local_vars_mut().set(n, JavaValue::Int(object_ref.unwrap_int()));*/
+    todo!()
 }
 
 pub fn lastore(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
