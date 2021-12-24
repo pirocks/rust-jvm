@@ -10,7 +10,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jvalue, JVM_ACC_SYNCHRONIZED};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -42,7 +42,7 @@ use crate::instructions::store::*;
 use crate::instructions::switch::*;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OwnedJavaStack};
-use crate::java_values::{GcManagedObject, JavaValue};
+use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jit::state::JITedCodeState;
 use crate::jvm_state::JVMState;
@@ -63,7 +63,7 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<(), WasException> {
+pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
@@ -80,7 +80,15 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let top_level_return_function_id = jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
         interpreter_state.current_frame_mut().frame_view.set_prev_rip(top_level_return_function_id,jvm);
         let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id, frame_to_run_on);
-        todo!("actually do something with function res")
+        //todo bug what if gc happens here
+        let return_type = &method.desc().return_type;
+        Ok(match return_type {
+            CompressedParsedDescriptorType::VoidType => None,
+            return_type => {
+                Some(NativeJavaValue{as_u64: function_res}.to_java_value(&return_type,jvm))
+            }
+        })
+
         /*        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
                     jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
                     // todo!("copy current args over. ");
@@ -116,7 +124,8 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                 });
         */        //result
     } else {
-        run_function_interpreted(&jvm, interpreter_state)
+        todo!()
+        // run_function_interpreted(&jvm, interpreter_state)
     }
 }
 

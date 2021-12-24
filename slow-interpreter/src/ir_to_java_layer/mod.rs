@@ -119,7 +119,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 _ => panic!()
             }
         });
-        self.ir.init_top_level_exit_id(dbg!(ir_method_id))
+        self.ir.init_top_level_exit_id(ir_method_id)
     }
 
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
@@ -140,7 +140,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &mut InterpreterStateGuard<'vm_life, '_>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
         let mmapped_top = int_state.java_stack().inner.mmaped_top;
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
@@ -150,7 +150,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             JavaStackPosition::Top => mmapped_top
         };
         let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
-        self.ir.run_method(ir_method_id, int_state, frame_pointer,stack_pointer)
+        self.ir.run_method(ir_method_id,int_state, frame_pointer,stack_pointer)
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {

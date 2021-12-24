@@ -105,7 +105,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         }
     }
 
-    pub fn write_frame(&mut self, at_position: JavaStackPosition, method_id: OpaqueFrameIdOrMethodID, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>) {
+    pub fn write_frame(&mut self, at_position: JavaStackPosition, method_id: OpaqueFrameIdOrMethodID, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>, prev_rip: *const c_void, prev_rbp: *mut c_void) {
         //todo need to write magic etc
 
         match self.java_vm_state.try_lookup_ir_method_id(method_id) {
@@ -118,7 +118,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     operand_stack,
                 };
                 let data: [u64; 1] = [Box::into_raw(to_write_to_data) as usize as u64];
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, null_mut(), null_mut(), IRMethodID(usize::MAX), Some(method_id.try_unwrap_method_id().unwrap()), data.as_slice()); }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, IRMethodID(usize::MAX), Some(method_id.try_unwrap_method_id().unwrap()), data.as_slice()); }
             }
             Some(ir_method_id) => {
                 let mut data = vec![];
@@ -131,12 +131,17 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     data.push(unsafe { stack_elem.to_native().as_u64 });
                 }
 
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, null_mut(), null_mut(), ir_method_id, method_id.try_unwrap_method_id(), data.as_slice()) }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, ir_method_id, method_id.try_unwrap_method_id(), data.as_slice()) }
             }
         }
     }
 
-    pub fn push_frame(&mut self, java_stack_position: JavaStackPosition, method_id: OpaqueFrameIdOrMethodID, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>) -> JavaStackPosition {
+    pub fn push_frame(&mut self,
+                      java_stack_position: JavaStackPosition,
+                      method_id: OpaqueFrameIdOrMethodID,
+                      locals: Vec<JavaValue<'vm_life>>,
+                      operand_stack: Vec<JavaValue<'vm_life>>,
+    ) -> JavaStackPosition {
         let postion_to_write = match java_stack_position {
             JavaStackPosition::Frame { frame_pointer } => {
                 let current_frame = self.frame_at(java_stack_position, self.jvm);
@@ -146,7 +151,14 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             }
             JavaStackPosition::Top => JavaStackPosition::Frame { frame_pointer: self.inner.mmaped_top }
         };
-        self.write_frame(postion_to_write, method_id, locals, operand_stack);
+        let ir_method_ref = self.jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
+        let method_pointer = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
+        self.write_frame(postion_to_write, method_id, locals, operand_stack, method_pointer, match java_stack_position{
+            JavaStackPosition::Frame { frame_pointer } => {
+                frame_pointer
+            }
+            JavaStackPosition::Top => self.inner.mmaped_top
+        } as *mut c_void);
         postion_to_write
     }
 }
@@ -195,7 +207,7 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         self.read_target(offset, rtype)
     }
 
-    pub fn position(&self) -> JavaStackPosition{
+    pub fn position(&self) -> JavaStackPosition {
         JavaStackPosition::Frame { frame_pointer: self.frame_ptr }
     }
 }

@@ -153,7 +153,7 @@ impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
     }
 }
 
-pub fn prepare_class<'vm_life, 'l>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life,'l>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
+pub fn prepare_class<'vm_life, 'l>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, classfile: Arc<dyn ClassView>, res: &mut HashMap<FieldName, JavaValue<'vm_life>>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Ref(ref_) = classfile.type_() {
             if let CPRefType::Class(cn) = ref_ {
@@ -176,7 +176,7 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
     }
 }
 
-pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -221,22 +221,23 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
 
     //todo these java frames may have to be converted to native?
     let mut new_function_frame = int_state.push_frame(new_stack);
-    match run_function(jvm, int_state, &mut new_function_frame) {
-        Ok(()) => {
+    return match run_function(jvm, int_state, &mut new_function_frame) {
+        Ok(res) => {
+            assert!(res.is_none());
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, new_function_frame, true);
             }
-            if int_state.function_return() {
-                int_state.set_function_return(false);
-                return Ok(runtime_class);
-            }
-            panic!()
+            // if int_state.function_return() {
+            //     int_state.set_function_return(false);
+            Ok(runtime_class)
+            // }
+            // panic!()
         }
         Err(WasException {}) => {
             int_state.pop_frame(jvm, new_function_frame, false);
             // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string(jvm));
             int_state.debug_print_stack_trace(jvm);
-            return Err(WasException);
+            Err(WasException)
         }
     };
 }

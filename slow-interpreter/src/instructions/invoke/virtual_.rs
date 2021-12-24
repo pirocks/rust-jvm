@@ -68,7 +68,8 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut frame_for_function) {
-            Ok(()) => {
+            Ok(res) => {
+                todo!("handle res");
                 assert!(!interpreter_state.throw().is_some());
                 if !jvm.config.compiled_mode_active {
                     interpreter_state.pop_frame(jvm, frame_for_function, false);

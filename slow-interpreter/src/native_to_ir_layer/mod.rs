@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
+use std::mem::{MaybeUninit, transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{null_mut, slice_from_raw_parts};
 use std::slice::from_raw_parts;
@@ -195,9 +195,9 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *mut c_void, prev_rbp: *mut c_void, ir_method_id: IRMethodID, method_id: Option<MethodId>, data: &[u64]) {
+    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: IRMethodID, method_id: Option<MethodId>, data: &[u64]) {
         self.validate_frame_pointer(frame_pointer);
-        let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *mut c_void;
+        let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
         let prev_rpb_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *mut *mut c_void;
         prev_rpb_ptr.write(prev_rbp);
@@ -396,7 +396,9 @@ impl<'vm_life> IRVMState<'vm_life> {
         initial_registers.rbp = frame_pointer as *mut c_void;
         initial_registers.rsp = stack_pointer as *mut c_void;
         drop(int_state.int_state.take());
-        self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm))
+        let res = self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm));
+        unsafe { int_state.int_state = Some(transmute(int_state.thread.interpreter_state.lock().unwrap())) };
+        res
     }
 
     fn debug_print_instructions(assembler: &CodeAssembler) {
