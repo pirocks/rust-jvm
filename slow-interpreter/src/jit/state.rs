@@ -1204,7 +1204,8 @@ impl JITedCodeState {
                 IRInstr::ForwardBitScan { .. } => todo!(),
                 IRInstr::WithAssembler { .. } => todo!(),
                 IRInstr::IRNewFrame { .. } => todo!(),
-                IRInstr::VMExit2 { .. } => todo!()
+                IRInstr::VMExit2 { .. } => todo!(),
+                IRInstr::IRCall { .. } => todo!(),
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);

@@ -94,9 +94,13 @@ pub enum IRVMExitType {
         class: CPDType,
     },
     RunStaticNative {
+        //todo should I actually use these args?
         method_id: MethodId,
         arg_start_frame_offset: FramePointerOffset,
         num_args: u16
+    },
+    CompileFunctionAndRecompileCurrent {
+        method_id: MethodId
     },
     TopLevelReturn,
 }
@@ -127,6 +131,9 @@ impl IRVMExitType {
             IRVMExitType::TopLevelReturn => {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
+            }
+            IRVMExitType::CompileFunctionAndRecompileCurrent  { .. } => {
+                //todo does nothing here using non-runtime args only
             }
         }
     }

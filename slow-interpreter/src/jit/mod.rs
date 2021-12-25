@@ -21,6 +21,7 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
+use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::vm_exit_abi::VMExitTypeWithArgs;
 use crate::jit::ir::{IRInstr, IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -140,11 +141,17 @@ impl<'gc_life> MethodResolver<'gc_life> {
         method_view.code_attribute().unwrap().clone()
     }
 
-    pub fn num_args(&self, method_id: MethodId) -> u16{
+    pub fn num_args(&self, method_id: MethodId) -> u16 {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         method_view.num_args() as u16
+    }
+
+    pub fn lookup_address(&self, method_id: MethodId) -> Option<*const c_void> {
+        let ir_method_id= self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
+        let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
+        Some(ptr)
     }
 }
 

@@ -12,7 +12,7 @@ use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
 use iced_x86::CC_b::c;
 use iced_x86::CC_g::g;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rsp};
+use iced_x86::code_asm::{byte_ptr, CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rsp};
 use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
 use memoffset::offset_of;
@@ -560,8 +560,14 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             temp_register,
             return_to_rip
         } => {
-            let return_to_rip = return_to_rip.to_native_64();
-            let temp_register = temp_register.to_native_64();
+            todo!()
+        }
+        IRInstr::VMExit { .. } => panic!("legacy"),
+        IRInstr::IRCall { current_frame_size, new_frame_size, temp_register_1, temp_register_2, target_address } => {
+            let return_to_rip = temp_register_2.to_native_64();
+            let temp_register = temp_register_1.to_native_64();
+            let mut after_call_label = assembler.create_label();
+            assembler.lea(return_to_rip, qword_ptr(after_call_label)).unwrap();
             assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
@@ -569,8 +575,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
 
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
+            assembler.jmp(byte_ptr(target_address as usize)).unwrap();
+            assembler.set_label(&mut after_call_label);
         }
-        IRInstr::VMExit { .. } => panic!("legacy")
     }
 }
 
