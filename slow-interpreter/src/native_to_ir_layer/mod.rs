@@ -12,6 +12,7 @@ use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
 use iced_x86::CC_b::c;
 use iced_x86::CC_g::g;
+use iced_x86::CC_np::po;
 use iced_x86::code_asm::{byte_ptr, CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rsp};
 use itertools::Itertools;
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
@@ -25,7 +26,7 @@ use verification::verifier::Frame;
 use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use crate::ir_to_java_layer::java_stack::JavaStackPosition;
-use crate::ir_to_java_layer::vm_exit_abi::{RuntimeVMExitInput, VMExitTypeWithArgs};
+use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::jit::ir::IRInstr;
 use crate::jit::{ByteCodeOffset, LabelName};
 use crate::method_table::MethodId;
@@ -498,9 +499,13 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap();
         }
         IRInstr::Load { .. } => todo!(),
-        IRInstr::Store { .. } => todo!(),
+        IRInstr::Store { from,to_address } => {
+            assembler.mov(qword_ptr(to_address.to_native_64()),from.to_native_64()).unwrap()
+        },
         IRInstr::CopyRegister { .. } => todo!(),
-        IRInstr::Add { .. } => todo!(),
+        IRInstr::Add { a, res } => {
+            assembler.add(res.to_native_64(),a.to_native_64()).unwrap()
+        },
         IRInstr::Sub { .. } => todo!(),
         IRInstr::Div { .. } => todo!(),
         IRInstr::Mod { .. } => todo!(),
@@ -539,11 +544,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.ret().unwrap();
         }
         IRInstr::VMExit2 { exit_type } => {
-            let mut before_exit_label = assembler.create_label();
-            let mut after_exit_label = assembler.create_label();
-            let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5)];
-            exit_type.gen_assembly(assembler, &mut before_exit_label, &mut after_exit_label, registers.clone());
-            VMState::<u64, InterpreterStateGuard>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers.into_iter().collect());
+            gen_vm_exit(assembler, exit_type);
         }
         IRInstr::GrowStack { .. } => todo!(),
         IRInstr::LoadSP { .. } => todo!(),
@@ -578,7 +579,24 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.jmp(byte_ptr(target_address as usize)).unwrap();
             assembler.set_label(&mut after_call_label);
         }
+        IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
+            let mut after_exit_label = assembler.create_label();
+            assembler.xor(temp_register.to_native_64(),temp_register.to_native_64()).unwrap();
+            assembler.cmp(temp_register.to_native_64(), possibly_null.to_native_64()).unwrap();
+            assembler.jne(after_exit_label).unwrap();
+            gen_vm_exit(assembler,npe_exit_type);
+            assembler.nop().unwrap();
+            assembler.set_label(&mut after_exit_label).unwrap();
+        }
     }
+}
+
+fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: IRVMExitType) {
+    let mut before_exit_label = assembler.create_label();
+    let mut after_exit_label = assembler.create_label();
+    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5)];
+    exit_type.gen_assembly(assembler, &mut before_exit_label, &mut after_exit_label, registers.clone());
+    VMState::<u64, InterpreterStateGuard>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers.into_iter().collect());
 }
 
 

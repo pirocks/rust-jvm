@@ -74,6 +74,9 @@ impl TopLevelReturn {
     pub const RES: Register = Register(2);
 }
 
+pub struct CompileFunctionAndRecompileCurrent;
+
+
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct LoadClassAndRecompileStaticArgs {
     class_type: CPDType,
@@ -90,7 +93,11 @@ impl LoadClassAndRecompile {
 
 pub enum IRVMExitType {
     Allocate,
+    NPE,
     LoadClassAndRecompile {
+        class: CPDType,
+    },
+    InitClassAndRecompile {
         class: CPDType,
     },
     RunStaticNative {
@@ -100,7 +107,8 @@ pub enum IRVMExitType {
         num_args: u16
     },
     CompileFunctionAndRecompileCurrent {
-        method_id: MethodId
+        current_method_id: MethodId,
+        target_method_id: MethodId
     },
     TopLevelReturn,
 }
@@ -132,8 +140,15 @@ impl IRVMExitType {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
-            IRVMExitType::CompileFunctionAndRecompileCurrent  { .. } => {
+            IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => {
                 //todo does nothing here using non-runtime args only
+                assembler.mov(rax,RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
+            }
+            IRVMExitType::InitClassAndRecompile { .. } => {
+                todo!()
+            }
+            IRVMExitType::NPE => {
+                assembler.mov(rax,RawVMExitType::NPE as u64).unwrap();
             }
         }
     }
@@ -154,6 +169,8 @@ pub enum RawVMExitType {
     LoadClassAndRecompile,
     RunStaticNative,
     TopLevelReturn,
+    CompileFunctionAndRecompileCurrent,
+    NPE,
 }
 
 pub enum RuntimeVMExitInput {
@@ -219,6 +236,12 @@ impl RuntimeVMExitInput {
                     return_value: register_state.saved_registers_without_ip.get_register(TopLevelReturn::RES)
                 }
             },
+            RawVMExitType::CompileFunctionAndRecompileCurrent => {
+                todo!()
+            }
+            RawVMExitType::NPE => {
+                todo!()
+            }
         }
     }
 }

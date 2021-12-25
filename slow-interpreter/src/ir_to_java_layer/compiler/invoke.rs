@@ -16,7 +16,7 @@ pub fn invokespecial(
     current_instr_data: CurrentInstructionCompilerData,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType
+    classname_ref_type: &CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
     let class_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_type_loaded(&class_cpdtype) {
@@ -32,7 +32,12 @@ pub fn invokespecial(
             let maybe_address = resolver.lookup_address(method_id);
             Either::Right(match maybe_address {
                 None => {
-                    let exit_instr = IRInstr::VMExit2 { exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent { method_id } };
+                    let exit_instr = IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
+                            current_method_id: method_frame_data.current_method_id,
+                            target_method_id: method_id,
+                        }
+                    };
                     Either::Left(array_into_iter([exit_instr]))
                 }
                 Some(address) => {
@@ -60,7 +65,7 @@ pub fn invokestatic(
     current_instr_data: CurrentInstructionCompilerData,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType
+    classname_ref_type: &CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
     let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {

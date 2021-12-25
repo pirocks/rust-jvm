@@ -13,10 +13,13 @@ use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::mhn_temp::init;
+use crate::ir_to_java_layer::compiler::allocate::new;
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
+use crate::ir_to_java_layer::compiler::fields::putfield;
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
+use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
 use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
@@ -38,7 +41,7 @@ pub struct JavaCompilerMethodAndFrameData {
     stack_depth_by_index: Vec<u16>,
     code_by_index: Vec<CompressedInstruction>,
     index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
-
+    current_method_id: MethodId
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -56,6 +59,7 @@ impl JavaCompilerMethodAndFrameData {
             stack_depth_by_index: stack_depth,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (ByteCodeOffset(*bytecode_offset), ByteCodeIndex(index as u16))).collect(),
+            current_method_id: method_id
         }
     }
 
@@ -144,6 +148,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::aload(n) => {
                 initial_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
             }
+            CompressedInstructionInfo::aconst_null => {
+                initial_ir.extend(const_64(method_frame_data,current_instr_data,0))
+            }
             CompressedInstructionInfo::if_acmpne(offset) => {
                 initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
             }
@@ -175,28 +182,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                match resolver.lookup_type_loaded(&(*ccn).into()) {
-                    None => {
-                        let exit_label = todo!();
-                        initial_ir.push(
-                            IRInstr::VMExit2 {
-                                exit_type: IRVMExitType::LoadClassAndRecompile { class: todo!() },
-                            },
-                        );
-                    }
-                    Some((loaded_class, loader)) => {
-                        todo!()
-                    }
-                }
+                initial_ir.extend(new(resolver,*ccn))
             }
             CompressedInstructionInfo::dup => {
                 initial_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                todo!()
+                initial_ir.extend(putfield(resolver,method_frame_data,&current_instr_data,*target_class,*name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                initial_ir.extend(invokespecial(resolver,method_frame_data,current_instr_data,*method_name,descriptor,classname_ref_type))
+                initial_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
@@ -226,9 +221,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     initial_ir.into_iter().collect_vec()
 }
 
-pub mod allocate{
-
-}
+pub mod fields;
+pub mod allocate;
 pub mod invoke;
 pub mod dup;
 pub mod returns;

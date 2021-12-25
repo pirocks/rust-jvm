@@ -8,11 +8,11 @@ pub fn ireturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: return_temp },
         IRInstr::Return {
-            return_val: Some(Register(0)),
-            temp_register_1: Register(1),
-            temp_register_2: Register(2),
-            temp_register_3: Register(3),
-            temp_register_4: Register(4),
+            return_val: Some(return_temp),
+            temp_register_1: Register(2),
+            temp_register_2: Register(3),
+            temp_register_3: Register(4),
+            temp_register_4: Register(5),
             frame_size: method_frame_data.full_frame_size(),
         }])
 }

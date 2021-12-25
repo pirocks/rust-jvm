@@ -39,6 +39,7 @@ pub enum IRInstr {
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
     VMExit2 { exit_type: IRVMExitType },
+    NPECheck { possibly_null: Register,temp_register: Register, npe_exit_type: IRVMExitType },
     GrowStack { amount: usize },
     LoadSP { to: Register },
     WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
