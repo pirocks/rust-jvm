@@ -11,7 +11,7 @@ use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
 use std::ops::Range;
 use std::ptr::null_mut;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel, ebx, ecx, edx, qword_ptr, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r15, r8, r8d, r9, r9d, rax, rbp, rbx, rcx, rdx, rsp};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
@@ -82,7 +82,7 @@ pub struct MethodOffset(usize);
 
 pub struct VMStateInner<'vm_state_life, T: Sized, ExtraData: 'vm_state_life> {
     method_id_max: MethodImplementationID,
-    exit_handlers: HashMap<MethodImplementationID, Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>>,
+    exit_handlers: HashMap<MethodImplementationID, Arc<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>>,
     code_regions: HashMap<MethodImplementationID, Range<*const c_void>>,
     code_regions_to_method: RangeMap<*const c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
@@ -113,7 +113,7 @@ impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithIP {
-    pub rip: *mut c_void,
+    pub rip: *const c_void,
     pub saved_registers_without_ip: SavedRegistersWithoutIP,
 }
 
@@ -192,7 +192,7 @@ impl SavedRegistersWithoutIP {
 
 #[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithIPDiff {
-    pub rip: Option<*mut c_void>,
+    pub rip: Option<*const c_void>,
     pub saved_registers_without_ip: Option<SavedRegistersWithoutIPDiff>,
 }
 
@@ -487,12 +487,13 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
                 todo!()
             }
             Some(method_implementation) => {
-                let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap();
+                let handler = inner_read_guard.exit_handlers.get(&method_implementation).unwrap().clone();
                 let vm_exit_event = VMExitEvent {
                     method: *method_implementation,
                     method_base_address: inner_read_guard.code_regions.get(method_implementation).unwrap().start,
                     saved_guest_registers: guest_registers,
                 };
+                drop(inner_read_guard);
                 return handler(&vm_exit_event, extra);
             }
         }
@@ -560,7 +561,7 @@ pub struct VMExitLabel {
 
 pub struct Method<'vm_state_life, T: Sized, ExtraData: 'vm_state_life> {
     pub code: Vec<u8>,
-    pub exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>,
+    pub exit_handler: Arc<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_state_life>,
 }
 
 

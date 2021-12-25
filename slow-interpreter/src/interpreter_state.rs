@@ -19,6 +19,7 @@ use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInf
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut};
 use crate::java_values::{GcManagedObject, JavaValue};
+use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
 use crate::rust_jni::native_util::{from_object, to_object};
@@ -272,7 +273,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         assert!(non_native_data.is_none() || non_native_data.unwrap().pc == 0);
         let method_id = match opaque_frame_optional {
             Some(OpaqueFrameOptional { class_pointer, method_i }) => {
-                OpaqueFrameIdOrMethodID::Method { method_id: jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i) as u64 }
+                let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+                OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }
             }
             None => {
                 OpaqueFrameIdOrMethodID::Opaque {

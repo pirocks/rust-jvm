@@ -22,7 +22,7 @@ use crate::{check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, J
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
-use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::java::lang::int::Int;
@@ -32,7 +32,7 @@ use crate::jit::ir::IRInstr;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit_common::java_stack::JavaStack;
 use crate::method_table::MethodId;
-use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRMethodID, IRVMExitEvent, IRVMState, IRVMStateInner, OwnedIRStack};
+use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRInstructIndex, IRMethodID, IRVMExitEvent, IRVMState, IRVMStateInner, OwnedIRStack};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::run_static_or_virtual;
 
@@ -41,8 +41,8 @@ pub struct ExitNumber(u64);
 
 pub struct JavaVMStateWrapperInner<'gc_life> {
     method_id_to_ir_method_id: BiHashMap<MethodId, IRMethodID>,
+    restart_points: HashMap<IRMethodID, HashMap<ByteCodeIndex, IRInstructIndex>>,
     max_exit_number: ExitNumber,
-    // exit_types: HashMap<ExitNumber, VMExitTypeWithArgs>,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
 
@@ -57,7 +57,7 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
+    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
         match vm_exit_type {
             RuntimeVMExitInput::Allocate { type_, return_to_ptr } => {
                 todo!()
@@ -79,12 +79,22 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
                 let res = run_native_method(jvm, int_state, rc, method_i, args_jv).unwrap();
                 if let Some(res) = res {
-                    unsafe { (*res_ptr).write(transmute::<NativeJavaValue<'_>,NativeJavaValue<'static>>(res.to_native())) }
+                    unsafe { (*res_ptr).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
-            RuntimeVMExitInput::TopLevelReturn { return_value }=> {
+            RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 VMExitAction::ExitVMCompletely { return_data: *return_value }
+            }
+            RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
+                current_method_id,
+                to_recompile,
+                bytecode_restart_location
+            } => {
+                jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *to_recompile);
+                jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *current_method_id);
+                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *bytecode_restart_location);
+                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
         }
     }
@@ -103,6 +113,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             ir: IRVMState::new(),
             inner: RwLock::new(JavaVMStateWrapperInner {
                 method_id_to_ir_method_id: Default::default(),
+                restart_points: Default::default(),
                 max_exit_number: ExitNumber(0),
                 // exit_types: Default::default(),
                 method_exit_handlers: Default::default(),
@@ -113,7 +124,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
-        let ir_method_id = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }],box |event,_int_state|{
+        let ir_method_id = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, _int_state| {
             match &event.exit_type {
                 RuntimeVMExitInput::TopLevelReturn { return_value } => VMExitAction::ExitVMCompletely { return_data: *return_value },
                 _ => panic!()
@@ -133,9 +144,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             let ir_method_id = ir_vm_exit_event.ir_method;
             let method_id = *read_guard.method_id_to_ir_method_id.get_by_right(&ir_method_id).unwrap();
             // let vm_exit_type = read_guard.exit_types.get(&ir_num).unwrap();
-            read_guard.handle_vm_exit(jvm, int_state, method_id, &ir_vm_exit_event.exit_type) as VMExitAction<u64>
+            drop(read_guard);
+            JavaVMStateWrapperInner::handle_vm_exit(jvm, int_state, method_id, &ir_vm_exit_event.exit_type) as VMExitAction<u64>
         };
-        let ir_method_id = self.ir.add_function(ir_instructions, ir_exit_handler);
+        let ir_method_id = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
     }
@@ -150,7 +162,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             JavaStackPosition::Top => mmapped_top
         };
         let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
-        self.ir.run_method(ir_method_id,int_state, frame_pointer,stack_pointer)
+        self.ir.run_method(ir_method_id, int_state, frame_pointer, stack_pointer)
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
@@ -167,6 +179,12 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 read_guard.method_id_to_ir_method_id.get_by_left(&(method_id as usize)).cloned()
             }
         }
+    }
+
+    pub fn lookup_restart_point(&self, method_id: MethodId, bytecode_index: ByteCodeIndex) -> *const c_void {
+        let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
+        let ir_instruct_index = *self.inner.read().unwrap().restart_points.get(&ir_method_id).unwrap().get(&bytecode_index).unwrap();
+        self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
     }
 }
 

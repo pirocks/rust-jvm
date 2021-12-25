@@ -36,6 +36,7 @@ pub fn invokespecial(
                         exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                             current_method_id: method_frame_data.current_method_id,
                             target_method_id: method_id,
+                            return_to_bytecode_index: current_instr_data.current_index
                         }
                     };
                     Either::Left(array_into_iter([exit_instr]))

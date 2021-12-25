@@ -15,7 +15,7 @@ use iced_x86::CC_g::g;
 use iced_x86::CC_np::po;
 use iced_x86::code_asm::{byte_ptr, CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rsp};
 use itertools::Itertools;
-use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, select};
+use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, read, select};
 use memoffset::offset_of;
 
 use another_jit_vm::{BaseAddress, Method, MethodImplementationID, Register, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMExitLabel, VMState};
@@ -28,7 +28,7 @@ use crate::gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC
 use crate::ir_to_java_layer::java_stack::JavaStackPosition;
 use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::jit::ir::IRInstr;
-use crate::jit::{ByteCodeOffset, LabelName};
+use crate::jit::{ByteCodeOffset, LabelName, NativeInstructionLocation};
 use crate::method_table::MethodId;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -112,6 +112,13 @@ impl<'vm_life> IRVMState<'vm_life> {
         let mut guard = self.inner.write().unwrap();
         assert!(guard.top_level_return_function_id.is_none());
         guard.top_level_return_function_id = Some(ir_method_id);
+    }
+
+    pub fn lookup_location_of_ir_instruct(&self, ir_method_id: IRMethodID, ir_instruct_index: IRInstructIndex) -> NativeInstructionLocation{
+        let read_guard = self.inner.read().unwrap();
+        let offset = *read_guard.method_ir_offsets.get(&ir_method_id).unwrap().get_by_right(&ir_instruct_index).unwrap();
+        let func_start = self.lookup_ir_method_id_pointer(ir_method_id);
+        unsafe { NativeInstructionLocation(func_start.offset(offset.0 as isize)) }
     }
 }
 
@@ -397,6 +404,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         initial_registers.rbp = frame_pointer as *mut c_void;
         initial_registers.rsp = stack_pointer as *mut c_void;
         drop(int_state.int_state.take());
+        drop(inner_read_guard);
         let res = self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm));
         unsafe { int_state.int_state = Some(transmute(int_state.thread.interpreter_state.lock().unwrap())) };
         res
@@ -409,10 +417,10 @@ impl<'vm_life> IRVMState<'vm_life> {
             formatter.format(instruction, &mut formatted_instructions);
             formatted_instructions.push('\n');
         }
-        eprintln!("{}", formatted_instructions);
+        // eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life, '_>) -> VMExitAction<u64> + 'vm_life>) -> IRMethodID {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, &mut InterpreterStateGuard<'vm_life, '_>) -> VMExitAction<u64> + 'vm_life>) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -423,14 +431,15 @@ impl<'vm_life> IRVMState<'vm_life> {
         let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
-        let vm_exit_handler: Box<dyn Fn(&VMExitEvent, &mut (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)) -> VMExitAction<u64> + 'vm_life> =
-            box move |vm_exit_event: &VMExitEvent, (java_thread, current_stack_position, jvm)| {
+        inner_guard.frame_sizes.insert(current_ir_id,frame_size);
+        let vm_exit_handler: Arc<dyn Fn(&VMExitEvent, &mut (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)) -> VMExitAction<u64> + 'vm_life> =
+            Arc::new(move |vm_exit_event: &VMExitEvent, (java_thread, current_stack_position, jvm)| {
                 let mut guard = java_thread.interpreter_state.lock().unwrap();
                 guard.deref_mut().current_stack_position = *current_stack_position;
                 let mut new_int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), guard);
                 new_int_state.register_interpreter_state_guard(jvm);
                 vm_exit_handler(self, vm_exit_event, &mut new_int_state, ir_exit_handler.deref())
-            };
+            });
         let code = result.code_buffer;
 
         let method_implementation_id = self.native_vm.add_method_implementation(Method {
@@ -455,6 +464,8 @@ fn vm_exit_handler<'vm_life, 'l>(ir_vm_state: &'vm_life IRVMState<'vm_life>, vm_
     // let offset = IRInstructNativeOffset(offset as usize);
     let inner_read_guard = ir_vm_state.inner.read().unwrap();
     let ir_method_id = *inner_read_guard.current_implementation.get_by_right(&implementation_id).unwrap();
+
+    drop(inner_read_guard);
     // let method_offsets = inner_read_guard.method_ir_offsets.get(&ir_method_id).unwrap();
     // dbg!(method_offsets);
     // dbg!(offset);
@@ -576,7 +587,8 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
 
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
-            assembler.jmp(byte_ptr(target_address as usize)).unwrap();
+            assembler.mov(temp_register,target_address as u64).unwrap();
+            assembler.jmp(qword_ptr(temp_register)).unwrap();
             assembler.set_label(&mut after_call_label);
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {

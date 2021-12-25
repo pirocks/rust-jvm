@@ -32,7 +32,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::FrameView;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct ByteCodeIndex(u16);
+pub struct ByteCodeIndex(pub u16);
 
 // all metadata needed to compile to ir, excluding resolver stuff
 pub struct JavaCompilerMethodAndFrameData {

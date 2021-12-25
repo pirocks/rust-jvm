@@ -73,9 +73,10 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
         jvm.java_vm_state.add_method(jvm, &resolver, method_id);
+        let frame_size = jvm.java_function_frame_data.read().unwrap().get(&method_id).unwrap().full_frame_size();
         let frame_to_run_on = FrameToRunOn {
             frame_pointer: interpreter_state.current_frame().frame_view.position(),
-            size: interpreter_state.current_frame().frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir),
+            size: frame_size,
         };
         let top_level_return_function_id = jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
         interpreter_state.current_frame_mut().frame_view.set_prev_rip(top_level_return_function_id,jvm);

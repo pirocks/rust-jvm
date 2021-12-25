@@ -76,6 +76,11 @@ impl TopLevelReturn {
 
 pub struct CompileFunctionAndRecompileCurrent;
 
+impl CompileFunctionAndRecompileCurrent {
+    pub const CURRENT: Register = Register(2);
+    pub const TO_RECOMPILE: Register = Register(3);
+    pub const BYTECODE_RESTART_LOCATION: Register = Register(4);
+}
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct LoadClassAndRecompileStaticArgs {
@@ -104,11 +109,12 @@ pub enum IRVMExitType {
         //todo should I actually use these args?
         method_id: MethodId,
         arg_start_frame_offset: FramePointerOffset,
-        num_args: u16
+        num_args: u16,
     },
     CompileFunctionAndRecompileCurrent {
         current_method_id: MethodId,
-        target_method_id: MethodId
+        target_method_id: MethodId,
+        return_to_bytecode_index: ByteCodeIndex,
     },
     TopLevelReturn,
 }
@@ -132,23 +138,25 @@ impl IRVMExitType {
                 assembler.mov(RunStaticNative::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunStaticNative::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.lea(RunStaticNative::ARG_START.to_native_64(), rbp + arg_start_frame_offset.0).unwrap();
-                assembler.mov(RunStaticNative::NUM_ARGS.to_native_64(),*num_args as u64).unwrap();
+                assembler.mov(RunStaticNative::NUM_ARGS.to_native_64(), *num_args as u64).unwrap();
                 // assembler.mov(RunStaticNative::RES.to_native_64(),).unwrap()
-
             }
             IRVMExitType::TopLevelReturn => {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
-            IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => {
+            IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, return_to_bytecode_index } => {
                 //todo does nothing here using non-runtime args only
-                assembler.mov(rax,RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
+                assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION.to_native_64(),return_to_bytecode_index.0 as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(),*current_method_id as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(),*target_method_id as u64 ).unwrap();
             }
             IRVMExitType::InitClassAndRecompile { .. } => {
                 todo!()
             }
             IRVMExitType::NPE => {
-                assembler.mov(rax,RawVMExitType::NPE as u64).unwrap();
+                assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
             }
         }
     }
@@ -192,8 +200,13 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *mut c_void,
 
     },
-    TopLevelReturn{
+    TopLevelReturn {
         return_value: u64
+    },
+    CompileFunctionAndRecompileCurrent {
+        current_method_id: MethodId,
+        to_recompile: MethodId,
+        bytecode_restart_location: ByteCodeIndex,
     },
 }
 
@@ -228,16 +241,20 @@ impl RuntimeVMExitInput {
                     arg_start: register_state.saved_registers_without_ip.get_register(RunStaticNative::ARG_START) as *mut c_void,
                     num_args: register_state.saved_registers_without_ip.get_register(RunStaticNative::NUM_ARGS) as u16,
                     res_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RES) as *mut NativeJavaValue,
-                    return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RESTART_IP) as *mut c_void
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RESTART_IP) as *mut c_void,
                 }
-            },
+            }
             RawVMExitType::TopLevelReturn => {
-                RuntimeVMExitInput::TopLevelReturn{
+                RuntimeVMExitInput::TopLevelReturn {
                     return_value: register_state.saved_registers_without_ip.get_register(TopLevelReturn::RES)
                 }
-            },
+            }
             RawVMExitType::CompileFunctionAndRecompileCurrent => {
-                todo!()
+                RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
+                    current_method_id: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::CURRENT) as MethodId,
+                    to_recompile: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::TO_RECOMPILE) as MethodId,
+                    bytecode_restart_location: ByteCodeIndex(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION) as u16),
+                }
             }
             RawVMExitType::NPE => {
                 todo!()
