@@ -146,7 +146,6 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
             IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, return_to_bytecode_index } => {
-                //todo does nothing here using non-runtime args only
                 assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION.to_native_64(),return_to_bytecode_index.0 as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(),*current_method_id as u64).unwrap();

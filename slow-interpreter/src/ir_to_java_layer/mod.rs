@@ -91,8 +91,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 to_recompile,
                 bytecode_restart_location
             } => {
-                jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *to_recompile);
-                jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *current_method_id);
+                let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
+                jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *bytecode_restart_location);
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
@@ -124,12 +125,13 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
-        let ir_method_id = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, _int_state| {
+        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, _int_state| {
             match &event.exit_type {
                 RuntimeVMExitInput::TopLevelReturn { return_value } => VMExitAction::ExitVMCompletely { return_data: *return_value },
                 _ => panic!()
             }
         });
+        assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
@@ -147,9 +149,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             drop(read_guard);
             JavaVMStateWrapperInner::handle_vm_exit(jvm, int_state, method_id, &ir_vm_exit_event.exit_type) as VMExitAction<u64>
         };
-        let ir_method_id = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
+        let (ir_method_id,restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
-        write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
+        write_guard.method_id_to_ir_method_id.insert(dbg!(method_id), dbg!(ir_method_id));
+        write_guard.restart_points.insert(ir_method_id, dbg!(restart_points));
     }
 
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
@@ -182,8 +185,13 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn lookup_restart_point(&self, method_id: MethodId, bytecode_index: ByteCodeIndex) -> *const c_void {
-        let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
-        let ir_instruct_index = *self.inner.read().unwrap().restart_points.get(&ir_method_id).unwrap().get(&bytecode_index).unwrap();
+        let read_guard = self.inner.read().unwrap();
+        let ir_method_id = *read_guard.method_id_to_ir_method_id.get_by_left(&dbg!(method_id)).unwrap();
+        let restart_points = read_guard.restart_points.get(&dbg!(ir_method_id)).unwrap();
+        dbg!(restart_points);
+        dbg!(bytecode_index);
+        let ir_instruct_index = *restart_points.get(&bytecode_index).unwrap();
+        drop(read_guard);
         self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
     }
 }

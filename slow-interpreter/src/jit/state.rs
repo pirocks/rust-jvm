@@ -1207,6 +1207,7 @@ impl JITedCodeState {
                 IRInstr::VMExit2 { .. } => todo!(),
                 IRInstr::IRCall { .. } => todo!(),
                 IRInstr::NPECheck { .. } => todo!(),
+                IRInstr::RestartPoint(_) => todo!(),
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);

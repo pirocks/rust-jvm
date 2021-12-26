@@ -30,23 +30,25 @@ pub fn invokespecial(
             let view = rc.view();
             let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
             let maybe_address = resolver.lookup_address(method_id);
+            let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
             Either::Right(match maybe_address {
                 None => {
                     let exit_instr = IRInstr::VMExit2 {
                         exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                             current_method_id: method_frame_data.current_method_id,
                             target_method_id: method_id,
-                            return_to_bytecode_index: current_instr_data.current_index
+                            return_to_bytecode_index: current_instr_data.current_index,
                         }
                     };
-                    Either::Left(array_into_iter([exit_instr]))
+                    //todo have restart point ids for matching same restart points
+                    Either::Left(array_into_iter([restart_point, exit_instr]))
                 }
                 Some(address) => {
                     let method_layout = resolver.lookup_method_layout(method_id);
                     if is_native {
                         todo!()
                     } else {
-                        Either::Right(array_into_iter([IRInstr::IRCall {
+                        Either::Right(array_into_iter([restart_point,IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
                             current_frame_size: method_frame_data.full_frame_size(),

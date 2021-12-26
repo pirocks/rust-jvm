@@ -5,6 +5,7 @@ use libc::c_void;
 use another_jit_vm::Register;
 
 use crate::gc_memory_layout_common::FramePointerOffset;
+use crate::ir_to_java_layer::compiler::ByteCodeIndex;
 use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
 use crate::jit::{LabelName, MethodResolver};
 
@@ -38,6 +39,7 @@ pub enum IRInstr {
     BranchNotEqual { a: Register, b: Register, label: LabelName },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
+    RestartPoint(ByteCodeIndex),
     VMExit2 { exit_type: IRVMExitType },
     NPECheck { possibly_null: Register,temp_register: Register, npe_exit_type: IRVMExitType },
     GrowStack { amount: usize },
