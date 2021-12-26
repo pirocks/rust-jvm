@@ -68,6 +68,35 @@ impl PType {
             _ => panic!(),
         }
     }
+
+    pub fn jvm_representation(&self) -> String{
+        let mut res = String::new();
+        //todo dup with ptypeview
+        match self {
+            PType::ByteType => res.push('B'),
+            PType::CharType => res.push('C'),
+            PType::DoubleType => res.push('D'),
+            PType::FloatType => res.push('F'),
+            PType::IntType => res.push('I'),
+            PType::LongType => res.push('J'),
+            PType::Ref(ref_) => match ref_ {
+                ReferenceType::Class(c) => {
+                    res.push('L');
+                    res.push_str(c.get_referred_name());
+                    res.push(';')
+                }
+                ReferenceType::Array(subtype) => {
+                    res.push('[');
+                    res.push_str(&subtype.deref().jvm_representation())
+                }
+            },
+            PType::ShortType => res.push('S'),
+            PType::BooleanType => res.push('Z'),
+            PType::VoidType => res.push('V'),
+            _ => panic!(),
+        }
+        res
+    }
 }
 
 impl Clone for PType {
