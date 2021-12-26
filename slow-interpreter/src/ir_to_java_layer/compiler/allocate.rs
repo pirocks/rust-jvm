@@ -44,7 +44,7 @@ pub fn anewarray(
                 }])
         }
         Some((loaded_class, loader)) => {
-            todo!()
+            array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::Allocate }])
         }
     }
 }

@@ -116,7 +116,9 @@ impl LoadClassAndRecompile {
 }
 
 pub enum IRVMExitType {
-    Allocate,
+    AllocateAmount{
+        allocated_type_id: AllocatedTypeID
+    },
     NPE,
     LoadClassAndRecompile {
         class: CPDTypeID,
