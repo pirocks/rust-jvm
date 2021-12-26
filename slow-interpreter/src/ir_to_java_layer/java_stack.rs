@@ -118,7 +118,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     operand_stack,
                 };
                 let data: [u64; 1] = [Box::into_raw(to_write_to_data) as usize as u64];
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, IRMethodID(usize::MAX), Some(method_id.try_unwrap_method_id().unwrap()), data.as_slice()); }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, None, Some(method_id.try_unwrap_method_id().unwrap()), data.as_slice()); }
             }
             Some(ir_method_id) => {
                 let mut data = vec![];
@@ -131,7 +131,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     data.push(unsafe { stack_elem.to_native().as_u64 });
                 }
 
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, ir_method_id, method_id.try_unwrap_method_id(), data.as_slice()) }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, Some(ir_method_id), method_id.try_unwrap_method_id(), data.as_slice()) }
             }
         }
     }

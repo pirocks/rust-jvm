@@ -151,8 +151,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         };
         let (ir_method_id,restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
-        write_guard.method_id_to_ir_method_id.insert(dbg!(method_id), dbg!(ir_method_id));
-        write_guard.restart_points.insert(ir_method_id, dbg!(restart_points));
+        write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
+        write_guard.restart_points.insert(ir_method_id, restart_points);
     }
 
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
@@ -186,10 +186,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn lookup_restart_point(&self, method_id: MethodId, bytecode_index: ByteCodeIndex) -> *const c_void {
         let read_guard = self.inner.read().unwrap();
-        let ir_method_id = *read_guard.method_id_to_ir_method_id.get_by_left(&dbg!(method_id)).unwrap();
-        let restart_points = read_guard.restart_points.get(&dbg!(ir_method_id)).unwrap();
-        dbg!(restart_points);
-        dbg!(bytecode_index);
+        let ir_method_id = *read_guard.method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
+        let restart_points = read_guard.restart_points.get(&ir_method_id).unwrap();
         let ir_instruct_index = *restart_points.get(&bytecode_index).unwrap();
         drop(read_guard);
         self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0

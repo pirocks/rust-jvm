@@ -2,7 +2,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::marker::PhantomData;
-use std::mem::{MaybeUninit, transmute};
+use std::mem::{MaybeUninit, size_of, transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{null_mut, slice_from_raw_parts};
 use std::slice::from_raw_parts;
@@ -40,7 +40,8 @@ pub struct IRVMStateInner {
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
     current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
-    frame_sizes: HashMap<IRMethodID, usize>,
+    frame_sizes_by_address: HashMap<*const c_void, usize>,//todo not used currently
+    frame_sizes_by_ir_method_id: HashMap<IRMethodID, usize>,
     method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructNativeOffset, IRInstructIndex>>,
     method_ir: HashMap<IRMethodID, Vec<IRInstr>>,
     // index
@@ -54,7 +55,8 @@ impl IRVMStateInner {
             ir_method_id_max: IRMethodID(0),
             top_level_return_function_id: None,
             current_implementation: Default::default(),
-            frame_sizes: Default::default(),
+            frame_sizes_by_address: Default::default(),
+            frame_sizes_by_ir_method_id: Default::default(),
             method_ir_offsets: Default::default(),
             method_ir: Default::default(),
             opaque_method_to_or_method_id: Default::default(),
@@ -87,7 +89,7 @@ impl<'vm_life> IRVMState<'vm_life> {
                 guard.ir_method_id_max.0 += 1;
                 let new_ir_method_id = guard.ir_method_id_max;
                 guard.opaque_method_to_or_method_id.insert(opaque_id, new_ir_method_id);
-                guard.frame_sizes.insert(new_ir_method_id, OPAQUE_FRAME_SIZE);
+                guard.frame_sizes_by_ir_method_id.insert(new_ir_method_id, OPAQUE_FRAME_SIZE);
                 drop(guard);
                 return self.lookup_opaque_ir_method_id(opaque_id);
             }
@@ -204,7 +206,7 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: IRMethodID, method_id: Option<MethodId>, data: &[u64]) {
+    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
         self.validate_frame_pointer(frame_pointer);
         let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
@@ -215,7 +217,7 @@ impl OwnedIRStack {
         let magic_2_ptr = frame_pointer.sub(FRAME_HEADER_PREV_MAGIC_2_OFFSET) as *mut u64;
         magic_2_ptr.write(MAGIC_2_EXPECTED);
         let ir_method_id_ptr = frame_pointer.sub(FRAME_HEADER_IR_METHOD_ID_OFFSET) as *mut u64;
-        ir_method_id_ptr.write(ir_method_id.0 as u64);
+        ir_method_id_ptr.write(ir_method_id.unwrap_or(IRMethodID(usize::MAX)).0 as u64);
         let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut u64;
         method_id_ptr.write(method_id.unwrap_or((-1isize) as usize) as u64);
         for (i, data_elem) in data.iter().cloned().enumerate() {
@@ -242,7 +244,7 @@ impl<'l, 'k> Iterator for IRFrameIter<'l, 'k> {
                 self.current_frame_ptr = None;
             } else {
                 let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
-                let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes.get(&option.unwrap()).unwrap();
+                let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&option.unwrap()).unwrap();
                 assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
                 self.current_frame_ptr = Some(res.prev_rbp());
             }
@@ -296,8 +298,15 @@ impl IRFrameRef<'_> {
     }
 
     pub fn frame_size(&self, ir_vm_state: &IRVMState) -> usize {
-        let ir_method_id = self.ir_method_id().unwrap();
-        *ir_vm_state.inner.read().unwrap().frame_sizes.get(&ir_method_id).unwrap()
+        let ir_method_id = match self.ir_method_id() {
+            Some(x) => x,
+            None => {
+                //todo this is scuffed
+                //frame header size + one data pointer for native frame data
+                return FRAME_HEADER_END_OFFSET + 1*size_of::<*const c_void>()
+            },
+        };
+        *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
     }
 
     pub fn data(&self, amount: usize) -> &[u64] {
@@ -430,7 +439,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
-        inner_guard.frame_sizes.insert(current_ir_id, frame_size);
+        inner_guard.frame_sizes_by_ir_method_id.insert(current_ir_id, frame_size);
         let vm_exit_handler: Arc<dyn Fn(&VMExitEvent, &mut (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)) -> VMExitAction<u64> + 'vm_life> =
             Arc::new(move |vm_exit_event: &VMExitEvent, (java_thread, current_stack_position, jvm)| {
                 let mut guard = java_thread.interpreter_state.lock().unwrap();
@@ -602,7 +611,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         }
         IRInstr::RestartPoint(bytecode_index) => {
             assembler.nop().unwrap();
-            restart_points.insert(dbg!(bytecode_index), dbg!(ir_instr_index));
+            restart_points.insert(bytecode_index, ir_instr_index);
         }
     }
 }
