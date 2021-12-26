@@ -73,9 +73,10 @@ pub fn invokestatic(
     let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
+            let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
             Either::Left(array_into_iter([IRInstr::VMExit2 {
                 exit_type: IRVMExitType::LoadClassAndRecompile {
-                    class: class_as_cpdtype
+                    class: cpdtype_id
                 },
             }]))
         }

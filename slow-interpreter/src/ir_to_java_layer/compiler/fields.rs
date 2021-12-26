@@ -17,12 +17,19 @@ pub fn putfield(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     target_class: CClassName,
-    name: FieldName
+    name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
     let cpd_type = (target_class).into();
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
-            Either::Left(array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::InitClassAndRecompile { class: cpd_type } }]))
+            let cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
+            Either::Left(array_into_iter([IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: cpd_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    return_to_bytecode_index: todo!(),
+                }
+            }]))
         }
         Some((rc, _)) => {
             let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(&name).unwrap();

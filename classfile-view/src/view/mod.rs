@@ -6,7 +6,7 @@ use itertools::Itertools;
 use classfile_parser::attribute_infos::annotation_to_bytes;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, SourceFileView};
@@ -68,6 +68,8 @@ pub trait ClassView: HasAccessFlags {
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
     fn annotations(&self) -> Option<Vec<u8>>;
+
+    fn lookup_field(&self, name: FieldName) -> Option<FieldView>;
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView>;
     fn lookup_method_name(&self, name: MethodName) -> Vec<MethodView>;
@@ -187,6 +189,10 @@ impl ClassView for ClassBackedView {
             AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(annotations.iter().flat_map(|annotation| annotation_to_bytes(annotation.clone())).collect_vec()),
             _ => None,
         })
+    }
+
+    fn lookup_field(&self, name: FieldName) -> Option<FieldView> {
+        self.backing_class.fields.iter().enumerate().filter(|(_,field)|field.name == name.0).map(|(i,_)|FieldView::from(self,i)).exactly_one().ok()
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
@@ -320,6 +326,10 @@ impl ClassView for PrimitiveView {
         todo!()
     }
 
+    fn lookup_field(&self, _name: FieldName) -> Option<FieldView> {
+        todo!()
+    }
+
     fn lookup_method(&self, _name: MethodName, _desc: &CMethodDescriptor) -> Option<MethodView> {
         None
     }
@@ -414,6 +424,10 @@ impl ClassView for ArrayView {
     }
 
     fn annotations(&self) -> Option<Vec<u8>> {
+        todo!()
+    }
+
+    fn lookup_field(&self, _name: FieldName) -> Option<FieldView> {
         todo!()
     }
 

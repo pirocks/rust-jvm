@@ -30,6 +30,7 @@ use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
+use crate::cpdtype_table::CPDTypeTable;
 use crate::field_table::FieldTable;
 use crate::gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -84,6 +85,7 @@ pub struct JVMState<'gc_life> {
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
+    pub cpdtype_table: RwLock<CPDTypeTable>,
     pub native: Native,
     pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
@@ -252,6 +254,7 @@ impl<'gc_life> JVMState<'gc_life> {
             thread_state,
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
+            cpdtype_table: RwLock::new(CPDTypeTable::new()),
             native: Native {
                 jvmti_state,
                 invoke_interface: RwLock::new(None),

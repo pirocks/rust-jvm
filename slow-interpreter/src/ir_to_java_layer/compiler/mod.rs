@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::Arc;
+use iced_x86::CC_be::na;
 
 use itertools::Itertools;
 
@@ -13,7 +14,7 @@ use rust_jvm_common::loading::LoaderName;
 
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::mhn_temp::init;
-use crate::ir_to_java_layer::compiler::allocate::new;
+use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
@@ -21,6 +22,7 @@ use crate::ir_to_java_layer::compiler::fields::putfield;
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
+use crate::ir_to_java_layer::compiler::static_fields::putstatic;
 use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
 use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
 use crate::jit::ir::{IRInstr, IRLabel};
@@ -41,7 +43,7 @@ pub struct JavaCompilerMethodAndFrameData {
     stack_depth_by_index: Vec<u16>,
     code_by_index: Vec<CompressedInstruction>,
     index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
-    current_method_id: MethodId
+    current_method_id: MethodId,
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -59,7 +61,7 @@ impl JavaCompilerMethodAndFrameData {
             stack_depth_by_index: stack_depth,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (ByteCodeOffset(*bytecode_offset), ByteCodeIndex(index as u16))).collect(),
-            current_method_id: method_id
+            current_method_id: method_id,
         }
     }
 
@@ -149,7 +151,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 initial_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
             }
             CompressedInstructionInfo::aconst_null => {
-                initial_ir.extend(const_64(method_frame_data,current_instr_data,0))
+                initial_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
             CompressedInstructionInfo::if_acmpne(offset) => {
                 initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
@@ -182,13 +184,13 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                initial_ir.extend(new(resolver,*ccn))
+                initial_ir.extend(new(resolver, *ccn))
             }
             CompressedInstructionInfo::dup => {
                 initial_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                initial_ir.extend(putfield(resolver,method_frame_data,&current_instr_data,*target_class,*name))
+                initial_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                 initial_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type))
@@ -212,6 +214,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     }
                 }
             }
+            CompressedInstructionInfo::putstatic { name, desc, target_class } => {
+                initial_ir.extend(putstatic(resolver,method_frame_data,&current_instr_data,*target_class,*name))
+            }
+            CompressedInstructionInfo::anewarray(elem_type) => {
+                initial_ir.extend(anewarray(resolver,method_frame_data,&current_instr_data,elem_type))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -221,6 +229,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     initial_ir.into_iter().collect_vec()
 }
 
+pub mod static_fields;
 pub mod fields;
 pub mod allocate;
 pub mod invoke;

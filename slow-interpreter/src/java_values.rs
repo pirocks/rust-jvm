@@ -385,8 +385,7 @@ impl<'gc_life> JavaValue<'gc_life> {
                     object: match val_ {
                         None => null_mut(),
                         Some(gc_managed) => {
-                            // gc_managed.obj
-                            todo!()
+                            gc_managed.raw_ptr.as_ptr()
                         }
                     },
                 }
@@ -945,7 +944,7 @@ pub struct ArrayObject<'gc_life, 'l> {
     pub whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
     pub loader: LoaderName,
     pub len: jint,
-    pub elems: &'l mut [NativeJavaValue<'gc_life>],
+    pub elems: &'l mut [NativeJavaValue<'gc_life/*, 'l*/>],
     pub phantom_data: PhantomData<&'gc_life ()>,
     pub elem_type: CPDType,
 }
@@ -1007,7 +1006,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
 }
 
 #[derive(Copy, Clone)]
-pub union NativeJavaValue<'gc_life> {
+pub union NativeJavaValue<'gc_life/*, 'l*/> {
     byte: i8,
     boolean: u8,
     short: i16,
@@ -1018,6 +1017,7 @@ pub union NativeJavaValue<'gc_life> {
     double: f64,
     pub(crate) object: *mut c_void,
     phantom_data: PhantomData<&'gc_life ()>,
+    // phantom_data2: PhantomData<&'l ()>,//the owned java value needs to still be alive for ref to stay alive
     pub as_u64: u64
 }
 

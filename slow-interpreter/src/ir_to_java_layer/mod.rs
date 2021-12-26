@@ -18,7 +18,7 @@ use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInst
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
+use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
@@ -95,6 +95,24 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *bytecode_restart_location);
+                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
+            }
+            RuntimeVMExitInput::PutStatic { field_id, value, return_to_ptr } => {
+                let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
+                let view = rc.view();
+                let field_view = view.field(field_i as usize);
+                let mut static_vars_guard = rc.static_vars();
+                let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
+                let jv = unsafe { value.as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
+                *static_var = jv;
+                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
+            }
+            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_bytecode } => {
+                let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
+                let inited = check_initing_or_inited_class(jvm,int_state,cpdtype).unwrap();
+                let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
+                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_bytecode);
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
         }

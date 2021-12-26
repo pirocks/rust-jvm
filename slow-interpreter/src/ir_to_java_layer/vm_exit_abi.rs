@@ -9,7 +9,10 @@ use num_traits::FromPrimitive;
 
 use another_jit_vm::{Register, SavedRegistersWithIP, SavedRegistersWithoutIP};
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::FieldName;
+use crate::cpdtype_table::CPDTypeID;
 
+use crate::field_table::FieldId;
 use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset};
 use crate::ir_to_java_layer::compiler::ByteCodeIndex;
 use crate::java_values::NativeJavaValue;
@@ -74,6 +77,22 @@ impl TopLevelReturn {
     pub const RES: Register = Register(2);
 }
 
+pub struct PutStatic;
+
+impl PutStatic {
+    pub const FIELD_ID: Register = Register(2);
+    pub const VALUE_PTR: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+}
+
+pub struct InitClassAndRecompile;
+
+impl InitClassAndRecompile {
+    pub const CPDTYPE_ID: Register = Register(2);
+    pub const TO_RECOMPILE: Register = Register(3);
+    pub const BYTECODE_RESTART_LOCATION: Register = Register(4);
+}
+
 pub struct CompileFunctionAndRecompileCurrent;
 
 impl CompileFunctionAndRecompileCurrent {
@@ -100,10 +119,12 @@ pub enum IRVMExitType {
     Allocate,
     NPE,
     LoadClassAndRecompile {
-        class: CPDType,
+        class: CPDTypeID,
     },
     InitClassAndRecompile {
-        class: CPDType,
+        class: CPDTypeID,
+        this_method_id: MethodId,
+        return_to_bytecode_index: ByteCodeIndex,
     },
     RunStaticNative {
         //todo should I actually use these args?
@@ -117,6 +138,10 @@ pub enum IRVMExitType {
         return_to_bytecode_index: ByteCodeIndex,
     },
     TopLevelReturn,
+    PutStatic {
+        field_id: FieldId,
+        value: FramePointerOffset,
+    },
 }
 
 impl IRVMExitType {
@@ -147,15 +172,24 @@ impl IRVMExitType {
             }
             IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, return_to_bytecode_index } => {
                 assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
-                assembler.mov(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION.to_native_64(),return_to_bytecode_index.0 as u64).unwrap();
-                assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(),*current_method_id as u64).unwrap();
-                assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(),*target_method_id as u64 ).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION.to_native_64(), return_to_bytecode_index.0 as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(), *current_method_id as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(), *target_method_id as u64).unwrap();
             }
-            IRVMExitType::InitClassAndRecompile { .. } => {
-                todo!()
+            IRVMExitType::InitClassAndRecompile { class, this_method_id, return_to_bytecode_index } => {
+                assembler.mov(rax, RawVMExitType::InitClassAndRecompile as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::BYTECODE_RESTART_LOCATION.to_native_64(),return_to_bytecode_index.0 as u64).unwrap();
             }
             IRVMExitType::NPE => {
                 assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
+            }
+            IRVMExitType::PutStatic { field_id, value } => {
+                assembler.mov(rax, RawVMExitType::PutStatic as u64).unwrap();
+                assembler.lea(PutStatic::VALUE_PTR.to_native_64(), rbp + value.0).unwrap();
+                assembler.mov(PutStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
+                assembler.lea(PutStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
         }
     }
@@ -174,10 +208,12 @@ pub enum VMExitTypeWithArgs {
 pub enum RawVMExitType {
     Allocate = 1,
     LoadClassAndRecompile,
+    InitClassAndRecompile,
     RunStaticNative,
     TopLevelReturn,
     CompileFunctionAndRecompileCurrent,
     NPE,
+    PutStatic,
 }
 
 pub enum RuntimeVMExitInput {
@@ -191,13 +227,17 @@ pub enum RuntimeVMExitInput {
         restart_bytecode: ByteCodeIndex,
         //if I need to restart within a bytecode have second restart point index, for within that bytecode
     },
+    InitClassAndRecompile {
+        class_type: CPDTypeID,
+        current_method_id: MethodId,
+        restart_bytecode: ByteCodeIndex,
+    },
     RunStaticNative {
         method_id: MethodId,
         arg_start: *mut c_void,
         num_args: u16,
         res_ptr: *mut NativeJavaValue<'static>,
         return_to_ptr: *mut c_void,
-
     },
     TopLevelReturn {
         return_value: u64
@@ -207,6 +247,11 @@ pub enum RuntimeVMExitInput {
         to_recompile: MethodId,
         bytecode_restart_location: ByteCodeIndex,
     },
+    PutStatic {
+        value: *mut NativeJavaValue<'static>,
+        field_id: FieldId,
+        return_to_ptr: *const c_void,
+    }
 }
 
 impl RuntimeVMExitInput {
@@ -257,6 +302,20 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::NPE => {
                 todo!()
+            }
+            RawVMExitType::PutStatic => {
+                RuntimeVMExitInput::PutStatic {
+                    value: register_state.saved_registers_without_ip.get_register(PutStatic::VALUE_PTR) as *mut NativeJavaValue<'static>,
+                    field_id: register_state.saved_registers_without_ip.get_register(PutStatic::FIELD_ID) as FieldId,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(PutStatic::RESTART_IP) as *const c_void
+                }
+            }
+            RawVMExitType::InitClassAndRecompile => {
+                RuntimeVMExitInput::InitClassAndRecompile {
+                    class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
+                    current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
+                    restart_bytecode: ByteCodeIndex(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::BYTECODE_RESTART_LOCATION) as u16)
+                }
             }
         }
     }

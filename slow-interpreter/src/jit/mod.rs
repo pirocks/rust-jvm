@@ -19,6 +19,8 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
+use crate::cpdtype_table::CPDTypeID;
+use crate::field_table::FieldId;
 
 use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -152,6 +154,16 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let ir_method_id= self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
         let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
         Some(ptr)
+    }
+
+    pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> FieldId{
+        let view = runtime_class.view();
+        let field_view = view.lookup_field(field_name).unwrap();
+        self.jvm.field_table.write().unwrap().get_field_id(runtime_class,field_view.field_i())
+    }
+
+    pub fn get_cpdtype_id(&self, cpdtype: &CPDType) -> CPDTypeID{
+        self.jvm.cpdtype_table.write().unwrap().get_cpdtype_id(cpdtype)
     }
 }
 
