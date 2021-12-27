@@ -199,7 +199,7 @@ pub enum ClassStatus {
 }
 
 impl<'gc_life> JVMState<'gc_life> {
-    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc_life>, gc: &'gc_life GC<'gc_life>) -> (Vec<String>, Self) {
+    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc_life>, gc: &'gc_life GC<'gc_life>, string_pool:CompressedClassfileStringPool) -> (Vec<String>, Self) {
         let JVMOptions {
             main_class_name,
             classpath,
@@ -229,7 +229,6 @@ impl<'gc_life> JVMState<'gc_life> {
             None
         };
         let thread_state = ThreadState::new(scope);
-        let string_pool = CompressedClassfileStringPool::new();
         let classes = JVMState::init_classes(&string_pool, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
+use iced_x86::OpCodeOperandKind::cl;
 
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
@@ -69,7 +70,6 @@ impl Classpath {
                 return Result::Ok(Arc::new(classfile));
             }
         }
-        dbg!(class_name.0.to_str(pool));
         Result::Err(ClassNotFoundException)
     }
 
@@ -78,6 +78,14 @@ impl Classpath {
             classpath_base: dirs,
             jar_cache: RwLock::new(HashMap::new()),
             class_cache: Default::default(),
+        }
+    }
+
+    pub fn from_dirs_with_cache(dirs: Vec<Box<Path>>, class_cache: HashMap<CClassName, Arc<Classfile>>) -> Self {
+        Self {
+            classpath_base: dirs,
+            jar_cache: RwLock::new(HashMap::new()),
+            class_cache: RwLock::new(class_cache),
         }
     }
 

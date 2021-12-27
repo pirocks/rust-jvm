@@ -149,7 +149,7 @@ pub enum IRVMExitType {
 impl IRVMExitType {
     pub fn gen_assembly(&self, assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers: Vec<Register>) {
         match self {
-            IRVMExitType::Allocate => {
+            IRVMExitType::AllocateAmount { .. } => {
                 todo!()
             }
             IRVMExitType::LoadClassAndRecompile { .. } => {

@@ -3,9 +3,14 @@ name = "rust-jvm"
 version = "0.1.0"
 authors = ["Francis Nixon <13nixonf@gmail.com>"]
 edition = "2018"
+
 [[bin]]
 name = "java"
 path = "src/main.rs"
+
+[lib]
+name = "rust_jvm"
+path = "src/lib.rs"
 
 [dependencies]
 rust-jvm-common = { path = "./rust-jvm-common" }
@@ -23,6 +28,9 @@ early-startup = { path = "./early-startup" }
 itertools = "0.10.0"
 argparse = "0.2.2"
 
+[dev-dependencies]
+wtf8 = "0.1.0"
+tempdir = "0.3.7"
 
 [workspace]
 members = [
@@ -41,5 +49,5 @@ members = [
     "jmm-bindings",
     "method-table",
     "early-startup",
-    "another-jit-vm"
+    "another-jit-vm",
 ]
