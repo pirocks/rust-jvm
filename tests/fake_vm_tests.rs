@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crossbeam::thread::Scope;
 use tempdir::TempDir;
 use wtf8::Wtf8Buf;
+use classfile_writer::WriterContext;
 
 use rust_jvm::main_run;
 use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_STATIC, AttributeInfo, AttributeType, Class, Classfile, Code, ConstantInfo, ConstantKind, CPIndex, Instruction, InstructionInfo, MethodInfo, Utf8};
@@ -152,9 +153,10 @@ impl TestVMConfig {
 
     fn convert_parsed_code_to_unparsed_code(code: &[Instruction]) -> Vec<u8> {
         let mut bytes = vec![];
+        let mut writer = WriterContext{ writer: &mut bytes };
         for instruct in code {
-            assert_eq!(instruct.offset as usize, bytes.len());
-            instruct.instruction.write_to_stream(&mut bytes).unwrap();
+            assert_eq!(instruct.offset as usize, writer.writer.len());
+            writer.write_instruction_info(&instruct.instruction).unwrap();
         }
         bytes
     }

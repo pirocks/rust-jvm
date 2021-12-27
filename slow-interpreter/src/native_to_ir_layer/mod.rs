@@ -19,7 +19,6 @@ use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, 
 use memoffset::offset_of;
 
 use another_jit_vm::{BaseAddress, Method, MethodImplementationID, Register, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMExitLabel, VMState};
-use classfile_parser::code::InstructionTypeNum::{drem, new};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
 use verification::verifier::Frame;
 

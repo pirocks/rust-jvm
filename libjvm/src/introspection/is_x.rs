@@ -2,7 +2,6 @@ use std::intrinsics::transmute;
 use std::ops::Deref;
 use std::os::raw::c_int;
 
-use classfile_parser::code::InstructionTypeNum::f2d;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jdouble, JNIEnv, JVM_Available, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED, jvmtiError_JVMTI_ERROR_INVALID_CLASS};

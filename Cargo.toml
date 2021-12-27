@@ -29,6 +29,7 @@ itertools = "0.10.0"
 argparse = "0.2.2"
 
 [dev-dependencies]
+classfile-writer = { path = "./classfile-writer" }
 wtf8 = "0.1.0"
 tempdir = "0.3.7"
 
@@ -50,4 +51,5 @@ members = [
     "method-table",
     "early-startup",
     "another-jit-vm",
+    "classfile-writer"
 ]

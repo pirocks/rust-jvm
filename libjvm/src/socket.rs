@@ -4,7 +4,6 @@ use std::time::Instant;
 use nix::errno::Errno::EINTR;
 use nix::sys::socket::setsockopt;
 
-use classfile_parser::code::InstructionTypeNum::{lookupswitch, ret};
 use jvmti_jni_bindings::{jint, sockaddr};
 
 use crate::util::retry_on_eintr;

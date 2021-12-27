@@ -8,7 +8,6 @@ use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
 use iced_x86::CC_b::c;
 use itertools::Itertools;
 
-use classfile_parser::code::InstructionTypeNum::new;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
