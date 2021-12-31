@@ -19,7 +19,8 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
-use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
+use crate::class_loading::assert_inited_or_initing_class;
+use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
@@ -29,7 +30,7 @@ use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
 use crate::jit::ir::IRInstr;
-use crate::jit::state::{Labeler, NaiveStackframeLayout};
+use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
 use crate::method_table::MethodId;
 use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRInstructIndex, IRMethodID, IRVMExitEvent, IRVMState, IRVMStateInner, OwnedIRStack};
@@ -59,8 +60,15 @@ pub enum VMExitEvent<'vm_life> {
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
     fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
         match vm_exit_type {
-            RuntimeVMExitInput::Allocate { type_, return_to_ptr } => {
-                todo!()
+            RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
+                let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
+                assert!(*len > 0);
+                let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
+                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread.java_tid);
+                let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
+                unsafe { res_address.write(allocated_object) }
+                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
@@ -109,12 +117,13 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_bytecode } => {
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
-                let inited = check_initing_or_inited_class(jvm,int_state,cpdtype).unwrap();
+                let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_bytecode);
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
+            RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
         }
     }
 }
@@ -167,7 +176,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             drop(read_guard);
             JavaVMStateWrapperInner::handle_vm_exit(jvm, int_state, method_id, &ir_vm_exit_event.exit_type) as VMExitAction<u64>
         };
-        let (ir_method_id,restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
+        let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
         write_guard.restart_points.insert(ir_method_id, restart_points);

@@ -20,10 +20,11 @@ pub fn putfield(
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
     let cpd_type = (target_class).into();
+    let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
-            Either::Left(array_into_iter([IRInstr::VMExit2 {
+            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
@@ -37,6 +38,7 @@ pub fn putfield(
             let to_put_value = Register(2);
             let offset = Register(3);
             Either::Right(array_into_iter([
+                restart_point,
                 IRInstr::LoadFPRelative {
                     from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1),
                     to: class_ref_register,

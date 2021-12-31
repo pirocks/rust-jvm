@@ -233,7 +233,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 };
                 match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
                     Ok(_) => {}
-                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException)) => {
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(_))) => {
                         return Err(WasException);
                     }
                     Err(TypeSafetyError::NotSafe(_)) => panic!(),

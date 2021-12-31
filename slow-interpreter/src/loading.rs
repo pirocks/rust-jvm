@@ -7,6 +7,7 @@ use iced_x86::OpCodeOperandKind::cl;
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::ClassLoadingError;
@@ -70,7 +71,7 @@ impl Classpath {
                 return Result::Ok(Arc::new(classfile));
             }
         }
-        Result::Err(ClassNotFoundException)
+        Result::Err(ClassNotFoundException(ClassName::Str(class_name.0.to_str(&pool))))
     }
 
     pub fn from_dirs(dirs: Vec<Box<Path>>) -> Self {

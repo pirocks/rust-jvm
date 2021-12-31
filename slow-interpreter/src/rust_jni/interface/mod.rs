@@ -693,8 +693,8 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     };
     match verify(&mut vf, class_name, LoaderName::BootstrapLoader /*todo*/) {
         Ok(_) => {}
-        Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException)) => {
-            let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("todo"))?;
+        Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
+            let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?;
             let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().into();
             int_state.set_throw(to_throw);
             return Err(WasException {});

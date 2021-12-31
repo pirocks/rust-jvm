@@ -61,6 +61,7 @@ impl Classfile {
             entry => {
                 dbg!(i);
                 dbg!(entry);
+                dbg!(&self.constant_pool);
                 panic!();
             }
         };

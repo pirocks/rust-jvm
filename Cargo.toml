@@ -32,6 +32,7 @@ argparse = "0.2.2"
 classfile-writer = { path = "./classfile-writer" }
 wtf8 = "0.1.0"
 tempdir = "0.3.7"
+ntest = "0.7.3"
 
 [workspace]
 members = [

@@ -1700,13 +1700,13 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                     return AllocatedObjectType::ObjectArray {
                         thread: thread_id,
                         sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
-                        len: arr_len.unwrap(),
+                        len: arr_len.unwrap() as i32,
                         sub_type_loader: loader,
                     };
                 }
                 RuntimeClass::Top => panic!(),
             };
-            AllocatedObjectType::PrimitiveArray { thread: thread_id, primitive_type, len: arr_len.unwrap() }
+            AllocatedObjectType::PrimitiveArray { thread: thread_id, primitive_type, len: arr_len.unwrap() as i32 }
         }
         RuntimeClass::Object(class_class) => AllocatedObjectType::Class {
             thread: thread_id,

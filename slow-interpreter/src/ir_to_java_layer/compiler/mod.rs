@@ -184,7 +184,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                initial_ir.extend(new(resolver, *ccn))
+                initial_ir.extend(new(resolver, &current_instr_data,*ccn))
             }
             CompressedInstructionInfo::dup => {
                 initial_ir.extend(dup(method_frame_data, current_instr_data))

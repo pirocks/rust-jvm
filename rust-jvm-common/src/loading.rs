@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use wtf8::Wtf8Buf;
 
 use sketch_jvm_version_of_utf8::ValidationError;
+use crate::classnames::ClassName;
 
 use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::compressed_classfile::CPRefType;
@@ -64,7 +65,7 @@ impl Display for ClassfileParsingError {
 
 #[derive(Debug)]
 pub enum ClassLoadingError {
-    ClassNotFoundException,
+    ClassNotFoundException(ClassName),
     ClassFileInvalid(ClassfileParsingError),
     // ClassFormatError , UnsupportedClassVersionError
     ClassVerificationError, // java.lang.VerifyError

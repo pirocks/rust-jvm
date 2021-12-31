@@ -8,10 +8,11 @@ use crate::jit::ir::IRInstr;
 use crate::jit::MethodResolver;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 
-pub fn new(resolver: &MethodResolver<'vm_life>, ccn: CClassName) -> impl Iterator<Item=IRInstr> {
+pub fn new(resolver: &MethodResolver<'vm_life>,current_instr_data: &CurrentInstructionCompilerData, ccn: CClassName) -> impl Iterator<Item=IRInstr> {
+    let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
     match resolver.lookup_type_loaded(&(ccn).into()) {
         None => {
-            array_into_iter([IRInstr::VMExit2 {
+            array_into_iter([restart_point,IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: todo!(),
                     this_method_id: todo!(),
@@ -33,9 +34,9 @@ pub fn anewarray(
     elem_type: &CPDType,
 ) -> impl Iterator<Item=IRInstr> {
     let array_type = CPDType::Ref(CPRefType::Array(box elem_type.clone()));
+    let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
     match resolver.lookup_type_loaded(&array_type) {
         None => {
-            let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
             let cpd_type_id = resolver.get_cpdtype_id(&array_type);
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
@@ -47,9 +48,12 @@ pub fn anewarray(
                 }]))
         }
         Some((loaded_class, loader)) => {
-            runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
+            // runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
             //todo allocation should be done in vm exit
-            Either::Right(array_into_iter([IRInstr::VMExit2 { exit_type: todo!() }]))
+            let array_type = resolver.get_cpdtype_id(&array_type);
+            let arr_len = method_frame_data.operand_stack_entry(current_instr_data.current_index,0);
+            let arr_res = method_frame_data.operand_stack_entry(current_instr_data.next_index,0);
+            Either::Right(array_into_iter([restart_point, IRInstr::VMExit2 { exit_type: IRVMExitType::AllocateObjectArray_ { array_type, arr_len, arr_res } }]))
         }
     }
 }

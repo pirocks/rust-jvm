@@ -33,8 +33,8 @@ use crate::threading::JavaThreadId;
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
     Class { thread: JavaThreadId, name: CClassName, loader: LoaderName, size: usize },
-    ObjectArray { thread: JavaThreadId, sub_type: CPRefType, sub_type_loader: LoaderName, len: usize },
-    PrimitiveArray { thread: JavaThreadId, primitive_type: CPDType, len: usize },
+    ObjectArray { thread: JavaThreadId, sub_type: CPRefType, sub_type_loader: LoaderName, len: i32 },
+    PrimitiveArray { thread: JavaThreadId, primitive_type: CPDType, len: i32 },
 }
 
 impl AllocatedObjectType {
@@ -47,7 +47,7 @@ impl AllocatedObjectType {
                 *size
             }
             AllocatedObjectType::ObjectArray { len, .. } => {
-                let res = *len * size_of::<jobject>() + size_of::<jint>();
+                let res = *len as usize * size_of::<jobject>() + size_of::<jint>();
                 if res == 0 {
                     return 1;
                 } else {
@@ -58,7 +58,7 @@ impl AllocatedObjectType {
                 if *len == 0 {
                     return 1;
                 } else {
-                    *len * match primitive_type {
+                    *len as usize * match primitive_type {
                         CPDType::BooleanType => 1,
                         CPDType::ByteType => 1,
                         CPDType::ShortType => 2,

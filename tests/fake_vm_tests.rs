@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::File;
 use std::mem::transmute;
+use std::path::PathBuf;
 use std::sync::Arc;
+use ntest::timeout;
 
 use crossbeam::thread::Scope;
 use tempdir::TempDir;
@@ -12,7 +14,7 @@ use wtf8::Wtf8Buf;
 use classfile_writer::WriterContext;
 
 use rust_jvm::main_run;
-use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_STATIC, AttributeInfo, AttributeType, Class, Classfile, Code, ConstantInfo, ConstantKind, CPIndex, Instruction, InstructionInfo, MethodInfo, Utf8};
+use rust_jvm_common::classfile::{ACC_PUBLIC, ACC_STATIC, AttributeInfo, AttributeType, Class, Classfile, Code, ConstantInfo, ConstantKind, CPIndex, Instruction, InstructionInfo, InvalidConstant, MethodInfo, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::{CompressedClassName};
@@ -61,14 +63,15 @@ impl TestVMConfig {
 
     fn add_utf8_to_constant_pool(classfile: &mut Classfile, rust_string: String) -> CPIndex {
         let utf8 = Self::string_to_utf8_entry(rust_string);
+        let res = classfile.constant_pool.len() as CPIndex;
         classfile.constant_pool.push(ConstantInfo { kind: ConstantKind::Utf8(utf8) });
-        classfile.constant_pool.len() as CPIndex
+        res
     }
 
     fn init_this_class(classfile: &mut Classfile, name: String) {
         let name_index = Self::add_utf8_to_constant_pool(classfile, name);
-        classfile.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
         let this_index = classfile.constant_pool.len() as CPIndex;
+        classfile.constant_pool.push(ConstantInfo { kind: ConstantKind::Class(Class { name_index }) });
         classfile.this_class = this_index;
     }
 
@@ -189,7 +192,7 @@ impl TestVMConfig {
             magic: EXPECTED_CLASSFILE_MAGIC,
             minor_version: 0,
             major_version: 52,
-            constant_pool: vec![],
+            constant_pool: vec![ConstantInfo { kind: (ConstantKind::InvalidConstant(InvalidConstant {}))}],
             access_flags: 0,
             this_class: 1,
             super_class: 0,
@@ -208,7 +211,7 @@ impl TestVMConfig {
         let fake_main_class = self.fake_main_class(self.psvm_bytecode.clone());
         let compressed_classfile_name = self.string_pool.add_name(class_name(&fake_main_class).get_referred_name(),true);
         cached_classes.insert(CompressedClassName(compressed_classfile_name),Arc::new(fake_main_class));
-        Classpath::from_dirs_with_cache(vec![self.class_path_dir.path().to_path_buf().into_boxed_path()],cached_classes)
+        Classpath::from_dirs_with_cache(vec![self.class_path_dir.path().to_path_buf().into_boxed_path(),PathBuf::from("/home/francis/Desktop/jdk8u232-b09/jre/lib/").into_boxed_path()],cached_classes)
     }
 
     fn _write_fake_main_class(&self) {
@@ -234,7 +237,10 @@ impl TestVMConfig {
     }
 }
 
+
+
 #[test]
+#[timeout(6000)]
 pub fn test_return_0() {
     let test_vm_config = TestVMConfig::default();
     test_vm_config.create_vm(|_jvm| {})
