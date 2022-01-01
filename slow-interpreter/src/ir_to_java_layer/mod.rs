@@ -25,7 +25,7 @@ use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
-use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
+use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, IRVMExitType, RestartPointID, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
@@ -42,7 +42,7 @@ pub struct ExitNumber(u64);
 
 pub struct JavaVMStateWrapperInner<'gc_life> {
     method_id_to_ir_method_id: BiHashMap<MethodId, IRMethodID>,
-    restart_points: HashMap<IRMethodID, HashMap<ByteCodeIndex, IRInstructIndex>>,
+    restart_points: HashMap<IRMethodID, HashMap<RestartPointID, IRInstructIndex>>,
     max_exit_number: ExitNumber,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
@@ -59,8 +59,9 @@ pub enum VMExitEvent<'vm_life> {
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
     fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
-        match vm_exit_type {
+        match dbg!(vm_exit_type) {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
+                eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 assert!(*len > 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
@@ -72,6 +73,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
+                eprintln!("RunStaticNative");
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let mut args_jv = vec![];
                 let class_view = rc.view();
@@ -92,20 +94,23 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
+                eprintln!("TopLevelReturn");
                 VMExitAction::ExitVMCompletely { return_data: *return_value }
             }
             RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
                 current_method_id,
                 to_recompile,
-                bytecode_restart_location
+                restart_point
             } => {
+                eprintln!("CompileFunctionAndRecompileCurrent");
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
-                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *bytecode_restart_location);
+                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
             RuntimeVMExitInput::PutStatic { field_id, value, return_to_ptr } => {
+                eprintln!("PutStatic");
                 let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
                 let view = rc.view();
                 let field_view = view.field(field_i as usize);
@@ -115,13 +120,23 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 *static_var = jv;
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
-            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_bytecode } => {
+            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
+                eprintln!("InitClassAndRecompile");
+                dbg!(rbp);
+                unsafe { dbg!((rbp.offset(-0x38) as *const u64).read()) };
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
+                dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+                dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
-                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_bytecode);
-                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
+                let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
+                VMExitAction::ReturnTo {
+                    return_register_state: SavedRegistersWithIPDiff {
+                        rip: Some(restart_point),
+                        saved_registers_without_ip: None,
+                    }
+                }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
         }
@@ -163,6 +178,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
+        eprintln!("Re/Compile: {}", method_id);
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
@@ -211,11 +227,11 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         }
     }
 
-    pub fn lookup_restart_point(&self, method_id: MethodId, bytecode_index: ByteCodeIndex) -> *const c_void {
+    pub fn lookup_restart_point(&self, method_id: MethodId, restart_point_id: RestartPointID) -> *const c_void {
         let read_guard = self.inner.read().unwrap();
         let ir_method_id = *read_guard.method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
         let restart_points = read_guard.restart_points.get(&ir_method_id).unwrap();
-        let ir_instruct_index = *restart_points.get(&bytecode_index).unwrap();
+        let ir_instruct_index = *restart_points.get(&restart_point_id).unwrap();
         drop(read_guard);
         self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
     }

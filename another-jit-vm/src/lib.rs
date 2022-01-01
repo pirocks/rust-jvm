@@ -1,5 +1,6 @@
 #![feature(asm)]
 #![feature(asm_const)]
+#![feature(backtrace)]
 // save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
@@ -256,8 +257,10 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
     }
 
     pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
-        let code_region: Range<*const c_void> = self.inner.read().unwrap().code_regions.get(&method_id).unwrap().clone();
+        let inner_guard = self.inner.read().unwrap();
+        let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
+        drop(inner_guard);
         let rip_guest_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, guest_registers);
         assert_eq!(rip_guest_offset, RIP_GUEST_OFFSET_CONST);
         let rax_guest_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
@@ -350,6 +353,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
                 },
             },
         };
+        eprintln!("==== VM Start ====");
         loop {
             let vm_exit_action = self.run_method_impl(&mut jit_context, &mut extra);
             match vm_exit_action {
@@ -365,7 +369,10 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
 
     #[allow(named_asm_labels)]
     fn run_method_impl(&self, jit_context: &mut JITContext, extra: &mut ExtraData) -> VMExitAction<T> {
-        eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp,jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
+        // eprintln!("{}",Backtrace::capture().to_string());
+        eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}",
+                  jit_context.guest_registers.saved_registers_without_ip.rbp,
+                  jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
@@ -536,13 +543,13 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
         inner_guard.method_id_max.0 += 1;
         let Method { code, exit_handler } = method;
         inner_guard.exit_handlers.insert(current_method_id, exit_handler);
-        let new_method_base = inner_guard.max_ptr as *const c_void;
+        let new_method_base = inner_guard.max_ptr;
         assert_eq!(base_address.0, new_method_base);
         let code_len = code.len();
         let end_of_new_method = unsafe {
-            inner_guard.max_ptr.offset(code_len as isize)
+            new_method_base.offset(code_len as isize)
         };
-        let method_range = new_method_base..end_of_new_method;
+        let method_range = (new_method_base as *const c_void)..(end_of_new_method as *const c_void);
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
@@ -552,6 +559,7 @@ impl<'vm_state_life, T, ExtraData> VMState<'vm_state_life, T, ExtraData> {
 }
 
 #[must_use]
+#[derive(Copy, Clone,Eq, PartialEq,Hash,Debug)]
 pub struct BaseAddress(pub *const c_void);
 
 pub struct VMExitLabel {

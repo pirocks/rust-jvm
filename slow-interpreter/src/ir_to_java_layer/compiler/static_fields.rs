@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::LoaderName;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
 use crate::ir_to_java_layer::vm_exit_abi::IRVMExitType;
 use crate::jit::ir::IRInstr;
 use crate::jit::MethodResolver;
@@ -13,10 +13,12 @@ pub fn putstatic(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
-    let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_loaded(&target_class.into()) {
         None => {
             array_into_iter([restart_point,
@@ -24,7 +26,7 @@ pub fn putstatic(
                     exit_type: IRVMExitType::InitClassAndRecompile {
                         class: todo!(),
                         this_method_id: method_frame_data.current_method_id,
-                        return_to_bytecode_index: todo!(),
+                        restart_point_id
                     },
                 }])
         }

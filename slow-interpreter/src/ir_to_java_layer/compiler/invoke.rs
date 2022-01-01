@@ -5,7 +5,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::gc_memory_layout_common::StackframeMemoryLayout;
-use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
 use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
 use crate::jit::ir::IRInstr;
 use crate::jit::MethodResolver;
@@ -14,6 +14,7 @@ pub fn invokespecial(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
@@ -30,14 +31,15 @@ pub fn invokespecial(
             let view = rc.view();
             let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
             let maybe_address = resolver.lookup_address(method_id);
-            let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
+            let restart_point_id = restart_point_generator.new_restart_point();
+            let restart_point = IRInstr::RestartPoint(restart_point_id);
             Either::Right(match maybe_address {
                 None => {
                     let exit_instr = IRInstr::VMExit2 {
                         exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                             current_method_id: method_frame_data.current_method_id,
                             target_method_id: method_id,
-                            return_to_bytecode_index: current_instr_data.current_index,
+                            restart_point_id
                         }
                     };
                     //todo have restart point ids for matching same restart points

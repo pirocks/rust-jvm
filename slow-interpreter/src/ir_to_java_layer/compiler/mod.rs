@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::Arc;
-use iced_x86::CC_be::na;
 
+use iced_x86::CC_be::na;
 use itertools::Itertools;
 
 use another_jit_vm::Register;
@@ -23,7 +23,7 @@ use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
-use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
+use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, RestartPointID, VMExitTypeWithArgs};
 use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
 use crate::jit::ir::{IRInstr, IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -105,8 +105,26 @@ impl<'l> CompilerLabeler<'l> {
     }
 }
 
+pub struct RestartPointGenerator {
+    current_max_restart_point: RestartPointID,
+}
+
+impl RestartPointGenerator {
+    pub fn new() -> Self {
+        Self {
+            current_max_restart_point: RestartPointID(0)
+        }
+    }
+
+    pub fn new_restart_point(&mut self) -> RestartPointID {
+        let res = self.current_max_restart_point;
+        self.current_max_restart_point.0 += 1;
+        res
+    }
+}
+
 pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<IRInstr> {
-    let cinstructions: &[CompressedInstruction] = method_frame_data.code_by_index.as_slice();
+    let cinstructions = method_frame_data.code_by_index.as_slice();
     let mut initial_ir: Vec<IRInstr> = vec![];
     let mut labels = vec![];
     let mut compiler_labeler = CompilerLabeler {
@@ -115,6 +133,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         label_to_offset: Default::default(),
         index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
     };
+    let mut restart_point_generator = RestartPointGenerator::new();
     for (i, compressed_instruction) in cinstructions.iter().enumerate() {
         let current_offset = ByteCodeOffset(compressed_instruction.offset);
         let current_index = ByteCodeIndex(i as u16);
@@ -184,16 +203,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                initial_ir.extend(new(resolver, &current_instr_data,*ccn))
+                initial_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *ccn))
             }
             CompressedInstructionInfo::dup => {
                 initial_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                initial_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, *target_class, *name))
+                initial_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                initial_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type))
+                initial_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
@@ -215,10 +234,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 }
             }
             CompressedInstructionInfo::putstatic { name, desc, target_class } => {
-                initial_ir.extend(putstatic(resolver,method_frame_data,&current_instr_data,*target_class,*name))
+                initial_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
-                initial_ir.extend(anewarray(resolver,method_frame_data,&current_instr_data,elem_type))
+                initial_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, elem_type))
             }
             other => {
                 dbg!(other);

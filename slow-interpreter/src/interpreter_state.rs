@@ -319,6 +319,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         if self.current_frame().is_native() {
             unsafe { drop(Box::from_raw(self.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo)) }
         }
+        todo!()
         assert!(self.thread.is_alive());
     }
 

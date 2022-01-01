@@ -1135,7 +1135,6 @@ impl JITedCodeState {
                     exits.insert(exit_label, exit_type);
                     label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));
                     //need noop b/c can't have a label at end
-                    assembler.nop().unwrap()
                     // match exit_type.clone(){
                     //     VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
                     //
@@ -1149,7 +1148,6 @@ impl JITedCodeState {
                     let iced_label = iced_labels.get_mut(&label.name).unwrap();
                     label_instruction_offsets.push((label.name, assembler.instructions().len() as u32));
                     assembler.set_label(iced_label).unwrap();
-                    assembler.nop().unwrap();
                 }
                 IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
                     if let Some(return_register) = return_val {

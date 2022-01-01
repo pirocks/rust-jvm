@@ -6,7 +6,7 @@ use another_jit_vm::Register;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
 use crate::ir_to_java_layer::vm_exit_abi::IRVMExitType;
 use crate::java::lang::reflect::field::Field;
 use crate::jit::ir::IRInstr;
@@ -16,11 +16,13 @@ pub fn putfield(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
     let cpd_type = (target_class).into();
-    let restart_point = IRInstr::RestartPoint(current_instr_data.current_index);
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
@@ -28,7 +30,7 @@ pub fn putfield(
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
-                    return_to_bytecode_index: todo!(),
+                    restart_point_id
                 }
             }]))
         }

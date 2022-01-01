@@ -104,7 +104,7 @@ pub struct InitClassAndRecompile;
 impl InitClassAndRecompile {
     pub const CPDTYPE_ID: Register = Register(2);
     pub const TO_RECOMPILE: Register = Register(3);
-    pub const BYTECODE_RESTART_LOCATION: Register = Register(4);
+    pub const RESTART_POINT_ID: Register = Register(4);
 }
 
 pub struct CompileFunctionAndRecompileCurrent;
@@ -112,7 +112,7 @@ pub struct CompileFunctionAndRecompileCurrent;
 impl CompileFunctionAndRecompileCurrent {
     pub const CURRENT: Register = Register(2);
     pub const TO_RECOMPILE: Register = Register(3);
-    pub const BYTECODE_RESTART_LOCATION: Register = Register(4);
+    pub const RESTART_POINT_ID: Register = Register(4);
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -133,7 +133,7 @@ pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
         arr_len: FramePointerOffset,
-        arr_res: FramePointerOffset
+        arr_res: FramePointerOffset,
     },
     NPE,
     LoadClassAndRecompile {
@@ -142,7 +142,7 @@ pub enum IRVMExitType {
     InitClassAndRecompile {
         class: CPDTypeID,
         this_method_id: MethodId,
-        return_to_bytecode_index: ByteCodeIndex,
+        restart_point_id: RestartPointID,
     },
     RunStaticNative {
         //todo should I actually use these args?
@@ -153,7 +153,7 @@ pub enum IRVMExitType {
     CompileFunctionAndRecompileCurrent {
         current_method_id: MethodId,
         target_method_id: MethodId,
-        return_to_bytecode_index: ByteCodeIndex,
+        restart_point_id: RestartPointID,
     },
     TopLevelReturn,
     PutStatic {
@@ -166,6 +166,7 @@ impl IRVMExitType {
     pub fn gen_assembly(&self, assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers: Vec<Register>) {
         match self {
             IRVMExitType::AllocateObjectArray_ { array_type, arr_len, arr_res } => {
+                // assembler.int3().unwrap();
                 assembler.mov(rax, RawVMExitType::AllocateObjectArray as u64).unwrap();
                 assembler.mov(AllocateObjectArray::TYPE.to_native_64(), array_type.0 as u64).unwrap();
                 assembler.mov(AllocateObjectArray::LEN.to_native_64(), rbp - arr_len.0).unwrap();
@@ -192,17 +193,17 @@ impl IRVMExitType {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
-            IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, return_to_bytecode_index } => {
+            IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, restart_point_id, } => {
                 assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
-                assembler.mov(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION.to_native_64(), return_to_bytecode_index.0 as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(), *current_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(), *target_method_id as u64).unwrap();
             }
-            IRVMExitType::InitClassAndRecompile { class, this_method_id, return_to_bytecode_index } => {
+            IRVMExitType::InitClassAndRecompile { class, this_method_id, restart_point_id, } => {
                 assembler.mov(rax, RawVMExitType::InitClassAndRecompile as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
-                assembler.mov(InitClassAndRecompile::BYTECODE_RESTART_LOCATION.to_native_64(), return_to_bytecode_index.0 as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
             }
             IRVMExitType::NPE => {
                 assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
@@ -238,29 +239,33 @@ pub enum RawVMExitType {
     PutStatic,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+pub struct RestartPointID(pub(crate) u64);
+
+#[derive(Debug)]
 pub enum RuntimeVMExitInput {
     AllocateObjectArray {
         type_: CPDTypeID,
         len: i32,
         return_to_ptr: *const c_void,
-        res_address: *mut NonNull<c_void>
+        res_address: *mut NonNull<c_void>,
     },
     AllocatePrimitiveArray {
         type_: CPDType,
         len: u64,
         return_to_ptr: *const c_void,
-        res_address: *mut NonNull<c_void>
+        res_address: *mut NonNull<c_void>,
     },
     LoadClassAndRecompile {
         class_type: CPDType,
         // todo static args?
-        restart_bytecode: ByteCodeIndex,
-        //if I need to restart within a bytecode have second restart point index, for within that bytecode
+        restart_point: RestartPointID,
     },
     InitClassAndRecompile {
         class_type: CPDTypeID,
         current_method_id: MethodId,
-        restart_bytecode: ByteCodeIndex,
+        restart_point: RestartPointID,
+        rbp: *const c_void
     },
     RunStaticNative {
         method_id: MethodId,
@@ -275,7 +280,7 @@ pub enum RuntimeVMExitInput {
     CompileFunctionAndRecompileCurrent {
         current_method_id: MethodId,
         to_recompile: MethodId,
-        bytecode_restart_location: ByteCodeIndex,
+        restart_point: RestartPointID,
     },
     PutStatic {
         value: *mut NativeJavaValue<'static>,
@@ -309,7 +314,7 @@ impl RuntimeVMExitInput {
                     type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(AllocateObjectArray::TYPE) as u32),
                     len: register_state.saved_registers_without_ip.get_register(AllocateObjectArray::LEN) as i32,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObjectArray::RESTART_IP) as *const c_void,
-                    res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArray::RES_PTR) as *mut NonNull<c_void>
+                    res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArray::RES_PTR) as *mut NonNull<c_void>,
                 }
             }
             RawVMExitType::LoadClassAndRecompile => todo!(),
@@ -331,7 +336,7 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
                     current_method_id: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::CURRENT) as MethodId,
                     to_recompile: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::TO_RECOMPILE) as MethodId,
-                    bytecode_restart_location: ByteCodeIndex(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::BYTECODE_RESTART_LOCATION) as u16),
+                    restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID))
                 }
             }
             RawVMExitType::NPE => {
@@ -348,7 +353,8 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::InitClassAndRecompile {
                     class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
-                    restart_bytecode: ByteCodeIndex(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::BYTECODE_RESTART_LOCATION) as u16),
+                    restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
+                    rbp: register_state.saved_registers_without_ip.rbp
                 }
             }
         }

@@ -39,7 +39,7 @@ impl OpaqueFrameIdOrMethodID {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum JavaStackPosition {
     Frame {
         frame_pointer: *const c_void

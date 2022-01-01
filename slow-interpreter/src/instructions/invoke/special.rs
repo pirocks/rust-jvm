@@ -43,8 +43,8 @@ pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state:
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state,&mut function_call_frame) {
             Ok(res) => {
+                interpreter_state.pop_frame(jvm, function_call_frame, false);
                 if !jvm.config.compiled_mode_active {
-                    interpreter_state.pop_frame(jvm, function_call_frame, false);
                     if interpreter_state.function_return() {
                         interpreter_state.set_function_return(false);
                     }
