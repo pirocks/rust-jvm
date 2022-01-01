@@ -71,8 +71,8 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
             Ok(res) => {
                 todo!("handle res");
                 assert!(!interpreter_state.throw().is_some());
+                interpreter_state.pop_frame(jvm, frame_for_function, false);
                 if !jvm.config.compiled_mode_active {
-                    interpreter_state.pop_frame(jvm, frame_for_function, false);
                 }
                 if interpreter_state.function_return() {
                     interpreter_state.set_function_return(false);

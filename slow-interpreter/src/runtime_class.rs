@@ -224,8 +224,8 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
     return match run_function(jvm, int_state, &mut new_function_frame) {
         Ok(res) => {
             assert!(res.is_none());
+            int_state.pop_frame(jvm, new_function_frame, true);
             if !jvm.config.compiled_mode_active {
-                int_state.pop_frame(jvm, new_function_frame, true);
             }
             // if int_state.function_return() {
             //     int_state.set_function_return(false);

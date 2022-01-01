@@ -282,9 +282,10 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             }
         };
         let new_current_frame_position = call_stack.push_frame(*current_stack_position, method_id, local_vars, operand_stack);
+        let old_position = int_state.current_stack_position;
         int_state.current_stack_position = new_current_frame_position;
 
-        FramePushGuard { _correctly_exited: false }
+        FramePushGuard { _correctly_exited: false, prev_stack_location: old_position }
     }
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
@@ -319,7 +320,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         if self.current_frame().is_native() {
             unsafe { drop(Box::from_raw(self.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo)) }
         }
-        todo!()
+        self.int_state.as_mut().unwrap().current_stack_position = frame_push_guard.prev_stack_location;
         assert!(self.thread.is_alive());
     }
 
@@ -589,11 +590,12 @@ pub enum AddFrameNotifyError {
 #[must_use = "Must handle frame push guard. "]
 pub struct FramePushGuard {
     _correctly_exited: bool,
+    prev_stack_location: JavaStackPosition
 }
 
 impl Default for FramePushGuard {
     fn default() -> Self {
-        FramePushGuard { _correctly_exited: false }
+        FramePushGuard { _correctly_exited: false, prev_stack_location: todo!() }
     }
 }
 

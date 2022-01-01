@@ -140,8 +140,8 @@ impl<'gc_life> ThreadState<'gc_life> {
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
         //todo should handle excpetions here
+        int_state.pop_frame(jvm, init_frame_guard, false);
         if !jvm.config.compiled_mode_active {
-            int_state.pop_frame(jvm, init_frame_guard, false);
         }
     }
 
