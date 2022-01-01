@@ -146,7 +146,6 @@ pub fn setup_virtual_args<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuard
 }
 
 pub fn setup_virtual_args2<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<JavaValue<'gc_life>>) {
-    let mut current_frame = int_state.current_frame_mut();
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }

@@ -320,6 +320,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         if self.current_frame().is_native() {
             unsafe { drop(Box::from_raw(self.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo)) }
         }
+        dbg!(self.int_state.as_mut().unwrap().current_stack_position);
+        dbg!(frame_push_guard.prev_stack_location);
         self.int_state.as_mut().unwrap().current_stack_position = frame_push_guard.prev_stack_location;
         assert!(self.thread.is_alive());
     }

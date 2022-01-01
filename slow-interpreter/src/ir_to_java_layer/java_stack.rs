@@ -94,6 +94,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             // assert_eq!(ir_method_id_2, ir_method_id);
             jvm.max_locals_by_method_id(method_id)
         } else {
+            // ir_frame.data(1) as usize as *const NativeFrameInfo
             todo!("should have seperate thing for opaque frames")
         };
         let ir_frame_mut = unsafe { self.inner.frame_at_mut(java_stack_position.get_frame_pointer() as *mut c_void) };
