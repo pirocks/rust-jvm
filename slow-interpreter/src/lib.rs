@@ -59,7 +59,6 @@ pub mod utils;
 pub mod class_loading;
 pub mod class_objects;
 pub mod field_table;
-pub mod cpdtype_table;
 pub mod instructions;
 pub mod interpreter;
 pub mod interpreter_state;
@@ -78,7 +77,6 @@ pub mod threading;
 pub mod tracing;
 #[macro_use]
 pub mod runtime_class;
-pub mod gc_memory_layout_common;
 pub mod jit;
 pub mod jit_common;
 pub mod native_to_ir_layer;

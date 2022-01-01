@@ -1,0 +1,18 @@
+[package]
+name = "another-jit-vm-ir"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+another-jit-vm = { path = "../another-jit-vm" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+bimap = "0.5.2"
+libc = "0.2"
+num-derive = "0.3.3"
+num-traits = "0.2.14"
+
+[dependencies.iced-x86]
+version = "1.15.0"
+features = ["code_asm"]

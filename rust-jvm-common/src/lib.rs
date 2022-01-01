@@ -14,5 +14,6 @@ pub mod string_pool;
 pub mod test_utils;
 pub mod utils;
 pub mod vtype;
+pub mod cpdtype_table;
 
 pub const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;

@@ -30,6 +30,9 @@ use verification::verifier::Frame;
 use crate::method_table::MethodId;
 use crate::threading::JavaThreadId;
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct FramePointerOffset(pub usize);
+
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
     Class { thread: JavaThreadId, name: CClassName, loader: LoaderName, size: usize },
@@ -390,8 +393,7 @@ pub struct FrameHeader {
     pub magic_part_2: u64,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct FramePointerOffset(pub usize);
+
 
 pub trait StackframeMemoryLayout {
     fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset;

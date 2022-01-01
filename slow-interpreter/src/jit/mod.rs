@@ -25,7 +25,7 @@ use crate::field_table::FieldId;
 use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::vm_exit_abi::VMExitTypeWithArgs;
-use crate::jit::ir::{IRInstr, IRLabel};
+use crate::jit::ir::{IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::java_stack::JavaStack;
@@ -37,8 +37,7 @@ use crate::rust_jni::interface::array::release_boolean_array_elements;
 pub mod ir;
 pub mod state;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct LabelName(u32);
+
 
 /*#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum VMExitType {

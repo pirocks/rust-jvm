@@ -1,11 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
-use by_address::ByAddress;
 
-use rust_jvm_common::compressed_classfile::CPDType;
-
-use crate::runtime_class::RuntimeClass;
+use crate::compressed_classfile::CPDType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct CPDTypeID(pub(crate) u32);
@@ -42,3 +38,4 @@ impl CPDTypeTable {
         Self { table: vec![], index: HashMap::new() }
     }
 }
+

@@ -52,5 +52,7 @@ members = [
     "method-table",
     "early-startup",
     "another-jit-vm",
-    "classfile-writer"
+    "classfile-writer",
+    "another-jit-vm-ir",
+    "gc-memory-layout-common"
 ]
