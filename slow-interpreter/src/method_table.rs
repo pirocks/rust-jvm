@@ -4,6 +4,7 @@ use std::sync::Arc;
 use by_address::ByAddress;
 
 use jvmti_jni_bindings::_jmethodID;
+use rust_jvm_common::{MethodId, MethodTableIndex};
 
 use crate::runtime_class::RuntimeClass;
 

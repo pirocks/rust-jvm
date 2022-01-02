@@ -1,10 +1,10 @@
+use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
 
 pub fn pop2(jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, mut current_frame: StackEntryMut<'gc_life, 'l>) {

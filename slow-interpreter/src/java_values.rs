@@ -16,6 +16,7 @@ use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 
 use early_startup::Regions;
+use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
@@ -23,7 +24,6 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::class_loading::check_resolved_class;
-use crate::gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;

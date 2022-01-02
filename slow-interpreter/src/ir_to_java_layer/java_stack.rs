@@ -2,17 +2,18 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
+use another_jit_vm_ir::IRMethodID;
+use gc_memory_layout_common::FramePointerOffset;
 
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValue, JVMState};
-use crate::gc_memory_layout_common::FramePointerOffset;
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java_values::GcManagedObject;
-use crate::method_table::MethodId;
-use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRMethodID, OwnedIRStack};
 
 pub struct OwnedJavaStack<'vm_life> {
     jvm: &'vm_life JVMState<'vm_life>,
@@ -34,7 +35,9 @@ impl OpaqueFrameIdOrMethodID {
     pub fn try_unwrap_method_id(&self) -> Option<MethodId> {
         match self {
             OpaqueFrameIdOrMethodID::Opaque { .. } => None,
-            OpaqueFrameIdOrMethodID::Method { method_id } => Some(*method_id as MethodId)
+            OpaqueFrameIdOrMethodID::Method { method_id } => {
+                assert_ne!(*method_id, u64::MAX);
+                Some(*method_id as MethodId)}
         }
     }
 }

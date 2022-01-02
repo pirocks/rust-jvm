@@ -1,13 +1,13 @@
 use itertools::Either;
 
 use another_jit_vm::Register;
+use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use gc_memory_layout_common::StackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::gc_memory_layout_common::StackframeMemoryLayout;
-use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
-use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, VMExitTypeWithArgs};
-use crate::jit::ir::IRInstr;
+use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::MethodResolver;
 
 pub fn invokespecial(

@@ -9,12 +9,12 @@ use iced_x86::CC_b::c;
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
+use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::gc_memory_layout_common::{FrameBackedStackframeMemoryLayout, FrameInfo, FramePointerOffset, FullyOpaqueFrame, NativeStackframeMemoryLayout};
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut};
 use crate::java_values::{GcManagedObject, JavaValue};

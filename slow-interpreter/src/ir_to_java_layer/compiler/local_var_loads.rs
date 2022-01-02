@@ -1,6 +1,6 @@
 use another_jit_vm::Register;
+use another_jit_vm_ir::compiler::IRInstr;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::jit::ir::IRInstr;
 
 pub fn aload_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, n: u16) -> impl Iterator<Item=IRInstr> {
     //todo have register allocator

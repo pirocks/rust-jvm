@@ -3,6 +3,7 @@ use std::ffi::{VaList, VaListImpl};
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::MethodId;
 
 use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
@@ -12,7 +13,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::method_table::{from_jmethod_id, MethodId};
+use crate::method_table::{from_jmethod_id};
 use crate::rust_jni::interface::push_type_to_operand_stack;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 

@@ -14,26 +14,25 @@ use itertools::Itertools;
 use libc::read;
 
 use another_jit_vm::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
+use another_jit_vm_ir::{IRInstructIndex, IRMethodID, IRVMExitEvent, IRVMState};
+use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
+use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
-use crate::ir_to_java_layer::vm_exit_abi::{AllocateVMExit, IRVMExitType, RestartPointID, RuntimeVMExitInput, VMExitTypeWithArgs};
 use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
-use crate::jit::ir::IRInstr;
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
-use crate::method_table::MethodId;
-use crate::native_to_ir_layer::{IRFrameMut, IRFrameRef, IRInstructIndex, IRMethodID, IRVMExitEvent, IRVMState, IRVMStateInner, OwnedIRStack};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::run_static_or_virtual;
 
@@ -89,7 +88,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
                 let res = run_native_method(jvm, int_state, rc, method_i, args_jv).unwrap();
                 if let Some(res) = res {
-                    unsafe { (*res_ptr).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
+                    unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
@@ -109,14 +108,14 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
             }
-            RuntimeVMExitInput::PutStatic { field_id, value, return_to_ptr } => {
+            RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
                 eprintln!("PutStatic");
                 let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
                 let view = rc.view();
                 let field_view = view.field(field_i as usize);
                 let mut static_vars_guard = rc.static_vars();
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
-                let jv = unsafe { value.as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
+                let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
                 VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
             }
@@ -144,7 +143,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 }
 
 pub struct JavaVMStateWrapper<'vm_life> {
-    pub ir: IRVMState<'vm_life>,
+    pub ir: IRVMState<'vm_life,()>,
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,

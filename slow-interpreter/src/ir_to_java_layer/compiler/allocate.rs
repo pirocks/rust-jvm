@@ -1,11 +1,11 @@
 use itertools::Either;
+use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
-use crate::ir_to_java_layer::vm_exit_abi::IRVMExitType;
-use crate::jit::ir::IRInstr;
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::MethodResolver;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 

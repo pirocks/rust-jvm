@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use rust_jvm_common::{FieldId, FieldTableIndex};
 
 use crate::runtime_class::RuntimeClass;
 

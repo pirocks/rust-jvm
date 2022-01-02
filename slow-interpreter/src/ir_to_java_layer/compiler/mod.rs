@@ -7,12 +7,16 @@ use iced_x86::CC_be::na;
 use itertools::Itertools;
 
 use another_jit_vm::Register;
+use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::HasAccessFlags;
+use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::MethodId;
 
-use crate::gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
@@ -23,13 +27,9 @@ use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
-use crate::ir_to_java_layer::vm_exit_abi::{IRVMExitType, RestartPointID, VMExitTypeWithArgs};
-use crate::jit::{ByteCodeOffset, LabelName, MethodResolver};
-use crate::jit::ir::{IRInstr, IRLabel};
+use crate::jit::{ByteCodeOffset, MethodResolver};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
-use crate::method_table::MethodId;
-use crate::native_to_ir_layer::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET};
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::FrameView;
 
@@ -105,23 +105,6 @@ impl<'l> CompilerLabeler<'l> {
     }
 }
 
-pub struct RestartPointGenerator {
-    current_max_restart_point: RestartPointID,
-}
-
-impl RestartPointGenerator {
-    pub fn new() -> Self {
-        Self {
-            current_max_restart_point: RestartPointID(0)
-        }
-    }
-
-    pub fn new_restart_point(&mut self) -> RestartPointID {
-        let res = self.current_max_restart_point;
-        self.current_max_restart_point.0 += 1;
-        res
-    }
-}
 
 pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<IRInstr> {
     let cinstructions = method_frame_data.code_by_index.as_slice();

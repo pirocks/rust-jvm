@@ -2,10 +2,10 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::*;
+use rust_jvm_common::FieldId;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
-use crate::field_table::FieldId;
 use crate::get_thread_or_error;
 use crate::interpreter_state::AddFrameNotifyError;
 use crate::java_values::JavaValue;

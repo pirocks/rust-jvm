@@ -12,6 +12,8 @@ use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, r
 use itertools::Itertools;
 use memoffset::offset_of;
 use wtf8::Wtf8Buf;
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
+use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
@@ -19,18 +21,14 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
-use crate::cpdtype_table::CPDTypeID;
-use crate::field_table::FieldId;
+use rust_jvm_common::{FieldId, MethodId};
+use rust_jvm_common::cpdtype_table::CPDTypeID;
 
-use crate::gc_memory_layout_common::{AllocatedObjectType, FramePointerOffset};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::ir_to_java_layer::vm_exit_abi::VMExitTypeWithArgs;
-use crate::jit::ir::{IRLabel};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
-use crate::method_table::MethodId;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::array::release_boolean_array_elements;
 

@@ -7,12 +7,12 @@ use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use another_jit_vm::{Register, SavedRegistersWithIP, SavedRegistersWithoutIP};
+use another_jit_vm::{Register, SavedRegistersWithIP};
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::{FieldId, MethodId};
-use crate::RestartPointID;
+use crate::compiler::RestartPointID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct LoadClassAndRecompileStaticArgsID(usize);
@@ -109,9 +109,7 @@ pub struct LoadClassAndRecompileStaticArgs {
     class_type: CPDType,
 }
 
-pub struct LoadClassAndRecompile {
-    static_arg: LoadClassAndRecompileStaticArgsID,
-}
+pub struct LoadClassAndRecompile;
 
 impl LoadClassAndRecompile {
     pub const VM_EXIT_STATIC_ARGS_ID: Register = Register(1);
@@ -152,7 +150,7 @@ pub enum IRVMExitType {
 }
 
 impl IRVMExitType {
-    pub fn gen_assembly(&self, assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers: Vec<Register>) {
+    pub fn gen_assembly(&self, assembler: &mut CodeAssembler, after_exit_label: &mut CodeLabel, registers: Vec<Register>) {
         match self {
             IRVMExitType::AllocateObjectArray_ { array_type, arr_len, arr_res } => {
                 // assembler.int3().unwrap();
@@ -270,7 +268,7 @@ pub enum RuntimeVMExitInput {
         restart_point: RestartPointID,
     },
     PutStatic {
-        value: *mut c_void,
+        value_ptr: *mut c_void,
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
@@ -278,22 +276,6 @@ pub enum RuntimeVMExitInput {
 
 impl RuntimeVMExitInput {
     pub fn from_register_state(register_state: &SavedRegistersWithIP) -> Self {
-        let SavedRegistersWithoutIP {
-            rcx,
-            rdx,
-            rsi,
-            rdi,
-            rsp,
-            r8,
-            r9,
-            r10,
-            r11,
-            r12,
-            r13,
-            r14,
-            xsave_area,
-            ..
-        } = register_state.saved_registers_without_ip;
         let raw_vm_exit_type: RawVMExitType = RawVMExitType::from_u64(register_state.saved_registers_without_ip.rax as u64).unwrap();
         match raw_vm_exit_type {
             RawVMExitType::AllocateObjectArray => {
@@ -310,7 +292,7 @@ impl RuntimeVMExitInput {
                     method_id: register_state.saved_registers_without_ip.get_register(RunStaticNative::METHODID) as MethodId,
                     arg_start: register_state.saved_registers_without_ip.get_register(RunStaticNative::ARG_START) as *mut c_void,
                     num_args: register_state.saved_registers_without_ip.get_register(RunStaticNative::NUM_ARGS) as u16,
-                    res_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RES) as *mut NativeJavaValue,
+                    res_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RES) as *mut c_void,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNative::RESTART_IP) as *mut c_void,
                 }
             }
@@ -331,7 +313,7 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::PutStatic => {
                 RuntimeVMExitInput::PutStatic {
-                    value: register_state.saved_registers_without_ip.get_register(PutStatic::VALUE_PTR) as *mut NativeJavaValue<'static>,
+                    value_ptr: register_state.saved_registers_without_ip.get_register(PutStatic::VALUE_PTR) as *mut c_void,
                     field_id: register_state.saved_registers_without_ip.get_register(PutStatic::FIELD_ID) as FieldId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(PutStatic::RESTART_IP) as *const c_void,
                 }

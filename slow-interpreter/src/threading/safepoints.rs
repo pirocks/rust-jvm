@@ -4,12 +4,13 @@ use std::sync::{Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
+use rust_jvm_common::JavaThreadId;
 
 use crate::interpreter::{safepoint_check, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::JVMState;
-use crate::threading::{JavaThreadId, ResumeError, SuspendError, ThreadStatus};
+use crate::threading::{ResumeError, SuspendError, ThreadStatus};
 
 pub type MonitorID = usize;
 

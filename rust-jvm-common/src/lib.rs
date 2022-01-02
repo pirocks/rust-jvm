@@ -19,7 +19,7 @@ pub mod cpdtype_table;
 pub const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
 pub type JavaThreadId = i64;
-type MethodTableIndex = usize;
+pub type MethodTableIndex = usize;
 pub type MethodId = MethodTableIndex;
 
 pub type FieldTableIndex = usize;

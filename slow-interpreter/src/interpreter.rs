@@ -13,6 +13,7 @@ use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 use verification::OperandStack;
@@ -46,7 +47,6 @@ use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jit::state::JITedCodeState;
 use crate::jvm_state::JVMState;
-use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
 use crate::threading::safepoints::Monitor2;
 

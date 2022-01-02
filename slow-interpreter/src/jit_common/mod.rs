@@ -1,11 +1,11 @@
 #![feature(box_syntax)]
 
 use std::ffi::c_void;
+use gc_memory_layout_common::{FramePointerOffset, RegionData};
 
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::gc_memory_layout_common::{AllocatedTypeID, FramePointerOffset, RegionData};
 use crate::jit_common::java_stack::JavaStatus;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

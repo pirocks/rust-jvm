@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::compressed_classfile::CPDType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct CPDTypeID(pub(crate) u32);
+pub struct CPDTypeID(pub u32);
 
 //todo duplication with other tables
 pub struct CPDTypeTable {

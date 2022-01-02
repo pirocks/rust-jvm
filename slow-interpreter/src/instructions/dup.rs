@@ -1,9 +1,9 @@
+use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::OperandStack;
 use verification::verifier::Frame;
 
 use crate::jvm_state::JVMState;
-use crate::method_table::MethodId;
 use crate::stack_entry::StackEntryMut;
 
 pub fn dup(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {

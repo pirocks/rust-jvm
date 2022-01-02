@@ -3,7 +3,6 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
-use crate::gc_memory_layout_common::FramePointerOffset;
 
 use crate::interpreter_state::InterpreterState;
 use crate::InterpreterStateGuard;

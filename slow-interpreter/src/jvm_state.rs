@@ -25,14 +25,14 @@ use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDTy
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
+use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
+use rust_jvm_common::MethodId;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
-use crate::cpdtype_table::CPDTypeTable;
 use crate::field_table::FieldTable;
-use crate::gc_memory_layout_common::FrameBackedStackframeMemoryLayout;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::ir_to_java_layer::compiler::JavaCompilerMethodAndFrameData;
@@ -43,9 +43,8 @@ use crate::java_values::{ByAddressGcManagedObject, GC, GcManagedObject, JavaValu
 use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
-use crate::method_table::{MethodId, MethodTable};
+use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
-use crate::native_to_ir_layer::IRVMState;
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;

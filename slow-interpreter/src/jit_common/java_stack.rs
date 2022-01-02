@@ -8,13 +8,13 @@ use itertools::Itertools;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use classfile_view::view::ptype_view::PTypeView;
+use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
 use jvmti_jni_bindings::jobject;
+use rust_jvm_common::MethodId;
 
-use crate::gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, NativeStackframeMemoryLayout, StackframeMemoryLayout};
 use crate::jit::state::NaiveStackframeLayout;
 use crate::jit_common::SavedRegisters;
 use crate::jvm_state::JVMState;
-use crate::method_table::MethodId;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
@@ -144,7 +144,7 @@ impl JavaStack {
         let new_header = (new_rbp as *mut FrameHeader).as_mut().unwrap();
         new_header.magic_part_1 = MAGIC_1_EXPECTED;
         new_header.magic_part_2 = MAGIC_2_EXPECTED;
-        new_header.methodid = frame_info.methodid();
+        new_header.methodid = frame_info.methodid().unwrap();
         new_header.frame_info_ptr = Box::into_raw(box frame_info); //leak dealt with in frame pop
         new_header.prev_rip = match prev_rip {
             None => transmute(0xDEADDEADDEADDEADusize),

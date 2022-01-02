@@ -3,13 +3,13 @@ use std::mem::size_of;
 use itertools::Either;
 
 use another_jit_vm::Register;
+use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, RestartPointGenerator};
-use crate::ir_to_java_layer::vm_exit_abi::IRVMExitType;
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::java::lang::reflect::field::Field;
-use crate::jit::ir::IRInstr;
 use crate::jit::MethodResolver;
 
 pub fn putfield(

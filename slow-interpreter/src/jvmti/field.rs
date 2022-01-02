@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jboolean, jclass, jfieldID, jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use rust_jvm_common::FieldId;
 
-use crate::field_table::FieldId;
 use crate::JVMState;
 use crate::jvmti::get_state;
 use crate::rust_jni::interface::get_field::new_field_id;

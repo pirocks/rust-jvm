@@ -19,6 +19,7 @@ sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 early-startup = { path = "../early-startup" }
 another-jit-vm = { path = "../another-jit-vm" }
 another-jit-vm-ir = { path = "../another-jit-vm-ir" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }

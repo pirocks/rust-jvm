@@ -10,13 +10,13 @@ use libloading::os::unix::RTLD_NOW;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::MethodId;
 
 use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::thread::JThread;
 use crate::jvmti::{get_jvmti_interface, get_state};
-use crate::method_table::MethodId;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::to_object;

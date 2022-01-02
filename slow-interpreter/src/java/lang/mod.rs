@@ -506,6 +506,7 @@ pub mod thread {
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::JavaThreadId;
     use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -518,7 +519,7 @@ pub mod thread {
     use crate::java_values::{GcManagedObject, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
     use crate::runtime_class::RuntimeClass;
-    use crate::threading::{JavaThread, JavaThreadId};
+    use crate::threading::{JavaThread};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]

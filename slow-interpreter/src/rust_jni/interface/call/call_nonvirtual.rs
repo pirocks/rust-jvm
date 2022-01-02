@@ -4,11 +4,11 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::MethodId;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
-use crate::method_table::MethodId;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{get_interpreter_state, get_state};

@@ -612,4 +612,4 @@ pub const R14_NATIVE_OFFSET_CONST: usize = 112 + XSAVE_AREA_GUEST_OFFSET_CONST +
 pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = XSAVE_AREA_GUEST_OFFSET_CONST + 120 + XSAVE_SIZE + 8;
 
 
-pub struct NativeInstructionLocation(pub(crate) *const c_void);
+pub struct NativeInstructionLocation(pub *const c_void);

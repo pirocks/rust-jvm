@@ -17,6 +17,7 @@ use wtf8::Wtf8Buf;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
