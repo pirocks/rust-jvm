@@ -67,7 +67,7 @@ pub struct CompiledCodeID(pub u32);
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct IRInstructionIndex(u32);
 
-pub struct NativeInstructionLocation(pub(crate) *const c_void);
+
 
 #[derive(Clone, Debug)]
 pub struct NotSupported;

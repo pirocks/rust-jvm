@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 another-jit-vm = { path = "../another-jit-vm" }
 rust-jvm-common = { path = "../rust-jvm-common" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 bimap = "0.5.2"
 libc = "0.2"
 num-derive = "0.3.3"

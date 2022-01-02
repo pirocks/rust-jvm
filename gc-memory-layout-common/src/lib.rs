@@ -3,32 +3,26 @@
 #![feature(destructuring_assignment)]
 #![feature(int_roundings)]
 #![feature(box_syntax)]
+#![feature(exclusive_range_pattern)]
 
-use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ops::Range;
-use std::pin::Pin;
 use std::ptr::{NonNull, null_mut};
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use std::thread::ThreadId;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use iced_x86::CpuidFeature::PADLOCK_RNG;
 use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
-use rangemap::RangeMap;
 
-use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, TERABYTE};
-use jvmti_jni_bindings::{jbyte, jint, jlong, jobject};
+use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_SIZE, TERABYTE};
+use jvmti_jni_bindings::{jint, jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use verification::verifier::Frame;
-
-use crate::method_table::MethodId;
-use crate::threading::JavaThreadId;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FramePointerOffset(pub usize);
@@ -296,7 +290,8 @@ impl GCState {
     }
 
     pub fn register_root(&mut self, root: *mut c_void) {
-        self.roots.insert(root, todo!());
+        // self.roots.insert(root, todo!());
+        todo!()
     }
 
     pub fn gc(&mut self) {
@@ -306,7 +301,10 @@ impl GCState {
                 self.gc_impl(*root, layout, &mut touched_pointers);
             }
         }
-        let (new_live_pointers, to_free): (Vec<(_, _)>, Vec<_>) = self.live_pointers.iter().partition_map(|(pointer, layout)| if touched_pointers.contains(pointer) { Either::Left((*pointer, layout.clone())) } else { Either::Right(pointer) });
+        let (new_live_pointers, to_free): (Vec<(_, _)>, Vec<_>) = self.live_pointers.iter()
+            .partition_map(|(pointer, layout)| {
+            if touched_pointers.contains(pointer) { Either::Left((*pointer, layout.clone())) } else { Either::Right(pointer) }
+        });
         self.live_pointers = new_live_pointers.into_iter().collect::<HashMap<*mut c_void, PointerMemoryLayout>>();
         for to_free_pointer in to_free {
             unsafe { self.free(to_free_pointer) }
@@ -388,11 +386,10 @@ pub struct FrameHeader {
     pub prev_rip: *mut c_void,
     pub prev_rpb: *mut c_void,
     pub frame_info_ptr: *mut FrameInfo,
-    pub methodid: MethodId,
+    pub methodid: usize,
     pub magic_part_1: u64,
     pub magic_part_2: u64,
 }
-
 
 
 pub trait StackframeMemoryLayout {
@@ -516,11 +513,11 @@ impl FrameInfo {
         }
     }
 
-    pub fn methodid(&self) -> MethodId {
+    pub fn methodid(&self) -> Option<usize> {
         match self {
-            FrameInfo::FullyOpaque { .. } => usize::MAX,
-            FrameInfo::Native { method_id, .. } => *method_id,
-            FrameInfo::JavaFrame { method_id, .. } => *method_id,
+            FrameInfo::FullyOpaque { .. } => None,
+            FrameInfo::Native { method_id, .. } => Some(*method_id),
+            FrameInfo::JavaFrame { method_id, .. } => Some(*method_id),
         }
     }
 }

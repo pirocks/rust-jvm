@@ -322,7 +322,6 @@ thread_local! {
     static CURRENT_JAVA_THREAD: RefCell<Option<Arc<JavaThread<'static>>>> = RefCell::new(None);
 }
 
-pub type JavaThreadId = i64;
 
 pub struct JavaThread<'vm_life> {
     pub java_tid: JavaThreadId,

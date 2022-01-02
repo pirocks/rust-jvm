@@ -1,17 +1,18 @@
-use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::RwLock;
 
 use bimap::BiHashMap;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, k0, k1, qword_ptr, rax, rbp, rbx, xmm0};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 use another_jit_vm::{Register, SavedRegistersWithIP, SavedRegistersWithoutIP};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::FieldName;
-use rust_jvm_common::loading::LoaderName;
+use gc_memory_layout_common::FramePointerOffset;
+use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::cpdtype_table::CPDTypeID;
+use rust_jvm_common::{FieldId, MethodId};
+use crate::RestartPointID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct LoadClassAndRecompileStaticArgsID(usize);
@@ -257,7 +258,7 @@ pub enum RuntimeVMExitInput {
         method_id: MethodId,
         arg_start: *mut c_void,
         num_args: u16,
-        res_ptr: *mut NativeJavaValue<'static>,
+        res_ptr: *mut c_void,
         return_to_ptr: *mut c_void,
     },
     TopLevelReturn {
@@ -269,7 +270,7 @@ pub enum RuntimeVMExitInput {
         restart_point: RestartPointID,
     },
     PutStatic {
-        value: *mut NativeJavaValue<'static>,
+        value: *mut c_void,
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },

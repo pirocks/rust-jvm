@@ -7,8 +7,6 @@ use jvmti_jni_bindings::_jmethodID;
 
 use crate::runtime_class::RuntimeClass;
 
-type MethodTableIndex = usize;
-pub type MethodId = MethodTableIndex;
 
 pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId

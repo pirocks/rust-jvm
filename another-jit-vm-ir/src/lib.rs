@@ -7,11 +7,13 @@ use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 use std::sync::{Arc, RwLock};
 use bimap::BiHashMap;
-use iced_x86::code_asm::{CodeAssembler, qword_ptr, rax, rbp, rbx, rsp};
-use iced_x86::{BlockEncoder, BlockEncoderOptions, InstructionBlock, IntelFormatter};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
+use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
-use another_jit_vm::{BaseAddress, Method, Register, SavedRegistersWithoutIP, VMExitEvent, VMState};
-use crate::vm_exit_abi::RuntimeVMExitInput;
+use another_jit_vm::{BaseAddress, Method, MethodImplementationID, Register, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
+use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use rust_jvm_common::MethodId;
+use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
 #[cfg(test)]
 mod tests;
@@ -130,14 +132,14 @@ impl IRVMStateInner {
     }
 }
 
-pub struct IRVMState<'vm_life> {
-    native_vm: VMState<'vm_life, u64, (Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)>,
+pub struct IRVMState<'vm_life, ExtraData : 'vm_life> {
+    native_vm: VMState<'vm_life, u64, ExtraData/*(Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)*/>,
     inner: RwLock<IRVMStateInner>,
 }
 
 pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
-impl<'vm_life> IRVMState<'vm_life> {
+impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     pub fn lookup_opaque_ir_method_id(&self, opaque_id: u64) -> IRMethodID {
         let mut guard = self.inner.write().unwrap();
         match guard.opaque_method_to_or_method_id.get(&opaque_id) {
@@ -247,7 +249,7 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life>) -> IRFrameIter<'_, 'vm_life> {
+    pub unsafe fn frame_iter(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, 'vm_life> {
         IRFrameIter {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -459,6 +461,7 @@ impl<'vm_life> IRVMState<'vm_life> {
     }
 
     pub fn run_method(&self, method_id: IRMethodID, int_state: &mut InterpreterStateGuard<'vm_life, 'l>, frame_pointer: *const c_void, stack_pointer: *const c_void) -> u64 {
+        let extra_data = (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm);
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -470,7 +473,7 @@ impl<'vm_life> IRVMState<'vm_life> {
         initial_registers.rsp = stack_pointer as *mut c_void;
         drop(int_state.int_state.take());
         drop(inner_read_guard);
-        let res = self.native_vm.launch_vm(current_implementation, initial_registers, (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm));
+        let res = self.native_vm.launch_vm(current_implementation, initial_registers, extra_data);
         unsafe { int_state.int_state = Some(transmute(int_state.thread.interpreter_state.lock().unwrap())) };
         res
     }

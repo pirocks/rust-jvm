@@ -5,9 +5,6 @@ use by_address::ByAddress;
 
 use crate::runtime_class::RuntimeClass;
 
-pub type FieldTableIndex = usize;
-pub type FieldId = usize;
-
 pub struct FieldTable<'gc_life> {
     table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
     //todo at a later date will contain compiled code data etc.
