@@ -1,5 +1,7 @@
 #![feature(in_band_lifetimes)]
 #![feature(step_trait)]
+#![feature(box_syntax)]
+
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::ops::Deref;
@@ -296,11 +298,23 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
                 assembler.mov(rax, return_register.to_native_64()).unwrap();
             }
             //rsp is now equal is to prev rbp qword, so that we can pop the previous rip in ret
+            assembler.mov(temp_register_1.to_native_64(),rsp).unwrap();
+            assembler.sub(temp_register_1.to_native_64(),rbp).unwrap();
+            assembler.mov(temp_register_2.to_native_64(),frame_size as u64).unwrap();
+            assembler.cmp(temp_register_1.to_native_64(),temp_register_2.to_native_64()).unwrap();
+            let mut skip_assert = assembler.create_label();
+            assembler.jne(skip_assert).unwrap();
+
+            assembler.int3().unwrap();
+            assembler.mov(temp_register_2.to_native_64(), 0u64).unwrap();
+            assembler.mov(temp_register_2.to_native_64(),qword_ptr(temp_register_2.to_native_64())).unwrap();
+
+            assembler.set_label(&mut skip_assert).unwrap();
             assembler.mov(rsp, rbp).unwrap();
             //load prev fram pointer
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
             assembler.ret().unwrap();
-            todo!("{:?}",frame_size)
+            // todo!("{:?}",frame_size)
         }
         IRInstr::VMExit2 { exit_type } => {
             gen_vm_exit(assembler, exit_type);
@@ -336,9 +350,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
             assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
             assembler.mov(temp_register, target_address as u64).unwrap();
+            assembler.sub(rsp, new_frame_size as i32).unwrap();
             assembler.jmp(temp_register).unwrap();
             assembler.set_label(&mut after_call_label).unwrap();
-            todo!("what about rsp {}", new_frame_size)
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
             let mut after_exit_label = assembler.create_label();

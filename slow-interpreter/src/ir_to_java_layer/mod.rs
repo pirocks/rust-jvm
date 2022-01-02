@@ -207,7 +207,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             JavaStackPosition::Top => mmapped_top
         };
         let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
-        self.ir.run_method(ir_method_id, int_state, frame_pointer, stack_pointer)
+        self.ir.run_method(ir_method_id, &mut int_state.java_stack().inner, (),frame_pointer, stack_pointer)
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
