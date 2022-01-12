@@ -1,10 +1,15 @@
+use std::cell::{RefCell, RefMut};
 use std::ffi::c_void;
+use std::mem::size_of;
+use std::ops::Deref;
 use std::ptr::null_mut;
+use std::slice::from_raw_parts;
+
 use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+
 use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use rust_jvm_common::MethodId;
-use std::mem::size_of;
-use std::slice::from_raw_parts;
+
 use crate::{IRMethodID, IRVMState};
 
 // IR knows about stack so we should have a stack
@@ -15,8 +20,18 @@ pub struct OwnedIRStack {
     max_stack: usize,
 }
 
+thread_local! {
+    static ONE_PER_THREAD: RefCell<usize> = RefCell::new(0);
+}
+
 impl OwnedIRStack {
     pub fn new() -> Self {
+        ONE_PER_THREAD.with(|refcell|{
+            *refcell.borrow_mut() += 1;
+            if refcell.borrow().deref() != &1{
+                panic!()
+            }
+        });
         pub const MAX_STACK: usize = 1024 * 1024 * 1024;
         let mmaped_top = unsafe { libc::mmap(null_mut(), MAX_STACK, PROT_READ | PROT_WRITE, MAP_NORESERVE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0) };
         unsafe {
@@ -84,6 +99,29 @@ impl OwnedIRStack {
         }
     }
 }
+
+pub struct IRStackMut<'l> {
+    owned_ir_stack: RefMut<'l, OwnedIRStack>,
+    current_rbp: *mut c_void,
+}
+
+impl<'l> IRStackMut<'l> {
+    pub fn new(owned_ir_stack: RefMut<'l, OwnedIRStack>, current_rbp: *mut c_void) -> Self {
+        unsafe { owned_ir_stack.validate_frame_pointer(current_rbp) }
+        Self {
+            owned_ir_stack,
+            current_rbp,
+        }
+    }
+
+    pub fn push_frame(&mut self, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
+        unsafe {
+            self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp, ir_method_id, method_id, data);
+            self.current_rbp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())
+        }
+    }
+}
+
 
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameIter<'l, 'vm_life, ExtraData: 'vm_life> {
@@ -161,8 +199,8 @@ impl IRFrameRef<'_> {
             None => {
                 //todo this is scuffed
                 //frame header size + one data pointer for native frame data
-                return FRAME_HEADER_END_OFFSET + 1*size_of::<*const c_void>()
-            },
+                return FRAME_HEADER_END_OFFSET + 1 * size_of::<*const c_void>();
+            }
         };
         *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
     }

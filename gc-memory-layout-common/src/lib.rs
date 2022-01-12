@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![feature(destructuring_assignment)]
 #![feature(int_roundings)]
 #![feature(box_syntax)]
 #![feature(exclusive_range_pattern)]
