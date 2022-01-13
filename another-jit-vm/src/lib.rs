@@ -1,6 +1,7 @@
 #![feature(asm)]
 #![feature(asm_const)]
 #![feature(backtrace)]
+#![feature(trait_alias)]
 // save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
@@ -11,6 +12,7 @@ use std::arch::asm;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
+use std::marker::PhantomData;
 use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
@@ -19,6 +21,10 @@ use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel,
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
+
+use crate::stack::OwnedNativeStack;
+
+pub mod stack;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Register(pub u8);
@@ -86,8 +92,9 @@ pub struct VMStateInner<'vm_life, T: Sized, ExtraData: 'vm_life>/*<'vm_state_lif
     method_id_max: MethodImplementationID,
     code_regions: HashMap<MethodImplementationID, Range<*const c_void>>,
     code_regions_to_method: RangeMap<*const c_void, MethodImplementationID>,
-    exit_handlers: HashMap<MethodImplementationID,Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_life>>,
+    exit_handlers: HashMap<MethodImplementationID, Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>>,
     max_ptr: *mut c_void,
+    phantom_nightly_compiler_bug_workaround: PhantomData<&'vm_life ()>,
 }
 
 pub struct VMState<'vm_life, T: Sized, ExtraData> {
@@ -95,16 +102,16 @@ pub struct VMState<'vm_life, T: Sized, ExtraData> {
     //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
-    unknown_exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_life>,
+    unknown_exit_handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>,
 }
 
-impl<'vm_life,T, ExtraData> VMState<'vm_life, T, ExtraData> {
+impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     pub fn lookup_method_addresses(&self, method_implementation_id: MethodImplementationID) -> Range<*const c_void> {
         self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
     }
 
-    pub fn add_method_implementation_handler(&self, method_implementation_id: MethodImplementationID, handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_life>) {
-        self.inner.write().unwrap().exit_handlers.insert(method_implementation_id,handler);
+    pub fn add_method_implementation_handler(&self, method_implementation_id: MethodImplementationID, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T>>) {
+        self.inner.write().unwrap().exit_handlers.insert(method_implementation_id, handler);
     }
 }
 
@@ -241,10 +248,11 @@ struct JITContext {
     vm_native_saved_registers: SavedRegistersWithIP,
 }
 
+trait ExitHandlerType<'vm_life, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm_life;
 
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
-    pub fn new(exit_handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_life>) -> Self {
+    pub fn new(exit_handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>) -> Self {
         const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
         unsafe {
             let mmaped_code_region_base = libc::mmap(null_mut(), DEFAULT_CODE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0) as *mut c_void;
@@ -255,6 +263,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     code_regions_to_method: Default::default(),
                     exit_handlers: HashMap::new(),
                     max_ptr: mmaped_code_region_base,
+                    phantom_nightly_compiler_bug_workaround: Default::default(),
                 }),
                 unknown_exit_handler: exit_handler,
                 mmaped_code_region_base,
@@ -263,7 +272,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm(&self, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
+    pub fn launch_vm(&self, stack: &mut OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -362,7 +371,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         };
         eprintln!("==== VM Start ====");
         loop {
-            let vm_exit_action = self.run_method_impl(&mut jit_context, &mut extra);
+            let vm_exit_action = self.run_method_impl(&mut jit_context, stack, &mut extra);
             match vm_exit_action {
                 VMExitAction::ExitVMCompletely { return_data } => {
                     return return_data;
@@ -375,7 +384,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     }
 
     #[allow(named_asm_labels)]
-    fn run_method_impl(&self, jit_context: &mut JITContext, extra: &mut ExtraData) -> VMExitAction<T> {
+    fn run_method_impl(&self, jit_context: &mut JITContext, stack: &mut OwnedNativeStack, extra: &mut ExtraData) -> VMExitAction<T> {
         // eprintln!("{}",Backtrace::capture().to_string());
         eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}",
                   jit_context.guest_registers.saved_registers_without_ip.rbp,
@@ -490,10 +499,10 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             )
         }
         eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
-        self.handle_vm_exit(jit_context.guest_registers.rip, jit_context.guest_registers, extra)
+        self.handle_vm_exit(stack, jit_context.guest_registers.rip, jit_context.guest_registers, extra)
     }
 
-    fn handle_vm_exit(&self, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
+    fn handle_vm_exit(&self, stack: &mut OwnedNativeStack, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
         let inner_read_guard = self.inner.read().unwrap();
         let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
         match method_implementation {
@@ -508,7 +517,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     saved_guest_registers: guest_registers,
                 };
                 drop(inner_read_guard);
-                return (self.inner.read().unwrap().exit_handlers.get(&method_implementation).unwrap())(&vm_exit_event, extra);
+                return (self.inner.read().unwrap().exit_handlers.get(&method_implementation).unwrap())(&vm_exit_event, stack, extra);
             }
         }
     }
@@ -544,7 +553,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress, handler: Box<dyn Fn(&VMExitEvent, &mut ExtraData) -> VMExitAction<T> + 'vm_life>) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -559,7 +568,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
-        inner_guard.exit_handlers.insert(current_method_id,handler);
+        inner_guard.exit_handlers.insert(current_method_id, handler);
         current_method_id
     }
 }

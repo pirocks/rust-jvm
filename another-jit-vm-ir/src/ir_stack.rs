@@ -1,12 +1,9 @@
-use std::cell::{RefCell, RefMut};
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ops::Deref;
-use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 
-use libc::{MAP_ANONYMOUS, MAP_GROWSDOWN, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 
+use another_jit_vm::stack::OwnedNativeStack;
 use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use rust_jvm_common::MethodId;
 
@@ -14,39 +11,14 @@ use crate::{IRMethodID, IRVMState};
 
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames
-pub struct OwnedIRStack {
-    pub mmaped_top: *mut c_void,
-    pub(crate) mmaped_bottom: *mut c_void,
-    max_stack: usize,
+pub struct IRStack<'l> {
+    pub(crate) native: &'l mut OwnedNativeStack,
 }
 
-thread_local! {
-    static ONE_PER_THREAD: RefCell<usize> = RefCell::new(0);
-}
 
-impl OwnedIRStack {
-    pub fn new() -> Self {
-        ONE_PER_THREAD.with(|refcell|{
-            *refcell.borrow_mut() += 1;
-            if refcell.borrow().deref() != &1{
-                panic!()
-            }
-        });
-        pub const MAX_STACK: usize = 1024 * 1024 * 1024;
-        let mmaped_top = unsafe { libc::mmap(null_mut(), MAX_STACK, PROT_READ | PROT_WRITE, MAP_NORESERVE | MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0) };
-        unsafe {
-            let page_size = 4096;
-            Self {
-                mmaped_top: mmaped_top.add(page_size),
-                mmaped_bottom: mmaped_top.sub(MAX_STACK),
-                max_stack: MAX_STACK,
-            }
-        }
-    }
-
-
-    pub unsafe fn frame_at(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l> {
-        self.validate_frame_pointer(frame_pointer);
+impl <'k> IRStack<'k> {
+    pub unsafe fn frame_at(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l, 'k> {
+        self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameRef {
             ptr: frame_pointer,
@@ -54,8 +26,8 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_at_mut(&'l mut self, frame_pointer: *mut c_void) -> IRFrameMut<'l> {
-        self.validate_frame_pointer(frame_pointer);
+    pub unsafe fn frame_at_mut(&'l mut self, frame_pointer: *mut c_void) -> IRFrameMut<'l, 'k> {
+        self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameMut {
             ptr: frame_pointer,
@@ -63,7 +35,7 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter<ExtraData>(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, 'vm_life, ExtraData> {
+    pub unsafe fn frame_iter<ExtraData>(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, '_, 'vm_life, ExtraData> {
         IRFrameIter {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -71,16 +43,8 @@ impl OwnedIRStack {
         }
     }
 
-    pub unsafe fn validate_frame_pointer(&self, frame_pointer: *const c_void) {
-        if self.mmaped_top.offset_from(frame_pointer) > self.max_stack as isize || frame_pointer > self.mmaped_top {
-            dbg!(self.mmaped_top);
-            dbg!(frame_pointer);
-            panic!()
-        }
-    }
-
     pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
-        self.validate_frame_pointer(frame_pointer);
+        self.native.validate_frame_pointer(frame_pointer);
         let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
         let prev_rpb_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *mut *mut c_void;
@@ -100,14 +64,14 @@ impl OwnedIRStack {
     }
 }
 
-pub struct IRStackMut<'l> {
-    owned_ir_stack: RefMut<'l, OwnedIRStack>,
+pub struct IRStackMut<'l, 'k> {
+    owned_ir_stack: &'l mut IRStack<'k>,
     current_rbp: *mut c_void,
 }
 
-impl<'l> IRStackMut<'l> {
-    pub fn new(owned_ir_stack: RefMut<'l, OwnedIRStack>, current_rbp: *mut c_void) -> Self {
-        unsafe { owned_ir_stack.validate_frame_pointer(current_rbp) }
+impl<'l, 'k> IRStackMut<'l, 'k> {
+    pub fn new(owned_ir_stack: &'l mut IRStack<'k>, current_rbp: *mut c_void) -> Self {
+        unsafe { owned_ir_stack.native.validate_frame_pointer(current_rbp) }
         Self {
             owned_ir_stack,
             current_rbp,
@@ -124,19 +88,19 @@ impl<'l> IRStackMut<'l> {
 
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIter<'l, 'vm_life, ExtraData: 'vm_life> {
-    ir_stack: &'l OwnedIRStack,
+pub struct IRFrameIter<'l, 'k, 'vm_life, ExtraData: 'vm_life> {
+    ir_stack: &'l IRStack<'k>,
     current_frame_ptr: Option<*mut c_void>,
     ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>,
 }
 
-impl<'l, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'vm_life, ExtraData> {
-    type Item = IRFrameRef<'l>;
+impl<'l, 'k, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'k, 'vm_life, ExtraData> {
+    type Item = IRFrameRef<'l, 'k>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = unsafe { self.ir_stack.frame_at(self.current_frame_ptr?) };
         unsafe {
-            if self.current_frame_ptr? == self.ir_stack.mmaped_top {
+            if self.current_frame_ptr? == self.ir_stack.native.mmaped_top {
                 self.current_frame_ptr = None;
             } else {
                 let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
@@ -150,12 +114,12 @@ impl<'l, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'vm_life, E
 }
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameRef<'l> {
+pub struct IRFrameRef<'l, 'k> {
     ptr: *const c_void,
-    ir_stack: &'l OwnedIRStack,
+    ir_stack: &'l IRStack<'k>,
 }
 
-impl IRFrameRef<'_> {
+impl IRFrameRef<'_, '_> {
     pub fn header(&self) -> UnPackedIRFrameHeader {
         unsafe { read_frame_ir_header(self.ptr) }
     }
@@ -216,13 +180,13 @@ impl IRFrameRef<'_> {
 }
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameMut<'l> {
+pub struct IRFrameMut<'l, 'k> {
     ptr: *mut c_void,
-    ir_stack: &'l mut OwnedIRStack,
+    ir_stack: &'l mut IRStack<'k>,
 }
 
-impl<'l> IRFrameMut<'l> {
-    pub fn downgrade(self) -> IRFrameRef<'l> {
+impl<'l, 'k> IRFrameMut<'l, 'k> {
+    pub fn downgrade(self) -> IRFrameRef<'l, 'k> {
         IRFrameRef {
             ptr: self.ptr,
             ir_stack: self.ir_stack,

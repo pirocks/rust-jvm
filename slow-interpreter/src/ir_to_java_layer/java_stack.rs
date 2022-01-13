@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IRStack};
 use another_jit_vm_ir::IRMethodID;
 use gc_memory_layout_common::FramePointerOffset;
 
@@ -18,7 +18,7 @@ use crate::java_values::GcManagedObject;
 pub struct OwnedJavaStack<'vm_life> {
     jvm: &'vm_life JVMState<'vm_life>,
     java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
-    pub(crate) inner: OwnedIRStack,
+    pub(crate) inner: IRStack,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -64,7 +64,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         Self {
             jvm,
             java_vm_state,
-            inner: OwnedIRStack::new(),
+            inner: IRStack::new(),
         }
     }
     pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameRef<'_, 'vm_life> {

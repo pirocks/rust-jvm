@@ -3,8 +3,9 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use another_jit_vm::{Register, VMExitAction};
+use another_jit_vm::stack::OwnedNativeStack;
 
-use crate::{IRInstr, IRVMExitType, IRVMState, OwnedIRStack, RuntimeVMExitInput};
+use crate::{IRInstr, IRVMExitType, IRVMState, IRStack, RuntimeVMExitInput};
 use crate::ir_stack::FRAME_HEADER_END_OFFSET;
 
 #[test]
@@ -13,7 +14,10 @@ fn basic_ir_vm_exit() {
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new(box |ir_event, ir_stack_ref_mut, self_, _| {
         panic!()
     });
-    let mut owned_ir_stack: OwnedIRStack = OwnedIRStack::new();
+    let mut owned_native_stack = OwnedNativeStack::new();
+    let mut ir_stack: IRStack = IRStack{
+        native: &mut owned_native_stack
+    };
     let ir_vm_ref: &'_ IRVMState<'_, ()> = unsafe { transmute(&ir_vm_state) };
     let frame_size = 0;
     let instructions = vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
@@ -26,8 +30,8 @@ fn basic_ir_vm_exit() {
         }
         VMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    let frame_pointer = owned_ir_stack.mmaped_top;
-    ir_vm_ref.run_method(ir_method_id, &mut owned_ir_stack, (), frame_pointer, frame_pointer);
+    let frame_pointer = ir_stack.native.mmaped_top;
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, (), frame_pointer, frame_pointer);
     assert!(*was_exited.lock().unwrap().deref());
 }
 
@@ -38,7 +42,10 @@ fn basic_ir_function_call() {
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new(box |ir_event, ir_stack_ref_mut, self_, _| {
         panic!()
     });
-    let mut owned_ir_stack: OwnedIRStack = OwnedIRStack::new();
+    let mut owned_native_stack = OwnedNativeStack::new();
+    let mut ir_stack: IRStack = IRStack{
+        native: &mut owned_native_stack
+    };
     let ir_vm_ref: &'_ IRVMState<'_, ()> = unsafe { transmute(&ir_vm_state) };
     let frame_size = FRAME_HEADER_END_OFFSET;
     let to_call_function_instructions = vec![IRInstr::Return {
@@ -70,8 +77,8 @@ fn basic_ir_function_call() {
         }
         VMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    let frame_pointer = owned_ir_stack.mmaped_top;
-    ir_vm_ref.run_method(ir_method_id, &mut owned_ir_stack, (), frame_pointer, frame_pointer);
+    let frame_pointer = ir_stack.native.mmaped_top;
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, (), frame_pointer, frame_pointer);
     assert!(*was_exited.lock().unwrap().deref());
 }
 
@@ -97,7 +104,10 @@ fn nested_basic_ir_function_call_on_same_stack() {
             _ => panic!()
         }
     });
-    let mut owned_ir_stack: OwnedIRStack = OwnedIRStack::new();
+    let mut owned_native_stack = OwnedNativeStack::new();
+    let mut ir_stack: IRStack = IRStack{
+        native: &mut owned_native_stack
+    };
     let ir_vm_ref: &'_ IRVMState<'_, ()> = unsafe { transmute(&ir_vm_state) };
     let frame_size = FRAME_HEADER_END_OFFSET;
     let to_call_function_instructions = vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }, IRInstr::Return {
@@ -124,6 +134,6 @@ fn nested_basic_ir_function_call_on_same_stack() {
     let (ir_method_id, restart_points) = ir_vm_ref.add_function(instructions, frame_size, box |ir_vm_exit, owned_ir_stacl, self_, extra| {
         todo!()
     });
-    let frame_pointer = owned_ir_stack.mmaped_top;
-    ir_vm_ref.run_method(ir_method_id, &mut owned_ir_stack, (), frame_pointer, frame_pointer);
+    let frame_pointer = ir_stack.native.mmaped_top;
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, (), frame_pointer, frame_pointer);
 }

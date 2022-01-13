@@ -2,12 +2,10 @@
 #![feature(step_trait)]
 #![feature(box_syntax)]
 
-use std::cell::{RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::ops::Deref;
 use std::sync::RwLock;
-use std::thread::LocalKey;
 
 use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
@@ -15,11 +13,12 @@ use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
+use another_jit_vm::stack::OwnedNativeStack;
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE, OwnedIRStack};
-use crate::ir_stack::IRStackMut;
+use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, IRStack, OPAQUE_FRAME_SIZE};
 
+use crate::ir_stack::IRStackMut;
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
 #[cfg(test)]
@@ -84,18 +83,19 @@ impl IRVMStateInner {
 }
 
 pub mod ir_stack;
-thread_local! {
-    static THIS_THREAD_STACK: RefCell<OwnedIRStack> = RefCell::new(OwnedIRStack::new());
-    static THIS_THREAD_STACK_POINTER: RefCell<Option<*const c_void>> = RefCell::new(None);
-    static THIS_THREAD_FRAME_POINTER: RefCell<Option<*const c_void>> = RefCell::new(None);
-}
+// thread_local! {
+//     static THIS_THREAD_STACK: RefCell<IRStack> = RefCell::new(IRStack::new());
+//     static THIS_THREAD_STACK_POINTER: RefCell<Option<*const c_void>> = RefCell::new(None);
+//     static THIS_THREAD_FRAME_POINTER: RefCell<Option<*const c_void>> = RefCell::new(None);
+// }
 
 pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
     native_vm: VMState<'vm_life, u64, (ExtraData, &'vm_life Self)/*(Arc<JavaThread<'vm_life>>, JavaStackPosition, &'vm_life JVMState<'vm_life>)*/>,
     pub inner: RwLock<IRVMStateInner>,
-    stack: &'static LocalKey<RefCell<OwnedIRStack>>,
-    current_frame_pointer: &'static LocalKey<RefCell<Option<*const c_void>>>,
-    current_stack_pointer: &'static LocalKey<RefCell<Option<*const c_void>>>,
+    // this should just not be per thread
+    // stack: &'static LocalKey<RefCell<OwnedIRStack>>,
+    // current_frame_pointer: &'static LocalKey<RefCell<Option<*const c_void>>>,
+    // current_stack_pointer: &'static LocalKey<RefCell<Option<*const c_void>>>,
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
@@ -143,20 +143,17 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     pub fn new(ir_exit_handler: Box<dyn Fn(&IRVMExitEvent, IRStackMut, &'vm_life Self, &mut ExtraData) -> VMExitAction<u64> + 'vm_life>) -> Self {
-        let exit_handler = box move |vm_exit_event: &VMExitEvent, (extra_data, self_): &mut (ExtraData, &'vm_life Self)| {
-            Self::vm_handler_to_ir_handler(ir_exit_handler.deref(), &vm_exit_event, extra_data, self_)
+        let exit_handler: Box<dyn (Fn(&VMExitEvent, &mut OwnedNativeStack, &mut (ExtraData, &'vm_life IRVMState<'vm_life,ExtraData>)) -> VMExitAction<u64>) + 'vm_life> = box move |vm_exit_event: &VMExitEvent, owned_native_stack: &mut OwnedNativeStack, (extra_data, self_): &mut (ExtraData, &'vm_life Self)| {
+            Self::vm_handler_to_ir_handler(ir_exit_handler.deref(), &vm_exit_event, owned_native_stack, extra_data, self_)
         };
         let native_vm = VMState::new(exit_handler);
         Self {
             native_vm,
             inner: RwLock::new(IRVMStateInner::new()),
-            stack: &THIS_THREAD_STACK,
-            current_frame_pointer: &THIS_THREAD_STACK_POINTER,
-            current_stack_pointer: &THIS_THREAD_FRAME_POINTER,
         }
     }
 
-    fn vm_handler_to_ir_handler(ir_exit_handler: &dyn Fn(&IRVMExitEvent, IRStackMut, &'vm_life IRVMState<'vm_life,ExtraData>, &mut ExtraData) -> VMExitAction<u64>, vm_exit_event: &VMExitEvent, extra_data: &mut ExtraData, self_: &'vm_life IRVMState<'vm_life, ExtraData>) -> VMExitAction<u64> {
+    fn vm_handler_to_ir_handler(ir_exit_handler: &dyn Fn(&IRVMExitEvent, IRStackMut, &'vm_life IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> VMExitAction<u64>, vm_exit_event: &VMExitEvent, owned_native_stack: &mut OwnedNativeStack, extra_data: &mut ExtraData, self_: &'vm_life IRVMState<'vm_life, ExtraData>) -> VMExitAction<u64> {
         let ir_method_id = *self_.inner.read().unwrap().current_implementation.get_by_right(&vm_exit_event.method).unwrap();
         let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
         let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
@@ -167,35 +164,24 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             exit_type: exit_input,
             exiting_frame_position_rbp,
         };
-        self_.current_stack_pointer.with(|stack_pointer_refcell|{
-            *stack_pointer_refcell.borrow_mut() = Some(exiting_stack_pointer);
-        });
-        self_.current_frame_pointer.with(|stack_pointer_refcell|{
-            *stack_pointer_refcell.borrow_mut() = Some(exiting_frame_position_rbp);
-        });
-        let res = self_.stack.with(|stack_refcell| {
-            let stack_guard = stack_refcell.borrow_mut();
-            let ir_stack_mut = IRStackMut::new(stack_guard,self_.current_frame_pointer.with(|current_frame_pointer|{
-                current_frame_pointer.borrow().unwrap()
-            }) as *mut c_void);
-            ir_exit_handler(&event, ir_stack_mut, self_, extra_data)
-        });
-        res
+        let mut ir_stack = IRStack { native: owned_native_stack };
+        let ir_stack_mut = IRStackMut::new(&mut ir_stack, exiting_frame_position_rbp);
+        ir_exit_handler(&event, ir_stack_mut, self_, extra_data)
     }
 
-    pub fn run_method(&'vm_life self, method_id: IRMethodID, ir_stack: &mut OwnedIRStack, extra_data: ExtraData, frame_pointer: *const c_void, stack_pointer: *const c_void) -> u64 {
+    pub fn run_method(&'vm_life self, method_id: IRMethodID, ir_stack: &mut IRStack, extra_data: ExtraData, frame_pointer: *const c_void, stack_pointer: *const c_void) -> u64 {
         //int_state: &mut InterpreterStateGuard<'vm_life, 'l>
         // let extra_data = (int_state.thread.clone(), JavaStackPosition::Frame { frame_pointer }, int_state.jvm);
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        unsafe { ir_stack.validate_frame_pointer(frame_pointer); }
+        unsafe { ir_stack.native.validate_frame_pointer(frame_pointer); }
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = frame_pointer as *mut c_void;
         initial_registers.rsp = stack_pointer as *mut c_void;
         drop(inner_read_guard);
-        let res = self.native_vm.launch_vm(current_implementation, initial_registers, (extra_data, self));
+        let res = self.native_vm.launch_vm(ir_stack.native,current_implementation, initial_registers, (extra_data, self));
         res
     }
 
@@ -223,8 +209,8 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
         inner_guard.frame_sizes_by_ir_method_id.insert(current_ir_id, frame_size);
         let code = result.code_buffer;
-        let method_implementation_id = self.native_vm.add_method_implementation(code, base_address,box move |vm_exit_event,(extra_data,ir_vm_state)|{
-            Self::vm_handler_to_ir_handler(handler.deref(), &vm_exit_event, extra_data, ir_vm_state)
+        let method_implementation_id = self.native_vm.add_method_implementation(code, base_address, box move |vm_exit_event, owned_native_stack,(extra_data, ir_vm_state)| {
+            Self::vm_handler_to_ir_handler(handler.deref(), &vm_exit_event, owned_native_stack,extra_data, ir_vm_state)
         });
         inner_guard.current_implementation.insert(current_ir_id, method_implementation_id);
         (current_ir_id, restart_points)
