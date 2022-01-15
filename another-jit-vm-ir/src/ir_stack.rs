@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::slice::from_raw_parts;
 
-
 use another_jit_vm::stack::OwnedNativeStack;
 use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use rust_jvm_common::MethodId;
@@ -16,7 +15,7 @@ pub struct IRStack<'l> {
 }
 
 
-impl <'k> IRStack<'k> {
+impl<'k> IRStack<'k> {
     pub unsafe fn frame_at(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l, 'k> {
         self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
@@ -35,7 +34,7 @@ impl <'k> IRStack<'k> {
         }
     }
 
-    pub unsafe fn frame_iter<ExtraData>(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, '_, 'vm_life, ExtraData> {
+    pub unsafe fn frame_iter<ExtraData>(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, '_,'vm_life, ExtraData> {
         IRFrameIter {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -65,23 +64,36 @@ impl <'k> IRStack<'k> {
 }
 
 pub struct IRStackMut<'l, 'k> {
-    owned_ir_stack: &'l mut IRStack<'k>,
-    current_rbp: *mut c_void,
+    pub(crate) owned_ir_stack: &'l mut IRStack<'k>,
+    pub(crate) current_rbp: *mut c_void,
+    pub(crate) current_rsp: *mut c_void,
 }
 
 impl<'l, 'k> IRStackMut<'l, 'k> {
-    pub fn new(owned_ir_stack: &'l mut IRStack<'k>, current_rbp: *mut c_void) -> Self {
+    pub fn new(owned_ir_stack: &'l mut IRStack<'k>, current_rbp: *mut c_void, exiting_stack_pointer: *mut c_void) -> Self {
         unsafe { owned_ir_stack.native.validate_frame_pointer(current_rbp) }
         Self {
             owned_ir_stack,
             current_rbp,
+            current_rsp: exiting_stack_pointer,
+        }
+    }
+
+    pub fn from_stack_start(owned_ir_stack: &'l mut IRStack<'k>) -> Self {
+        let mmaped_top = owned_ir_stack.native.mmaped_top;
+        Self {
+            owned_ir_stack,
+            current_rbp: mmaped_top,
+            current_rsp: mmaped_top,
         }
     }
 
     pub fn push_frame(&mut self, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
         unsafe {
+            //todo assert stack frame sizes
             self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp, ir_method_id, method_id, data);
-            self.current_rbp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())
+            self.current_rbp = self.current_rsp;
+            self.current_rsp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())
         }
     }
 }

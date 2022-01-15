@@ -2,6 +2,8 @@
 #![feature(asm_const)]
 #![feature(backtrace)]
 #![feature(trait_alias)]
+#![feature(in_band_lifetimes)]
+#![feature(generic_associated_types)]
 // save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
@@ -92,9 +94,10 @@ pub struct VMStateInner<'vm_life, T: Sized, ExtraData: 'vm_life>/*<'vm_state_lif
     method_id_max: MethodImplementationID,
     code_regions: HashMap<MethodImplementationID, Range<*const c_void>>,
     code_regions_to_method: RangeMap<*const c_void, MethodImplementationID>,
-    exit_handlers: HashMap<MethodImplementationID, Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>>,
     max_ptr: *mut c_void,
     phantom_nightly_compiler_bug_workaround: PhantomData<&'vm_life ()>,
+    phantom_2: PhantomData<&'vm_life T>,
+    phantom_3: PhantomData<&'vm_life ExtraData>,
 }
 
 pub struct VMState<'vm_life, T: Sized, ExtraData> {
@@ -108,10 +111,6 @@ pub struct VMState<'vm_life, T: Sized, ExtraData> {
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     pub fn lookup_method_addresses(&self, method_implementation_id: MethodImplementationID) -> Range<*const c_void> {
         self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
-    }
-
-    pub fn add_method_implementation_handler(&self, method_implementation_id: MethodImplementationID, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T>>) {
-        self.inner.write().unwrap().exit_handlers.insert(method_implementation_id, handler);
     }
 }
 
@@ -230,11 +229,26 @@ pub struct SavedRegistersWithoutIPDiff {
     pub xsave_area: Option<[u64; 64]>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct VMExitEvent {
     pub method: MethodImplementationID,
     pub method_base_address: *const c_void,
     pub saved_guest_registers: SavedRegistersWithIP,
+    correctly_exited: bool
+}
+
+impl Drop for VMExitEvent{
+    fn drop(&mut self) {
+        if !self.correctly_exited{
+            panic!("Did not handle the vm exit")
+        }
+    }
+}
+
+impl VMExitEvent{
+    pub fn indicate_okay_to_drop(&mut self){
+        self.correctly_exited = true;
+    }
 }
 
 pub enum VMExitAction<T: Sized> {
@@ -250,6 +264,34 @@ struct JITContext {
 
 trait ExitHandlerType<'vm_life, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm_life;
 
+pub struct LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, 'l, T, ExtraData: 'vm_life> {
+    vm_state: &'l VMState<'vm_life, T, ExtraData>,
+    jit_context: JITContext,
+    pub stack: &'stack_life mut OwnedNativeStack,
+    pub extra: &'extra_data_life mut ExtraData,
+    pending_exit: bool
+}
+
+impl<'vm_life, 'stack_life, 'extra_data_life, T, ExtraData: 'vm_life> Iterator for LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, '_, T, ExtraData> {
+    type Item = VMExitEvent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        assert!(!self.pending_exit);
+        let vm_exit_event = self.vm_state.run_method_impl(&mut self.jit_context);
+        self.pending_exit = true;
+        Some(vm_exit_event)
+    }
+}
+
+impl<'vm_life, 'stack_life, 'extra_data_life, T, ExtraData: 'vm_life> LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, '_, T, ExtraData> {
+    pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff){
+        assert!(self.pending_exit);
+        self.pending_exit = false;
+        event.correctly_exited = true;
+        self.jit_context.guest_registers.apply_diff(return_register_state);
+    }
+}
+
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
     pub fn new(exit_handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>) -> Self {
@@ -261,9 +303,10 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     method_id_max: MethodImplementationID(0),
                     code_regions: Default::default(),
                     code_regions_to_method: Default::default(),
-                    exit_handlers: HashMap::new(),
                     max_ptr: mmaped_code_region_base,
                     phantom_nightly_compiler_bug_workaround: Default::default(),
+                    phantom_2: Default::default(),
+                    phantom_3: Default::default()
                 }),
                 unknown_exit_handler: exit_handler,
                 mmaped_code_region_base,
@@ -272,7 +315,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm(&self, stack: &mut OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, mut extra: ExtraData) -> T {
+    pub fn launch_vm(&'l self, stack: &'stack_life mut OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm_life, 'stack_life, 'extra_data, 'l, T, ExtraData> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -345,7 +388,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         assert_eq!(r14_native_offset, R14_NATIVE_OFFSET_CONST);
         let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
-        let mut jit_context = JITContext {
+        let jit_context = JITContext {
             guest_registers: SavedRegistersWithIP { rip: branch_to as *mut c_void, saved_registers_without_ip: initial_registers },
             vm_native_saved_registers: SavedRegistersWithIP {
                 rip: null_mut(),
@@ -369,22 +412,14 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                 },
             },
         };
+        let self_: &'l VMState<'vm_life, T, ExtraData> = self;
+        let iterator: LaunchedVM<'vm_life, 'stack_life, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack, extra, pending_exit: false };
         eprintln!("==== VM Start ====");
-        loop {
-            let vm_exit_action = self.run_method_impl(&mut jit_context, stack, &mut extra);
-            match vm_exit_action {
-                VMExitAction::ExitVMCompletely { return_data } => {
-                    return return_data;
-                }
-                VMExitAction::ReturnTo { return_register_state } => {
-                    jit_context.guest_registers.apply_diff(return_register_state);
-                }
-            }
-        }
+        return iterator;
     }
 
     #[allow(named_asm_labels)]
-    fn run_method_impl(&self, jit_context: &mut JITContext, stack: &mut OwnedNativeStack, extra: &mut ExtraData) -> VMExitAction<T> {
+    fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitEvent {
         // eprintln!("{}",Backtrace::capture().to_string());
         eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}",
                   jit_context.guest_registers.saved_registers_without_ip.rbp,
@@ -499,10 +534,10 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             )
         }
         eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
-        self.handle_vm_exit(stack, jit_context.guest_registers.rip, jit_context.guest_registers, extra)
+        self.generate_exit_event(jit_context.guest_registers.rip, jit_context.guest_registers/*, extra*/)
     }
 
-    fn handle_vm_exit(&self, stack: &mut OwnedNativeStack, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP, extra: &mut ExtraData) -> VMExitAction<T> {
+    fn generate_exit_event(&self, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP/*, extra: &mut ExtraData*/) -> VMExitEvent {
         let inner_read_guard = self.inner.read().unwrap();
         let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
         match method_implementation {
@@ -515,9 +550,9 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     method: method_implementation,
                     method_base_address: inner_read_guard.code_regions.get(&method_implementation).unwrap().start,
                     saved_guest_registers: guest_registers,
+                    correctly_exited: false
                 };
-                drop(inner_read_guard);
-                return (self.inner.read().unwrap().exit_handlers.get(&method_implementation).unwrap())(&vm_exit_event, stack, extra);
+                vm_exit_event
             }
         }
     }
@@ -553,7 +588,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -568,7 +603,6 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
-        inner_guard.exit_handlers.insert(current_method_id, handler);
         current_method_id
     }
 }
