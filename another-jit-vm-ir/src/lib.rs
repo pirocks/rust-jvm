@@ -26,7 +26,7 @@ use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 pub mod tests;
 pub mod compiler;
 pub mod vm_exit_abi;
-
+pub mod ir_stack;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct IRMethodID(pub usize);
@@ -84,8 +84,6 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
         self.method_ir_offsets.insert(current_ir_id, res);
     }
 }
-
-pub mod ir_stack;
 
 pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
     native_vm: VMState<'vm_life, u64, ExtraData>,
@@ -162,6 +160,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         }
     }
 
+    //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
     pub fn run_method(&self, method_id: IRMethodID, ir_stack: &mut IRStackMut, extra_data: &mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();

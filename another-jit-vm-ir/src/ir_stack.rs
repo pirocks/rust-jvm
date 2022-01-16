@@ -34,7 +34,7 @@ impl<'k> IRStack<'k> {
         }
     }
 
-    pub unsafe fn frame_iter<ExtraData>(&self, start_frame: *mut c_void, ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, '_,'vm_life, ExtraData> {
+    pub unsafe fn frame_iter<ExtraData>(&'_ self, start_frame: *mut c_void, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, '_, 'h, 'vm_life, ExtraData> {
         IRFrameIter {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -96,17 +96,32 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
             self.current_rsp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())
         }
     }
+
+
+    pub fn debug_print_stack_strace<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
+        let frame_iter = unsafe {
+            self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state)
+        };
+        for frame in frame_iter {
+            match frame.ir_method_id() {
+                None => eprintln!("IR Method ID: unknown {:?}", frame.ptr),
+                Some(id) => {
+                    eprintln!("IR Method ID: {:?} {:?}", id.0, frame.ptr);
+                }
+            }
+        }
+    }
 }
 
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIter<'l, 'k, 'vm_life, ExtraData: 'vm_life> {
+pub struct IRFrameIter<'l, 'k, 'h, 'vm_life, ExtraData: 'vm_life> {
     ir_stack: &'l IRStack<'k>,
     current_frame_ptr: Option<*mut c_void>,
-    ir_vm_state: &'vm_life IRVMState<'vm_life, ExtraData>,
+    ir_vm_state: &'h IRVMState<'vm_life, ExtraData>,
 }
 
-impl<'l, 'k, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'k, 'vm_life, ExtraData> {
+impl<'l, 'k, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'k, 'h, 'vm_life, ExtraData> {
     type Item = IRFrameRef<'l, 'k>;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -168,6 +168,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
 
     let (ir_method_to_call_second, restart_points) = ir_vm_ref.add_function(to_call_function_instructions_second, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
         eprintln!("Took exit on second call");
+        owned_ir_stack.debug_print_stack_strace(self_);
         let ir_vm_exit: &IRVMExitEvent = ir_vm_exit;
         assert!(matches!(ir_vm_exit.exit_type,RuntimeVMExitInput::TopLevelReturn {..}));
         IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
