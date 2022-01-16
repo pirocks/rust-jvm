@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use iced_x86::ConditionCode::o;
 
 use libc::strcasecmp;
 
@@ -39,7 +40,7 @@ fn basic_ir_vm_exit() {
         }
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_stack.push_frame(todo!(), todo!(), todo!(), &[], ir_vm_ref);
     ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
@@ -86,7 +87,7 @@ fn basic_ir_function_call() {
         }
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_stack.push_frame(todo!(),  todo!(), todo!(), &[], ir_vm_ref);
     ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
@@ -117,7 +118,7 @@ fn idk_what_this_test_even_does() {
         let target_method_id = calling_function_clone.get().cloned().unwrap();
         if !*called_once.borrow() {
             *called_once.borrow_mut() = true;
-            owned_ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+            owned_ir_stack.push_frame(todo!(), todo!(), todo!(), &[], ir_vm_ref);
             let method_run_result = self_.run_method(target_method_id, owned_ir_stack.current_frame_mut(), &mut ());
             IRVMExitAction::ExitVMCompletely { return_data: method_run_result }
         } else {
@@ -137,7 +138,7 @@ fn idk_what_this_test_even_does() {
         todo!()
     });
     calling_function.set(ir_method_id).unwrap();
-    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_stack.push_frame(todo!(),  todo!(), todo!(), &[], ir_vm_ref);
     ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
 }
 
@@ -197,9 +198,10 @@ fn nested_basic_ir_function_call_on_same_stack() {
         let functions = functions_clone.borrow().unwrap();
         let self_: &'_ IRVMState<'_, ()> = self_;
         let mut owned_ir_stack: IRStackMut = owned_ir_stack;
-        owned_ir_stack.push_frame(null_mut(), null_mut(), Some(functions.ir_method_calling_second), None, &[]);
+        owned_ir_stack.debug_print_stack_strace(self_);
+        owned_ir_stack.push_frame(null_mut(),  Some(functions.ir_method_calling_second), None, &[], ir_vm_ref);
+        owned_ir_stack.debug_print_stack_strace(self_);
         let current_frame_mut = owned_ir_stack.current_frame_mut();
-        dbg!(current_frame_mut.downgrade().ir_method_id());
         self_.run_method(functions.ir_method_calling_second, current_frame_mut, extra);
         IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
     });
@@ -237,7 +239,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
         ir_method_calling_second,
     });
 
-    ir_stack.push_frame(null_mut(), null_mut(), Some(ir_method_calling_first), None, &[]);
+    ir_stack.push_frame(null_mut(), Some(ir_method_calling_first), None, &[], ir_vm_ref);
     ir_vm_ref.run_method(ir_method_calling_first, ir_stack.current_frame_mut(), &mut ());
 }
 

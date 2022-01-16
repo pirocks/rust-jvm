@@ -166,12 +166,11 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        let current_frame_pointer = ir_stack_frame.ptr;
-        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(current_frame_pointer); }
+        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr); }
         assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
-        initial_registers.rbp = current_frame_pointer;
-        initial_registers.rsp = ir_stack_frame.ptr;
+        initial_registers.rbp = ir_stack_frame.ptr;
+         initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
         drop(inner_read_guard);
         let mut launched_vm = self.native_vm.launch_vm(ir_stack_frame.ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
@@ -181,6 +180,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
             let exiting_stack_pointer = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rsp;
+            assert!(exiting_frame_position_rbp > exiting_stack_pointer);
             let event = IRVMExitEvent {
                 inner: &vm_exit_event,
                 ir_method: ir_method_id,
@@ -192,6 +192,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let ir_stack_mut = IRStackMut::new(&mut ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
             let handler = read_guard.handlers.get(&ir_method_id).unwrap();
+            ir_stack_mut.debug_print_stack_strace(self);
             match (handler.deref())(&event, ir_stack_mut, self, launched_vm.extra) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
                     let mut vm_exit_event = vm_exit_event;
@@ -353,19 +354,21 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         }
         // IRInstr::VMExit { .. } => panic!("legacy"),
         IRInstr::IRCall { current_frame_size, new_frame_size, temp_register_1, temp_register_2, target_address } => {
-            let return_to_rip = temp_register_2.to_native_64();
             let temp_register = temp_register_1.to_native_64();
+            let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();
-            assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
-            assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
-            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
-            assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
-            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
-
-            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RBP_OFFSET) as u64, rbp).unwrap();
-            assembler.mov(rbp - (current_frame_size + FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
-            assembler.mov(temp_register, target_address as u64).unwrap();
+            assembler.mov(return_to_rbp, rbp).unwrap();
+            assembler.mov(rbp,rsp).unwrap();
             assembler.sub(rsp, new_frame_size as i32).unwrap();
+            assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
+            assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_PREV_RBP_OFFSET) as u64, return_to_rbp).unwrap();
+            let return_to_rip = temp_register_2.to_native_64();
+            assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
+            assembler.mov(temp_register, target_address as u64).unwrap();
             assembler.jmp(temp_register).unwrap();
             assembler.set_label(&mut after_call_label).unwrap();
         }

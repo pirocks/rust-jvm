@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 
 use another_jit_vm::stack::OwnedNativeStack;
@@ -88,12 +89,19 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
         }
     }
 
-    pub fn push_frame(&mut self, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
+    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) {
         unsafe {
             //todo assert stack frame sizes
-            self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp, ir_method_id, method_id, data);
+            if self.current_rsp != self.owned_ir_stack.native.mmaped_top{
+                let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
+                let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
+                assert_eq!(offset, expected_current_frame_size);
+            }
+            let prev_rbp = self.current_rbp;
             self.current_rbp = self.current_rsp;
-            self.current_rsp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())
+            self.current_rsp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>());
+            self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp, ir_method_id, method_id, data);
+            assert!((self.current_frame_ref().ir_method_id() == ir_method_id));
         }
     }
 
@@ -145,7 +153,9 @@ impl<'l, 'k, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'k,
             } else {
                 let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
                 let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&option.unwrap()).unwrap();
-                assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
+                if res.prev_rbp() != null_mut(){
+                    assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
+                }
                 self.current_frame_ptr = Some(res.prev_rbp());
             }
         }
@@ -268,6 +278,7 @@ impl Iterator for IRStackIter {
 
 pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
+#[derive(Debug)]
 pub struct UnPackedIRFrameHeader {
     prev_rip: *mut c_void,
     prev_rbp: *mut c_void,
@@ -302,16 +313,19 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
     let method_id_ptr = frame_pointer.sub((FRAME_HEADER_METHOD_ID_OFFSET)) as *const u64;
     let magic_1 = magic1_ptr.read();
     let magic_2 = magic2_ptr.read();
-    assert_eq!(magic_1, MAGIC_1_EXPECTED);
-    assert_eq!(magic_2, MAGIC_2_EXPECTED);
-    UnPackedIRFrameHeader {
+    let res = UnPackedIRFrameHeader {
         prev_rip: rip_ptr.read(),
         prev_rbp: rbp_ptr.read(),
         ir_method_id: IRMethodID(*ir_method_id_ptr),
         method_id_ignored: *method_id_ptr,
         magic_1,
         magic_2,
+    };
+    if magic_1 != MAGIC_1_EXPECTED || magic_2 != MAGIC_2_EXPECTED  {
+        dbg!(res);
+        panic!()
     }
+    res
 }
 
 pub struct IRStackEntry {
