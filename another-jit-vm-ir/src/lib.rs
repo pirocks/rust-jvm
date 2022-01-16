@@ -19,7 +19,7 @@ use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, IRStack, OPAQUE_FRAME_SIZE};
 
-use crate::ir_stack::IRStackMut;
+use crate::ir_stack::{IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
 #[cfg(test)]
@@ -161,18 +161,19 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method(&self, method_id: IRMethodID, ir_stack: &mut IRStackMut, extra_data: &mut ExtraData) -> u64 {
+    pub fn run_method(&self, method_id: IRMethodID, ir_stack_frame: IRFrameMut, extra_data: &mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        let current_frame_pointer = ir_stack.current_rbp;
-        unsafe { ir_stack.owned_ir_stack.native.validate_frame_pointer(current_frame_pointer); }
+        let current_frame_pointer = ir_stack_frame.ptr;
+        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(current_frame_pointer); }
+        assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = current_frame_pointer;
-        initial_registers.rsp = ir_stack.current_rsp;
+        initial_registers.rsp = ir_stack_frame.ptr;
         drop(inner_read_guard);
-        let mut launched_vm = self.native_vm.launch_vm(ir_stack.owned_ir_stack.native, current_implementation, initial_registers, extra_data);
+        let mut launched_vm = self.native_vm.launch_vm(ir_stack_frame.ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
             let ir_method_id = *self.inner.read().unwrap().current_implementation.get_by_right(&vm_exit_event.method).unwrap();
             let implementation_id = *self.inner.read().unwrap().current_implementation.get_by_left(&method_id).unwrap();

@@ -97,7 +97,6 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
         }
     }
 
-
     pub fn debug_print_stack_strace<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
         let frame_iter = unsafe {
             self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state)
@@ -109,6 +108,20 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
                     eprintln!("IR Method ID: {:?} {:?}", id.0, frame.ptr);
                 }
             }
+        }
+    }
+
+    pub fn current_frame_ref(&self) -> IRFrameRef {
+        IRFrameRef {
+            ptr: self.current_rbp,
+            ir_stack: self.owned_ir_stack,
+        }
+    }
+
+    pub fn current_frame_mut(&'l mut self) -> IRFrameMut<'l, 'k> {
+        IRFrameMut {
+            ptr: self.current_rbp,
+            ir_stack: self.owned_ir_stack,
         }
     }
 }
@@ -208,12 +221,12 @@ impl IRFrameRef<'_, '_> {
 
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameMut<'l, 'k> {
-    ptr: *mut c_void,
-    ir_stack: &'l mut IRStack<'k>,
+    pub(crate) ptr: *mut c_void,
+    pub(crate) ir_stack: &'l mut IRStack<'k>,
 }
 
 impl<'l, 'k> IRFrameMut<'l, 'k> {
-    pub fn downgrade(self) -> IRFrameRef<'l, 'k> {
+    pub fn downgrade(&'new_l self) -> IRFrameRef<'new_l, 'k> {
         IRFrameRef {
             ptr: self.ptr,
             ir_stack: self.ir_stack,
@@ -281,12 +294,12 @@ pub const FRAME_HEADER_END_OFFSET: usize = 48;
 
 
 unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
-    let rip_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RIP_OFFSET as isize)) as *const *mut c_void;
-    let rbp_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_RBP_OFFSET as isize)) as *const *mut c_void;
-    let magic1_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_1_OFFSET as isize)) as *const u64;
-    let magic2_ptr = frame_pointer.offset(-(FRAME_HEADER_PREV_MAGIC_2_OFFSET as isize)) as *const u64;
-    let ir_method_id_ptr = frame_pointer.offset(-(FRAME_HEADER_IR_METHOD_ID_OFFSET as isize)) as *const usize;
-    let method_id_ptr = frame_pointer.offset(-(FRAME_HEADER_METHOD_ID_OFFSET as isize)) as *const u64;
+    let rip_ptr = frame_pointer.sub((FRAME_HEADER_PREV_RIP_OFFSET)) as *const *mut c_void;
+    let rbp_ptr = frame_pointer.sub((FRAME_HEADER_PREV_RBP_OFFSET)) as *const *mut c_void;
+    let magic1_ptr = frame_pointer.sub((FRAME_HEADER_PREV_MAGIC_1_OFFSET)) as *const u64;
+    let magic2_ptr = frame_pointer.sub((FRAME_HEADER_PREV_MAGIC_2_OFFSET)) as *const u64;
+    let ir_method_id_ptr = frame_pointer.sub((FRAME_HEADER_IR_METHOD_ID_OFFSET)) as *const usize;
+    let method_id_ptr = frame_pointer.sub((FRAME_HEADER_METHOD_ID_OFFSET)) as *const u64;
     let magic_1 = magic1_ptr.read();
     let magic_2 = magic2_ptr.read();
     assert_eq!(magic_1, MAGIC_1_EXPECTED);

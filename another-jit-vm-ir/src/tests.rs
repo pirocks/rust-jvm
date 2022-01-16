@@ -2,8 +2,10 @@ use std::cell::RefCell;
 use std::lazy::OnceCell;
 use std::mem::transmute;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+
 use libc::strcasecmp;
 
 use another_jit_vm::{Register, VMExitAction};
@@ -37,7 +39,8 @@ fn basic_ir_vm_exit() {
         }
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
+    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
 
@@ -83,7 +86,8 @@ fn basic_ir_function_call() {
         }
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
+    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
 
@@ -113,7 +117,9 @@ fn idk_what_this_test_even_does() {
         let target_method_id = calling_function_clone.get().cloned().unwrap();
         if !*called_once.borrow() {
             *called_once.borrow_mut() = true;
-            IRVMExitAction::ExitVMCompletely { return_data: self_.run_method(target_method_id, &mut owned_ir_stack, &mut ()) }
+            owned_ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+            let method_run_result = self_.run_method(target_method_id, owned_ir_stack.current_frame_mut(), &mut ());
+            IRVMExitAction::ExitVMCompletely { return_data: method_run_result }
         } else {
             IRVMExitAction::ExitVMCompletely { return_data: 0 }
         }
@@ -131,18 +137,19 @@ fn idk_what_this_test_even_does() {
         todo!()
     });
     calling_function.set(ir_method_id).unwrap();
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
+    ir_stack.push_frame(todo!(), todo!(), todo!(), todo!(), &[]);
+    ir_vm_ref.run_method(ir_method_id, ir_stack.current_frame_mut(), &mut ());
 }
 
 
 #[test]
 fn nested_basic_ir_function_call_on_same_stack() {
     #[derive(Copy, Clone)]
-    struct Functions{
+    struct Functions {
         ir_method_to_call_second: IRMethodID,
         ir_method_to_call_first: IRMethodID,
         ir_method_calling_first: IRMethodID,
-        ir_method_calling_second: IRMethodID
+        ir_method_calling_second: IRMethodID,
     }
 
     let functions: Rc<RefCell<Option<Functions>>> = Rc::new(RefCell::new(None));
@@ -188,9 +195,12 @@ fn nested_basic_ir_function_call_on_same_stack() {
     let (ir_method_to_call_first, _) = ir_vm_ref.add_function(to_call_function_instructions_first, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
         eprintln!("Took exit on first call");
         let functions = functions_clone.borrow().unwrap();
-        let self_ : &'_ IRVMState<'_,()>= self_;
+        let self_: &'_ IRVMState<'_, ()> = self_;
         let mut owned_ir_stack: IRStackMut = owned_ir_stack;
-        self_.run_method(functions.ir_method_calling_second,&mut owned_ir_stack,extra);
+        owned_ir_stack.push_frame(null_mut(), null_mut(), Some(functions.ir_method_calling_second), None, &[]);
+        let current_frame_mut = owned_ir_stack.current_frame_mut();
+        dbg!(current_frame_mut.downgrade().ir_method_id());
+        self_.run_method(functions.ir_method_calling_second, current_frame_mut, extra);
         IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
     });
 
@@ -202,7 +212,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
         target_address: ir_vm_ref.lookup_ir_method_id_pointer(ir_method_to_call_first),
     }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
 
-    let (ir_method_calling_first, _) = ir_vm_ref.add_function(calling_function_first_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra|{
+    let (ir_method_calling_first, _) = ir_vm_ref.add_function(calling_function_first_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
         todo!()
     });
 
@@ -215,18 +225,19 @@ fn nested_basic_ir_function_call_on_same_stack() {
         target_address: ir_vm_ref.lookup_ir_method_id_pointer(ir_method_to_call_second),
     }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
 
-    let (ir_method_calling_second, _) = ir_vm_ref.add_function(calling_function_second_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra|{
+    let (ir_method_calling_second, _) = ir_vm_ref.add_function(calling_function_second_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
         todo!()
     });
 
 
-    *functions.borrow_mut() = Some(Functions{
+    *functions.borrow_mut() = Some(Functions {
         ir_method_to_call_second,
         ir_method_to_call_first,
         ir_method_calling_first,
-        ir_method_calling_second
+        ir_method_calling_second,
     });
 
-    ir_vm_ref.run_method(ir_method_calling_first,&mut ir_stack,&mut ());
+    ir_stack.push_frame(null_mut(), null_mut(), Some(ir_method_calling_first), None, &[]);
+    ir_vm_ref.run_method(ir_method_calling_first, ir_stack.current_frame_mut(), &mut ());
 }
 
