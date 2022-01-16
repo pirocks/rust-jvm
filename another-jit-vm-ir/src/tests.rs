@@ -1,13 +1,18 @@
+use std::cell::RefCell;
 use std::lazy::OnceCell;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use libc::strcasecmp;
 
 use another_jit_vm::{Register, VMExitAction};
 use another_jit_vm::stack::OwnedNativeStack;
+use rust_jvm_common::MethodId;
+use rust_jvm_common::ptype::PType::Ref;
 
-use crate::{IRInstr, IRMethodID, IRStack, IRStackMut, IRVMExitType, IRVMState, RuntimeVMExitInput};
+use crate::{IRInstr, IRInstructIndex, IRMethodID, IRStack, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RestartPointID, RuntimeVMExitInput};
+use crate::compiler::RestartPointGenerator;
 use crate::ir_stack::FRAME_HEADER_END_OFFSET;
 
 #[test]
@@ -30,9 +35,9 @@ fn basic_ir_vm_exit() {
             }
             _ => panic!()
         }
-        VMExitAction::ExitVMCompletely { return_data: 0 }
+        IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, ());
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
 
@@ -76,15 +81,15 @@ fn basic_ir_function_call() {
             }
             _ => panic!()
         }
-        VMExitAction::ExitVMCompletely { return_data: 0 }
+        IRVMExitAction::ExitVMCompletely { return_data: 0 }
     });
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, ());
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
     assert!(*was_exited.lock().unwrap().deref());
 }
 
 
 #[test]
-fn nested_basic_ir_function_call_on_same_stack() {
+fn idk_what_this_test_even_does() {
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new();
     let mut owned_native_stack = OwnedNativeStack::new();
     let mut ir_stack: IRStack = IRStack {
@@ -103,10 +108,15 @@ fn nested_basic_ir_function_call_on_same_stack() {
     }];
     let calling_function: Rc<OnceCell<IRMethodID>> = Rc::new(OnceCell::new());
     let calling_function_clone = calling_function.clone();
+    let mut called_once = RefCell::new(false);
     let (to_call_ir_method_id, restart_points) = ir_vm_ref.add_function(to_call_function_instructions, 0, box move |ir_vm_exit, mut owned_ir_stack, self_, extra| {
         let target_method_id = calling_function_clone.get().cloned().unwrap();
-        self_.run_method(target_method_id, &mut owned_ir_stack, ());
-        todo!()
+        if !*called_once.borrow() {
+            *called_once.borrow_mut() = true;
+            IRVMExitAction::ExitVMCompletely { return_data: self_.run_method(target_method_id, &mut owned_ir_stack, &mut ()) }
+        } else {
+            IRVMExitAction::ExitVMCompletely { return_data: 0 }
+        }
     });
     let to_call_function_pointer = ir_vm_ref.lookup_ir_method_id_pointer(to_call_ir_method_id);
 
@@ -121,5 +131,101 @@ fn nested_basic_ir_function_call_on_same_stack() {
         todo!()
     });
     calling_function.set(ir_method_id).unwrap();
-    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, ());
+    ir_vm_ref.run_method(ir_method_id, &mut ir_stack, &mut ());
 }
+
+
+#[test]
+fn nested_basic_ir_function_call_on_same_stack() {
+    #[derive(Copy, Clone)]
+    struct Functions{
+        ir_method_to_call_second: IRMethodID,
+        ir_method_to_call_first: IRMethodID,
+        ir_method_calling_first: IRMethodID,
+        ir_method_calling_second: IRMethodID
+    }
+
+    let functions: Rc<RefCell<Option<Functions>>> = Rc::new(RefCell::new(None));
+
+    let ir_vm_state: IRVMState<'_, ()> = IRVMState::new();
+    let mut owned_native_stack = OwnedNativeStack::new();
+    let mut ir_stack: IRStack = IRStack {
+        native: &mut owned_native_stack
+    };
+    let mut ir_stack = IRStackMut::from_stack_start(&mut ir_stack);
+    let ir_vm_ref: &'_ IRVMState<'_, ()> = unsafe { transmute(&ir_vm_state) };
+    let frame_size = FRAME_HEADER_END_OFFSET;
+    let mut restart_point_gen = RestartPointGenerator::new();
+    let restart_point_0 = restart_point_gen.new_restart_point();
+    let to_call_function_instructions_second = vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }, IRInstr::RestartPoint(restart_point_0), IRInstr::Return {
+        return_val: None,
+        temp_register_1: Register(1),
+        temp_register_2: Register(2),
+        temp_register_3: Register(3),
+        temp_register_4: Register(4),
+        frame_size,
+    }];
+
+    let (ir_method_to_call_second, restart_points) = ir_vm_ref.add_function(to_call_function_instructions_second, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
+        eprintln!("Took exit on second call");
+        let ir_vm_exit: &IRVMExitEvent = ir_vm_exit;
+        assert!(matches!(ir_vm_exit.exit_type,RuntimeVMExitInput::TopLevelReturn {..}));
+        IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
+    });
+    assert_eq!(restart_points.iter().next().unwrap().1.0, 1);
+
+
+    let to_call_function_instructions_first = vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }, IRInstr::Return {
+        return_val: None,
+        temp_register_1: Register(1),
+        temp_register_2: Register(2),
+        temp_register_3: Register(3),
+        temp_register_4: Register(4),
+        frame_size,
+    }];
+    let functions_clone = functions.clone();
+    let (ir_method_to_call_first, _) = ir_vm_ref.add_function(to_call_function_instructions_first, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra| {
+        eprintln!("Took exit on first call");
+        let functions = functions_clone.borrow().unwrap();
+        let self_ : &'_ IRVMState<'_,()>= self_;
+        let mut owned_ir_stack: IRStackMut = owned_ir_stack;
+        self_.run_method(functions.ir_method_calling_second,&mut owned_ir_stack,extra);
+        IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
+    });
+
+    let calling_function_first_instructions = vec![IRInstr::IRCall {
+        temp_register_1: Register(1),
+        temp_register_2: Register(2),
+        current_frame_size: 0,
+        new_frame_size: frame_size,
+        target_address: ir_vm_ref.lookup_ir_method_id_pointer(ir_method_to_call_first),
+    }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
+
+    let (ir_method_calling_first, _) = ir_vm_ref.add_function(calling_function_first_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra|{
+        todo!()
+    });
+
+
+    let calling_function_second_instructions = vec![IRInstr::IRCall {
+        temp_register_1: Register(1),
+        temp_register_2: Register(2),
+        current_frame_size: 0,
+        new_frame_size: frame_size,
+        target_address: ir_vm_ref.lookup_ir_method_id_pointer(ir_method_to_call_second),
+    }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
+
+    let (ir_method_calling_second, _) = ir_vm_ref.add_function(calling_function_second_instructions, frame_size, box move |ir_vm_exit, owned_ir_stack, self_, extra|{
+        todo!()
+    });
+
+
+    *functions.borrow_mut() = Some(Functions{
+        ir_method_to_call_second,
+        ir_method_to_call_first,
+        ir_method_calling_first,
+        ir_method_calling_second
+    });
+
+    ir_vm_ref.run_method(ir_method_calling_first,&mut ir_stack,&mut ());
+}
+
