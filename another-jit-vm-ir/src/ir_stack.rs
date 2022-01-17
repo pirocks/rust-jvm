@@ -89,26 +89,42 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
         }
     }
 
-    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) {
+    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
         unsafe {
             //todo assert stack frame sizes
-            if self.current_rsp != self.owned_ir_stack.native.mmaped_top{
+            if self.current_rsp != self.owned_ir_stack.native.mmaped_top {
                 let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
                 let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
                 assert_eq!(offset, expected_current_frame_size);
             }
             let prev_rbp = self.current_rbp;
+            let prev_rsp = self.current_rsp;
             self.current_rbp = self.current_rsp;
             self.current_rsp = self.current_rbp.sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>());
             self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp, ir_method_id, method_id, data);
             assert!((self.current_frame_ref().ir_method_id() == ir_method_id));
+            assert_ne!(self.current_rbp, self.current_rsp);
+            IRPushFrameGuard {
+                exited_correctly: false,
+                return_to_rbp: prev_rbp,
+                return_to_rsp: prev_rsp,
+            }
         }
+    }
+
+    pub fn pop_frame(&mut self, mut frame_guard: IRPushFrameGuard) {
+        self.current_rsp = self.current_rbp;
+        self.current_rbp = self.current_frame_ref().prev_rbp();
+        frame_guard.exited_correctly = true;
+        assert_eq!(frame_guard.return_to_rbp, self.current_rbp);
+        assert_eq!(frame_guard.return_to_rsp, self.current_rsp);
     }
 
     pub fn debug_print_stack_strace<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
         let frame_iter = unsafe {
             self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state)
         };
+        eprintln!("Start IR stacktrace:");
         for frame in frame_iter {
             match frame.ir_method_id() {
                 None => eprintln!("IR Method ID: unknown {:?}", frame.ptr),
@@ -117,6 +133,7 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
                 }
             }
         }
+        eprintln!("End IR stacktrace");
     }
 
     pub fn current_frame_ref(&self) -> IRFrameRef {
@@ -126,11 +143,25 @@ impl<'l, 'k> IRStackMut<'l, 'k> {
         }
     }
 
-    pub fn current_frame_mut(&'l mut self) -> IRFrameMut<'l, 'k> {
+    pub fn current_frame_mut(&'_ mut self) -> IRFrameMut<'_, 'k> {
         IRFrameMut {
             ptr: self.current_rbp,
             ir_stack: self.owned_ir_stack,
         }
+    }
+}
+
+#[must_use]
+pub struct IRPushFrameGuard {
+    exited_correctly: bool,
+    return_to_rbp: *const c_void,
+    return_to_rsp: *const c_void,
+}
+
+
+impl Drop for IRPushFrameGuard {
+    fn drop(&mut self) {
+        assert!(self.exited_correctly);
     }
 }
 
@@ -153,7 +184,7 @@ impl<'l, 'k, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'k,
             } else {
                 let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
                 let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&option.unwrap()).unwrap();
-                if res.prev_rbp() != null_mut(){
+                if res.prev_rbp() != null_mut() {
                     assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
                 }
                 self.current_frame_ptr = Some(res.prev_rbp());
@@ -257,24 +288,6 @@ impl<'l, 'k> IRFrameMut<'l, 'k> {
 }
 
 
-//iters up from position on stack
-pub struct IRStackIter {
-    current_rbp: *mut c_void,
-    top: *mut c_void,
-}
-
-impl Iterator for IRStackIter {
-    type Item = IRStackEntry;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let frame_pointer = self.current_rbp;
-        let ir_stack_read = unsafe { read_frame_ir_header(frame_pointer) };
-        self.current_rbp = ir_stack_read.prev_rbp;
-        Some(IRStackEntry {
-            rbp: frame_pointer
-        })
-    }
-}
 
 pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
@@ -305,12 +318,12 @@ pub const FRAME_HEADER_END_OFFSET: usize = 48;
 
 
 unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
-    let rip_ptr = frame_pointer.sub((FRAME_HEADER_PREV_RIP_OFFSET)) as *const *mut c_void;
-    let rbp_ptr = frame_pointer.sub((FRAME_HEADER_PREV_RBP_OFFSET)) as *const *mut c_void;
-    let magic1_ptr = frame_pointer.sub((FRAME_HEADER_PREV_MAGIC_1_OFFSET)) as *const u64;
-    let magic2_ptr = frame_pointer.sub((FRAME_HEADER_PREV_MAGIC_2_OFFSET)) as *const u64;
-    let ir_method_id_ptr = frame_pointer.sub((FRAME_HEADER_IR_METHOD_ID_OFFSET)) as *const usize;
-    let method_id_ptr = frame_pointer.sub((FRAME_HEADER_METHOD_ID_OFFSET)) as *const u64;
+    let rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *const *mut c_void;
+    let rbp_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *const *mut c_void;
+    let magic1_ptr = frame_pointer.sub(FRAME_HEADER_PREV_MAGIC_1_OFFSET) as *const u64;
+    let magic2_ptr = frame_pointer.sub(FRAME_HEADER_PREV_MAGIC_2_OFFSET) as *const u64;
+    let ir_method_id_ptr = frame_pointer.sub(FRAME_HEADER_IR_METHOD_ID_OFFSET) as *const usize;
+    let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *const u64;
     let magic_1 = magic1_ptr.read();
     let magic_2 = magic2_ptr.read();
     let res = UnPackedIRFrameHeader {
@@ -321,14 +334,10 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
         magic_1,
         magic_2,
     };
-    if magic_1 != MAGIC_1_EXPECTED || magic_2 != MAGIC_2_EXPECTED  {
+    if res.magic_1 != MAGIC_1_EXPECTED || res.magic_2 != MAGIC_2_EXPECTED {
         dbg!(res);
         panic!()
     }
     res
-}
-
-pub struct IRStackEntry {
-    rbp: *mut c_void,
 }
 

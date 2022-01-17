@@ -15,10 +15,10 @@ use crate::{JavaValue, JVMState};
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java_values::GcManagedObject;
 
-pub struct OwnedJavaStack<'vm_life> {
+pub struct OwnedJavaStack<'vm_life, 'stack_life> {
     jvm: &'vm_life JVMState<'vm_life>,
     java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
-    pub(crate) inner: IRStack,
+    pub(crate) inner: IRStack<'stack_life>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

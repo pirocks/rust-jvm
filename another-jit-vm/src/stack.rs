@@ -10,7 +10,7 @@ thread_local! {
 
 pub struct OwnedNativeStack{
     pub mmaped_top: *mut c_void,
-    pub(crate) mmaped_bottom: *mut c_void,
+    pub(crate) _mmaped_bottom: *mut c_void,
     pub max_stack: usize,
 }
 
@@ -28,7 +28,7 @@ impl OwnedNativeStack{
             let page_size = 4096;
             Self {
                 mmaped_top: mmaped_top.add(page_size),
-                mmaped_bottom: mmaped_top.sub(MAX_STACK),
+                _mmaped_bottom: mmaped_top.sub(MAX_STACK),
                 max_stack: MAX_STACK,
             }
         }

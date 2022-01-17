@@ -105,7 +105,6 @@ pub struct VMState<'vm_life, T: Sized, ExtraData> {
     //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
-    unknown_exit_handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>,
 }
 
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
@@ -294,7 +293,7 @@ impl<'vm_life, 'stack_life, 'extra_data_life, T, ExtraData: 'vm_life> LaunchedVM
 
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
-    pub fn new(exit_handler: Box<dyn ExitHandlerType<'vm_life, ExtraData, T> + 'vm_life>) -> Self {
+    pub fn new() -> Self {
         const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
         unsafe {
             let mmaped_code_region_base = libc::mmap(null_mut(), DEFAULT_CODE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0) as *mut c_void;
@@ -308,7 +307,6 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     phantom_2: Default::default(),
                     phantom_3: Default::default()
                 }),
-                unknown_exit_handler: exit_handler,
                 mmaped_code_region_base,
                 mmaped_code_size: DEFAULT_CODE_SIZE,
             }

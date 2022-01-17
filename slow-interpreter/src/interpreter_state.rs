@@ -25,13 +25,13 @@ use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
 
-pub struct InterpreterState<'gc_life> {
-    call_stack: OwnedJavaStack<'gc_life>,
+pub struct InterpreterState<'native_stack_life,'gc_life> {
+    call_stack: OwnedJavaStack<'native_stack_life, 'gc_life>,
     jvm: &'gc_life JVMState<'gc_life>,
     pub current_stack_position: JavaStackPosition,
 }
 
-impl<'gc_life> InterpreterState<'gc_life> {
+impl<'gc_life> InterpreterState<'_,'gc_life> {
     pub(crate) fn new(jvm: &'gc_life JVMState<'gc_life>) -> Self {
         InterpreterState {
             call_stack: OwnedJavaStack::new(&jvm.java_vm_state, jvm),
@@ -43,7 +43,7 @@ impl<'gc_life> InterpreterState<'gc_life> {
 
 pub struct InterpreterStateGuard<'vm_life, 'l> {
     //todo these internals need to change to reflect that we need to halt thread to get current rbp.
-    pub(crate) int_state: Option<MutexGuard<'l, InterpreterState<'vm_life>>>,
+    pub(crate) int_state: Option<MutexGuard<'l, InterpreterState<'l, 'vm_life>>>,
     pub(crate) thread: Arc<JavaThread<'vm_life>>,
     pub(crate) registered: bool,
     pub(crate) jvm: &'vm_life JVMState<'vm_life>,

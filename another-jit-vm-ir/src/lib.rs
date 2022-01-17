@@ -14,12 +14,12 @@ use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, I
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
 use itertools::Itertools;
 
-use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, VMExitAction, VMExitEvent, VMState};
+use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, VMExitEvent, VMState};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, IRStack, OPAQUE_FRAME_SIZE};
 
-use crate::ir_stack::{IRFrameMut, IRStackMut};
+use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
 #[cfg(test)]
@@ -36,11 +36,10 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
     current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
-    frame_sizes_by_address: HashMap<*const c_void, usize>,
     //todo not used currently
     frame_sizes_by_ir_method_id: HashMap<IRMethodID, usize>,
     method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructNativeOffset, IRInstructIndex>>,
-    method_ir: HashMap<IRMethodID, Vec<IRInstr>>,
+    _method_ir: HashMap<IRMethodID, Vec<IRInstr>>,
     // index
     opaque_method_to_or_method_id: HashMap<u64, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
@@ -53,10 +52,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             ir_method_id_max: IRMethodID(0),
             top_level_return_function_id: None,
             current_implementation: Default::default(),
-            frame_sizes_by_address: Default::default(),
             frame_sizes_by_ir_method_id: Default::default(),
             method_ir_offsets: Default::default(),
-            method_ir: Default::default(),
+            _method_ir: Default::default(),
             opaque_method_to_or_method_id: Default::default(),
             handlers: Default::default(),
         }
@@ -151,9 +149,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     pub fn new() -> Self {
-        let native_vm = VMState::new(box |_, _, _| {
-            todo!()
-        });
+        let native_vm = VMState::new();
         Self {
             native_vm,
             inner: RwLock::new(IRVMStateInner::new()),
@@ -161,7 +157,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method(&self, method_id: IRMethodID, ir_stack_frame: IRFrameMut, extra_data: &mut ExtraData) -> u64 {
+    pub fn run_method(&'g self, method_id: IRMethodID, ir_stack_frame: IRFrameMut<'l,'k>, extra_data: &'f mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -171,6 +167,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = ir_stack_frame.ptr;
          initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
+        assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let mut launched_vm = self.native_vm.launch_vm(ir_stack_frame.ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
@@ -185,7 +182,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 inner: &vm_exit_event,
                 ir_method: ir_method_id,
                 exit_type: exit_input,
-                exiting_frame_position_rbp,
+                _exiting_frame_position_rbp: exiting_frame_position_rbp,
             };
             let owned_native_stack = &mut *launched_vm.stack;
             let mut ir_stack = IRStack { native: owned_native_stack };
@@ -205,7 +202,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                     let target_return_rip = unsafe { current_method_start.offset(address_offset.0 as isize) };
                     launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: None });
                 }
-                IRVMExitAction::RestartAtIRestartPoint { restart_point } => {
+                IRVMExitAction::RestartAtIRestartPoint { restart_point:_ } => {
                     todo!()
                 }
             }
@@ -226,6 +223,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData>>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
+        assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -353,7 +351,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             todo!()
         }
         // IRInstr::VMExit { .. } => panic!("legacy"),
-        IRInstr::IRCall { current_frame_size, new_frame_size, temp_register_1, temp_register_2, target_address } => {
+        IRInstr::IRCall { current_frame_size:_, new_frame_size, temp_register_1, temp_register_2, target_address } => {
             let temp_register = temp_register_1.to_native_64();
             let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();
@@ -427,6 +425,6 @@ pub struct IRVMExitEvent<'l> {
     pub inner: &'l VMExitEvent,
     pub ir_method: IRMethodID,
     pub exit_type: RuntimeVMExitInput,
-    exiting_frame_position_rbp: *mut c_void,
+    _exiting_frame_position_rbp: *mut c_void,
 }
 
