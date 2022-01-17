@@ -27,6 +27,7 @@ use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, Inte
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
+use crate::interpreter_state::FramePushGuard;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::int::Int;
@@ -35,6 +36,7 @@ use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
 use crate::runtime_class::RuntimeClass;
+use crate::stack_entry::StackEntryMut;
 use crate::utils::run_static_or_virtual;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
@@ -69,7 +71,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
-                IRVMExitAction::RestartAtIndex { index:todo!() }
+                IRVMExitAction::RestartAtIndex { index: todo!() }
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
@@ -91,7 +93,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };
-                IRVMExitAction::RestartAtIndex { index:todo!() }
+                IRVMExitAction::RestartAtIndex { index: todo!() }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 eprintln!("TopLevelReturn");
@@ -107,7 +109,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                IRVMExitAction::RestartAtIndex { index:todo!() }
+                IRVMExitAction::RestartAtIndex { index: todo!() }
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
                 eprintln!("PutStatic");
@@ -118,7 +120,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
-                IRVMExitAction::RestartAtIndex { index:todo!() }
+                IRVMExitAction::RestartAtIndex { index: todo!() }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
@@ -131,7 +133,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                IRVMExitAction::RestartAtIndex { index:todo!() }
+                IRVMExitAction::RestartAtIndex { index: todo!() }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
         }
@@ -139,7 +141,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 }
 
 pub struct JavaVMStateWrapper<'vm_life> {
-    pub ir: IRVMState<'vm_life,()>,
+    pub ir: IRVMState<'vm_life, ()>,
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,
@@ -179,13 +181,13 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
         // &IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
-        let ir_exit_handler: ExitHandlerType<'vm_life,()> = box move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life,()>, extra| {
-            let ir_stack_mut : IRStackMut = ir_stack_mut;
+        let ir_exit_handler: ExitHandlerType<'vm_life, ()> = box move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
+            let ir_stack_mut: IRStackMut = ir_stack_mut;
             let mut int_state = InterpreterStateGuard::LocalInterpreterState {
                 int_state: ir_stack_mut,
                 thread: jvm.thread_state.get_current_thread(),
                 registered: false,
-                jvm
+                jvm,
             };
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
@@ -197,21 +199,17 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         };
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
-        write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
+        let overwritten = write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
+        // assert!(!overwritten.did_overwrite());
         write_guard.restart_points.insert(ir_method_id, restart_points);
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
+    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
-        let mmapped_top = int_state.java_stack().inner.native.mmaped_top;
+        let mut frame_to_run_on = int_state.current_frame_mut();
+        assert_eq!(frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap(), ir_method_id);
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-        //todo calculate stack pointer based of frame size
-        let frame_pointer = match frame_to_run_on.frame_pointer {
-            JavaStackPosition::Frame { frame_pointer } => frame_pointer,
-            JavaStackPosition::Top => mmapped_top
-        };
-        let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
-        self.ir.run_method(ir_method_id, todo!(), &mut ())
+        self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ())
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {

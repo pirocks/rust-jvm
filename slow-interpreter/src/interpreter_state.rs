@@ -9,10 +9,12 @@ use iced_x86::CC_b::c;
 use itertools::Itertools;
 
 use another_jit_vm_ir::ir_stack::{IRPushFrameGuard, IRStackMut, OwnedIRStack};
+use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::classfile::InstructionInfo::ireturn;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -160,18 +162,17 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_frame_mut(&'_ mut self) -> StackEntryMut<'gc_life, '_> {
-        todo!()
-        /*let interpreter_state: &'_ mut InterpreterState<'gc_life> = self.int_state.as_mut().unwrap();
-        match interpreter_state {
-            InterpreterState { call_stack, jvm, current_stack_position } => {
-                let jvm: &'gc_life JVMState<'gc_life> = jvm;
-                let call_stack: &'_ mut OwnedJavaStack<'gc_life> = call_stack;
-                let frame_at: RuntimeJavaStackFrameMut<'_, 'gc_life> = call_stack.mut_frame_at(*current_stack_position, jvm);
-                StackEntryMut {
-                    frame_view: frame_at,
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+                return StackEntryMut{
+                    frame_view: RuntimeJavaStackFrameMut{
+                        ir_mut: int_state.current_frame_mut(),
+                        jvm
+                    }
                 }
             }
-        }*/
+        }
     }
 
     pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc_life> {
@@ -318,15 +319,17 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 todo!()
             }
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
-                let method_id = match opaque_frame_optional {
+                let (method_id, maybe_ir_method_id) = match opaque_frame_optional {
                     Some(OpaqueFrameOptional { class_pointer, method_i }) => {
                         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-                        OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }
+                        let method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
+                        let ir_method_id = jvm.java_vm_state.try_lookup_ir_method_id(method_id).unwrap();
+                        (method_id, Some(ir_method_id))
                     }
                     None => {
-                        OpaqueFrameIdOrMethodID::Opaque {
+                        (OpaqueFrameIdOrMethodID::Opaque {
                             opaque_id: opaque_frame_id.unwrap()
-                        }
+                        },None)
                     }
                 };
                 let mut data = vec![];
@@ -339,7 +342,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 let ir_vm_state = &jvm.java_vm_state.ir;
                 let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
                 let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
-                let ir_frame_push_guard = int_state.push_frame(top_level_exit_ptr, Some(top_level_ir_method_id), method_id.to_native(), data.as_slice(), ir_vm_state);
+                let ir_frame_push_guard = int_state.push_frame(top_level_exit_ptr, maybe_ir_method_id, method_id.to_native(), data.as_slice(), ir_vm_state);
                 FramePushGuard {
                     _correctly_exited: false,
                     prev_stack_location: JavaStackPosition::Top,

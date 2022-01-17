@@ -298,6 +298,11 @@ impl<'l> IRFrameMut<'l> {
     pub fn set_prev_rip(&mut self, prev_rip: *const c_void) {
         self.write_at_offset(FramePointerOffset(FRAME_HEADER_PREV_RIP_OFFSET), prev_rip as u64);
     }
+
+    pub fn assert_prev_rip(&mut self, prev_rip: *const c_void) {
+        let actual_prev_rip = self.downgrade().read_at_offset(FramePointerOffset(FRAME_HEADER_PREV_RIP_OFFSET));
+        assert_eq!(actual_prev_rip,prev_rip as u64);
+    }
 }
 
 

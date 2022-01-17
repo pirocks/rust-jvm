@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
+
 use iced_x86::CC_be::na;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
@@ -46,7 +47,7 @@ impl OpaqueFrameIdOrMethodID {
     pub fn to_native(&self) -> i64 {
         match self {
             OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
-                -(*opaque_id as i64)
+                -((*opaque_id + 1) as i64)
             }
             OpaqueFrameIdOrMethodID::Method { method_id } => {
                 (*method_id as i64)
@@ -54,10 +55,10 @@ impl OpaqueFrameIdOrMethodID {
         }
     }
 
-    pub fn from_native(native: i64) -> Self{
-        if native < 0{
-            Self::Opaque { opaque_id: (-native) as u64 }
-        }else {
+    pub fn from_native(native: i64) -> Self {
+        if native < 0 {
+            Self::Opaque { opaque_id: ((-native) as u64) - 1 }
+        } else {
             Self::Method { method_id: native as u64 }
         }
     }
@@ -109,7 +110,8 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
     }
 
     pub fn mut_frame_at(&'_ mut self, java_stack_position: JavaStackPosition, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameMut<'_, 'vm_life> {
-        let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
+        todo!()
+        /*let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         let ir_method_id = ir_frame.ir_method_id();
         let max_locals = if let Some(method_id) = ir_frame.method_id() {
             let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).cloned();
@@ -121,11 +123,9 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         };
         let ir_frame_mut = unsafe { self.inner.frame_at_mut(java_stack_position.get_frame_pointer() as *mut c_void) };
         RuntimeJavaStackFrameMut {
-            frame_ptr: java_stack_position.get_frame_pointer(),
             ir_mut: ir_frame_mut,
             jvm,
-            max_locals,
-        }
+        }*/
     }
 
     pub fn write_frame(&mut self, at_position: JavaStackPosition, method_id: OpaqueFrameIdOrMethodID, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>, prev_rip: *const c_void, prev_rbp: *mut c_void) {
@@ -228,14 +228,11 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         let offset = FramePointerOffset(n * size_of::<u64>());
         self.read_target(offset, rtype)
     }
-
 }
 
 pub struct RuntimeJavaStackFrameMut<'l, 'vm_life> {
-    frame_ptr: *const c_void,
     pub ir_mut: IRFrameMut<'l>,
-    jvm: &'vm_life JVMState<'vm_life>,
-    max_locals: u16,
+    pub(crate) jvm: &'vm_life JVMState<'vm_life>,
 }
 
 impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life> {
@@ -280,9 +277,8 @@ impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l
         todo!()
     }
 
-    pub fn set_prev_rip(&mut self, ir_method_ref: IRMethodID, jvm: &'gc_life JVMState<'gc_life>) {
-        let java_stack_position = JavaStackPosition::Frame { frame_pointer: self.frame_ptr };
+    pub fn assert_prev_rip(&mut self, ir_method_ref: IRMethodID, jvm: &'gc_life JVMState<'gc_life>) {
         let method_pointer = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
-        self.ir_mut.set_prev_rip(method_pointer);
+        self.ir_mut.assert_prev_rip(method_pointer);
     }
 }

@@ -73,10 +73,8 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
         jvm.java_vm_state.add_method(jvm, &resolver, method_id);
-        let frame_size = jvm.java_function_frame_data.read().unwrap().get(&method_id).unwrap().full_frame_size();
-        let top_level_return_function_id = jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
-        interpreter_state.current_frame_mut().frame_view.set_prev_rip(top_level_return_function_id,jvm);
-        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id, todo!());
+        interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
+        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id);
         //todo bug what if gc happens here
         let return_type = &method.desc().return_type;
         Ok(match return_type {
@@ -85,41 +83,6 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
                 Some(NativeJavaValue{as_u64: function_res}.to_java_value(&return_type,jvm))
             }
         })
-
-        /*        let result = jvm.jit_state.with::<_, Result<(), WasException>>(|jit_state| {
-                    jit_state.borrow_mut().add_function(code, method_id, resolver); //todo fix method id jankyness
-                    // todo!("copy current args over. ");
-                    match JITedCodeState::run_method_safe(jit_state, jvm, interpreter_state, method_id) {
-                        Ok(res) => {
-                            assert!(res.is_none());
-                            return Ok(());
-                            /*match res {
-                                Either::Left(res) => todo!(),
-                                Either::Right(VMExitData::InvokeStaticResolveTarget { method_name, descriptor, classname_ref_type, native_start, native_end }) => {
-                                    let rc = check_loaded_class(jvm, interpreter_state, CPDType::Ref(classname_ref_type))?;
-                                    let view = rc.view();
-                                    let method_view = view.lookup_method(method_name, &descriptor).unwrap();
-                                    let code = method_view.code_attribute().unwrap();
-                                    let invoke_target_method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-                                    let guard = jvm.function_frame_type_data.read().unwrap();
-                                    let frame_vtype = guard.get(&invoke_target_method_id).unwrap();
-                                    let stack_frame_layout = FrameBackedStackframeMemoryLayout::new(code.max_stack as usize, code.max_locals as usize, frame_vtype.clone());//todo use stack frame layouts instead
-                                    let sorted_instructions = code.instructions.iter().sorted_by_key(|(offset, _)| *offset).map(|(_, instr)| instr.clone()).collect();
-                                    let mut compiled_methods_guard = jvm.compiled_methods.write().unwrap();
-                                    compiled_methods_guard.add_method(invoke_target_method_id, sorted_instructions, &stack_frame_layout);
-                                    compiled_methods_guard.run_method(invoke_target_method_id, interpreter_state.get_java_stack()).unwrap();
-                                    drop(compiled_methods_guard);//tos=do deadlock in exit hadnler
-
-
-                                    todo!("compile and restore ")
-                                }
-                                _ => todo!()
-                            }*/
-                        }
-                        Err(_) => todo!(),
-                    }
-                });
-        */        //result
     } else {
         todo!()
         // run_function_interpreted(&jvm, interpreter_state)
