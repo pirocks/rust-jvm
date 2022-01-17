@@ -49,7 +49,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64]) {
+    pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64]) {
         self.native.validate_frame_pointer(frame_pointer);
         let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
@@ -61,8 +61,8 @@ impl<'k> OwnedIRStack {
         magic_2_ptr.write(MAGIC_2_EXPECTED);
         let ir_method_id_ptr = frame_pointer.sub(FRAME_HEADER_IR_METHOD_ID_OFFSET) as *mut u64;
         ir_method_id_ptr.write(ir_method_id.unwrap_or(IRMethodID(usize::MAX)).0 as u64);
-        let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut u64;
-        method_id_ptr.write(method_id.unwrap_or((-1isize) as usize) as u64);
+        let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut i64;
+        method_id_ptr.write(method_id);
         for (i, data_elem) in data.iter().cloned().enumerate() {
             let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i) as *mut u64;
             data_elem_ptr.write(data_elem)
@@ -95,7 +95,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: Option<MethodId>, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
+    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
         unsafe {
             //todo assert stack frame sizes
             if self.current_rsp != self.owned_ir_stack.native.mmaped_top {

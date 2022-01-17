@@ -14,6 +14,7 @@ use crossbeam::thread::Scope;
 use libloading::Symbol;
 use num::Integer;
 use wtf8::Wtf8Buf;
+use another_jit_vm_ir::ir_stack::IRStackMut;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -174,7 +175,13 @@ impl<'gc_life> ThreadState<'gc_life> {
         });
         jvm.thread_state.set_current_thread(bootstrap_thread.clone());
         bootstrap_thread.notify_alive(jvm);
-        let mut new_int_state = InterpreterStateGuard::new(jvm, bootstrap_thread.clone(), bootstrap_thread.interpreter_state.lock().unwrap().into());
+        let mut interpreter_state_guard = bootstrap_thread.interpreter_state.lock().unwrap();
+        let mut new_int_state = InterpreterStateGuard::LocalInterpreterState {
+            int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
+            thread: jvm.thread_state.get_current_thread(),
+            registered: false,
+            jvm
+        };
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
@@ -188,7 +195,6 @@ impl<'gc_life> ThreadState<'gc_life> {
         let frame = StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
         let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
-        // let class_rc = check_loaded_class(jvm,&mut new_int_state, CClassName::class().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Class");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 

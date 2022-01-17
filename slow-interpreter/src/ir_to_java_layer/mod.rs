@@ -16,7 +16,7 @@ use libc::read;
 use another_jit_vm::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
-use another_jit_vm_ir::ir_stack::IRStackMut;
+use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -163,7 +163,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
-        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, ir_stack_mut, ir_vm_state, extra| {
+        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, box |event, ir_stack_mut, ir_vm_state, extra| {
             match &event.exit_type {
                 RuntimeVMExitInput::TopLevelReturn { return_value } => IRVMExitAction::ExitVMCompletely { return_data: *return_value },
                 _ => panic!()

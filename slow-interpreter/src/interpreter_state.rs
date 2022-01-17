@@ -7,8 +7,8 @@ use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
 
 use iced_x86::CC_b::c;
 use itertools::Itertools;
-use another_jit_vm_ir::ir_stack::{IRStackMut, OwnedIRStack};
 
+use another_jit_vm_ir::ir_stack::{IRPushFrameGuard, IRStackMut, OwnedIRStack};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
@@ -17,7 +17,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
@@ -27,7 +27,7 @@ use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, Sta
 use crate::threading::JavaThread;
 
 pub struct InterpreterState<'gc_life> {
-    call_stack: OwnedJavaStack<'gc_life>,
+    pub call_stack: OwnedJavaStack<'gc_life>,
     jvm: &'gc_life JVMState<'gc_life>,
     pub current_stack_position: JavaStackPosition,
 }
@@ -50,12 +50,12 @@ pub enum InterpreterStateGuard<'vm_life, 'l> {
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
     },
-    LocalInterpreterState{
+    LocalInterpreterState {
         int_state: IRStackMut<'l>,
         thread: Arc<JavaThread<'vm_life>>,
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
-    }
+    },
 }
 
 thread_local! {
@@ -88,16 +88,16 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }*/
 
-    pub fn registered(&self) -> bool{
-        match self{
+    pub fn registered(&self) -> bool {
+        match self {
             InterpreterStateGuard::RemoteInterpreterState { registered, .. } => *registered,
-            InterpreterStateGuard::LocalInterpreterState { registered,.. } => *registered
+            InterpreterStateGuard::LocalInterpreterState { registered, .. } => *registered
         }
     }
 
-    pub fn thread(&self) -> Arc<JavaThread<'gc_life>>{
-        match self{
-            InterpreterStateGuard::RemoteInterpreterState { thread, ..  } => thread.clone(),
+    pub fn thread(&self) -> Arc<JavaThread<'gc_life>> {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { thread, .. } => thread.clone(),
             InterpreterStateGuard::LocalInterpreterState { thread, .. } => thread.clone()
         }
     }
@@ -114,11 +114,11 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc_life, '_>) };
         jvm.thread_state.int_state_guard.with(|refcell| refcell.replace(ptr.into()));
         jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(true));
-        match self{
-            InterpreterStateGuard::RemoteInterpreterState { registered,.. } => {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { registered, .. } => {
                 *registered = true;
             }
-            InterpreterStateGuard::LocalInterpreterState { registered, ..} => {
+            InterpreterStateGuard::LocalInterpreterState { registered, .. } => {
                 *registered = true;
             }
         }
@@ -144,16 +144,19 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_frame(&'_ self) -> StackEntryRef<'gc_life, '_> {
-        todo!()
-        /*let interpreter_state = self.int_state.as_ref().unwrap().deref();
-        match interpreter_state {
-            InterpreterState { call_stack, jvm, current_stack_position } => {
-                let frame_at = call_stack.frame_at(*current_stack_position, jvm);
-                StackEntryRef {
-                    frame_view: frame_at
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => {
+                todo!()
+            }
+            InterpreterStateGuard::LocalInterpreterState { int_state,jvm, .. } => {
+                return StackEntryRef{
+                    frame_view: RuntimeJavaStackFrameRef{
+                        ir_ref: int_state.current_frame_ref(),
+                        jvm,
+                    }
                 }
             }
-        }*/
+        }
     }
 
     pub fn current_frame_mut(&'_ mut self) -> StackEntryMut<'gc_life, '_> {
@@ -299,27 +302,52 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn push_frame(&mut self, frame: StackEntry<'gc_life>) -> FramePushGuard {
-        /*let int_state = self.int_state.as_mut().unwrap().deref_mut();
-        let InterpreterState { call_stack, jvm, current_stack_position } = int_state;
-        let StackEntry { loader, opaque_frame_id, opaque_frame_optional, non_native_data, local_vars, operand_stack, native_local_refs } = frame;
+        let StackEntry {
+            loader,
+            opaque_frame_id,
+            opaque_frame_optional,
+            non_native_data,
+            local_vars,
+            operand_stack,
+            native_local_refs
+        } = frame;
         assert!(non_native_data.is_none() || non_native_data.unwrap().pc == 0);
-        let method_id = match opaque_frame_optional {
-            Some(OpaqueFrameOptional { class_pointer, method_i }) => {
-                let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-                OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }
+
+        let frame_push_guard = match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => {
+                todo!()
             }
-            None => {
-                OpaqueFrameIdOrMethodID::Opaque {
-                    opaque_id: opaque_frame_id.unwrap()
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+                let method_id = match opaque_frame_optional {
+                    Some(OpaqueFrameOptional { class_pointer, method_i }) => {
+                        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+                        OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }
+                    }
+                    None => {
+                        OpaqueFrameIdOrMethodID::Opaque {
+                            opaque_id: opaque_frame_id.unwrap()
+                        }
+                    }
+                };
+                let mut data = vec![];
+                for local_var in local_vars {
+                    data.push(unsafe { local_var.to_native().as_u64 });
+                }
+                for jv in operand_stack {
+                    data.push(unsafe { jv.to_native().as_u64 });
+                }
+                let ir_vm_state = &jvm.java_vm_state.ir;
+                let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
+                let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
+                let ir_frame_push_guard = int_state.push_frame(top_level_exit_ptr, Some(top_level_ir_method_id), method_id.to_native(), data.as_slice(), ir_vm_state);
+                FramePushGuard {
+                    _correctly_exited: false,
+                    prev_stack_location: JavaStackPosition::Top,
+                    ir_frame_push_guard,
                 }
             }
         };
-        let new_current_frame_position = call_stack.push_frame(*current_stack_position, method_id, local_vars, operand_stack);
-        let old_position = int_state.current_stack_position;
-        int_state.current_stack_position = new_current_frame_position;
-
-        FramePushGuard { _correctly_exited: false, prev_stack_location: old_position }*/
-        todo!()
+        frame_push_guard
     }
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
@@ -627,13 +655,14 @@ pub enum AddFrameNotifyError {
 pub struct FramePushGuard {
     _correctly_exited: bool,
     prev_stack_location: JavaStackPosition,
+    ir_frame_push_guard: IRPushFrameGuard,
 }
 
-impl Default for FramePushGuard {
+/*impl Default for FramePushGuard {
     fn default() -> Self {
-        FramePushGuard { _correctly_exited: false, prev_stack_location: todo!() }
+        FramePushGuard { _correctly_exited: false, prev_stack_location: todo!(), ir_frame_push_guard: () }
     }
-}
+}*/
 
 impl Drop for FramePushGuard {
     fn drop(&mut self) {

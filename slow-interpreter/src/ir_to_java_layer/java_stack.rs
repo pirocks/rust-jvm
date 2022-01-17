@@ -2,10 +2,11 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
+use iced_x86::CC_be::na;
+
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use another_jit_vm_ir::IRMethodID;
 use gc_memory_layout_common::FramePointerOffset;
-
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
@@ -37,7 +38,27 @@ impl OpaqueFrameIdOrMethodID {
             OpaqueFrameIdOrMethodID::Opaque { .. } => None,
             OpaqueFrameIdOrMethodID::Method { method_id } => {
                 assert_ne!(*method_id, u64::MAX);
-                Some(*method_id as MethodId)}
+                Some(*method_id as MethodId)
+            }
+        }
+    }
+
+    pub fn to_native(&self) -> i64 {
+        match self {
+            OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
+                -(*opaque_id as i64)
+            }
+            OpaqueFrameIdOrMethodID::Method { method_id } => {
+                (*method_id as i64)
+            }
+        }
+    }
+
+    pub fn from_native(native: i64) -> Self{
+        if native < 0{
+            Self::Opaque { opaque_id: (-native) as u64 }
+        }else {
+            Self::Method { method_id: native as u64 }
         }
     }
 }
@@ -82,10 +103,8 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             None
         };
         RuntimeJavaStackFrameRef {
-            frame_ptr: java_stack_position.get_frame_pointer(),
             ir_ref: ir_frame,
             jvm,
-            max_locals,
         }
     }
 
@@ -122,7 +141,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     operand_stack,
                 };
                 let data: [u64; 1] = [Box::into_raw(to_write_to_data) as usize as u64];
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, None, Some(method_id.try_unwrap_method_id().unwrap()), data.as_slice()); }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, None, method_id.to_native(), data.as_slice()); }
             }
             Some(ir_method_id) => {
                 let mut data = vec![];
@@ -135,7 +154,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                     data.push(unsafe { stack_elem.to_native().as_u64 });
                 }
 
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, Some(ir_method_id), method_id.try_unwrap_method_id(), data.as_slice()) }
+                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, Some(ir_method_id), method_id.to_native(), data.as_slice()) }
             }
         }
     }
@@ -157,7 +176,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         };
         let ir_method_ref = self.jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
         let method_pointer = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
-        self.write_frame(postion_to_write, method_id, locals, operand_stack, method_pointer, match java_stack_position{
+        self.write_frame(postion_to_write, method_id, locals, operand_stack, method_pointer, match java_stack_position {
             JavaStackPosition::Frame { frame_pointer } => {
                 frame_pointer
             }
@@ -177,10 +196,8 @@ pub struct NativeFrameInfo<'gc_life> {
 }
 
 pub struct RuntimeJavaStackFrameRef<'l, 'vm_life> {
-    frame_ptr: *const c_void,
     pub(crate) ir_ref: IRFrameRef<'l>,
     pub(crate) jvm: &'vm_life JVMState<'vm_life>,
-    max_locals: Option<u16>,//todo opaque frame ref
 }
 
 impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
@@ -202,8 +219,9 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
     }
 
     pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
-        let offset = FramePointerOffset(self.max_locals.unwrap() as usize * size_of::<u64>() + n * size_of::<u64>());
-        self.read_target(offset, rtype)
+        todo!()
+        /*let offset = FramePointerOffset(self.max_locals.unwrap() as usize * size_of::<u64>() + n * size_of::<u64>());
+        self.read_target(offset, rtype)*/
     }
 
     pub fn nth_local(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
@@ -211,9 +229,6 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         self.read_target(offset, rtype)
     }
 
-    pub fn position(&self) -> JavaStackPosition {
-        JavaStackPosition::Frame { frame_pointer: self.frame_ptr }
-    }
 }
 
 pub struct RuntimeJavaStackFrameMut<'l, 'vm_life> {
@@ -226,10 +241,8 @@ pub struct RuntimeJavaStackFrameMut<'l, 'vm_life> {
 impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life> {
     pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life> {
         RuntimeJavaStackFrameRef {
-            frame_ptr: self.frame_ptr,
             ir_ref: self.ir_mut.downgrade_owned(),
             jvm: self.jvm,
-            max_locals: self.max_locals.into(),
         }
     }
 
