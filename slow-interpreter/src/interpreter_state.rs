@@ -1,5 +1,7 @@
+use std::arch::x86_64::_mm256_testc_pd;
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
@@ -12,14 +14,14 @@ use another_jit_vm_ir::ir_stack::{IRPushFrameGuard, IRStackMut, OwnedIRStack};
 use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
-use jvmti_jni_bindings::jvalue;
+use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo::ireturn;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, NativeFrameInfo, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
@@ -105,11 +107,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn self_check(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        for stack_entry in self.cloned_stack_snapshot(jvm) {
+        todo!()
+        /*for stack_entry in self.cloned_stack_snapshot(jvm) {
             for jv in stack_entry.operand_stack.iter().chain(stack_entry.local_vars.iter()) {
                 jv.self_check();
             }
-        }
+        }*/
     }
 
     pub fn register_interpreter_state_guard(&mut self, jvm: &'gc_life JVMState<'gc_life>) {
@@ -150,13 +153,13 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
             }
-            InterpreterStateGuard::LocalInterpreterState { int_state,jvm, .. } => {
-                return StackEntryRef{
-                    frame_view: RuntimeJavaStackFrameRef{
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+                return StackEntryRef {
+                    frame_view: RuntimeJavaStackFrameRef {
                         ir_ref: int_state.current_frame_ref(),
                         jvm,
                     }
-                }
+                };
             }
         }
     }
@@ -165,12 +168,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
-                return StackEntryMut{
-                    frame_view: RuntimeJavaStackFrameMut{
+                return StackEntryMut {
+                    frame_view: RuntimeJavaStackFrameMut {
                         ir_mut: int_state.current_frame_mut(),
-                        jvm
+                        jvm,
                     }
-                }
+                };
             }
         }
     }
@@ -303,46 +306,50 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn push_frame(&mut self, frame: StackEntry<'gc_life>) -> FramePushGuard {
-        let StackEntry {
-            loader,
-            opaque_frame_id,
-            opaque_frame_optional,
-            non_native_data,
-            local_vars,
-            operand_stack,
-            native_local_refs
-        } = frame;
-        assert!(non_native_data.is_none() || non_native_data.unwrap().pc == 0);
-
         let frame_push_guard = match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
             }
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
-                let (method_id, maybe_ir_method_id) = match opaque_frame_optional {
-                    Some(OpaqueFrameOptional { class_pointer, method_i }) => {
-                        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-                        let method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
-                        let ir_method_id = jvm.java_vm_state.try_lookup_ir_method_id(method_id).unwrap();
-                        (method_id, Some(ir_method_id))
-                    }
-                    None => {
-                        (OpaqueFrameIdOrMethodID::Opaque {
-                            opaque_id: opaque_frame_id.unwrap()
-                        },None)
-                    }
-                };
-                let mut data = vec![];
-                for local_var in local_vars {
-                    data.push(unsafe { local_var.to_native().as_u64 });
-                }
-                for jv in operand_stack {
-                    data.push(unsafe { jv.to_native().as_u64 });
-                }
                 let ir_vm_state = &jvm.java_vm_state.ir;
                 let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
                 let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
-                let ir_frame_push_guard = int_state.push_frame(top_level_exit_ptr, maybe_ir_method_id, method_id.to_native(), data.as_slice(), ir_vm_state);
+                let ir_frame_push_guard = match frame {
+                    StackEntry::Java { operand_stack, local_vars, method_id } => {
+                        let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
+                        let mut data = vec![];
+                        for local_var in local_vars {
+                            data.push(unsafe { local_var.to_native().as_u64 });
+                        }
+                        for jv in operand_stack {
+                            data.push(unsafe { jv.to_native().as_u64 });
+                        }
+                        let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
+                        int_state.push_frame(top_level_exit_ptr, Some(dbg!(ir_method_id)), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                    }
+                    StackEntry::Native { method_id, native_local_refs, local_vars, operand_stack } => {
+                        let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                        let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
+                        let native_frame_info = NativeFrameInfo {
+                            method_id,
+                            loader,
+                            native_local_refs,
+                            local_vars,
+                            operand_stack,
+                        };
+                        let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
+                        let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
+                        let data = [raw_frame_info_pointer as *const c_void as usize as u64];
+                        int_state.push_frame(top_level_exit_ptr, None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                    }
+                    StackEntry::Opaque { opaque_id, native_local_refs } => {
+                        let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id: opaque_id };
+                        let opaque_frame_info = OpaqueFrameInfo{ native_local_refs, operand_stack: vec![] };
+                        let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
+                        let data = [raw_frame_info_pointer as *const c_void as usize as u64];
+                        int_state.push_frame(top_level_exit_ptr, None, wrapped_opaque_id.to_native(),data.as_slice(),ir_vm_state)
+                    }
+                };
                 FramePushGuard {
                     _correctly_exited: false,
                     prev_stack_location: JavaStackPosition::Top,
@@ -355,40 +362,10 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard._correctly_exited = true;
-        /*let depth = match self.int_state.as_mut().unwrap().deref_mut() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                call_stack.len()
-            }*/
-            InterpreterState::Jit { call_stack, .. } => unsafe { call_stack.call_stack_depth() },
-        };
-        let empty_hashset: HashSet<usize> = HashSet::new();
-        if match self.int_state.as_mut().unwrap().deref_mut() {
-            /*InterpreterState::LegacyInterpreter { should_frame_pop_notify, .. } => should_frame_pop_notify,*/
-            InterpreterState::Jit { .. } => &empty_hashset, //todo fix this at later date
-        }
-            .contains(&depth)
-        {
-            let stack_entry_ref = self.current_frame();
-            let runtime_class = stack_entry_ref.class_pointer(jvm);
-            let method_i = self.current_method_i(jvm);
-            let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
-            jvm.jvmti_state().unwrap().built_in_jdwp.frame_pop(jvm, method_id, u8::from(was_exception), self)
-        }
-        match self.int_state.as_mut().unwrap().deref_mut() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                call_stack.pop();
-            }*/
-            InterpreterState::Jit { call_stack, .. } => unsafe {
-                call_stack.pop_frame();
-            },
-        };*/
+        //need to drop the box from above and get the pushed stack frame type
 
         todo!()
-        /*if self.current_frame().is_native() {
-            unsafe { drop(Box::from_raw(self.current_frame().frame_view.ir_ref.data(1)[0] as usize as *mut NativeFrameInfo)) }
-        }
-        self.int_state.as_mut().unwrap().current_stack_position = frame_push_guard.prev_stack_location;
-        assert!(self.thread.is_alive());*/
+
     }
 
     pub fn call_stack_depth(&self) -> usize {
@@ -488,53 +465,21 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         Ok(())*/
         todo!()
     }
+}
 
-    // pub fn verify_frame(&mut self, jvm: &JVMState) {
-    //     if let Some(method_id) = self.current_frame().current_method_id(jvm) {
-    //         let guard = jvm.function_frame_type_data.read().unwrap();
-    //         let Frame { stack_map, locals, .. } = match guard.get(&method_id) {
-    //             Some(x) => x,
-    //             None => {
-    //                 // eprintln!("Warning, missing verification data for: {:?}", self.current_class_view().name());
-    //                 return;
-    //             }
-    //         }.get(&self.current_pc()).unwrap();
-    //         let local_java_vals = self.current_frame().local_vars(jvm);
-    //         let java_val_stack = self.current_frame().operand_stack();
-    //         let stack_map = remove_tops(stack_map);
-    //         if stack_map.len() != java_val_stack.len() {
-    //             dbg!(&stack_map.data.iter().rev().collect_vec());
-    //             dbg!(&java_val_stack);
-    //             self.debug_print_stack_trace();
-    //             dbg!(self.current_pc());
-    //             panic!()
-    //         }
-    //         for (jv, type_) in java_val_stack.iter().zip(stack_map.data.iter().rev()) {
-    //             if !compatible_with_type(jv, type_) {
-    //                 dbg!(jv);
-    //                 dbg!(type_);
-    //                 dbg!(&stack_map.data.iter().rev().collect_vec());
-    //                 dbg!(&java_val_stack);
-    //                 self.debug_print_stack_trace();
-    //                 dbg!(self.current_pc());
-    //                 panic!()
-    //             }
-    //         }
-    //         assert_eq!(local_java_vals.len(), locals.deref().len());
-    //         for (jv, type_) in local_java_vals.iter().zip(locals.iter()) {
-    //             if !compatible_with_type(jv, type_) {
-    //                 dbg!(jv);
-    //                 dbg!(type_);
-    //                 dbg!(&local_java_vals);
-    //                 dbg!(&local_java_vals.iter().map(|jv| jv.to_type()).collect_vec());
-    //                 dbg!(&locals);
-    //                 self.debug_print_stack_trace();
-    //                 dbg!(self.current_pc());
-    //                 panic!()
-    //             }
-    //         }
-    //     }
-    // }
+#[derive(Debug, Clone)]
+pub struct OpaqueFrameInfo<'gc_life>{
+    pub native_local_refs: Vec<HashSet<jobject>>,
+    pub operand_stack: Vec<JavaValue<'gc_life>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeFrameInfo<'gc_life> {
+    pub method_id: usize,
+    pub loader: LoaderName,
+    pub native_local_refs: Vec<HashSet<jobject>>,
+    pub local_vars: Vec<JavaValue<'gc_life>>,
+    pub operand_stack: Vec<JavaValue<'gc_life>>,
 }
 
 // fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {

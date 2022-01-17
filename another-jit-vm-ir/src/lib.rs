@@ -18,6 +18,7 @@ use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocat
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
+use rust_jvm_common::opaque_id_table::OpaqueID;
 
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
@@ -41,7 +42,7 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     method_ir_offsets: HashMap<IRMethodID, BiHashMap<IRInstructNativeOffset, IRInstructIndex>>,
     _method_ir: HashMap<IRMethodID, Vec<IRInstr>>,
     // index
-    opaque_method_to_or_method_id: HashMap<u64, IRMethodID>,
+    opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
     handlers: HashMap<IRMethodID, ExitHandlerType<'vm_life, ExtraData>>,
 }
@@ -105,7 +106,7 @@ pub enum IRVMExitAction {
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
-    pub fn lookup_opaque_ir_method_id(&self, opaque_id: u64) -> IRMethodID {
+    pub fn lookup_opaque_ir_method_id(&self, opaque_id: OpaqueID) -> IRMethodID {
         let mut guard = self.inner.write().unwrap();
         match guard.opaque_method_to_or_method_id.get(&opaque_id) {
             None => {

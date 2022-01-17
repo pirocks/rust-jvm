@@ -214,7 +214,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
 
     let method_i = clinit.method_i() as u16;
     let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
-    jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);//todo loader
+    jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);
 
 
     let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), method_i, locals);

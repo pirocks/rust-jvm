@@ -92,7 +92,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         panic!();
     }*/
     let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
-    assert!(int_state.current_frame().is_native());
+    assert!(int_state.current_frame().is_native_method());
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm, int_state).unwrap();

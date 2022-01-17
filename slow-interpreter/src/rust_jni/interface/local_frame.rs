@@ -4,9 +4,8 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
-use crate::interpreter_state::InterpreterState;
+use crate::interpreter_state::{InterpreterState, NativeFrameInfo};
 use crate::InterpreterStateGuard;
-use crate::ir_to_java_layer::java_stack::NativeFrameInfo;
 use crate::java_values::GcManagedObject;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
 use crate::stack_entry::FrameView;
@@ -120,7 +119,7 @@ fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGua
 }
 
 fn current_native_local_refs<'l>(interpreter_state: &'l InterpreterStateGuard) -> Vec<HashSet<jobject>> {
-    assert!(interpreter_state.current_frame().is_native());
+    assert!(interpreter_state.current_frame().is_opaque() || interpreter_state.current_frame().is_native_method());
     let data = interpreter_state.current_frame().frame_view.ir_ref.data(1)[0] as usize as *const NativeFrameInfo;
     unsafe { data.as_ref().unwrap().native_local_refs.clone() }
 }

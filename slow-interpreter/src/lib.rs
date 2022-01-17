@@ -82,6 +82,7 @@ pub mod jit_common;
 pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
 pub mod native_tracing;
+pub mod opaque_ids;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
@@ -128,7 +129,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(int_state.current_loader(jvm), vec![]));
+    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![],"properties setting frame"));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

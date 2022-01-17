@@ -188,8 +188,8 @@ impl<'l, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'h, 'vm
             if self.current_frame_ptr? == self.ir_stack.native.mmaped_top {
                 self.current_frame_ptr = None;
             } else {
-                let option = self.ir_stack.frame_at(res.prev_rbp()).ir_method_id();
-                let new_current_frame_size = *self.ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&option.unwrap()).unwrap();
+                let prev_ir_frame_ref = self.ir_stack.frame_at(res.prev_rbp());
+                let new_current_frame_size = prev_ir_frame_ref.frame_size(self.ir_vm_state);
                 if res.prev_rbp() != null_mut() {
                     assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
                 }
@@ -227,6 +227,11 @@ impl IRFrameRef<'_> {
     }
 
 
+    pub fn raw_method_id(&self) -> i64{
+        let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
+        res as i64
+    }
+
     pub fn method_id(&self) -> Option<MethodId> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
         if res as i64 == -1i64 {
@@ -248,9 +253,7 @@ impl IRFrameRef<'_> {
         let ir_method_id = match self.ir_method_id() {
             Some(x) => x,
             None => {
-                //todo this is scuffed
-                //frame header size + one data pointer for native frame data
-                return FRAME_HEADER_END_OFFSET + 1 * size_of::<*const c_void>();
+                return DEFAULT_FRAME_SIZE
             }
         };
         *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
@@ -265,6 +268,10 @@ impl IRFrameRef<'_> {
         self.ptr
     }
 }
+
+//todo this is scuffed
+//frame header size + one data pointer for native frame data
+pub const DEFAULT_FRAME_SIZE: usize = FRAME_HEADER_END_OFFSET + 1 * size_of::<*const c_void>();
 
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameMut<'l> {
@@ -293,6 +300,10 @@ impl<'l> IRFrameMut<'l> {
 
     pub fn frame_ptr(&self) -> *mut c_void {
         self.ptr
+    }
+
+    pub fn set_ir_method_id(&mut self, ir_method_id: IRMethodID) {
+        self.write_at_offset(FramePointerOffset(FRAME_HEADER_IR_METHOD_ID_OFFSET), ir_method_id.0 as u64);
     }
 
     pub fn set_prev_rip(&mut self, prev_rip: *const c_void) {

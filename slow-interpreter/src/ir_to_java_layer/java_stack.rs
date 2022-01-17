@@ -11,6 +11,7 @@ use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
+use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValue, JVMState};
@@ -26,7 +27,7 @@ pub struct OwnedJavaStack<'vm_life> {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum OpaqueFrameIdOrMethodID {
     Opaque {
-        opaque_id: u64,
+        opaque_id: OpaqueID,
     },
     Method {
         method_id: u64
@@ -47,7 +48,7 @@ impl OpaqueFrameIdOrMethodID {
     pub fn to_native(&self) -> i64 {
         match self {
             OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
-                -((*opaque_id + 1) as i64)
+                -((opaque_id.0 + 1) as i64)
             }
             OpaqueFrameIdOrMethodID::Method { method_id } => {
                 (*method_id as i64)
@@ -57,9 +58,16 @@ impl OpaqueFrameIdOrMethodID {
 
     pub fn from_native(native: i64) -> Self {
         if native < 0 {
-            Self::Opaque { opaque_id: ((-native) as u64) - 1 }
+            Self::Opaque { opaque_id: OpaqueID(((-native) as u64) - 1) }
         } else {
             Self::Method { method_id: native as u64 }
+        }
+    }
+
+    pub fn is_opaque(&self) -> bool{
+        match self {
+            OpaqueFrameIdOrMethodID::Opaque { .. } => true,
+            OpaqueFrameIdOrMethodID::Method { .. } => false
         }
     }
 }
@@ -93,7 +101,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         let ir_method_id = ir_frame.ir_method_id();
         let max_locals = if let Some(method_id) = ir_frame.method_id() {
-            let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).cloned();
+            let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).cloned();
             // assert_eq!(ir_method_id_2, ir_method_id);
             if jvm.is_native_by_method_id(method_id) {
                 Some(jvm.num_args_by_method_id(method_id))
@@ -108,92 +116,9 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             jvm,
         }
     }
-
-    pub fn mut_frame_at(&'_ mut self, java_stack_position: JavaStackPosition, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameMut<'_, 'vm_life> {
-        todo!()
-        /*let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
-        let ir_method_id = ir_frame.ir_method_id();
-        let max_locals = if let Some(method_id) = ir_frame.method_id() {
-            let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).cloned();
-            // assert_eq!(ir_method_id_2, ir_method_id);
-            jvm.max_locals_by_method_id(method_id)
-        } else {
-            // ir_frame.data(1) as usize as *const NativeFrameInfo
-            todo!("should have seperate thing for opaque frames")
-        };
-        let ir_frame_mut = unsafe { self.inner.frame_at_mut(java_stack_position.get_frame_pointer() as *mut c_void) };
-        RuntimeJavaStackFrameMut {
-            ir_mut: ir_frame_mut,
-            jvm,
-        }*/
-    }
-
-    pub fn write_frame(&mut self, at_position: JavaStackPosition, method_id: OpaqueFrameIdOrMethodID, locals: Vec<JavaValue<'vm_life>>, operand_stack: Vec<JavaValue<'vm_life>>, prev_rip: *const c_void, prev_rbp: *mut c_void) {
-        //todo need to write magic etc
-
-        match self.java_vm_state.try_lookup_ir_method_id(method_id) {
-            None => {
-                let to_write_to_data = box NativeFrameInfo {
-                    method_id: method_id.try_unwrap_method_id().unwrap(),
-                    loader: LoaderName::BootstrapLoader,//todo fix this
-                    native_local_refs: vec![HashSet::new()],
-                    local_vars: locals,
-                    operand_stack,
-                };
-                let data: [u64; 1] = [Box::into_raw(to_write_to_data) as usize as u64];
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, None, method_id.to_native(), data.as_slice()); }
-            }
-            Some(ir_method_id) => {
-                let mut data = vec![];
-
-                for local in locals {
-                    data.push(unsafe { local.to_native().as_u64 });
-                }
-
-                for stack_elem in operand_stack {
-                    data.push(unsafe { stack_elem.to_native().as_u64 });
-                }
-
-                unsafe { self.inner.write_frame(at_position.get_frame_pointer() as *mut c_void, prev_rip, prev_rbp as *mut c_void, Some(ir_method_id), method_id.to_native(), data.as_slice()) }
-            }
-        }
-    }
-
-    pub fn push_frame(&mut self,
-                      java_stack_position: JavaStackPosition,
-                      method_id: OpaqueFrameIdOrMethodID,
-                      locals: Vec<JavaValue<'vm_life>>,
-                      operand_stack: Vec<JavaValue<'vm_life>>,
-    ) -> JavaStackPosition {
-        let postion_to_write = match java_stack_position {
-            JavaStackPosition::Frame { frame_pointer } => {
-                let current_frame = self.frame_at(java_stack_position, self.jvm);
-                let frame_size = current_frame.ir_ref.frame_size(&self.java_vm_state.ir);
-                let new_frame_pointer = unsafe { frame_pointer.offset(-(frame_size as isize)) };
-                JavaStackPosition::Frame { frame_pointer: new_frame_pointer }
-            }
-            JavaStackPosition::Top => JavaStackPosition::Frame { frame_pointer: self.inner.native.mmaped_top }
-        };
-        let ir_method_ref = self.jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
-        let method_pointer = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
-        self.write_frame(postion_to_write, method_id, locals, operand_stack, method_pointer, match java_stack_position {
-            JavaStackPosition::Frame { frame_pointer } => {
-                frame_pointer
-            }
-            JavaStackPosition::Top => self.inner.native.mmaped_top
-        } as *mut c_void);
-        postion_to_write
-    }
 }
 
-#[derive(Debug, Clone)]
-pub struct NativeFrameInfo<'gc_life> {
-    pub method_id: usize,
-    pub loader: LoaderName,
-    pub native_local_refs: Vec<HashSet<jobject>>,
-    pub local_vars: Vec<JavaValue<'gc_life>>,
-    pub operand_stack: Vec<JavaValue<'gc_life>>,
-}
+
 
 pub struct RuntimeJavaStackFrameRef<'l, 'vm_life> {
     pub(crate) ir_ref: IRFrameRef<'l>,

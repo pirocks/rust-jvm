@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
@@ -43,7 +44,8 @@ use crate::utils::run_static_or_virtual;
 pub struct ExitNumber(u64);
 
 pub struct JavaVMStateWrapperInner<'gc_life> {
-    method_id_to_ir_method_id: BiHashMap<MethodId, IRMethodID>,
+    most_up_to_date_ir_method_id_for_method_id: HashMap<MethodId, IRMethodID>,
+    ir_method_id_to_method_id: HashMap<IRMethodID, MethodId>,
     restart_points: HashMap<IRMethodID, HashMap<RestartPointID, IRInstructIndex>>,
     max_exit_number: ExitNumber,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
@@ -152,7 +154,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let mut res = Self {
             ir: IRVMState::new(),
             inner: RwLock::new(JavaVMStateWrapperInner {
-                method_id_to_ir_method_id: Default::default(),
+                most_up_to_date_ir_method_id_for_method_id: Default::default(),
+                ir_method_id_to_method_id: Default::default(),
                 restart_points: Default::default(),
                 max_exit_number: ExitNumber(0),
                 // exit_types: Default::default(),
@@ -193,27 +196,37 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();
             let ir_method_id = ir_vm_exit_event.ir_method;
-            let method_id = *read_guard.method_id_to_ir_method_id.get_by_right(&ir_method_id).unwrap();
+            let method_id = *read_guard.ir_method_id_to_method_id.get(&ir_method_id).unwrap();
             drop(read_guard);
             JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type)
         };
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
-        let overwritten = write_guard.method_id_to_ir_method_id.insert(method_id, ir_method_id);
-        // assert!(!overwritten.did_overwrite());
+        write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
+        write_guard.ir_method_id_to_method_id.insert(ir_method_id, method_id);
         write_guard.restart_points.insert(ir_method_id, restart_points);
     }
 
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
-        let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
+        let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let mut frame_to_run_on = int_state.current_frame_mut();
-        assert_eq!(frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap(), ir_method_id);
+        let frame_ir_method_id = frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap();
+        assert_eq!(self.inner.read().unwrap().ir_method_id_to_method_id.get(&frame_ir_method_id).unwrap(), &method_id);
+        if frame_ir_method_id != ir_method_id {
+            frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
+        }
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+
         self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ())
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
         self.try_lookup_ir_method_id(opaque_or_not).unwrap()
+    }
+
+    pub fn lookup_method_ir_method_id(&self, method_id: MethodId) -> IRMethodID {
+        let inner = self.inner.read().unwrap();
+        *inner.most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap()
     }
 
     pub fn try_lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> Option<IRMethodID> {
@@ -223,14 +236,14 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             }
             OpaqueFrameIdOrMethodID::Method { method_id } => {
                 let read_guard = self.inner.read().unwrap();
-                read_guard.method_id_to_ir_method_id.get_by_left(&(method_id as usize)).cloned()
+                read_guard.most_up_to_date_ir_method_id_for_method_id.get(&(method_id as usize)).cloned()
             }
         }
     }
 
     pub fn lookup_restart_point(&self, method_id: MethodId, restart_point_id: RestartPointID) -> *const c_void {
         let read_guard = self.inner.read().unwrap();
-        let ir_method_id = *read_guard.method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
+        let ir_method_id = *read_guard.most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let restart_points = read_guard.restart_points.get(&ir_method_id).unwrap();
         let ir_instruct_index = *restart_points.get(&restart_point_id).unwrap();
         drop(read_guard);

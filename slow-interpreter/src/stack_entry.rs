@@ -20,6 +20,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, j
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
+use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 
@@ -338,7 +339,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         match self.operand_stack_length(jvm) {
             Ok(_) => {}
             Err(_) => {
-                return StackEntry::new_completely_opaque_frame(LoaderName::BootstrapLoader, vec![]);
+                return StackEntry::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"as_stack_entry_partially_correct");
             }
         }
 
@@ -362,7 +363,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             }
         }).collect_vec();*/
         let loader = self.loader(jvm);
-        StackEntry {
+        /*StackEntry {
             loader,
             opaque_frame_id: None,
             opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
@@ -370,7 +371,8 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             local_vars: vec![],
             operand_stack,
             native_local_refs: Default::default(),
-        }
+        }*/
+        todo!()
         /*match self.get_frame_info() {
             FrameInfo::FullyOpaque { loader, .. } => {
                 StackEntry::new_completely_opaque_frame(*loader, operand_stack)
@@ -513,15 +515,35 @@ pub struct NonNativeFrameData {
 }
 
 #[derive(Debug, Clone)]
-pub struct StackEntry<'gc_life> {
-    pub(crate) loader: LoaderName,
-    pub(crate) opaque_frame_id: Option<u64>,
-    pub(crate) opaque_frame_optional: Option<OpaqueFrameOptional<'gc_life>>,
-    pub(crate) non_native_data: Option<NonNativeFrameData>,
-    pub(crate) local_vars: Vec<JavaValue<'gc_life>>,
-    pub(crate) operand_stack: Vec<JavaValue<'gc_life>>,
-    pub(crate) native_local_refs: Vec<HashSet<jobject>>,
+pub enum StackEntry<'gc_life>{
+    Java{
+        method_id: MethodId,
+        local_vars: Vec<JavaValue<'gc_life>>,
+        operand_stack: Vec<JavaValue<'gc_life>>,
+    },
+    Native{
+        // a native function call frame
+        method_id: MethodId,
+        native_local_refs: Vec<HashSet<jobject>>,
+        local_vars: Vec<JavaValue<'gc_life>>,
+        operand_stack: Vec<JavaValue<'gc_life>>,
+    },
+    Opaque{
+        opaque_id: OpaqueID,
+        native_local_refs: Vec<HashSet<jobject>>,
+    },
 }
+//
+// #[derive(Debug, Clone)]
+// pub struct StackEntry<'gc_life> {
+//     pub(crate) loader: LoaderName,
+//     pub(crate) opaque_frame_id: Option<u64>,
+//     pub(crate) opaque_frame_optional: Option<OpaqueFrameOptional<'gc_life>>,
+//     pub(crate) non_native_data: Option<NonNativeFrameData>,
+//     pub(crate) local_vars: Vec<JavaValue<'gc_life>>,
+//     pub(crate) operand_stack: Vec<JavaValue<'gc_life>>,
+//     pub(crate) native_local_refs: Vec<HashSet<jobject>>,
+// }
 
 pub struct StackEntryMut<'gc_life, 'l> {
     pub frame_view: RuntimeJavaStackFrameMut<'l, 'gc_life>,
@@ -721,9 +743,11 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         }
     }
     pub fn types_vals(&self) -> Vec<JavaValue<'gc_life>> {
-        match self {
+
+        todo!()
+        /*match self {
             OperandStackRef::Jit { frame_view, jvm } => frame_view.as_stack_entry_partially_correct(jvm).operand_stack.clone(),
-        }
+        }*/
     }
 }
 
@@ -840,7 +864,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         OperandStackRef::Jit { frame_view: self.frame_view(jvm), jvm }
     }
 
-    pub fn is_native(&self) -> bool {
+    pub fn is_native_method(&self) -> bool {
         let res = match self.frame_view.ir_ref.method_id() {
             None => false,
             Some(method_id) => {
@@ -853,6 +877,12 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         }
         res
     }
+
+    pub fn is_opaque(&self) -> bool{
+        let opaque_frame_or_method_id = OpaqueFrameIdOrMethodID::from_native(self.frame_view.ir_ref.raw_method_id());
+        opaque_frame_or_method_id.is_opaque()
+    }
+
 
     pub fn native_local_refs(&self) -> &mut Vec<BiMap<ByAddress<GcManagedObject<'gc_life>>, jobject>> {
         /*match self {
@@ -875,9 +905,9 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
 }
 
 impl<'gc_life> StackEntry<'gc_life> {
-    pub fn new_completely_opaque_frame(loader: LoaderName, operand_stack: Vec<JavaValue<'gc_life>>) -> Self {
+    pub fn new_completely_opaque_frame(jvm: &'gc_life JVMState<'gc_life>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc_life>>, debug_str: &'static str) -> Self {
         //need a better name here
-        Self {
+        /*Self {
             loader,
             opaque_frame_id: Some(0),
             opaque_frame_optional: None,
@@ -885,7 +915,11 @@ impl<'gc_life> StackEntry<'gc_life> {
             local_vars: vec![],
             operand_stack,
             native_local_refs: vec![HashSet::new()],
-        }
+        }*/
+        assert!(operand_stack.is_empty());
+        assert_eq!(loader, LoaderName::BootstrapLoader);
+        let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
+        Self::Opaque { opaque_id, native_local_refs: vec![] }
     }
 
     pub fn new_java_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
@@ -900,75 +934,78 @@ impl<'gc_life> StackEntry<'gc_life> {
         let method_view = class_view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
-        Self {
-            loader,
-            opaque_frame_id: Some(1),
-            opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
-            non_native_data: Some(NonNativeFrameData { pc: 0, pc_offset: 0 }),
+        Self::Java {
+            method_id,
             local_vars: args,
-            operand_stack,
-            native_local_refs: vec![],
+            operand_stack
         }
     }
 
     pub fn new_native_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
-        Self {
-            loader: jvm.classes.read().unwrap().get_initiating_loader(&class_pointer),
-            opaque_frame_id: Some(2),
-            opaque_frame_optional: Some(OpaqueFrameOptional { class_pointer, method_i }),
-            non_native_data: None,
+        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+        Self::Native {
+            method_id,
+            native_local_refs: vec![],
             local_vars: args,
-            operand_stack: vec![],
-            native_local_refs: vec![HashSet::new()],
+            operand_stack: vec![]
         }
     }
 
     pub fn pop(&mut self) -> JavaValue<'gc_life> {
-        self.operand_stack.pop().unwrap_or_else(|| {
+        todo!()
+        /*self.operand_stack.pop().unwrap_or_else(|| {
             // let classfile = &self.class_pointer.classfile;
             // let method = &classfile.methods[self.method_i as usize];
             // dbg!(&method.method_name(&classfile));
             // dbg!(&method.code_attribute().unwrap().code);
             // dbg!(&self.pc);
             panic!()
-        })
+        })*/
     }
     pub fn push(&mut self, j: JavaValue<'gc_life>) {
-        self.operand_stack.push(j)
+        todo!()
+        /*self.operand_stack.push(j)*/
     }
 
     pub fn class_pointer(&self) -> &Arc<RuntimeClass<'gc_life>> {
-        &match self.opaque_frame_optional.as_ref() {
+        todo!()
+        /*&match self.opaque_frame_optional.as_ref() {
             Some(x) => x,
             None => {
                 unimplemented!()
             }
         }
-            .class_pointer
+            .class_pointer*/
     }
 
     pub fn try_class_pointer(&self) -> Option<&Arc<RuntimeClass<'gc_life>>> {
-        Some(&self.opaque_frame_optional.as_ref()?.class_pointer)
+        todo!()
+        /*Some(&self.opaque_frame_optional.as_ref()?.class_pointer)*/
     }
 
     pub fn local_vars(&self) -> &Vec<JavaValue<'gc_life>> {
-        &self.local_vars
+        todo!()
+        /*&self.local_vars*/
     }
 
     pub fn local_vars_mut(&mut self) -> &mut Vec<JavaValue<'gc_life>> {
-        &mut self.local_vars
+        todo!()
+        /*&mut self.local_vars*/
     }
 
     pub fn operand_stack_mut(&mut self) -> &mut Vec<JavaValue<'gc_life>> {
-        &mut self.operand_stack
+        todo!()
+        /*&mut self.operand_stack*/
     }
 
     pub fn operand_stack(&self) -> &Vec<JavaValue<'gc_life>> {
-        &self.operand_stack
+        todo!()
+        /*&self.operand_stack*/
     }
 
     pub fn pc_mut(&mut self) -> &mut u16 {
-        &mut self.non_native_data.as_mut().unwrap().pc
+        todo!()
+        /*&mut self.non_native_data.as_mut().unwrap().pc*/
     }
 
     pub fn pc(&self) -> u16 {
@@ -976,24 +1013,29 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 
     pub fn try_pc(&self) -> Option<u16> {
-        self.non_native_data.as_ref().map(|x| x.pc)
+        todo!()
+        /*self.non_native_data.as_ref().map(|x| x.pc)*/
     }
 
     //todo a lot of duplication here between mut and non-mut variants
     pub fn pc_offset_mut(&mut self) -> &mut i32 {
-        &mut self.non_native_data.as_mut().unwrap().pc_offset
+        todo!()
+        /*&mut self.non_native_data.as_mut().unwrap().pc_offset*/
     }
 
     pub fn pc_offset(&self) -> i32 {
-        self.non_native_data.as_ref().unwrap().pc_offset
+        todo!()
+        /*self.non_native_data.as_ref().unwrap().pc_offset*/
     }
 
     pub fn method_i(&self) -> CPIndex {
-        self.opaque_frame_optional.as_ref().unwrap().method_i
+        todo!()
+        /*self.opaque_frame_optional.as_ref().unwrap().method_i*/
     }
 
     pub fn try_method_i(&self) -> Option<CPIndex> {
-        self.opaque_frame_optional.as_ref().map(|x| x.method_i)
+        todo!()
+        /*self.opaque_frame_optional.as_ref().map(|x| x.method_i)*/
     }
 
     pub fn is_native(&self) -> bool {
@@ -1005,7 +1047,8 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 
     pub fn convert_to_native(&mut self) {
-        self.non_native_data.take();
+        todo!()
+        /*self.non_native_data.take();*/
     }
 
     pub fn operand_stack_types(&self) -> Vec<RuntimeType> {
@@ -1017,7 +1060,8 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 
     pub fn loader(&self) -> LoaderName {
-        self.loader
+        todo!()
+        /*self.loader*/
     }
 
     pub fn privileged_frame(&self) -> bool {
@@ -1029,9 +1073,10 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 
     pub fn current_method_id(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<MethodId> {
-        let optional = self.opaque_frame_optional.as_ref()?;
+        todo!()
+        /*let optional = self.opaque_frame_optional.as_ref()?;
         let mut guard = jvm.method_table.write().unwrap();
-        Some(guard.get_method_id(optional.class_pointer.clone(), optional.method_i))
+        Some(guard.get_method_id(optional.class_pointer.clone(), optional.method_i))*/
     }
 }
 

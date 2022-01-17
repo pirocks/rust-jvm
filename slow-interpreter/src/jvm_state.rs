@@ -28,6 +28,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassNa
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::MethodId;
+use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
 
@@ -85,6 +86,7 @@ pub struct JVMState<'gc_life> {
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
     pub cpdtype_table: RwLock<CPDTypeTable>,
+    pub opaque_ids: RwLock<OpaqueIDs>,
     pub native: Native,
     pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
@@ -253,6 +255,7 @@ impl<'gc_life> JVMState<'gc_life> {
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
             cpdtype_table: RwLock::new(CPDTypeTable::new()),
+            opaque_ids: RwLock::new(OpaqueIDs::new()),
             native: Native {
                 jvmti_state,
                 invoke_interface: RwLock::new(None),
