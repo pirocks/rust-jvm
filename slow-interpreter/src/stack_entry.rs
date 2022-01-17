@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use bimap::BiMap;
 use by_address::ByAddress;
+use iced_x86::CC_b::c;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
@@ -22,7 +23,7 @@ use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::jit::ByteCodeOffset;
 use crate::jit::state::Opaque;
@@ -890,6 +891,8 @@ impl<'gc_life> StackEntry<'gc_life> {
     pub fn new_java_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
         let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
         assert!(args.len() >= max_locals as usize);
+        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
+        assert!(jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_some());
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
         let mut guard = jvm.method_table.write().unwrap();
         let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
