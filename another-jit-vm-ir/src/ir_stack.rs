@@ -12,17 +12,23 @@ use crate::{IRMethodID, IRVMState};
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames
 pub struct OwnedIRStack {
-    pub(crate) native: OwnedNativeStack,
+    pub native: OwnedNativeStack,
 }
 
 
 impl<'k> OwnedIRStack {
+    pub fn new()-> Self{
+        Self{
+            native: OwnedNativeStack::new()
+        }
+    }
+
     pub unsafe fn frame_at(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l> {
         self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameRef {
             ptr: frame_pointer,
-            ir_stack: self,
+            _ir_stack: self,
         }
     }
 
@@ -65,7 +71,7 @@ impl<'k> OwnedIRStack {
 }
 
 pub struct IRStackMut<'l> {
-    pub(crate) owned_ir_stack: &'l mut OwnedIRStack,
+    pub owned_ir_stack: &'l mut OwnedIRStack,
     pub(crate) current_rbp: *mut c_void,
     pub(crate) current_rsp: *mut c_void,
 }
@@ -139,7 +145,7 @@ impl<'l, 'k> IRStackMut<'l> {
     pub fn current_frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.current_rbp,
-            ir_stack: self.owned_ir_stack,
+            _ir_stack: self.owned_ir_stack,
         }
     }
 
@@ -197,7 +203,7 @@ impl<'l, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'h, 'vm
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameRef<'l> {
     ptr: *const c_void,
-    ir_stack: &'l OwnedIRStack,
+    _ir_stack: &'l OwnedIRStack,
 }
 
 impl IRFrameRef<'_> {
@@ -267,10 +273,17 @@ pub struct IRFrameMut<'l> {
 }
 
 impl<'l> IRFrameMut<'l> {
+    pub fn downgrade_owned(self) -> IRFrameRef<'l> {
+        IRFrameRef {
+            ptr: self.ptr,
+            _ir_stack: self.ir_stack,
+        }
+    }
+
     pub fn downgrade(&'new_l self) -> IRFrameRef<'new_l> {
         IRFrameRef {
             ptr: self.ptr,
-            ir_stack: self.ir_stack,
+            _ir_stack: self.ir_stack,
         }
     }
 
@@ -293,7 +306,7 @@ pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct UnPackedIRFrameHeader {
-    prev_rip: *mut c_void,
+    _prev_rip: *mut c_void,
     prev_rbp: *mut c_void,
     ir_method_id: IRMethodID,
     method_id_ignored: u64,
@@ -327,7 +340,7 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
     let magic_1 = magic1_ptr.read();
     let magic_2 = magic2_ptr.read();
     let res = UnPackedIRFrameHeader {
-        prev_rip: rip_ptr.read(),
+        _prev_rip: rip_ptr.read(),
         prev_rbp: rbp_ptr.read(),
         ir_method_id: IRMethodID(*ir_method_id_ptr),
         method_id_ignored: *method_id_ptr,

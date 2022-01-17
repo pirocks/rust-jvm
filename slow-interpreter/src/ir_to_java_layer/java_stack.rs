@@ -153,7 +153,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
                 let new_frame_pointer = unsafe { frame_pointer.offset(-(frame_size as isize)) };
                 JavaStackPosition::Frame { frame_pointer: new_frame_pointer }
             }
-            JavaStackPosition::Top => JavaStackPosition::Frame { frame_pointer: self.inner.mmaped_top }
+            JavaStackPosition::Top => JavaStackPosition::Frame { frame_pointer: self.inner.native.mmaped_top }
         };
         let ir_method_ref = self.jvm.java_vm_state.ir.get_top_level_return_ir_method_id();
         let method_pointer = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
@@ -161,7 +161,7 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
             JavaStackPosition::Frame { frame_pointer } => {
                 frame_pointer
             }
-            JavaStackPosition::Top => self.inner.mmaped_top
+            JavaStackPosition::Top => self.inner.native.mmaped_top
         } as *mut c_void);
         postion_to_write
     }
@@ -227,7 +227,7 @@ impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l
     pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life> {
         RuntimeJavaStackFrameRef {
             frame_ptr: self.frame_ptr,
-            ir_ref: self.ir_mut.downgrade(),
+            ir_ref: self.ir_mut.downgrade_owned(),
             jvm: self.jvm,
             max_locals: self.max_locals.into(),
         }

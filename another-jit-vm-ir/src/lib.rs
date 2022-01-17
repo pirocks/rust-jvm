@@ -17,7 +17,7 @@ use itertools::Itertools;
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, VMExitEvent, VMState};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OwnedIRStack, OPAQUE_FRAME_SIZE};
+use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
@@ -43,7 +43,7 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // index
     opaque_method_to_or_method_id: HashMap<u64, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
-    handlers: HashMap<IRMethodID, Box<dyn ExitHandlerType<'vm_life, ExtraData>>>,
+    handlers: HashMap<IRMethodID, ExitHandlerType<'vm_life, ExtraData>>,
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
@@ -89,7 +89,7 @@ pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
 }
 
 
-pub trait ExitHandlerType<'vm_life, ExtraData> = Fn(&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life;
+pub type ExitHandlerType<'vm_life, ExtraData> = Box<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life>;
 
 
 pub enum IRVMExitAction {
@@ -221,7 +221,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         // eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: Box<dyn ExitHandlerType<'vm_life, ExtraData>>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData> ) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;

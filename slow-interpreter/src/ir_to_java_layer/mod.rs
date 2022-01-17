@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use bimap::BiHashMap;
 use iced_x86::CC_b::c;
@@ -14,8 +14,9 @@ use itertools::Itertools;
 use libc::read;
 
 use another_jit_vm::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
-use another_jit_vm_ir::{IRInstructIndex, IRMethodID, IRVMExitEvent, IRVMState};
+use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
+use another_jit_vm_ir::ir_stack::IRStackMut;
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -57,18 +58,18 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> VMExitAction<u64> {
+    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> IRVMExitAction {
         match dbg!(vm_exit_type) {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 assert!(*len > 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
-                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread.java_tid);
+                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
-                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
+                IRVMExitAction::RestartAtIndex { index:todo!() }
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
@@ -90,11 +91,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };
-                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
+                IRVMExitAction::RestartAtIndex { index:todo!() }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 eprintln!("TopLevelReturn");
-                VMExitAction::ExitVMCompletely { return_data: *return_value }
+                IRVMExitAction::ExitVMCompletely { return_data: *return_value }
             }
             RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
                 current_method_id,
@@ -106,7 +107,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(restart_point), saved_registers_without_ip: None } }
+                IRVMExitAction::RestartAtIndex { index:todo!() }
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
                 eprintln!("PutStatic");
@@ -117,25 +118,20 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
-                VMExitAction::ReturnTo { return_register_state: SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: None } }
+                IRVMExitAction::RestartAtIndex { index:todo!() }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
                 dbg!(rbp);
                 unsafe { dbg!((rbp.offset(-0x38) as *const u64).read()) };
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
-                dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
+                // dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
-                dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
+                // dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                VMExitAction::ReturnTo {
-                    return_register_state: SavedRegistersWithIPDiff {
-                        rip: Some(restart_point),
-                        saved_registers_without_ip: None,
-                    }
-                }
+                IRVMExitAction::RestartAtIndex { index:todo!() }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
         }
@@ -166,9 +162,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
-        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, _int_state| {
+        //&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
+        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], 0, box |event, ir_stack_mut, ir_vm_state, extra| {
             match &event.exit_type {
-                RuntimeVMExitInput::TopLevelReturn { return_value } => VMExitAction::ExitVMCompletely { return_data: *return_value },
+                RuntimeVMExitInput::TopLevelReturn { return_value } => IRVMExitAction::ExitVMCompletely { return_data: *return_value },
                 _ => panic!()
             }
         });
@@ -181,15 +178,22 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
-        let ir_exit_handler = box move |ir_vm_exit_event: &IRVMExitEvent, int_state: &mut InterpreterStateGuard<'vm_life, '_>| {
+        // &IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
+        let ir_exit_handler: ExitHandlerType<'vm_life,()> = box move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life,()>, extra| {
+            let ir_stack_mut : IRStackMut = ir_stack_mut;
+            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+                int_state: ir_stack_mut,
+                thread: jvm.thread_state.get_current_thread(),
+                registered: false,
+                jvm
+            };
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();
             let ir_method_id = ir_vm_exit_event.ir_method;
             let method_id = *read_guard.method_id_to_ir_method_id.get_by_right(&ir_method_id).unwrap();
-            // let vm_exit_type = read_guard.exit_types.get(&ir_num).unwrap();
             drop(read_guard);
-            JavaVMStateWrapperInner::handle_vm_exit(jvm, int_state, method_id, &ir_vm_exit_event.exit_type) as VMExitAction<u64>
+            JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type)
         };
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
@@ -199,7 +203,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId, frame_to_run_on: FrameToRunOn) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().method_id_to_ir_method_id.get_by_left(&method_id).unwrap();
-        let mmapped_top = int_state.java_stack().inner.mmaped_top;
+        let mmapped_top = int_state.java_stack().inner.native.mmaped_top;
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         //todo calculate stack pointer based of frame size
         let frame_pointer = match frame_to_run_on.frame_pointer {
@@ -207,7 +211,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             JavaStackPosition::Top => mmapped_top
         };
         let stack_pointer = unsafe { frame_pointer.sub(frame_to_run_on.size) };
-        self.ir.run_method(ir_method_id, &mut int_state.java_stack().inner, (),frame_pointer, stack_pointer)
+        self.ir.run_method(ir_method_id, todo!(), &mut ())
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {

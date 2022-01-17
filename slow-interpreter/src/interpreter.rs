@@ -265,7 +265,7 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
 }
 
 pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-    let thread = interpreter_state.thread.clone();
+    let thread = interpreter_state.thread().clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
 }

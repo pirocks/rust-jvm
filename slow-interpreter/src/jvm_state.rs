@@ -363,7 +363,7 @@ impl<'gc_life> JVMState<'gc_life> {
         assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
         let res = transmute::<&mut InterpreterStateGuard<'static,'static>, &mut InterpreterStateGuard<'l,'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
-        assert!(res.registered);
+        assert!(res.registered());
         res
     }
 

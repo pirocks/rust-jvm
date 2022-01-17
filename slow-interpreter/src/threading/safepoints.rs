@@ -219,7 +219,8 @@ impl<'gc_life> SafePoint<'gc_life> {
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = todo!();///current_thread.interpreter_state.write().unwrap();
             unsafe {
-                int_state.int_state = todo!();//Some(transmute(current_thread));
+                todo!()
+                // int_state.int_state = todo!();//Some(transmute(current_thread));
             }
             dbg!(&guard.waiting_monitor_notify);
             drop(guard);
@@ -237,7 +238,8 @@ impl<'gc_life> SafePoint<'gc_life> {
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
             unsafe {
-                int_state.int_state = todo!();//Some(transmute(current_thread));
+                todo!()
+                // int_state.int_state = todo!();//Some(transmute(current_thread));
             }
             return self.check(jvm, int_state);
         }

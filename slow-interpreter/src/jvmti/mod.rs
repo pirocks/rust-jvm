@@ -435,7 +435,7 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
             return jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED;
         }
         //todo check thread suspended
-        let mut int_state_not_ref = InterpreterStateGuard {
+        let mut int_state_not_ref = InterpreterStateGuard::RemoteInterpreterState {
             int_state: todo!(),
             thread: java_thread,
             registered: false,

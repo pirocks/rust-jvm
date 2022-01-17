@@ -427,7 +427,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         }
         self.safepoint_state.set_suspended()?;
         if self.underlying_thread.is_this_thread() {
-            assert_eq!(self.java_tid, int_state.thread.java_tid);
+            assert_eq!(self.java_tid, int_state.thread().java_tid);
             if !without_self_suspend {
                 safepoint_check(jvm, int_state)?;
             }
