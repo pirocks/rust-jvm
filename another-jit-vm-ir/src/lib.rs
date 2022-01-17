@@ -17,7 +17,7 @@ use itertools::Itertools;
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, VMExitEvent, VMState};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, IRStack, OPAQUE_FRAME_SIZE};
+use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OwnedIRStack, OPAQUE_FRAME_SIZE};
 
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
@@ -157,7 +157,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method(&'g self, method_id: IRMethodID, ir_stack_frame: IRFrameMut<'l,'k>, extra_data: &'f mut ExtraData) -> u64 {
+    pub fn run_method(&'g self, method_id: IRMethodID, ir_stack_frame: IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -169,7 +169,8 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
          initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
-        let mut launched_vm = self.native_vm.launch_vm(ir_stack_frame.ir_stack.native, current_implementation, initial_registers, extra_data);
+        let ir_stack = ir_stack_frame.ir_stack;
+        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
             let ir_method_id = *self.inner.read().unwrap().current_implementation.get_by_right(&vm_exit_event.method).unwrap();
             let implementation_id = *self.inner.read().unwrap().current_implementation.get_by_left(&method_id).unwrap();
@@ -184,9 +185,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 exit_type: exit_input,
                 _exiting_frame_position_rbp: exiting_frame_position_rbp,
             };
-            let owned_native_stack = &mut *launched_vm.stack;
-            let mut ir_stack = IRStack { native: owned_native_stack };
-            let ir_stack_mut = IRStackMut::new(&mut ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
+            let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
             let handler = read_guard.handlers.get(&ir_method_id).unwrap();
             ir_stack_mut.debug_print_stack_strace(self);

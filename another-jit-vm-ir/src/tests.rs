@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use another_jit_vm::{Register};
 use another_jit_vm::stack::OwnedNativeStack;
 
-use crate::{IRInstr, IRInstructIndex, IRMethodID, IRStack, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RuntimeVMExitInput};
+use crate::{IRInstr, IRInstructIndex, IRMethodID, OwnedIRStack, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RuntimeVMExitInput};
 use crate::compiler::RestartPointGenerator;
 use crate::ir_stack::FRAME_HEADER_END_OFFSET;
 
@@ -18,7 +18,7 @@ fn basic_ir_vm_exit() {
     let was_exited = Arc::new(Mutex::new(false));
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new();
     let mut owned_native_stack = OwnedNativeStack::new();
-    let mut ir_stack: IRStack = IRStack {
+    let mut ir_stack: OwnedIRStack = OwnedIRStack {
         native: &mut owned_native_stack
     };
     let mut ir_stack = IRStackMut::from_stack_start(&mut ir_stack);
@@ -47,7 +47,7 @@ fn basic_ir_function_call() {
     let was_exited = Arc::new(Mutex::new(false));
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new();
     let mut owned_native_stack = OwnedNativeStack::new();
-    let mut ir_stack: IRStack = IRStack {
+    let mut ir_stack: OwnedIRStack = OwnedIRStack {
         native: &mut owned_native_stack
     };
     let mut ir_stack = IRStackMut::from_stack_start(&mut ir_stack);
@@ -104,7 +104,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
 
     let ir_vm_state: IRVMState<'_, ()> = IRVMState::new();
     let mut owned_native_stack = OwnedNativeStack::new();
-    let mut ir_stack: IRStack = IRStack {
+    let mut ir_stack: OwnedIRStack = OwnedIRStack {
         native: &mut owned_native_stack
     };
     let mut ir_stack = IRStackMut::from_stack_start(&mut ir_stack);

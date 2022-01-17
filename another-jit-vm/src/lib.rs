@@ -263,31 +263,40 @@ struct JITContext {
 
 trait ExitHandlerType<'vm_life, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm_life;
 
-pub struct LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, 'l, T, ExtraData: 'vm_life> {
+pub struct LaunchedVM<'vm_life, 'extra_data_life, 'l, T, ExtraData: 'vm_life> {
     vm_state: &'l VMState<'vm_life, T, ExtraData>,
     jit_context: JITContext,
-    pub stack: &'stack_life mut OwnedNativeStack,
+    stack_top: *const c_void,
+    stack_bottom:*const c_void,
     pub extra: &'extra_data_life mut ExtraData,
     pending_exit: bool
 }
 
-impl<'vm_life, 'stack_life, 'extra_data_life, T, ExtraData: 'vm_life> Iterator for LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, '_, T, ExtraData> {
+impl<'vm_life, 'extra_data_life, T, ExtraData: 'vm_life> Iterator for LaunchedVM<'vm_life, 'extra_data_life, '_, T, ExtraData> {
     type Item = VMExitEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
         assert!(!self.pending_exit);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp);
         let vm_exit_event = self.vm_state.run_method_impl(&mut self.jit_context);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp);
         self.pending_exit = true;
         Some(vm_exit_event)
     }
 }
 
-impl<'vm_life, 'stack_life, 'extra_data_life, T, ExtraData: 'vm_life> LaunchedVM<'vm_life, 'stack_life, 'extra_data_life, '_, T, ExtraData> {
+impl<'vm_life, 'extra_data_life, T, ExtraData: 'vm_life> LaunchedVM<'vm_life, 'extra_data_life, '_, T, ExtraData> {
     pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff){
         assert!(self.pending_exit);
         self.pending_exit = false;
         event.correctly_exited = true;
         self.jit_context.guest_registers.apply_diff(return_register_state);
+    }
+
+    fn validate_stack_ptr(&self, ptr: *const c_void){
+        assert!((self.stack_top >= ptr && self.stack_bottom <= ptr));
     }
 }
 
@@ -313,7 +322,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm(&'l self, stack: &'stack_life mut OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm_life, 'stack_life, 'extra_data, 'l, T, ExtraData> {
+    pub fn launch_vm(&'l self, stack: &'stack_life OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm_life, 'extra_data, 'l, T, ExtraData> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -411,7 +420,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             },
         };
         let self_: &'l VMState<'vm_life, T, ExtraData> = self;
-        let iterator: LaunchedVM<'vm_life, 'stack_life, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack, extra, pending_exit: false };
+        let iterator: LaunchedVM<'vm_life, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, extra, pending_exit: false };
         eprintln!("==== VM Start ====");
         return iterator;
     }
