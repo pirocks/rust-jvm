@@ -192,6 +192,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 registered: false,
                 jvm,
             };
+            int_state.register_interpreter_state_guard(jvm);
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();

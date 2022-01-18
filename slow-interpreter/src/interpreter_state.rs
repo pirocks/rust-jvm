@@ -343,7 +343,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                         int_state.push_frame(top_level_exit_ptr, None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntry::Opaque { opaque_id, native_local_refs } => {
-                        let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id: opaque_id };
+                        let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
                         let opaque_frame_info = OpaqueFrameInfo{ native_local_refs, operand_stack: vec![] };
                         let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
                         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
@@ -362,10 +362,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard._correctly_exited = true;
-        //need to drop the box from above and get the pushed stack frame type
-
-        todo!()
-
+        if self.current_frame().is_opaque(){
+            unsafe { drop(Box::from_raw(self.current_frame().opaque_frame_ptr())) }
+        }
+        if self.current_frame().is_native_method(){
+            unsafe { drop(Box::from_raw(self.current_frame().native_frame_ptr())) }
+        }
+        match self{
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state,.. } => {
+                int_state.pop_frame(frame_push_guard.ir_frame_push_guard);
+            }
+        }
     }
 
     pub fn call_stack_depth(&self) -> usize {
@@ -611,12 +619,6 @@ pub struct FramePushGuard {
         FramePushGuard { _correctly_exited: false, prev_stack_location: todo!(), ir_frame_push_guard: () }
     }
 }*/
-
-impl Drop for FramePushGuard {
-    fn drop(&mut self) {
-        // assert!(self._correctly_exited)
-    }
-}
 
 #[derive(Debug)]
 pub struct SuspendedStatus {

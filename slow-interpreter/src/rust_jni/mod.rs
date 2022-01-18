@@ -27,7 +27,7 @@ use crate::java_values::JavaValue;
 use crate::jvm_state::NativeLibraries;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::native_util::from_object;
+use crate::rust_jni::native_util::{from_object, get_interpreter_state};
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 
 pub mod mangling;
@@ -65,12 +65,16 @@ pub fn call<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
 
 pub fn call_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+    assert!(int_state.current_frame().is_native_method());
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
+        assert!(int_state.current_frame().is_native_method());
         let class_popped_jv = load_class_constant_by_type(jvm, int_state, &classfile.view().type_())?;
+        assert!(int_state.current_frame().is_native_method());
+        unsafe { assert!(get_interpreter_state(env).current_frame().is_native_method()); }
         let class_constant = unsafe { to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object())) };
         let res = vec![Arg::new(&env), class_constant];
         res

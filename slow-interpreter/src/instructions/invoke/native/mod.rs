@@ -113,6 +113,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
             }
         }
     } else {
+        assert!(int_state.current_frame().is_native_method());
         match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed.clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {

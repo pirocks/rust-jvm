@@ -23,6 +23,7 @@ use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
+use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
@@ -902,6 +903,18 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         }*/
         todo!()
     }
+
+    pub fn opaque_frame_ptr(&self) -> *mut OpaqueFrameInfo{
+        assert!(self.is_opaque());
+        let raw_u64 = self.frame_view.ir_ref.data(1)[0];
+        raw_u64 as usize as *mut c_void as *mut OpaqueFrameInfo
+    }
+
+    pub fn native_frame_ptr(&self) -> *mut NativeFrameInfo{
+        assert!(self.is_native_method());
+        let raw_u64 = self.frame_view.ir_ref.data(1)[0];
+        raw_u64 as usize as *mut c_void as *mut NativeFrameInfo
+    }
 }
 
 impl<'gc_life> StackEntry<'gc_life> {
@@ -945,7 +958,7 @@ impl<'gc_life> StackEntry<'gc_life> {
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
         Self::Native {
             method_id,
-            native_local_refs: vec![],
+            native_local_refs: vec![HashSet::new()],
             local_vars: args,
             operand_stack: vec![]
         }
