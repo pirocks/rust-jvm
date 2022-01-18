@@ -54,6 +54,10 @@ pub fn putfield(
                     from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                     to: to_put_value,
                 },
+                IRInstr::LoadFPRelative {
+                    from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1),
+                    to: class_ref_register,
+                },
                 IRInstr::Const64bit { to: offset, const_: (field_number * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset },
                 IRInstr::Store { to_address: class_ref_register, from: to_put_value }

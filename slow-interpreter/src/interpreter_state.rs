@@ -325,7 +325,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                             data.push(unsafe { jv.to_native().as_u64 });
                         }
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
-                        int_state.push_frame(top_level_exit_ptr, Some(dbg!(ir_method_id)), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr, Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntry::Native { method_id, native_local_refs, local_vars, operand_stack } => {
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();

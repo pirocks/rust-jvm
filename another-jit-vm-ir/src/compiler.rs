@@ -49,6 +49,106 @@ pub enum IRInstr {
     Label(IRLabel),
 }
 
+impl IRInstr{
+    pub fn debug_string(&self) -> String{
+        match self{
+            IRInstr::LoadFPRelative { .. } => {
+                "LoadFPRelative".to_string()
+            },
+            IRInstr::StoreFPRelative { .. } => {
+                "StoreFPRelative".to_string()
+            },
+            IRInstr::Load { .. } => {
+                "Load".to_string()
+            },
+            IRInstr::Store { .. } => {
+                "Store".to_string()
+            },
+            IRInstr::CopyRegister { .. } => {
+                "CopyRegister".to_string()
+            },
+            IRInstr::Add { .. } => {
+                "Add".to_string()
+            },
+            IRInstr::Sub { .. } => {
+                "Sub".to_string()
+            },
+            IRInstr::Div { .. } => {
+                "Div".to_string()
+            },
+            IRInstr::Mod { .. } => {
+                "Mod".to_string()
+            },
+            IRInstr::Mul { .. } => {
+                "Mul".to_string()
+            },
+            IRInstr::BinaryBitAnd { .. } => {
+                "BinaryBitAnd".to_string()
+            },
+            IRInstr::ForwardBitScan { .. } => {
+                "ForwardBitScan".to_string()
+            },
+            IRInstr::Const32bit { .. } => {
+                "Const32bit".to_string()
+            },
+            IRInstr::Const64bit { .. } => {
+                "Const64bit".to_string()
+            },
+            IRInstr::BranchToLabel { .. } => {
+                "BranchToLabel".to_string()
+            },
+            IRInstr::LoadLabel { .. } => {
+                "LoadLabel".to_string()
+            },
+            IRInstr::LoadRBP { .. } => {
+                "LoadRBP".to_string()
+            },
+            IRInstr::WriteRBP { .. } => {
+                "WriteRBP".to_string()
+            },
+            IRInstr::BranchEqual { .. } => {
+                "BranchEqual".to_string()
+            },
+            IRInstr::BranchNotEqual { .. } => {
+                "BranchNotEqual".to_string()
+            },
+            IRInstr::Return { .. } => {
+                "Return".to_string()
+            },
+            IRInstr::RestartPoint(_) => {
+                "RestartPoint".to_string()
+            },
+            IRInstr::VMExit2 { .. } => {
+                "VMExit2".to_string()
+            },
+            IRInstr::NPECheck { .. } => {
+                "NPECheck".to_string()
+            },
+            IRInstr::GrowStack { .. } => {
+                "GrowStack".to_string()
+            },
+            IRInstr::LoadSP { .. } => {
+                "LoadSP".to_string()
+            },
+            IRInstr::WithAssembler { .. } => {
+                "WithAssembler".to_string()
+            },
+            IRInstr::IRNewFrame { .. } => {
+                "IRNewFrame".to_string()
+            },
+            IRInstr::IRCall { .. } => {
+                "IRCall".to_string()
+            },
+            IRInstr::FNOP => {
+                "FNOP".to_string()
+            },
+            IRInstr::Label(_) => {
+                "Label".to_string()
+            },
+        }
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct RestartPointID(pub(crate) u64);
 

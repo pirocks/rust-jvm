@@ -9,9 +9,10 @@ use num_traits::FromPrimitive;
 
 use another_jit_vm::{Register, SavedRegistersWithIP};
 use gc_memory_layout_common::FramePointerOffset;
-use rust_jvm_common::compressed_classfile::{CPDType};
-use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::{FieldId, MethodId};
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::cpdtype_table::CPDTypeID;
+
 use crate::compiler::RestartPointID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -147,6 +148,10 @@ pub enum IRVMExitType {
         field_id: FieldId,
         value: FramePointerOffset,
     },
+    LogValue {
+        value_string: &'static str,
+        value: FramePointerOffset
+    },
 }
 
 impl IRVMExitType {
@@ -201,6 +206,9 @@ impl IRVMExitType {
                 assembler.mov(PutStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
                 assembler.lea(PutStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::LogValue { value, value_string } => {
+                todo!("implement")
+            }
         }
     }
 }
@@ -250,7 +258,7 @@ pub enum RuntimeVMExitInput {
         class_type: CPDTypeID,
         current_method_id: MethodId,
         restart_point: RestartPointID,
-        rbp: *const c_void
+        rbp: *const c_void,
     },
     RunStaticNative {
         method_id: MethodId,
@@ -305,7 +313,7 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
                     current_method_id: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::CURRENT) as MethodId,
                     to_recompile: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::TO_RECOMPILE) as MethodId,
-                    restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID))
+                    restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID)),
                 }
             }
             RawVMExitType::NPE => {
@@ -323,7 +331,7 @@ impl RuntimeVMExitInput {
                     class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
-                    rbp: register_state.saved_registers_without_ip.rbp
+                    rbp: register_state.saved_registers_without_ip.rbp,
                 }
             }
         }

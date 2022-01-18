@@ -111,7 +111,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                IRVMExitAction::RestartAtIndex { index: todo!() }
+                IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
                 eprintln!("PutStatic");
@@ -127,13 +127,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
-                // dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
-                // dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                IRVMExitAction::RestartAtIndex { index: todo!() }
+                IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
         }

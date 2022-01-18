@@ -220,15 +220,25 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
 
-    fn debug_print_instructions(assembler: &CodeAssembler, offsets: &Vec<IRInstructNativeOffset>, base_address: BaseAddress) {
+    fn debug_print_instructions(assembler: &CodeAssembler, offsets: &Vec<IRInstructNativeOffset>, base_address: BaseAddress, ir_index_to_assembly_index: &Vec<(IRInstructIndex, AssemblyInstructionIndex)>, ir: &Vec<IRInstr>) {
         let mut formatted_instructions = String::new();
         let mut formatter = IntelFormatter::default();
-        for (i, instruction) in assembler.instructions().iter().enumerate() {
-            unsafe { formatted_instructions.push_str(format!("{:?}:", base_address.0.offset(offsets[i].0 as isize)).as_ref()) }
-            formatter.format(instruction, &mut formatted_instructions);
-            formatted_instructions.push('\n');
+        let mut assembly_index_to_ir_index = HashMap::new();
+        for (ir_instruct_index, assembly_instruct_index) in ir_index_to_assembly_index.iter() {
+            assembly_index_to_ir_index.insert(*assembly_instruct_index,*ir_instruct_index);
         }
-        // eprintln!("{}", formatted_instructions);
+        for (i, instruction) in assembler.instructions().iter().enumerate() {
+            let mut temp = String::new();
+            formatter.format(instruction, &mut temp);
+            let instruction_info_as_string = &match assembly_index_to_ir_index.get(&AssemblyInstructionIndex(i)) {
+                Some(ir_instruct_index) => {
+                    ir[ir_instruct_index.0].debug_string()
+                },
+                None => "".to_string(),
+            };
+            unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
+        }
+        eprintln!("{}", formatted_instructions);
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData> ) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
@@ -237,12 +247,12 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
         inner_guard.handlers.insert(current_ir_id, handler);
-        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(instructions);
+        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
-        Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address);
+        Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address,&assembly_index_to_ir_instruct_index, &instructions);
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
         inner_guard.frame_sizes_by_ir_method_id.insert(current_ir_id, frame_size);
         let code = result.code_buffer;
@@ -253,12 +263,12 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
 }
 
 
-fn add_function_from_ir(instructions: Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>) {
+fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut ir_instruct_index_to_assembly_instruction_index = Vec::new();
     let mut labels = HashMap::new();
     let mut restart_points = HashMap::new();
-    for (i, instruction) in instructions.into_iter().enumerate() {
+    for (i, instruction) in instructions.iter().enumerate() {
         let assembly_instruction_index_start = AssemblyInstructionIndex(assembler.instructions().len());
         let ir_instruction_index = IRInstructIndex(i);
         single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index);
@@ -271,7 +281,7 @@ fn add_function_from_ir(instructions: Vec<IRInstr>) -> (CodeAssembler, Vec<(IRIn
     (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points)
 }
 
-fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labels: &mut HashMap<LabelName, CodeLabel>,
+fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, labels: &mut HashMap<LabelName, CodeLabel>,
                        restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) {
     match instruction {
         IRInstr::LoadFPRelative { from, to } => {
@@ -297,10 +307,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { .. } => todo!(),
         IRInstr::Const64bit { const_, to } => {
-            assembler.mov(to.to_native_64(), const_).unwrap();
+            assembler.mov(to.to_native_64(), *const_).unwrap();
         }
         IRInstr::BranchToLabel { label } => {
-            let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
+            let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.jmp(code_label.clone()).unwrap();
         }
         IRInstr::LoadLabel { .. } => todo!(),
@@ -308,7 +318,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         IRInstr::WriteRBP { .. } => todo!(),
         IRInstr::BranchEqual { .. } => todo!(),
         IRInstr::BranchNotEqual { a, b, label, } => {
-            let code_label = labels.entry(label).or_insert_with(|| assembler.create_label());
+            let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jne(code_label.clone()).unwrap();
         }
@@ -323,7 +333,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             //rsp is now equal is to prev rbp qword, so that we can pop the previous rip in ret
             assembler.mov(temp_register_1.to_native_64(), rsp).unwrap();
             assembler.sub(temp_register_1.to_native_64(), rbp).unwrap();
-            assembler.mov(temp_register_2.to_native_64(), frame_size as u64).unwrap();
+            assembler.mov(temp_register_2.to_native_64(), *frame_size as u64).unwrap();
             assembler.cmp(temp_register_1.to_native_64(), temp_register_2.to_native_64()).unwrap();
             let mut skip_assert = assembler.create_label();
             assembler.jne(skip_assert).unwrap();
@@ -366,7 +376,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             let mut after_call_label = assembler.create_label();
             assembler.mov(return_to_rbp, rbp).unwrap();
             assembler.mov(rbp,rsp).unwrap();
-            assembler.sub(rsp, new_frame_size as i32).unwrap();
+            assembler.sub(rsp, *new_frame_size as i32).unwrap();
             assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
@@ -375,7 +385,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
             let return_to_rip = temp_register_2.to_native_64();
             assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
-            assembler.mov(temp_register, target_address as u64).unwrap();
+            assembler.mov(temp_register, *target_address as u64).unwrap();
             assembler.jmp(temp_register).unwrap();
             assembler.set_label(&mut after_call_label).unwrap();
         }
@@ -390,12 +400,12 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: IRInstr, labe
         }
         IRInstr::RestartPoint(restart_point_id) => {
             assembler.nop_1(rbx).unwrap();
-            restart_points.insert(restart_point_id, ir_instr_index);
+            restart_points.insert(*restart_point_id, ir_instr_index);
         }
     }
 }
 
-fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: IRVMExitType) {
+fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
     let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5)];
