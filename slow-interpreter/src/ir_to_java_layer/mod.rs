@@ -73,7 +73,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
-                IRVMExitAction::RestartAtIndex { index: todo!() }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
@@ -95,7 +95,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };
-                IRVMExitAction::RestartAtIndex { index: todo!() }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 eprintln!("TopLevelReturn");
@@ -122,12 +122,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
-                IRVMExitAction::RestartAtIndex { index: todo!() }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
-                dbg!(rbp);
-                unsafe { dbg!((rbp.offset(-0x38) as *const u64).read()) };
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
                 // dbg!(int_state.int_state.as_ref().unwrap().current_stack_position);
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
@@ -168,12 +166,12 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
-        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, box |event, ir_stack_mut, ir_vm_state, extra| {
+        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, Arc::new(|event, ir_stack_mut, ir_vm_state, extra| {
             match &event.exit_type {
                 RuntimeVMExitInput::TopLevelReturn { return_value } => IRVMExitAction::ExitVMCompletely { return_data: *return_value },
                 _ => panic!()
             }
-        });
+        }));
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }
@@ -184,7 +182,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions = compile_to_ir(resolver, &self.labeler, java_frame_data);
         // &IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
-        let ir_exit_handler: ExitHandlerType<'vm_life, ()> = box move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
+        let ir_exit_handler: ExitHandlerType<'vm_life, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
             let ir_stack_mut: IRStackMut = ir_stack_mut;
             let mut int_state = InterpreterStateGuard::LocalInterpreterState {
                 int_state: ir_stack_mut,
@@ -199,8 +197,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             let ir_method_id = ir_vm_exit_event.ir_method;
             let method_id = *read_guard.ir_method_id_to_method_id.get(&ir_method_id).unwrap();
             drop(read_guard);
+            self.ir.inner.write().unwrap();
             JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type)
-        };
+        });
+        self.ir.inner.write().unwrap();
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);

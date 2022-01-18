@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::ops::Deref;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
@@ -90,7 +90,7 @@ pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
 }
 
 
-pub type ExitHandlerType<'vm_life, ExtraData> = Box<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life>;
+pub type ExitHandlerType<'vm_life, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life>;
 
 
 pub enum IRVMExitAction {
@@ -99,6 +99,10 @@ pub enum IRVMExitAction {
     },
     RestartAtIndex {
         index: IRInstructIndex
+    },
+    RestartAtPtr{
+        //todo this leaks pointer abstractions to java section. fix
+        ptr: *const c_void
     },
     RestartAtIRestartPoint {
         restart_point: RestartPointID
@@ -188,8 +192,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             };
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
-            let handler = read_guard.handlers.get(&ir_method_id).unwrap();
+            let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
             ir_stack_mut.debug_print_stack_strace(self);
+            drop(read_guard);
             match (handler.deref())(&event, ir_stack_mut, self, launched_vm.extra) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
                     let mut vm_exit_event = vm_exit_event;
@@ -197,10 +202,14 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                     return return_value;
                 }
                 IRVMExitAction::RestartAtIndex { index } => {
+                    let read_guard = self.inner.read().unwrap();
                     let address_offsets = read_guard.method_ir_offsets.get(&ir_method_id).unwrap();
                     let address_offset = address_offsets.get_by_right(&index).unwrap();
                     let target_return_rip = unsafe { current_method_start.offset(address_offset.0 as isize) };
                     launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: None });
+                }
+                IRVMExitAction::RestartAtPtr { ptr } => {
+                    launched_vm.return_to(vm_exit_event,SavedRegistersWithIPDiff{ rip: Some(ptr), saved_registers_without_ip: None })
                 }
                 IRVMExitAction::RestartAtIRestartPoint { restart_point:_ } => {
                     todo!()
