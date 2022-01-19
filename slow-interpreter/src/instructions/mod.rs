@@ -1,16 +1,5 @@
-pub mod arithmetic;
-pub mod branch;
-pub mod cmp;
-pub mod constant;
-pub mod conversion;
-pub mod dup;
 pub mod fields;
 pub mod invoke;
 pub mod ldc;
-pub mod load;
 pub mod new;
-pub mod pop;
-pub mod return_;
 pub mod special;
-pub mod store;
-pub mod switch;

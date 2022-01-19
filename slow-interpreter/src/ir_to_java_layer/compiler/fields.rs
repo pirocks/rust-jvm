@@ -43,7 +43,7 @@ pub fn putfield(
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
-                IRInstr::DebuggerBreakpoint,
+                // IRInstr::DebuggerBreakpoint,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::LogFramePointerOffsetValue {
                         value_string: "",
@@ -56,6 +56,7 @@ pub fn putfield(
                         value: to_put_value_offset,
                     }
                 },
+                IRInstr::VMExit2 { exit_type: IRVMExitType::LogWholeFrame {} },
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,

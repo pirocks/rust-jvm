@@ -802,12 +802,6 @@ pub struct StackEntryRef<'gc_life, 'l> {
 
 impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     pub fn frame_view(&self, jvm: &'gc_life JVMState<'gc_life>) -> &FrameView<'gc_life, 'l> {
-        /*match self {
-            /*StackEntryRef::LegacyInterpreter { entry, .. } => {
-                entry.loader()
-            }*/
-            StackEntryRef::Jit { frame_view, .. } => frame_view,
-        }*/
         todo!()
     }
 
@@ -834,12 +828,6 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 
     pub fn pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> ByteCodeOffset {
-        /*match self {
-            /*StackEntryRef::LegacyInterpreter { entry, .. } => {
-                entry.pc()
-            }*/
-            StackEntryRef::Jit { frame_view, .. } => frame_view.pc(jvm).unwrap(),
-        }*/
         todo!()
     }
 
@@ -904,8 +892,8 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 
     pub fn local_var_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<VType>{
-        let method_id = self.frame_view(jvm).method_id().unwrap();
-        let pc = self.frame_view(jvm).pc(jvm).unwrap();
+        let method_id = self.frame_view.ir_ref.method_id().unwrap();
+        let pc = self.pc(jvm);
         let read_guard = jvm.function_frame_type_data.read().unwrap();
         let function_frame_type = read_guard.get(&method_id).unwrap();
         todo!()

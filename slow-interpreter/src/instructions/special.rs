@@ -9,9 +9,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{check_initing_or_inited_class, check_resolved_class};
-use crate::instructions::load::{aload, dload, fload, iload, lload};
-use crate::instructions::store::{astore, dstore, fstore, istore, lstore};
-use crate::interpreter::{ret, WasException};
+use crate::interpreter::{WasException};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use crate::runtime_class::RuntimeClass;
