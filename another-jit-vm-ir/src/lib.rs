@@ -402,6 +402,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.nop_1(rbx).unwrap();
             restart_points.insert(*restart_point_id, ir_instr_index);
         }
+        IRInstr::DebuggerBreakpoint => {
+            assembler.int3().unwrap();
+        }
     }
 }
 

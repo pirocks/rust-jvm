@@ -14,6 +14,7 @@ use std::thread::LocalKey;
 
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
+use num_traits::one;
 
 use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
@@ -514,8 +515,8 @@ impl<'gc_life> Debug for JavaValue<'gc_life> {
             JavaValue::Double(elem) => {
                 writeln!(f, "Double:{}", elem)
             }
-            JavaValue::Object(_) => {
-                writeln!(f, "obj")
+            JavaValue::Object(obj) => {
+                writeln!(f, "obj:{:?}", obj.as_ref().map(|obj|obj.raw_ptr.as_ptr()).unwrap_or(null_mut()))
             }
             JavaValue::Top => writeln!(f, "top"),
         }

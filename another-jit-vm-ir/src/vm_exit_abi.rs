@@ -117,6 +117,20 @@ impl LoadClassAndRecompile {
     pub const LOADER_NUM: Register = Register(2);
 }
 
+pub struct LogFramePointerOffsetValue;
+
+impl LogFramePointerOffsetValue{
+    pub const VALUE: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+    // pub const STRING_MESSAGE: Register = Register(4);
+}
+
+pub struct LogWholeFrame;
+
+impl LogWholeFrame{
+    pub const RESTART_IP: Register = Register(2);
+}
+
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
@@ -148,10 +162,13 @@ pub enum IRVMExitType {
         field_id: FieldId,
         value: FramePointerOffset,
     },
-    LogValue {
+    LogFramePointerOffsetValue {
         value_string: &'static str,
         value: FramePointerOffset
     },
+    LogWholeFrame{
+        //todo
+    }
 }
 
 impl IRVMExitType {
@@ -202,12 +219,18 @@ impl IRVMExitType {
             }
             IRVMExitType::PutStatic { field_id, value } => {
                 assembler.mov(rax, RawVMExitType::PutStatic as u64).unwrap();
-                assembler.lea(PutStatic::VALUE_PTR.to_native_64(), rbp + value.0).unwrap();
+                assembler.lea(PutStatic::VALUE_PTR.to_native_64(), rbp - value.0).unwrap();
                 assembler.mov(PutStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
                 assembler.lea(PutStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::LogValue { value, value_string } => {
-                todo!("implement")
+            IRVMExitType::LogFramePointerOffsetValue { value, value_string } => {
+                assembler.mov(rax, RawVMExitType::LogFramePointerOffsetValue as u64).unwrap();
+                assembler.mov(LogFramePointerOffsetValue::VALUE.to_native_64(), rbp - value.0).unwrap();
+                assembler.lea(LogFramePointerOffsetValue::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
+            IRVMExitType::LogWholeFrame { .. } => {
+                assembler.mov(rax, RawVMExitType::LogWholeFrame as u64).unwrap();
+                assembler.lea(LogWholeFrame::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
         }
     }
@@ -232,6 +255,8 @@ pub enum RawVMExitType {
     CompileFunctionAndRecompileCurrent,
     NPE,
     PutStatic,
+    LogFramePointerOffsetValue,
+    LogWholeFrame
 }
 
 
@@ -280,6 +305,14 @@ pub enum RuntimeVMExitInput {
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
+    LogFramePointerOffsetValue{
+        value: u64,
+        return_to_ptr: *const c_void,
+        // str_message: &'static str
+    },
+    LogWholeFrame{
+        return_to_ptr: *const c_void,
+    }
 }
 
 impl RuntimeVMExitInput {
@@ -332,6 +365,18 @@ impl RuntimeVMExitInput {
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
                     rbp: register_state.saved_registers_without_ip.rbp,
+                }
+            }
+            RawVMExitType::LogFramePointerOffsetValue => {
+                RuntimeVMExitInput::LogFramePointerOffsetValue {
+                    value: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::VALUE) as u64,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::RESTART_IP) as *const c_void,
+                    // str_message: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::STRING_MESSAGE)
+                }
+            }
+            RawVMExitType::LogWholeFrame => {
+                RuntimeVMExitInput::LogWholeFrame {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(LogWholeFrame::RESTART_IP) as *const c_void
                 }
             }
         }

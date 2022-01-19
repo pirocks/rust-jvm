@@ -4,6 +4,7 @@ use num_traits::FromPrimitive;
 
 use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::classfile::instruction_info_nums::InstructionTypeNum;
+use rust_jvm_common::ByteCodeOffset;
 
 use crate::ClassfileParsingError;
 
@@ -23,7 +24,7 @@ fn read_invoke_interface(c: &mut CodeParserContext) -> Result<InvokeInterface, C
 }
 
 fn read_lookup_switch(c: &mut CodeParserContext) -> Result<LookupSwitch, ClassfileParsingError> {
-    while c.offset % 4 != 0 {
+    while c.offset.0 % 4 != 0 {
         let _padding = read_u8(c)?;
     }
     let default = read_i32(c)?;
@@ -48,7 +49,7 @@ fn read_atype(c: &mut CodeParserContext) -> Result<Atype, ClassfileParsingError>
 }
 
 fn read_table_switch(c: &mut CodeParserContext) -> Result<TableSwitch, ClassfileParsingError> {
-    while c.offset % 4 != 0 {
+    while c.offset.0 % 4 != 0 {
         read_u8(c)?;
     }
     let default = read_i32(c)?;
@@ -91,19 +92,19 @@ fn read_wide(c: &mut CodeParserContext) -> Result<Wide, ClassfileParsingError> {
 }
 
 pub struct CodeParserContext<'l> {
-    pub offset: u16,
+    pub offset: ByteCodeOffset,
     pub iter: Iter<'l, u8>,
 }
 
 pub fn parse_code_raw(raw: &[u8]) -> Result<Vec<Instruction>, ClassfileParsingError> {
     //is this offset of 0 even correct?
     // what if code starts at non-aligned?
-    let mut c = CodeParserContext { iter: raw.iter(), offset: 0 };
+    let mut c = CodeParserContext { iter: raw.iter(), offset: ByteCodeOffset(0) };
     parse_code_impl(&mut c)
 }
 
 fn read_u8(c: &mut CodeParserContext) -> Result<u8, ClassfileParsingError> {
-    c.offset += 1;
+    c.offset.0 += 1;
     let next = c.iter.next().ok_or(ClassfileParsingError::EndOfInstructions);
     Ok(*next?)
 }
@@ -359,7 +360,7 @@ fn parse_code_impl(c: &mut CodeParserContext) -> Result<Vec<Instruction>, Classf
         let offset = c.offset;
         let instruction_option = parse_instruction(c);
         match instruction_option {
-            Ok(instruction) => res.push(Instruction { offset, size: (c.offset - offset) as u16, instruction }),
+            Ok(instruction) => res.push(Instruction { offset, size: (c.offset.0 - offset.0) as u16, instruction }),
             Err(ClassfileParsingError::EndOfInstructions) => {
                 break;
             }

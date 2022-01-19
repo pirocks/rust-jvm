@@ -15,7 +15,7 @@ use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
@@ -27,7 +27,7 @@ use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
-use crate::jit::{ByteCodeOffset, MethodResolver};
+use crate::jit::{MethodResolver};
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -60,7 +60,7 @@ impl JavaCompilerMethodAndFrameData {
             max_stack: code.max_stack,
             stack_depth_by_index: stack_depth,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
-            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (ByteCodeOffset(*bytecode_offset), ByteCodeIndex(index as u16))).collect(),
+            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
         }
     }
@@ -118,7 +118,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     };
     let mut restart_point_generator = RestartPointGenerator::new();
     for (i, compressed_instruction) in cinstructions.iter().enumerate() {
-        let current_offset = ByteCodeOffset(compressed_instruction.offset);
+        let current_offset = compressed_instruction.offset;
         let current_index = ByteCodeIndex(i as u16);
         let next_index = ByteCodeIndex((i + 1) as u16);
         let current_instr_data = CurrentInstructionCompilerData {

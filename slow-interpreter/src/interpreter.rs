@@ -169,7 +169,7 @@ fn run_function_interpreted(jvm: &'gc_life JVMState<'gc_life>, interpreter_state
             let throw_class = interpreter_state.throw().as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer.clone();
             for excep_table in &code.exception_table {
                 let pc = interpreter_state.current_pc();
-                if excep_table.start_pc <= pc && pc < (excep_table.end_pc) {
+                if excep_table.start_pc <= pc && pc < excep_table.end_pc {
                     //todo exclusive
                     match excep_table.catch_type {
                         None => {
@@ -233,9 +233,9 @@ fn update_pc_for_next_instruction(interpreter_state: &'_ mut InterpreterStateGua
     let offset = interpreter_state.current_pc_offset();
     let mut pc = interpreter_state.current_pc();
     if offset > 0 {
-        pc += offset as u16;
+        pc.0 += offset as u16;
     } else {
-        pc -= (-offset) as u16;
+        pc.0 -= (-offset) as u16;
     }
     interpreter_state.set_current_pc(pc);
 }
@@ -252,7 +252,7 @@ fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     };
     if stop {
         let jdwp = &jvm.jvmti_state().unwrap().built_in_jdwp;
-        jdwp.breakpoint(jvm, methodid, pc as i64, interpreter_state);
+        jdwp.breakpoint(jvm, methodid, pc.0 as i64, interpreter_state);
     }
 }
 
@@ -519,7 +519,7 @@ fn l2d(_jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_
 }
 
 fn jsr(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, target: i32) {
-    let next_instruct = (interpreter_state.current_pc() as i32 + interpreter_state.current_pc_offset()) as i64;
+    let next_instruct = (interpreter_state.current_pc().0 as i32 + interpreter_state.current_pc_offset()) as i64;
     interpreter_state.push_current_operand_stack(JavaValue::Long(next_instruct));
     interpreter_state.set_current_pc_offset(target);
 }

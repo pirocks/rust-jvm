@@ -6,6 +6,7 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -36,7 +37,7 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
-pub fn type_safe_if_cmp(target: u16, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn type_safe_if_cmp(target: ByteCodeOffset, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let next_frame = can_pop(&env.vf, stack_frame, comparison_types)?;
@@ -44,11 +45,11 @@ pub fn type_safe_if_cmp(target: u16, env: &Environment, stack_frame: Frame, comp
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_if_acmpeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_acmpeq(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference, VType::Reference])
 }
 
-pub fn instruction_is_type_safe_goto(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_goto(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     target_is_type_safe(env, &stack_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
@@ -78,15 +79,15 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
-pub fn instruction_is_type_safe_if_icmpeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_if_icmpeq(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::IntType, VType::IntType])
 }
 
-pub fn instruction_is_type_safe_ifeq(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifeq(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::IntType])
 }
 
-pub fn instruction_is_type_safe_ifnonnull(target: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_ifnonnull(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference])
 }
 
@@ -208,7 +209,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
             Some(code) => {
                 let found_new = code.iter().find(|x| match x {
                     MergedCodeInstruction::Instruction(i) => {
-                        i.offset == address.offset as u16
+                        i.offset == address.offset
                             && match &i.info {
                             CInstructionInfo::new(_this) => true,
                             _ => {

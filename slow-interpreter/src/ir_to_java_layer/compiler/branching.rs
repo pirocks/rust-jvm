@@ -1,7 +1,7 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::IRInstr;
+use rust_jvm_common::ByteCodeOffset;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::jit::ByteCodeOffset;
 
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]

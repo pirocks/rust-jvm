@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use classfile_view::view::ClassView;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::CCString;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::descriptor_parser::Descriptor;
@@ -31,7 +32,7 @@ pub struct InternalFrame {
     pub locals: Vec<VType>,
     pub stack: Vec<VType>,
     pub max_locals: u16,
-    pub current_offset: u16,
+    pub current_offset: ByteCodeOffset,
 }
 
 //todo impl on VerifierContext

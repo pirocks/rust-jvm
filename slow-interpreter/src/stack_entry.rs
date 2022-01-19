@@ -19,7 +19,7 @@ use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
@@ -27,7 +27,6 @@ use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, Object};
-use crate::jit::ByteCodeOffset;
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
@@ -137,7 +136,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
         let this_function = function_frame_type.get(&methodid).unwrap();
         //todo issue here is that we can't use instruct pointer b/c we might have iterated up through vm call and instruct pointer will be saved.
-        Ok(this_function.get(&pc.0).unwrap().stack_map.len() as u16)
+        Ok(this_function.get(&pc).unwrap().stack_map.len() as u16)
     }
 
     pub fn stack_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Vec<RuntimeType>, Opaque> {
@@ -147,7 +146,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc.0).unwrap().stack_map;
+        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map;
         let mut res = vec![];
         for vtype in &stack_map.data {
             res.push(vtype.to_runtime_type());
@@ -170,7 +169,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data.read().unwrap();
-        let locals = &function_frame_type.get(&methodid).unwrap().get(&pc.0).unwrap().locals;
+        let locals = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().locals;
         Ok(locals.len() as u16)
     }
 
@@ -901,6 +900,14 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             */
             StackEntryRef::Jit { frame_view } => LocalVarsRef::Jit { frame_view, jvm },
         }*/
+        todo!()
+    }
+
+    pub fn local_var_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<VType>{
+        let method_id = self.frame_view(jvm).method_id().unwrap();
+        let pc = self.frame_view(jvm).pc(jvm).unwrap();
+        let read_guard = jvm.function_frame_type_data.read().unwrap();
+        let function_frame_type = read_guard.get(&method_id).unwrap();
         todo!()
     }
 

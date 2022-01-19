@@ -17,6 +17,7 @@ use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo::ireturn;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -384,11 +385,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn set_current_pc(&mut self, new_pc: u16) {
-        self.current_frame_mut().set_pc(new_pc);
+    pub fn set_current_pc(&mut self, new_pc: ByteCodeOffset) {
+        todo!()
+        // self.current_frame_mut().set_pc(new_pc);
     }
 
-    pub fn current_pc(&self) -> u16 {
+    pub fn current_pc(&self) -> ByteCodeOffset {
         todo!()
         /*self.current_frame().pc(todo!())*/
     }

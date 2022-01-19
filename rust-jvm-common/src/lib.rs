@@ -25,3 +25,7 @@ pub type MethodId = MethodTableIndex;
 
 pub type FieldTableIndex = usize;
 pub type FieldId = usize;
+
+
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
+pub struct ByteCodeOffset(pub u16);//todo unify this with bytecode offset

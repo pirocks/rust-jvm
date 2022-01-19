@@ -30,7 +30,7 @@ pub fn putfield(
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
-                    restart_point_id
+                    restart_point_id,
                 }
             }]))
         }
@@ -39,10 +39,25 @@ pub fn putfield(
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
+            let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 1);
+            let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
+                IRInstr::DebuggerBreakpoint,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::LogFramePointerOffsetValue {
+                        value_string: "",
+                        value: object_ptr_offset,
+                    }
+                },
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::LogFramePointerOffsetValue {
+                        value_string: "",
+                        value: to_put_value_offset,
+                    }
+                },
                 IRInstr::LoadFPRelative {
-                    from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1),
+                    from: object_ptr_offset,
                     to: class_ref_register,
                 },
                 IRInstr::NPECheck {
@@ -51,11 +66,11 @@ pub fn putfield(
                     npe_exit_type: IRVMExitType::NPE,
                 },
                 IRInstr::LoadFPRelative {
-                    from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
+                    from: to_put_value_offset,
                     to: to_put_value,
                 },
                 IRInstr::LoadFPRelative {
-                    from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1),
+                    from: object_ptr_offset,
                     to: class_ref_register,
                 },
                 IRInstr::Const64bit { to: offset, const_: (field_number * size_of::<jlong>()) as u64 },

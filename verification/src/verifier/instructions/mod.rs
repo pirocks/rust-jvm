@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use rust_jvm_common::ByteCodeOffset;
 
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -85,7 +86,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
     }
 }
 
-fn offset_stack_frame(env: &Environment, offset: u16) -> Result<Frame, TypeSafetyError> {
+fn offset_stack_frame(env: &Environment, offset: ByteCodeOffset) -> Result<Frame, TypeSafetyError> {
     match env
         .merged_code
         .unwrap()
@@ -110,7 +111,7 @@ fn offset_stack_frame(env: &Environment, offset: u16) -> Result<Frame, TypeSafet
     }
 }
 
-fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: u16) -> Result<(), TypeSafetyError> {
+fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: ByteCodeOffset) -> Result<(), TypeSafetyError> {
     let frame = match offset_stack_frame(env, target) {
         Ok(frame) => frame,
         Err(TypeSafetyError::Java5Maybe) => {
@@ -123,7 +124,7 @@ fn target_is_type_safe(env: &Environment, stack_frame: &Frame, target: u16) -> R
     Result::Ok(())
 }
 
-fn instruction_satisfies_handlers(env: &Environment, offset: u16, exception_stack_frame: &Frame) -> Result<(), TypeSafetyError> {
+fn instruction_satisfies_handlers(env: &Environment, offset: ByteCodeOffset, exception_stack_frame: &Frame) -> Result<(), TypeSafetyError> {
     let handlers = &env.handlers;
     let applicable_handler = handlers.iter().filter(|h| is_applicable_handler(offset, h));
     let res: Result<Vec<_>, _> = applicable_handler.map(|h| instruction_satisfies_handler(env, exception_stack_frame, h)).collect();
@@ -131,7 +132,7 @@ fn instruction_satisfies_handlers(env: &Environment, offset: u16, exception_stac
     Result::Ok(())
 }
 
-fn is_applicable_handler(offset: u16, handler: &Handler) -> bool {
+fn is_applicable_handler(offset: ByteCodeOffset, handler: &Handler) -> bool {
     offset >= handler.start && offset < handler.end
 }
 
@@ -171,7 +172,7 @@ pub fn handlers_are_legal(env: &Environment) -> Result<(), TypeSafetyError> {
     Result::Ok(())
 }
 
-pub fn start_is_member_of(start: u16, merged_instructs: &[MergedCodeInstruction]) -> bool {
+pub fn start_is_member_of(start: ByteCodeOffset, merged_instructs: &[MergedCodeInstruction]) -> bool {
     merged_instructs.iter().any(|m| match m {
         Instruction(i) => i.offset == start,
         StackMap(s) => s.offset == start,
@@ -201,7 +202,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
     }
 }
 
-pub fn instructions_include_end(instructs: &[MergedCodeInstruction], end: u16) -> bool {
+pub fn instructions_include_end(instructs: &[MergedCodeInstruction], end: ByteCodeOffset) -> bool {
     instructs.iter().any(|x: &MergedCodeInstruction| match x {
         MergedCodeInstruction::Instruction(i) => i.offset == end,
         MergedCodeInstruction::StackMap(_) => false,

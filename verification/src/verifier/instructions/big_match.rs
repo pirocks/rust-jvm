@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 
@@ -15,7 +16,7 @@ use crate::verifier::instructions::special::*;
 use crate::verifier::instructions::stores::*;
 use crate::verifier::TypeSafetyError;
 
-pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environment, offset: u16, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environment, offset: ByteCodeOffset, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     env.vf.verification_types.entry(env.method.method_index as u16).or_insert(HashMap::new()).insert(offset, stack_frame.clone());
     match &instruction.info {
         CInstructionInfo::aaload => instruction_is_type_safe_aaload(env, stack_frame),
@@ -103,14 +104,14 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::getfield { name, desc, target_class } => instruction_is_type_safe_getfield(*target_class, *name, desc, env, stack_frame),
         CInstructionInfo::getstatic { name, desc, target_class } => instruction_is_type_safe_getstatic(*target_class, *name, desc, env, stack_frame),
         CInstructionInfo::goto_(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_goto(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_goto(ByteCodeOffset(final_target as u16), env, stack_frame)
         }
         CInstructionInfo::goto_w(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_goto(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_goto(ByteCodeOffset(final_target as u16), env, stack_frame)
         }
         CInstructionInfo::i2b => instruction_is_type_safe_ineg(env, stack_frame),
         CInstructionInfo::i2c => instruction_is_type_safe_ineg(env, stack_frame),
@@ -131,15 +132,15 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::iconst_5 => instruction_is_type_safe_iconst_m1(env, stack_frame),
         CInstructionInfo::idiv => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::if_acmpeq(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_if_acmpeq(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_if_acmpeq(ByteCodeOffset(final_target as u16), env, stack_frame)
             //same as eq case
         }
         CInstructionInfo::if_acmpne(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_if_acmpeq(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_if_acmpeq(ByteCodeOffset(final_target as u16), env, stack_frame)
             //same as eq case
         }
         CInstructionInfo::if_icmpeq(target) => if_icmp_wrapper(instruction, env, stack_frame, *target),
@@ -155,14 +156,14 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::ifgt(target) => ifeq_wrapper(instruction, env, stack_frame, *target),
         CInstructionInfo::ifle(target) => ifeq_wrapper(instruction, env, stack_frame, *target),
         CInstructionInfo::ifnonnull(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_ifnonnull(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_ifnonnull(ByteCodeOffset(final_target as u16), env, stack_frame)
         }
         CInstructionInfo::ifnull(target) => {
-            let final_target = (*target as isize) + (instruction.offset as isize);
+            let final_target = (*target as isize) + (instruction.offset.0 as isize);
             assert!(final_target >= 0);
-            instruction_is_type_safe_ifnonnull(final_target as u16, env, stack_frame)
+            instruction_is_type_safe_ifnonnull(ByteCodeOffset(final_target as u16), env, stack_frame)
         }
         CInstructionInfo::iinc(iinc) => instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame),
         CInstructionInfo::iload(index) => instruction_is_type_safe_iload(*index as u16, env, stack_frame),
@@ -215,7 +216,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::lmul => instruction_is_type_safe_ladd(env, stack_frame),
         CInstructionInfo::lneg => instruction_is_type_safe_lneg(env, stack_frame),
         CInstructionInfo::lookupswitch(s) => {
-            let targets: Vec<u16> = s.pairs.iter().map(|(_, x)| (offset as i32 + *x as i32) as u16).collect();
+            let targets: Vec<ByteCodeOffset> = s.pairs.iter().map(|(_, x)| ByteCodeOffset((offset.0 as i32 + *x as i32) as u16)).collect();
             let keys = s.pairs.iter().map(|(x, _)| *x).collect();
             instruction_is_type_safe_lookupswitch(targets, keys, env, stack_frame)
         }
@@ -251,9 +252,9 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::tableswitch(s) => {
             let mut targets = vec![];
             for o in &s.offsets {
-                targets.push((offset as i32 + *o as i32) as u16)
+                targets.push(ByteCodeOffset((offset.0 as i32 + *o as i32) as u16))
             }
-            targets.push((offset as i32 + s.default as i32) as u16);
+            targets.push(ByteCodeOffset((offset.0 as i32 + s.default as i32) as u16));
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
         CInstructionInfo::wide(wide) => match wide {
@@ -275,13 +276,13 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
 }
 
 fn if_icmp_wrapper(instruction: &CInstruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let final_target = (target as isize) + (instruction.offset as isize);
+    let final_target = (target as isize) + (instruction.offset.0 as isize);
     assert!(final_target >= 0);
-    instruction_is_type_safe_if_icmpeq(final_target as u16, env, stack_frame)
+    instruction_is_type_safe_if_icmpeq(ByteCodeOffset(final_target as u16), env, stack_frame)
 }
 
 fn ifeq_wrapper(instruction: &CInstruction, env: &Environment, stack_frame: Frame, target: i16) -> Result<InstructionTypeSafe, TypeSafetyError> {
-    let final_target = (target as isize) + (instruction.offset as isize);
+    let final_target = (target as isize) + (instruction.offset.0 as isize);
     assert!(final_target >= 0);
-    instruction_is_type_safe_ifeq(final_target as u16, env, stack_frame)
+    instruction_is_type_safe_ifeq(ByteCodeOffset(final_target as u16), env, stack_frame)
 }

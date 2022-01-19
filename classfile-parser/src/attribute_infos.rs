@@ -5,6 +5,7 @@ use rust_jvm_common::classfile::{
 use rust_jvm_common::classfile::AttributeType::Unknown;
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -519,7 +520,7 @@ fn parse_verification_type_info(p: &mut dyn ParsingContext) -> Result<PType, Cla
                 PType::Ref(ReferenceType::Class(ClassName::Str(type_descriptor)))
             }
         }
-        ITEM_UNINITIALIZED => PType::Uninitialized(UninitializedVariableInfo { offset: p.read16()? }),
+        ITEM_UNINITIALIZED => PType::Uninitialized(UninitializedVariableInfo { offset: ByteCodeOffset(p.read16()?) }),
         _ => {
             return Err(ClassfileParsingError::WrongPtype);
         }
@@ -573,9 +574,9 @@ fn parse_line_number_table_entry(p: &mut dyn ParsingContext) -> Result<LineNumbe
 }
 
 fn parse_exception_table_entry(p: &mut dyn ParsingContext) -> Result<ExceptionTableElem, ClassfileParsingError> {
-    let start_pc = p.read16()?;
-    let end_pc = p.read16()?;
-    let handler_pc = p.read16()?;
+    let start_pc = ByteCodeOffset(p.read16()?);
+    let end_pc = ByteCodeOffset(p.read16()?);
+    let handler_pc = ByteCodeOffset(p.read16()?);
     let catch_type = p.read16()?;
     Ok(ExceptionTableElem { start_pc, end_pc, handler_pc, catch_type })
 }

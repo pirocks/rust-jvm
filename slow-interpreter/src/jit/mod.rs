@@ -21,7 +21,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::{FieldId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -69,9 +69,6 @@ pub struct IRInstructionIndex(u32);
 
 #[derive(Clone, Debug)]
 pub struct NotSupported;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct ByteCodeOffset(pub(crate) u16);
 
 #[derive(Clone, Copy)]
 pub struct MethodResolver<'gc_life> {

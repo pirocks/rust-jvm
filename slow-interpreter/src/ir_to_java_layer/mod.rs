@@ -26,6 +26,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
@@ -33,7 +34,7 @@ use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompil
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
-use crate::jit::{ByteCodeOffset, MethodResolver, ToIR};
+use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
 use crate::runtime_class::RuntimeClass;
@@ -63,7 +64,7 @@ pub enum VMExitEvent<'vm_life> {
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
     fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> IRVMExitAction {
-        match dbg!(vm_exit_type) {
+        match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
@@ -133,7 +134,27 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
-            RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!()
+            RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
+            RuntimeVMExitInput::LogFramePointerOffsetValue { value, return_to_ptr } => {
+                eprintln!("value:{}", value);
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::LogWholeFrame { return_to_ptr } => {
+                let current_frame = int_state.current_frame();
+                let local_var_types = current_frame.local_var_types(jvm);
+                let local_vars = current_frame.local_vars(jvm);
+                for (i,local_var_type) in local_var_types.into_iter().enumerate(){
+                    let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
+                    eprintln!("LocalVar #{}: {:?}", i, jv)
+                }
+                let operand_stack_types = current_frame.operand_stack(jvm).types();
+                let operand_stack = current_frame.operand_stack(jvm);
+                for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate(){
+                    let jv = local_vars.get(i as u16, operand_stack_type);
+                    eprintln!("OperandStack #{}: {:?}", i, jv)
+                }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
         }
     }
 }

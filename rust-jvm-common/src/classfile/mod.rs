@@ -4,6 +4,7 @@ use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
 
 use crate::classnames::class_name;
+use crate::ByteCodeOffset;
 use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::ptype::PType;
 
@@ -55,9 +56,9 @@ pub struct Code {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ExceptionTableElem {
-    pub start_pc: u16,
-    pub end_pc: u16,
-    pub handler_pc: u16,
+    pub start_pc: ByteCodeOffset,
+    pub end_pc: ByteCodeOffset,
+    pub handler_pc: ByteCodeOffset,
     pub catch_type: u16,
 }
 
@@ -165,7 +166,7 @@ pub struct ArrayVariableInfo {
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct UninitializedVariableInfo {
-    pub offset: u16,
+    pub offset: ByteCodeOffset,
 }
 
 impl Clone for UninitializedVariableInfo {
@@ -696,7 +697,7 @@ pub struct WideRet {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Instruction {
-    pub offset: u16,
+    pub offset: ByteCodeOffset,
     pub size: u16,
     pub instruction: InstructionInfo,
 }

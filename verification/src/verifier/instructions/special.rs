@@ -5,13 +5,14 @@ use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 
-use crate::OperandStack;
+use crate::{OperandStack};
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::codecorrectness::can_pop;
@@ -43,7 +44,7 @@ pub fn instruction_is_type_safe_getstatic(_field_class_name: CClassName, _field_
     type_transition(env, stack_frame, vec![], field_type)
 }
 
-pub fn instruction_is_type_safe_tableswitch(targets: Vec<u16>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_tableswitch(targets: Vec<ByteCodeOffset>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     let branch_frame = can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
@@ -198,11 +199,11 @@ fn class_dimension(env: &Environment, v: &VType) -> usize {
     }
 }
 
-pub fn instruction_is_type_safe_new(offset: u16, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_new(offset: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let locals = &stack_frame.locals;
     let operand_stack = &stack_frame.stack_map;
     let flags = stack_frame.flag_this_uninit;
-    let new_item = VType::Uninitialized(UninitializedVariableInfo { offset: offset as u16 });
+    let new_item = VType::Uninitialized(UninitializedVariableInfo { offset });
     match operand_stack.iter().find(|x| x == &&new_item) {
         None => {}
         Some(_) => return Result::Err(unknown_error_verifying!()),
@@ -243,7 +244,7 @@ fn sorted(nums: &[i32]) -> bool {
 }
 //}
 
-pub fn instruction_is_type_safe_lookupswitch(targets: Vec<u16>, keys: Vec<i32>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_lookupswitch(targets: Vec<ByteCodeOffset>, keys: Vec<i32>, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if !sorted(&keys) {
         return Result::Err(unknown_error_verifying!());
     }

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedAppendFrame, CompressedChopFrame, CompressedFullFrame, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
 use rust_jvm_common::loading::*;
@@ -44,10 +45,10 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;
         } else {
-            frame.current_offset += 1;
+            frame.current_offset.0 += 1;
         }
         res.push(StackMap {
-            offset: frame.current_offset as u16,
+            offset: frame.current_offset,
             map_frame: Frame {
                 locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, VType::TopType).iter().cloned().collect()),
                 stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter().cloned().collect::<Vec<_>>()),
@@ -60,18 +61,18 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
 }
 
 pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &CompressedSameLocals1StackItemFrameExtended) {
-    frame.current_offset += f.offset_delta;
+    frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &f.stack);
 }
 
 pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &CompressedSameFrameExtended) {
-    frame.current_offset += f.offset_delta;
+    frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
 }
 
 pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &CompressedChopFrame) {
-    frame.current_offset += f.offset_delta;
+    frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
         //so basically what's going on here is we want to remove [Double|Long, top],[any type including top]
@@ -93,7 +94,7 @@ pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &CompressedChopFrame)
 }
 
 pub fn handle_full_frame(frame: &mut InternalFrame, f: &CompressedFullFrame) {
-    frame.current_offset += f.offset_delta;
+    frame.current_offset.0 += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
         add_verification_type_to_array_convert(&mut frame.locals, &new_local);
@@ -106,13 +107,13 @@ pub fn handle_full_frame(frame: &mut InternalFrame, f: &CompressedFullFrame) {
 }
 
 pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &CompressedSameLocals1StackItemFrame) {
-    frame.current_offset += s.offset_delta;
+    frame.current_offset.0 += s.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &s.stack);
 }
 
 pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &CompressedAppendFrame) {
-    frame.current_offset += append_frame.offset_delta;
+    frame.current_offset.0 += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
         add_verification_type_to_array_convert(&mut frame.locals, &new_local)
     }
@@ -120,7 +121,7 @@ pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &CompressedA
 }
 
 pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
-    frame.current_offset += s.offset_delta;
+    frame.current_offset.0 += s.offset_delta;
     frame.stack.clear();
 }
 
@@ -151,5 +152,5 @@ pub fn init_frame(parameter_types: Vec<CPDType>, this_pointer: Option<CPDType>, 
         add_verification_type_to_array_convert(&mut locals, &parameter_type.to_verification_type(LoaderName::BootstrapLoader))
         //todo fix bootstrap loader
     }
-    InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: 0 }
+    InternalFrame { max_locals, locals, stack: Vec::new(), current_offset: ByteCodeOffset(0) }
 }

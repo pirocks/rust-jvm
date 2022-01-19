@@ -6,6 +6,7 @@ use itertools::Either;
 use wtf8::Wtf8Buf;
 
 use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
+use crate::ByteCodeOffset;
 use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
 use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use crate::vtype::VType;
@@ -14,7 +15,7 @@ pub type CInstruction = CompressedInstruction;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct CompressedInstruction {
-    pub offset: u16,
+    pub offset: ByteCodeOffset,
     pub instruction_size: u16,
     pub info: CompressedInstructionInfo,
 }
@@ -719,7 +720,7 @@ pub struct CompressedInvokeInterface {}
 
 #[derive(Clone)]
 pub struct CompressedCode {
-    pub instructions: HashMap<u16, CompressedInstruction>,
+    pub instructions: HashMap<ByteCodeOffset, CompressedInstruction>,
     pub max_locals: u16,
     pub max_stack: u16,
     pub exception_table: Vec<CompressedExceptionTableElem>,
@@ -779,8 +780,8 @@ pub struct CompressedFullFrame {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedExceptionTableElem {
-    pub start_pc: u16,
-    pub end_pc: u16,
-    pub handler_pc: u16,
+    pub start_pc: ByteCodeOffset,
+    pub end_pc: ByteCodeOffset,
+    pub handler_pc: ByteCodeOffset,
     pub catch_type: Option<CClassName>,
 }

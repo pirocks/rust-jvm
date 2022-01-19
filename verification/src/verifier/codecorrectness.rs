@@ -4,6 +4,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::*;
@@ -149,9 +150,9 @@ pub fn get_handlers(_vf: &VerifierContext, _class: &ClassWithLoader, code: &Comp
     code.exception_table
         .iter()
         .map(|f| Handler {
-            start: f.start_pc as u16,
-            end: f.end_pc as u16,
-            target: f.handler_pc as u16,
+            start: f.start_pc,
+            end: f.end_pc,
+            target: f.handler_pc,
             class_name: f.catch_type,
         })
         .collect()
@@ -163,7 +164,7 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let code = method_info.code_attribute().unwrap();
     let frame_size = code.max_locals;
     let max_stack = code.max_stack;
-    let mut final_offset = 0;
+    let mut final_offset = ByteCodeOffset(0);
     let mut instructs: Vec<&CInstruction> = code
         .instructions
         .iter()
@@ -197,9 +198,9 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
 
 #[derive(Debug)]
 pub struct Handler {
-    pub start: u16,
-    pub end: u16,
-    pub target: u16,
+    pub start: ByteCodeOffset,
+    pub end: ByteCodeOffset,
+    pub target: ByteCodeOffset,
     pub class_name: Option<CClassName>,
 }
 

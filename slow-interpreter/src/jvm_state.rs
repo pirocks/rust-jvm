@@ -27,7 +27,7 @@ use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescript
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
@@ -92,7 +92,7 @@ pub struct JVMState<'gc_life> {
     pub resolved_method_handles: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
-    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<u16, Frame>>>,
+    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
 }
 
@@ -272,7 +272,7 @@ impl<'gc_life> JVMState<'gc_life> {
         (args, jvm)
     }
 
-    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<CodeIndex, Frame>>, rc: Arc<RuntimeClass<'gc_life>>) {
+    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc_life>>) {
         let mut method_table = self.method_table.write().unwrap();
         for (method_i, verification_types) in verification_types {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
@@ -411,11 +411,9 @@ impl<'gc_life> JVMState<'gc_life> {
     }
 }
 
-type CodeIndex = u16;
-
 pub struct JVMTIState {
     pub built_in_jdwp: Arc<SharedLibJVMTI>,
-    pub break_points: RwLock<HashMap<MethodId, HashSet<CodeIndex>>>,
+    pub break_points: RwLock<HashMap<MethodId, HashSet<ByteCodeOffset>>>,
     pub tags: RwLock<HashMap<jobject, jlong>>,
 }
 

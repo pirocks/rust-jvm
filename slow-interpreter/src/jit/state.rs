@@ -36,7 +36,7 @@ use classfile_view::view::HasAccessFlags;
 use early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_BASE, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE};
 use gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FrameHeader, FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MemoryRegions, ObjectMemoryLayout, StackframeMemoryLayout};
 use jvmti_jni_bindings::{jdouble, jint, jlong, jobject, jvalue};
-use rust_jvm_common::{JavaThreadId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, JavaThreadId, MethodId};
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -51,7 +51,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java_values::{JavaValue, NormalObject, Object, ObjectFieldsAndClass};
-use crate::jit::{ByteCodeOffset, CompiledCodeID, IRInstructionIndex, MethodResolver, NotSupported, ToIR, ToNative, transition_stack_frame, TransitionType};
+use crate::jit::{CompiledCodeID, IRInstructionIndex, MethodResolver, NotSupported, ToIR, ToNative, transition_stack_frame, TransitionType};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::{JitCodeContext, RuntimeTypeInfo};
 use crate::jit_common::java_stack::JavaStack;
@@ -152,7 +152,7 @@ impl JITedCodeState {
         let mut labels = vec![];
         let start_label = self.labeler.new_label(&mut labels);
         let exit_label = self.labeler.new_label(&mut labels);
-        let nop = CompressedInstruction { offset: 0, instruction_size: 0, info: CompressedInstructionInfo::nop };
+        let nop = CompressedInstruction { offset: ByteCodeOffset(0), instruction_size: 0, info: CompressedInstructionInfo::nop };
         let ir = ToIR {
             labels,
             ir: vec![(ByteCodeOffset(0), IRInstr::Label { 0: IRLabel { name: start_label } }, nop.clone()),
@@ -194,9 +194,9 @@ impl JITedCodeState {
         let mut initial_ir = vec![];
         let function_start_label: LabelName = self.labeler.new_label(&mut labels);
         let function_end_label: LabelName = self.labeler.new_label(&mut labels);
-        let mut pending_labels = vec![(ByteCodeOffset(0), function_start_label), (ByteCodeOffset(byte_code.last().unwrap().offset), function_end_label)];
+        let mut pending_labels = vec![(ByteCodeOffset(0), function_start_label), (byte_code.last().unwrap().offset, function_end_label)];
         for (i, byte_code_instr) in byte_code.iter().enumerate() {
-            let current_offset = ByteCodeOffset(byte_code_instr.offset);
+            let current_offset = byte_code_instr.offset;
             let current_byte_code_instr_count: u16 = i as u16;
             let next_byte_code_instr_count: u16 = (i + 1) as u16;
             match &byte_code_instr.info {
@@ -573,7 +573,7 @@ impl JITedCodeState {
                     None => break,
                     Some((label_offset, label)) => {
                         if label_offset == &offset {
-                            let nop = CompressedInstruction { offset: 0, instruction_size: 0, info: CompressedInstructionInfo::nop };
+                            let nop = CompressedInstruction { offset: ByteCodeOffset(0), instruction_size: 0, info: CompressedInstructionInfo::nop };
                             ir.push((*label_offset, IRInstr::Label(IRLabel { name: *label }), nop));
                             let _ = pending_labels.next();
                             continue;
@@ -582,7 +582,7 @@ impl JITedCodeState {
                 }
                 break;
             }
-            ir.push((offset, ir_instr, byte_code.iter().find(|instr| instr.offset == offset.0).unwrap().clone().clone()));
+            ir.push((offset, ir_instr, byte_code.iter().find(|instr| instr.offset == offset).unwrap().clone().clone()));
         }
 
         Ok(ToIR { labels, ir, function_start_label })
@@ -783,7 +783,7 @@ impl JITedCodeState {
                     let exit_label = self.labeler.new_label(&mut labels);
                     initial_ir.push((
                         current_offset,
-todo!()/*                        IRInstr::VMExit {
+                        todo!()/*                        IRInstr::VMExit {
                             before_exit_label: exit_label,
                             after_exit_label: todo!(),
                             exit_type: todo!()/*VMExitType::InvokeSpecialNative {
@@ -879,7 +879,7 @@ todo!()/*                        IRInstr::VMExit {
         let exit_label = self.labeler.new_label(&mut labels);
         initial_ir.push((
             current_offset,
-todo!()/*            IRInstr::VMExit {
+            todo!()/*            IRInstr::VMExit {
                 before_exit_label: exit_label,
                 after_exit_label: todo!(),
                 exit_type: todo!()/*VMExitType::AllocateVariableSizeArrayANewArray {
@@ -897,7 +897,7 @@ todo!()/*            IRInstr::VMExit {
                 let exit_label = self.labeler.new_label(&mut labels);
                 initial_ir.push((
                     current_offset,
-todo!()/*                    IRInstr::VMExit {
+                    todo!()/*                    IRInstr::VMExit {
                         before_exit_label: exit_label,
                         after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::InitClass { target_class: CPDType::Ref(CPRefType::Class(*class_name)) }*/,
@@ -1023,7 +1023,7 @@ todo!()/*                    IRInstr::VMExit {
                 let exit_label = self.labeler.new_label(&mut labels);
                 initial_ir.push((
                     current_offset,
-todo!()/*                    IRInstr::VMExit {
+                    todo!()/*                    IRInstr::VMExit {
                         before_exit_label: exit_label,
                         after_exit_label: todo!(),
                         exit_type: todo!()/*VMExitType::Allocate {
@@ -1095,53 +1095,53 @@ todo!()/*                    IRInstr::VMExit {
                     assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
                     assembler.jne(iced_labels[&label]).unwrap()
                 }
-/*                IRInstr::VMExit { before_exit_label: exit_label, exit_type, .. } => {
-                    todo!();
-                    let native_stack_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
-                    let native_frame_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
-                    let native_instruction_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, instruction_pointer)) as i64;
-                    let java_stack_pointer = (offset_of!(JitCodeContext, java_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
-                    let java_frame_pointer = (offset_of!(JitCodeContext, java_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
-                    let exit_handler_ip = offset_of!(JitCodeContext, exit_handler_ip) as i64;
-                    if false {
-                        //exit to exit handler
-                        // save_java_stack
-                        assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
-                        // save_java_frame
-                        assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
-                        // restore_old_stack
-                        assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
-                        // restore_old_frame
-                        assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
-                        // call back to exit_handler
-                        assembler.call(qword_ptr(r15 + exit_handler_ip)).unwrap();
-                    }
-                    //exit back to initial run_method
-                    // if false {
-                    // save_java_stack
-                    assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
-                    // save_java_frame
-                    assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
-                    // restore_old_stack
-                    assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
-                    // restore_old_frame
-                    assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
-                    // call_to_old
-                    //todo this clobbers existing data
-                    assembler.call(qword_ptr(r15 + native_instruction_pointer)).unwrap();
-                    exits.insert(exit_label, exit_type);
-                    label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));
-                    //need noop b/c can't have a label at end
-                    // match exit_type.clone(){
-                    //     VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
-                    //
-                    //     }
-                    //     VMExitType::TopLevelReturn { .. } => {
-                    //         todo!()
-                    //     }
-                    // }
-                }
-*/                IRInstr::Label(label) => {
+                /*                IRInstr::VMExit { before_exit_label: exit_label, exit_type, .. } => {
+                                    todo!();
+                                    let native_stack_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
+                                    let native_frame_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
+                                    let native_instruction_pointer = (offset_of!(JitCodeContext, native_saved) + offset_of!(SavedRegisters, instruction_pointer)) as i64;
+                                    let java_stack_pointer = (offset_of!(JitCodeContext, java_saved) + offset_of!(SavedRegisters, stack_pointer)) as i64;
+                                    let java_frame_pointer = (offset_of!(JitCodeContext, java_saved) + offset_of!(SavedRegisters, frame_pointer)) as i64;
+                                    let exit_handler_ip = offset_of!(JitCodeContext, exit_handler_ip) as i64;
+                                    if false {
+                                        //exit to exit handler
+                                        // save_java_stack
+                                        assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
+                                        // save_java_frame
+                                        assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
+                                        // restore_old_stack
+                                        assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
+                                        // restore_old_frame
+                                        assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
+                                        // call back to exit_handler
+                                        assembler.call(qword_ptr(r15 + exit_handler_ip)).unwrap();
+                                    }
+                                    //exit back to initial run_method
+                                    // if false {
+                                    // save_java_stack
+                                    assembler.mov(r15 + java_stack_pointer, rsp).unwrap();
+                                    // save_java_frame
+                                    assembler.mov(r15 + java_frame_pointer, rbp).unwrap();
+                                    // restore_old_stack
+                                    assembler.mov(rsp, r15 + native_stack_pointer).unwrap();
+                                    // restore_old_frame
+                                    assembler.mov(rbp, r15 + native_frame_pointer).unwrap();
+                                    // call_to_old
+                                    //todo this clobbers existing data
+                                    assembler.call(qword_ptr(r15 + native_instruction_pointer)).unwrap();
+                                    exits.insert(exit_label, exit_type);
+                                    label_instruction_offsets.push((exit_label, assembler.instructions().len() as u32));
+                                    //need noop b/c can't have a label at end
+                                    // match exit_type.clone(){
+                                    //     VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
+                                    //
+                                    //     }
+                                    //     VMExitType::TopLevelReturn { .. } => {
+                                    //         todo!()
+                                    //     }
+                                    // }
+                                }
+                */                IRInstr::Label(label) => {
                     let iced_label = iced_labels.get_mut(&label.name).unwrap();
                     label_instruction_offsets.push((label.name, assembler.instructions().len() as u32));
                     assembler.set_label(iced_label).unwrap();
@@ -1203,6 +1203,9 @@ todo!()/*                    IRInstr::VMExit {
                 IRInstr::IRCall { .. } => todo!(),
                 IRInstr::NPECheck { .. } => todo!(),
                 IRInstr::RestartPoint(_) => todo!(),
+                IRInstr::DebuggerBreakpoint => {
+                    assembler.int3().unwrap();
+                }
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
