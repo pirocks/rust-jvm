@@ -11,7 +11,7 @@ use another_jit_vm::stack::OwnedNativeStack;
 
 use crate::{IRInstr, IRInstructIndex, IRMethodID, OwnedIRStack, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RuntimeVMExitInput};
 use crate::compiler::RestartPointGenerator;
-use crate::ir_stack::FRAME_HEADER_END_OFFSET;
+use crate::ir_stack::{FRAME_HEADER_END_OFFSET, OwnedIRStack};
 
 #[test]
 fn basic_ir_vm_exit() {

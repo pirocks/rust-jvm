@@ -21,7 +21,7 @@ use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
@@ -48,6 +48,7 @@ pub struct JavaVMStateWrapperInner<'gc_life> {
     most_up_to_date_ir_method_id_for_method_id: HashMap<MethodId, IRMethodID>,
     ir_method_id_to_method_id: HashMap<IRMethodID, MethodId>,
     restart_points: HashMap<IRMethodID, HashMap<RestartPointID, IRInstructIndex>>,
+    ir_instr_index_to_bytecode_pc: HashMap<IRInstructIndex, ByteCodeOffset>,
     max_exit_number: ExitNumber,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
@@ -63,7 +64,7 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput) -> IRVMExitAction {
+    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput, exiting_pc: ByteCodeOffset) -> IRVMExitAction {
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
@@ -174,6 +175,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 most_up_to_date_ir_method_id_for_method_id: Default::default(),
                 ir_method_id_to_method_id: Default::default(),
                 restart_points: Default::default(),
+                ir_instr_index_to_bytecode_pc: Default::default(),
                 max_exit_number: ExitNumber(0),
                 // exit_types: Default::default(),
                 method_exit_handlers: Default::default(),
@@ -203,21 +205,22 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         // &IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
         let ir_exit_handler: ExitHandlerType<'vm_life, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
             let ir_stack_mut: IRStackMut = ir_stack_mut;
-            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-                int_state: ir_stack_mut,
-                thread: jvm.thread_state.get_current_thread(),
-                registered: false,
-                jvm,
-            };
-            int_state.register_interpreter_state_guard(jvm);
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();
             let ir_method_id = ir_vm_exit_event.ir_method;
             let method_id = *read_guard.ir_method_id_to_method_id.get(&ir_method_id).unwrap();
+            let exiting_pc = *read_guard.ir_instr_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
             drop(read_guard);
-            self.ir.inner.write().unwrap();
-            JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type)
+            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+                int_state: ir_stack_mut,
+                thread: jvm.thread_state.get_current_thread(),
+                registered: false,
+                jvm,
+                current_exited_pc: Some(exiting_pc)
+            };
+            int_state.register_interpreter_state_guard(jvm);
+            JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc)
         });
         self.ir.inner.write().unwrap();
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);

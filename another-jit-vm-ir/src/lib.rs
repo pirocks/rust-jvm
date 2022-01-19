@@ -184,11 +184,19 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
             let exiting_stack_pointer = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rsp;
             assert!(exiting_frame_position_rbp > exiting_stack_pointer);
+            let function_start = self.lookup_ir_method_id_pointer(ir_method_id);
+            let rip = vm_exit_event.saved_guest_registers.rip;
+            let ir_instruct_native_offset = unsafe { IRInstructNativeOffset(rip.offset_from(function_start).abs() as usize) };
+            let read_guard = self.inner.read().unwrap();
+            let method_native_offsets_to_index = dbg!(read_guard.method_ir_offsets.get(&ir_method_id).unwrap());
+            let ir_instr_index = *method_native_offsets_to_index.get_by_left(&dbg!(ir_instruct_native_offset)).unwrap();
+            drop(read_guard);
             let event = IRVMExitEvent {
                 inner: &vm_exit_event,
                 ir_method: ir_method_id,
                 exit_type: exit_input,
                 _exiting_frame_position_rbp: exiting_frame_position_rbp,
+                exit_ir_instr: ir_instr_index
             };
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
@@ -447,6 +455,7 @@ pub struct IRVMExitEvent<'l> {
     pub inner: &'l VMExitEvent,
     pub ir_method: IRMethodID,
     pub exit_type: RuntimeVMExitInput,
+    pub exit_ir_instr: IRInstructIndex,
     _exiting_frame_position_rbp: *mut c_void,
 }
 

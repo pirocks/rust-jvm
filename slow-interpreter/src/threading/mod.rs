@@ -18,7 +18,7 @@ use another_jit_vm_ir::ir_stack::IRStackMut;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-use rust_jvm_common::JavaThreadId;
+use rust_jvm_common::{ByteCodeOffset, JavaThreadId};
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
@@ -180,7 +180,8 @@ impl<'gc_life> ThreadState<'gc_life> {
             int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
             thread: jvm.thread_state.get_current_thread(),
             registered: false,
-            jvm
+            jvm,
+            current_exited_pc: None
         };
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {

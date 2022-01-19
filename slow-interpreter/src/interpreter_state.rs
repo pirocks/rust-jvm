@@ -60,6 +60,7 @@ pub enum InterpreterStateGuard<'vm_life, 'l> {
         thread: Arc<JavaThread<'vm_life>>,
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
+        current_exited_pc: Option<ByteCodeOffset>
     },
 }
 
