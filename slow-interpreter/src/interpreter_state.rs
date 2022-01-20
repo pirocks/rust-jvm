@@ -15,9 +15,9 @@ use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo::ireturn;
-use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -60,7 +60,7 @@ pub enum InterpreterStateGuard<'vm_life, 'l> {
         thread: Arc<JavaThread<'vm_life>>,
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
-        current_exited_pc: Option<ByteCodeOffset>
+        current_exited_pc: Option<ByteCodeOffset>,
     },
 }
 
@@ -155,12 +155,13 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
             }
-            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, current_exited_pc, .. } => {
                 return StackEntryRef {
                     frame_view: RuntimeJavaStackFrameRef {
                         ir_ref: int_state.current_frame_ref(),
                         jvm,
-                    }
+                    },
+                    pc: *current_exited_pc,
                 };
             }
         }
@@ -346,10 +347,10 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     }
                     StackEntry::Opaque { opaque_id, native_local_refs } => {
                         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
-                        let opaque_frame_info = OpaqueFrameInfo{ native_local_refs, operand_stack: vec![] };
+                        let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
                         let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
                         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
-                        int_state.push_frame(top_level_exit_ptr, None, wrapped_opaque_id.to_native(),data.as_slice(),ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr, None, wrapped_opaque_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                 };
                 FramePushGuard {
@@ -364,15 +365,15 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 
     pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard._correctly_exited = true;
-        if self.current_frame().is_opaque(){
+        if self.current_frame().is_opaque() {
             unsafe { drop(Box::from_raw(self.current_frame().opaque_frame_ptr())) }
         }
-        if self.current_frame().is_native_method(){
+        if self.current_frame().is_native_method() {
             unsafe { drop(Box::from_raw(self.current_frame().native_frame_ptr())) }
         }
-        match self{
+        match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
-            InterpreterStateGuard::LocalInterpreterState { int_state,.. } => {
+            InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
                 int_state.pop_frame(frame_push_guard.ir_frame_push_guard);
             }
         }
@@ -479,7 +480,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 }
 
 #[derive(Debug, Clone)]
-pub struct OpaqueFrameInfo<'gc_life>{
+pub struct OpaqueFrameInfo<'gc_life> {
     pub native_local_refs: Vec<HashSet<jobject>>,
     pub operand_stack: Vec<JavaValue<'gc_life>>,
 }

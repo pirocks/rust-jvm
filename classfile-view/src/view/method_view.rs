@@ -94,8 +94,8 @@ impl MethodView<'_> {
         self.method_i
     }
 
-    pub fn num_args(&self) -> usize {
-        self.desc().arg_types.len()
+    pub fn num_args(&self) -> u16 {
+        self.desc().arg_types.len() as u16
     }
 
     pub fn line_number_table(&self) -> Option<&LineNumberTable> {

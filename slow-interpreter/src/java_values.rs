@@ -1051,6 +1051,7 @@ pub union StackNativeJavaValue<'gc_life> {
     float: f32,
     double: f64,
     pub(crate) object: *mut c_void,
+    pub as_u64: u64,
     phantom_data: PhantomData<&'gc_life ()>,
 }
 
