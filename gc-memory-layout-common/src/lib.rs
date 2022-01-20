@@ -193,6 +193,7 @@ impl MemoryRegions {
             region_data.region_type
         } else {
             dbg!(region_base_masked_ptr as *mut c_void);
+            dbg!(ptr.as_ptr());
             todo!()
         };
         &self.types[region_type.0 as usize]

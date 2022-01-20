@@ -1,7 +1,6 @@
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::null_mut;
-use std::slice::from_raw_parts;
 
 use another_jit_vm::stack::OwnedNativeStack;
 use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
@@ -64,7 +63,7 @@ impl<'k> OwnedIRStack {
         let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut i64;
         method_id_ptr.write(method_id);
         for (i, data_elem) in data.iter().cloned().enumerate() {
-            let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i) as *mut u64;
+            let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i*size_of::<u64>()) as *mut u64;
             data_elem_ptr.write(data_elem)
         }
     }
@@ -259,9 +258,14 @@ impl IRFrameRef<'_> {
         *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
     }
 
-    pub fn data(&self, amount: usize) -> &[u64] {
-        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET) as *const u64 };
-        unsafe { from_raw_parts(data_raw_ptr, amount) }
+    pub fn data(&self, index: usize) -> u64 {
+        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET).sub(index*size_of::<u64>()) as *const u64 };
+        unsafe { data_raw_ptr.read() }
+    }
+
+    pub fn all_data<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) -> Vec<u64>{
+        let _frame_size = self.frame_size(ir_vm_state);
+        todo!()
     }
 
     pub fn frame_ptr(&self) -> *const c_void {

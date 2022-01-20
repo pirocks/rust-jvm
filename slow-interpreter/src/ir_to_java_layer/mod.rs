@@ -23,6 +23,7 @@ use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
+use rust_jvm_common::vtype::VType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -165,11 +166,20 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::LogWholeFrame { return_to_ptr } => {
                 let current_frame = int_state.current_frame();
+                current_frame.ir_stack_entry_debug_print();
                 let local_var_types = current_frame.local_var_types(jvm);
                 let local_vars = current_frame.local_vars(jvm);
                 for (i, local_var_type) in local_var_types.into_iter().enumerate() {
-                    let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
-                    eprintln!("LocalVar #{}: {:?}", i, jv)
+                    match local_var_type.to_runtime_type(){
+                        RuntimeType::TopType => {
+                            eprintln!("LocalVar #{}: Top",i)
+                        }
+                        _ => {
+                            let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
+                            eprintln!("LocalVar #{}: {:?}", i, jv)
+                        }
+                    }
+
                 }
                 let operand_stack_types = current_frame.operand_stack(jvm).types();
                 let operand_stack = current_frame.operand_stack(jvm);
