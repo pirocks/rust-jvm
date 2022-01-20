@@ -428,7 +428,7 @@ fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
 //index is an index, offset is a byte offset from method start
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
-pub struct IRInstructIndex(usize);
+pub struct IRInstructIndex(pub usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct IRInstructNativeOffset(usize);

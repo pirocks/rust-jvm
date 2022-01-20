@@ -106,9 +106,9 @@ impl<'l> CompilerLabeler<'l> {
 }
 
 
-pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<IRInstr> {
+pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset,IRInstr)> {
     let cinstructions = method_frame_data.code_by_index.as_slice();
-    let mut initial_ir: Vec<IRInstr> = vec![];
+    let mut final_ir: Vec<(ByteCodeOffset, IRInstr)> = vec![];
     let mut labels = vec![];
     let mut compiler_labeler = CompilerLabeler {
         labeler,
@@ -127,81 +127,82 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             current_offset,
             compiler_labeler: &mut compiler_labeler,
         };
+        let mut this_function_ir = vec![];
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                initial_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type));
+                this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
-                initial_ir.extend(return_void(method_frame_data));
+                this_function_ir.extend(return_void(method_frame_data));
             }
             CompressedInstructionInfo::ireturn => {
-                initial_ir.extend(ireturn(method_frame_data, current_instr_data));
+                this_function_ir.extend(ireturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::aload_0 => {
-                initial_ir.extend(aload_n(method_frame_data, &current_instr_data, 0));
+                this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, 0));
             }
             CompressedInstructionInfo::aload_1 => {
-                initial_ir.extend(aload_n(method_frame_data, &current_instr_data, 1));
+                this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, 1));
             }
             CompressedInstructionInfo::aload_2 => {
-                initial_ir.extend(aload_n(method_frame_data, &current_instr_data, 2));
+                this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, 2));
             }
             CompressedInstructionInfo::aload_3 => {
-                initial_ir.extend(aload_n(method_frame_data, &current_instr_data, 3));
+                this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, 3));
             }
             CompressedInstructionInfo::aload(n) => {
-                initial_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
+                this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
             }
             CompressedInstructionInfo::aconst_null => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 0))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
             CompressedInstructionInfo::if_acmpne(offset) => {
-                initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
+                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
             }
             CompressedInstructionInfo::if_acmpeq(offset) => {
-                initial_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::EQ, *offset as i32));
+                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::EQ, *offset as i32));
             }
             CompressedInstructionInfo::iconst_0 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 0))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
             CompressedInstructionInfo::iconst_1 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 1))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 1))
             }
             CompressedInstructionInfo::iconst_2 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 2))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 2))
             }
             CompressedInstructionInfo::iconst_3 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 3))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 3))
             }
             CompressedInstructionInfo::iconst_4 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 4))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 4))
             }
             CompressedInstructionInfo::iconst_5 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, 5))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 5))
             }
             CompressedInstructionInfo::iconst_m1 => {
-                initial_ir.extend(const_64(method_frame_data, current_instr_data, -1i64 as u64))
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, -1i64 as u64))
             }
             CompressedInstructionInfo::goto_(offset) => {
-                initial_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
+                this_function_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                initial_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *ccn))
+                this_function_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *ccn))
             }
             CompressedInstructionInfo::dup => {
-                initial_ir.extend(dup(method_frame_data, current_instr_data))
+                this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                initial_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                initial_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
+                this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
                     None => {
                         let exit_label = labeler.new_label(&mut labels);
-                        initial_ir.push(
+                        this_function_ir.push(
                             IRInstr::VMExit2 {
                                 exit_type: IRVMExitType::LoadClassAndRecompile { class: todo!() },
                             },
@@ -217,18 +218,19 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 }
             }
             CompressedInstructionInfo::putstatic { name, desc, target_class } => {
-                initial_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
-                initial_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, elem_type))
+                this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, elem_type))
             }
             other => {
                 dbg!(other);
                 todo!()
             }
         }
+        final_ir.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()))
     }
-    initial_ir.into_iter().collect_vec()
+    final_ir.into_iter().collect_vec()
 }
 
 pub mod static_fields;
