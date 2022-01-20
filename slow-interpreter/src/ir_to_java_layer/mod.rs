@@ -14,7 +14,7 @@ use iced_x86::ConditionCode::{o, s};
 use itertools::Itertools;
 use libc::read;
 
-use another_jit_vm::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
+use another_jit_vm::{Method, SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
@@ -48,14 +48,33 @@ pub mod vm_exit_abi;
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub struct ExitNumber(u64);
 
+pub struct JavaVMStateMethod {
+    restart_points: HashMap<RestartPointID, IRInstructIndex>,
+    ir_index_to_bytecode_pc: HashMap<IRInstructIndex, ByteCodeOffset>,
+    associated_method_id: MethodId,
+}
+
 pub struct JavaVMStateWrapperInner<'gc_life> {
     most_up_to_date_ir_method_id_for_method_id: HashMap<MethodId, IRMethodID>,
-    ir_method_id_to_method_id: HashMap<IRMethodID, MethodId>,
-    restart_points: HashMap<IRMethodID, HashMap<RestartPointID, IRInstructIndex>>,
-    ir_instr_index_to_bytecode_pc: HashMap<IRMethodID, HashMap<IRInstructIndex, ByteCodeOffset>>,
+    methods: HashMap<IRMethodID, JavaVMStateMethod>,
     max_exit_number: ExitNumber,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
+
+impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
+    pub fn java_method_for_ir_method_id(&self, ir_method_id: IRMethodID) -> &JavaVMStateMethod {
+        self.methods.get(&ir_method_id).unwrap()
+    }
+
+    pub fn associated_method_id(&self, ir_method_id: IRMethodID) -> MethodId {
+        self.java_method_for_ir_method_id(ir_method_id).associated_method_id
+    }
+
+    pub fn restart_location(&self, ir_method_id: IRMethodID, restart_point: RestartPointID) -> IRInstructIndex {
+        *self.methods.get(&ir_method_id).unwrap().restart_points.get(&restart_point).unwrap()
+    }
+}
+
 
 pub enum JavaExitAction {}
 
@@ -177,9 +196,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             ir: IRVMState::new(),
             inner: RwLock::new(JavaVMStateWrapperInner {
                 most_up_to_date_ir_method_id_for_method_id: Default::default(),
-                ir_method_id_to_method_id: Default::default(),
-                restart_points: Default::default(),
-                ir_instr_index_to_bytecode_pc: Default::default(),
+                methods: Default::default(),
                 max_exit_number: ExitNumber(0),
                 // exit_types: Default::default(),
                 method_exit_handlers: Default::default(),
@@ -201,12 +218,11 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let mut frame_to_run_on = int_state.current_frame_mut();
         let frame_ir_method_id = frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap();
-        assert_eq!(self.inner.read().unwrap().ir_method_id_to_method_id.get(&frame_ir_method_id).unwrap(), &method_id);
+        assert_eq!(self.inner.read().unwrap().associated_method_id(ir_method_id), method_id);
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
@@ -239,14 +255,11 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn lookup_restart_point(&self, method_id: MethodId, restart_point_id: RestartPointID) -> *const c_void {
         let read_guard = self.inner.read().unwrap();
         let ir_method_id = *read_guard.most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
-        let restart_points = read_guard.restart_points.get(&ir_method_id).unwrap();
-        let ir_instruct_index = *restart_points.get(&restart_point_id).unwrap();
+        let ir_instruct_index = read_guard.restart_location(ir_method_id, restart_point_id);
         drop(read_guard);
         self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
     }
 }
-
-
 
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
@@ -255,15 +268,15 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data);
-        // &IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
         let ir_exit_handler: ExitHandlerType<'vm_life, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
             let ir_stack_mut: IRStackMut = ir_stack_mut;
             let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
             let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
             let read_guard = self.inner.read().unwrap();
             let ir_method_id = ir_vm_exit_event.ir_method;
-            let method_id = *read_guard.ir_method_id_to_method_id.get(&ir_method_id).unwrap();
-            let exiting_pc = *read_guard.ir_instr_index_to_bytecode_pc.get(&ir_method_id).unwrap().get(&dbg!(ir_vm_exit_event.exit_ir_instr)).unwrap();
+            let method = read_guard.methods.get(&ir_method_id).unwrap();
+            let method_id = method.associated_method_id;
+            let exiting_pc = *method.ir_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
             drop(read_guard);
             let mut int_state = InterpreterStateGuard::LocalInterpreterState {
                 int_state: ir_stack_mut,
@@ -286,9 +299,11 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
-        write_guard.ir_method_id_to_method_id.insert(ir_method_id, method_id);
-        write_guard.restart_points.insert(ir_method_id, restart_points);
-        write_guard.ir_instr_index_to_bytecode_pc.insert(ir_method_id, ir_index_to_bytecode_pc);
+        write_guard.methods.insert(ir_method_id,JavaVMStateMethod{
+            restart_points,
+            ir_index_to_bytecode_pc,
+            associated_method_id: method_id
+        });
     }
 }
 
