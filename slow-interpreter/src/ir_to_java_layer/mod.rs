@@ -22,7 +22,8 @@ use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTyp
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::runtime_type::RuntimeType;
+use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
@@ -89,10 +90,18 @@ pub enum VMExitEvent<'vm_life> {
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
     fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput, exiting_pc: ByteCodeOffset) -> IRVMExitAction {
+        // let current_frame = int_state.current_frame();
+        // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        // let view = rc.view();
+        // let method_view = view.method_view_i(method_i);
+        // let code = method_view.code_attribute().unwrap();
+        // drop(current_frame);
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
+                // int_state.current_frame().ir_stack_entry_debug_print();
+                // dbg!(int_state.current_frame().operand_stack(jvm).get(0, RuntimeType::IntType/*RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))*/));
                 assert!(*len > 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
@@ -148,6 +157,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
+                int_state.current_frame().ir_stack_entry_debug_print();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
@@ -165,10 +175,20 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::LogWholeFrame { return_to_ptr } => {
+                eprintln!("LogWholeFrame");
                 let current_frame = int_state.current_frame();
+                dbg!(current_frame.pc);
+                let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                let view = rc.view();
+                let method_view = view.method_view_i(method_i);
+                dbg!(method_view.name().0.to_str(&jvm.string_pool));
+                dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
+                dbg!(method_view.desc_str().to_str(&jvm.string_pool));
                 current_frame.ir_stack_entry_debug_print();
                 let local_var_types = current_frame.local_var_types(jvm);
                 let local_vars = current_frame.local_vars(jvm);
+                eprintln!("Local Vars:");
                 for (i, local_var_type) in local_var_types.into_iter().enumerate() {
                     match local_var_type.to_runtime_type(){
                         RuntimeType::TopType => {
@@ -183,8 +203,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
                 let operand_stack_types = current_frame.operand_stack(jvm).types();
                 let operand_stack = current_frame.operand_stack(jvm);
+                eprintln!("Operand Stacks:");
                 for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-                    let jv = local_vars.get(i as u16, operand_stack_type);
+                    let jv = operand_stack.get(i as u16, operand_stack_type);
                     eprintln!("OperandStack #{}: {:?}", i, jv)
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }

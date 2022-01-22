@@ -168,6 +168,9 @@ pub enum IRVMExitType {
     },
     LogWholeFrame{
         //todo
+    },
+    TraceInstruction{
+
     }
 }
 

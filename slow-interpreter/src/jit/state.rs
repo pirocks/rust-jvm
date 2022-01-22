@@ -561,7 +561,7 @@ impl JITedCodeState {
                 }
                 todo => todo!("{:?}", todo),
             }
-            initial_ir.push((current_offset, IRInstr::FNOP));
+            initial_ir.push((current_offset, IRInstr::NOP));
         }
         let mut ir = vec![];
 
@@ -1191,7 +1191,7 @@ impl JITedCodeState {
                 IRInstr::LoadSP { to } => {
                     assembler.mov(to.to_native_64(), rsp).unwrap();
                 }
-                IRInstr::FNOP => {
+                IRInstr::NOP => {
                     // assembler.fnop().unwrap();
                 }
                 IRInstr::CopyRegister { .. } => todo!(),
@@ -1353,9 +1353,9 @@ impl JITedCodeState {
             let memory_region: MutexGuard<MemoryRegions> = jvm.gc.memory_region.lock().unwrap();
             let mut jit_code_context = JitCodeContext {
                 native_saved: SavedRegisters {
-                    stack_pointer: 0xdeaddeaddeaddead as *mut c_void,
-                    frame_pointer: 0xdeaddeaddeaddead as *mut c_void,
-                    instruction_pointer: 0xdeaddeaddeaddead as *mut c_void,
+                    stack_pointer: todo!(),
+                    frame_pointer: todo!(),
+                    instruction_pointer: todo!(),
                     status_register,
                 },
                 java_saved: SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: target_ip, status_register },

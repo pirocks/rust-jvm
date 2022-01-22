@@ -201,7 +201,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
             let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
-            ir_stack_mut.debug_print_stack_strace(self);
+            // ir_stack_mut.debug_print_stack_strace(self);
             drop(read_guard);
             match (handler.deref())(&event, ir_stack_mut, self, launched_vm.extra) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
@@ -246,7 +246,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             };
             unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
         }
-        eprintln!("{}", formatted_instructions);
+        // eprintln!("{}", formatted_instructions);
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
@@ -363,7 +363,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::GrowStack { .. } => todo!(),
         IRInstr::LoadSP { .. } => todo!(),
         IRInstr::WithAssembler { .. } => todo!(),
-        IRInstr::FNOP => todo!(),
+        IRInstr::NOP => {
+            assembler.nop().unwrap();
+        }
         IRInstr::Label(label) => {
             let label_name = label.name;
             let code_label = labels.entry(label_name).or_insert_with(|| assembler.create_label());

@@ -1,4 +1,3 @@
-
 use std::cell::RefCell;
 use std::mem::transmute;
 use std::ops::Deref;
@@ -6,7 +5,7 @@ use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use another_jit_vm::{Register};
+use another_jit_vm::Register;
 use another_jit_vm::stack::OwnedNativeStack;
 
 use crate::{IRInstr, IRInstructIndex, IRMethodID, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RuntimeVMExitInput};
@@ -27,6 +26,7 @@ fn basic_ir_vm_exit() {
     let instructions = vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
     let was_exited_clone = was_exited.clone();
     let (ir_method_id, restart_points) = ir_vm_ref.add_function(instructions, frame_size, Arc::new(move |ir_event, ir_stack_ref_mut, self_, _| {
+        assert_eq!(ir_event.exit_ir_instr, IRInstructIndex(0));
         match ir_event.exit_type {
             RuntimeVMExitInput::TopLevelReturn { .. } => {
                 *was_exited_clone.lock().unwrap() = true;
@@ -75,6 +75,7 @@ fn basic_ir_function_call() {
     }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
     let was_exited_clone = was_exited.clone();
     let (ir_method_id, restart_points) = ir_vm_ref.add_function(instructions, frame_size, Arc::new(move |ir_event, owned_ir_stack, self_, extra| {
+        assert_eq!(ir_event.exit_ir_instr, IRInstructIndex(1));
         match ir_event.exit_type {
             RuntimeVMExitInput::TopLevelReturn { .. } => {
                 *was_exited_clone.lock().unwrap() = true;
@@ -83,7 +84,7 @@ fn basic_ir_function_call() {
         }
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     }));
-    let frame_guard = ir_stack.push_frame(null_mut(),  Some(ir_method_id), -1, &[], ir_vm_ref);
+    let frame_guard = ir_stack.push_frame(null_mut(), Some(ir_method_id), -1, &[], ir_vm_ref);
     ir_vm_ref.run_method(ir_method_id, &mut ir_stack.current_frame_mut(), &mut ());
     ir_stack.pop_frame(frame_guard);
     assert!(*was_exited.lock().unwrap().deref());
@@ -125,6 +126,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
         eprintln!("Took exit on second call");
         owned_ir_stack.debug_print_stack_strace(self_);
         let ir_vm_exit: &IRVMExitEvent = ir_vm_exit;
+        assert_eq!(ir_vm_exit.exit_ir_instr, IRInstructIndex(0));
         assert!(matches!(ir_vm_exit.exit_type,RuntimeVMExitInput::TopLevelReturn {..}));
         IRVMExitAction::RestartAtIndex { index: IRInstructIndex(1) }
     }));
@@ -143,11 +145,12 @@ fn nested_basic_ir_function_call_on_same_stack() {
     let functions_clone = functions.clone();
     let (ir_method_to_call_first, _) = ir_vm_ref.add_function(to_call_function_instructions_first, frame_size, Arc::new(move |ir_vm_exit, owned_ir_stack, self_, extra| {
         eprintln!("Took exit on first call");
+        assert_eq!(ir_vm_exit.exit_ir_instr, IRInstructIndex(0));
         let functions = functions_clone.borrow().unwrap();
         let self_: &'_ IRVMState<'_, ()> = self_;
         let mut owned_ir_stack: IRStackMut = owned_ir_stack;
         owned_ir_stack.debug_print_stack_strace(self_);
-        let frame_guard = owned_ir_stack.push_frame(null_mut(),  Some(functions.ir_method_calling_second), -1, &[], ir_vm_ref);
+        let frame_guard = owned_ir_stack.push_frame(null_mut(), Some(functions.ir_method_calling_second), -1, &[], ir_vm_ref);
         owned_ir_stack.debug_print_stack_strace(self_);
         let mut current_frame_mut = owned_ir_stack.current_frame_mut();
         let res = self_.run_method(functions.ir_method_calling_second, &mut current_frame_mut, extra);
@@ -165,6 +168,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
     }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
 
     let (ir_method_calling_first, _) = ir_vm_ref.add_function(calling_function_first_instructions, frame_size, Arc::new(move |ir_vm_exit, owned_ir_stack, self_, extra| {
+        assert_eq!(ir_vm_exit.exit_ir_instr, IRInstructIndex(1));
         IRVMExitAction::ExitVMCompletely { return_data: 0 }
     }));
 
@@ -176,10 +180,11 @@ fn nested_basic_ir_function_call_on_same_stack() {
         current_frame_size: 0,
         new_frame_size: frame_size,
         target_address: ir_vm_ref.lookup_ir_method_id_pointer(ir_method_to_call_second),
-    }, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
+    }, IRInstr::NOP, IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn }];
 
     let (ir_method_calling_second, _) = ir_vm_ref.add_function(calling_function_second_instructions, frame_size, Arc::new(move |ir_vm_exit, owned_ir_stack, self_, extra| {
         eprintln!("Took exit on calling second");
+        assert_eq!(ir_vm_exit.exit_ir_instr, IRInstructIndex(2));
         let functions = functions_clone.borrow().unwrap();
         IRVMExitAction::ExitVMCompletely { return_data: NESTED_IR_METHOD_EXPECTED_RES }
     }));
@@ -196,7 +201,7 @@ fn nested_basic_ir_function_call_on_same_stack() {
     {
         let mut frame_mut = ir_stack.current_frame_mut();
         let res = ir_vm_ref.run_method(ir_method_calling_first, &mut frame_mut, &mut ());
-        assert_eq!(res,0);
+        assert_eq!(res, 0);
     }
     ir_stack.pop_frame(frame_guard);
 }

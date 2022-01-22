@@ -103,10 +103,11 @@ impl<'gc_life> GC<'gc_life> {
             return;
         }
         unsafe {
-            if obj.as_ptr() == transmute(0xDEADDEADDEADDEADusize) {
+            todo!()
+            /*if obj.as_ptr() == transmute(0xDEADDEADDEADDEADusize) {
                 //todo need better handling of top, but is fine for now
                 return;
-            }
+            }*/
         }
         visited.insert(obj);
         match todo!()/*unsafe { obj.as_ref() }*/ {
@@ -492,33 +493,33 @@ impl<'gc_life> Debug for JavaValue<'gc_life> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
             JavaValue::Long(elem) => {
-                writeln!(f, "Long:{}", elem)
+                write!(f, "Long:{}", elem)
             }
             JavaValue::Int(elem) => {
-                writeln!(f, "Int:{}", elem)
+                write!(f, "Int:{}", elem)
             }
             JavaValue::Short(elem) => {
-                writeln!(f, "Short:{}", elem)
+                write!(f, "Short:{}", elem)
             }
             JavaValue::Byte(elem) => {
-                writeln!(f, "Byte:{}", elem)
+                write!(f, "Byte:{}", elem)
             }
             JavaValue::Boolean(elem) => {
-                writeln!(f, "Boolean:{}", elem)
+                write!(f, "Boolean:{}", elem)
             }
             JavaValue::Char(elem) => {
-                writeln!(f, "Char:{}", elem)
+                write!(f, "Char:{}", elem)
             }
             JavaValue::Float(elem) => {
-                writeln!(f, "Float:{}", elem)
+                write!(f, "Float:{}", elem)
             }
             JavaValue::Double(elem) => {
-                writeln!(f, "Double:{}", elem)
+                write!(f, "Double:{}", elem)
             }
             JavaValue::Object(obj) => {
-                writeln!(f, "obj:{:?}", obj.as_ref().map(|obj|obj.raw_ptr.as_ptr()).unwrap_or(null_mut()))
+                write!(f, "obj:{:?}", obj.as_ref().map(|obj|obj.raw_ptr.as_ptr()).unwrap_or(null_mut()))
             }
-            JavaValue::Top => writeln!(f, "top"),
+            JavaValue::Top => write!(f, "top"),
         }
     }
 }

@@ -48,7 +48,7 @@ pub enum IRInstr {
         new_frame_size: usize,
         target_address: *const c_void, //todo perhaps this should be an ir_method id
     },
-    FNOP,
+    NOP,
     DebuggerBreakpoint,
     Label(IRLabel),
 }
@@ -154,7 +154,7 @@ impl IRInstr {
             IRInstr::IRCall { .. } => {
                 "IRCall".to_string()
             }
-            IRInstr::FNOP => {
+            IRInstr::NOP => {
                 "FNOP".to_string()
             }
             IRInstr::Label(_) => {

@@ -169,9 +169,11 @@ impl MemoryRegions {
             None => current_region_to_use.region_base(&self.early_mmaped_regions),
         };
         unsafe {
+            let length = (dbg!(current_region_to_use.region_size()) / dbg!(to_allocate_type.size())) / 8;
+            assert_ne!(length, 0);
             to_push_to.push(RegionData {
                 region_base: new_region_base,
-                used_bitmap: mmap(null_mut(), (current_region_to_use.region_size() / to_allocate_type.size()) / 8, ProtFlags::PROT_WRITE | ProtFlags::PROT_READ, MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE, -1, 0).unwrap(),
+                used_bitmap: mmap(null_mut(), length, ProtFlags::PROT_WRITE | ProtFlags::PROT_READ, MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE, -1, 0).unwrap(),
                 num_current_elements: AtomicUsize::new(0),
                 region_type: type_id,
                 region_elem_size: to_allocate_type.size(),
