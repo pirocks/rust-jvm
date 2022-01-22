@@ -341,7 +341,7 @@ impl Monitor2 {
                 }
             }
         } else {
-            int_state.debug_print_stack_trace(jvm);
+            int_state.debug_print_stack_trace(jvm,false);
             dbg!(guard.owner);
             todo!("illegal monitor state")
         }
@@ -382,7 +382,7 @@ impl Monitor2 {
             guard.waiting_notify.push(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
         } else {
-            int_state.debug_print_stack_trace(jvm);
+            int_state.debug_print_stack_trace(jvm, false);
             todo!("throw illegal monitor state")
         }
         drop(guard);

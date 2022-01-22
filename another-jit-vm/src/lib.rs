@@ -111,6 +111,10 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     pub fn lookup_method_addresses(&self, method_implementation_id: MethodImplementationID) -> Range<*const c_void> {
         self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
     }
+
+    pub fn lookup_ip(&self, ip: *const c_void) -> MethodImplementationID{
+        *self.inner.read().unwrap().code_regions_to_method.get(&ip).unwrap()
+    }
 }
 
 impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {

@@ -8,6 +8,7 @@ use std::ptr::null_mut;
 use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
 
 use iced_x86::CC_b::c;
+use iced_x86::CC_ne::ne;
 use itertools::Itertools;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut, OwnedIRStack};
@@ -17,11 +18,12 @@ use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classfile::InstructionInfo::ireturn;
+use rust_jvm_common::classfile::InstructionInfo::{ireturn, jsr};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
+use crate::ir_to_java_layer::dump_frame_contents_impl;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
@@ -228,15 +230,29 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn previous_frame(&self) -> StackEntryRef<'gc_life, '_> {
-        /*match self.int_state.as_ref().unwrap().deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                let len = call_stack.len();
-                StackEntryRef::LegacyInterpreter { entry: &call_stack[len - 2] }
-            }*/
-            InterpreterState::Jit { call_stack, jvm } => StackEntryRef::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack, null_mut()) },
-        }*/
-        todo!()
+    pub fn previous_frame(&self) -> Option<StackEntryRef<'gc_life, '_>> {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => {
+                todo!()
+            }
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+                let current = int_state.previous_frame_ref();
+                let prev_method_id = int_state.previous_frame_ref().ir_method_id();
+                if prev_method_id.is_none() || prev_method_id.unwrap() == dbg!(jvm.java_vm_state.ir.get_top_level_return_ir_method_id()) {
+                    return None;
+                }
+                let (prev_method_id, prev_pc) = jvm.java_vm_state.lookup_ip(current.prev_rip())?;
+                let prev_ir_frame = int_state.previous_frame_ref();
+                assert_eq!(prev_ir_frame.method_id(), Some(prev_method_id));
+                Some(StackEntryRef {
+                    frame_view: RuntimeJavaStackFrameRef {
+                        ir_ref: prev_ir_frame,
+                        jvm,
+                    },
+                    pc: Some(prev_pc),
+                })
+            }
+        }
     }
 
     pub fn set_throw(&mut self, val: Option<GcManagedObject<'gc_life>>) {
@@ -393,8 +409,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn current_pc(&self) -> ByteCodeOffset {
-        todo!()
-        /*self.current_frame().pc(todo!())*/
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { current_exited_pc, .. } => {
+                current_exited_pc.unwrap()
+            }
+        }
     }
 
     pub fn set_current_pc_offset(&mut self, new_offset: i32) {
@@ -417,12 +437,14 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 JavaFrameIterRef {
                     ir: int_state.frame_iter(&jvm.java_vm_state.ir),
                     jvm,
+                    current_pc: Some(self.current_pc()),
                 }
             }
         }
     }
 
-    pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, full: bool) {
+        let pc = self.current_frame().pc;
         let iter = self.frame_iter();
         for (i, stack_entry) in iter.enumerate() {
             if stack_entry.try_class_pointer(jvm).is_some()
@@ -435,7 +457,14 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm))
+                    println!("{:?}.{} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm));
+                    if full {
+                        if stack_entry.pc.is_some() {
+                            dump_frame_contents_impl(jvm, stack_entry);
+                        }else {
+                            stack_entry.ir_stack_entry_debug_print();
+                        }
+                    }
                 }
             } else {
                 println!("missing");
@@ -488,18 +517,31 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
 pub struct JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
     ir: IRFrameIterRef<'l, 'h, 'vm_life, ExtraData>,
     jvm: &'vm_life JVMState<'vm_life>,
+    current_pc: Option<ByteCodeOffset>,
 }
 
 impl<'l, 'h, 'vm_life, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
     type Item = StackEntryRef<'vm_life, 'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.ir.next().map(|ir_frame_ref| StackEntryRef {
-            frame_view: RuntimeJavaStackFrameRef {
-                ir_ref: ir_frame_ref,
-                jvm: self.jvm,
-            },
-            pc: None,//todo can get this out of prev_rip
+        self.ir.next().map(|ir_frame_ref| {
+            let prev_rip = ir_frame_ref.prev_rip();
+            let res = StackEntryRef {
+                frame_view: RuntimeJavaStackFrameRef {
+                    ir_ref: ir_frame_ref,
+                    jvm: self.jvm,
+                },
+                pc: self.current_pc,
+            };
+            match self.jvm.java_vm_state.lookup_ip(prev_rip) {
+                Some((_, new_pc)) => {
+                    self.current_pc = Some(new_pc);
+                },
+                None => {
+                    self.current_pc = None
+                },
+            };
+            res
         })
     }
 }

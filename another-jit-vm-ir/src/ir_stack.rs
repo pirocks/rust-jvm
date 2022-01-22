@@ -6,7 +6,7 @@ use another_jit_vm::stack::OwnedNativeStack;
 use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use rust_jvm_common::MethodId;
 
-use crate::{IRMethodID, IRVMState};
+use crate::{IRInstructIndex, IRMethodID, IRVMState};
 
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames
@@ -16,8 +16,8 @@ pub struct OwnedIRStack {
 
 
 impl<'k> OwnedIRStack {
-    pub fn new()-> Self{
-        Self{
+    pub fn new() -> Self {
+        Self {
             native: OwnedNativeStack::new()
         }
     }
@@ -63,7 +63,7 @@ impl<'k> OwnedIRStack {
         let method_id_ptr = frame_pointer.sub(FRAME_HEADER_METHOD_ID_OFFSET) as *mut i64;
         method_id_ptr.write(method_id);
         for (i, data_elem) in data.iter().cloned().enumerate() {
-            let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i*size_of::<u64>()) as *mut u64;
+            let data_elem_ptr = frame_pointer.sub(FRAME_HEADER_END_OFFSET).sub(i * size_of::<u64>()) as *mut u64;
             data_elem_ptr.write(data_elem)
         }
     }
@@ -139,7 +139,7 @@ impl<'l, 'k> IRStackMut<'l> {
         eprintln!("End IR stacktrace");
     }
 
-    pub fn frame_iter<ExtraData>(&'l self, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'l, 'h, 'vm_life,ExtraData>{
+    pub fn frame_iter<ExtraData>(&'l self, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
         unsafe { self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state) }
     }
 
@@ -149,6 +149,22 @@ impl<'l, 'k> IRStackMut<'l> {
             ptr: self.current_rbp,
             _ir_stack: self.owned_ir_stack,
         }
+    }
+
+    pub fn previous_frame_ref(&self) -> IRFrameRef {
+        let prev_rbp = self.current_frame_ref().prev_rbp();
+        IRFrameRef {
+            ptr: prev_rbp,
+            _ir_stack: self.owned_ir_stack,
+        }
+    }
+
+    pub fn previous_frame_ir_instr<ExtraData>(&self, ir_vm_state: &IRVMState<'vm_life, ExtraData>) -> IRInstructIndex {
+        let current = self.current_frame_ref();
+        let prev_rip = current.prev_rip();
+        let (ir_method_id_from_ip, ir_instruct) = ir_vm_state.lookup_ip(prev_rip);
+        assert_eq!(self.previous_frame_ref().ir_method_id(), Some(ir_method_id_from_ip));
+        ir_instruct
     }
 
     pub fn current_frame_mut(&'_ mut self) -> IRFrameMut<'_> {
@@ -229,7 +245,7 @@ impl IRFrameRef<'_> {
     }
 
 
-    pub fn raw_method_id(&self) -> i64{
+    pub fn raw_method_id(&self) -> i64 {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
         res as i64
     }
@@ -251,22 +267,29 @@ impl IRFrameRef<'_> {
         res as *mut c_void
     }
 
+    pub fn prev_rip(&self) -> *const c_void {
+        let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_PREV_RIP_OFFSET));
+        let frame_header = unsafe { read_frame_ir_header(self.ptr) };
+        assert_eq!(res, frame_header.prev_rip as u64);
+        res as *mut c_void
+    }
+
     pub fn frame_size<ExtraData>(&self, ir_vm_state: &IRVMState<ExtraData>) -> usize {
         let ir_method_id = match self.ir_method_id() {
             Some(x) => x,
             None => {
-                return DEFAULT_FRAME_SIZE
+                return DEFAULT_FRAME_SIZE;
             }
         };
         *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
     }
 
     pub fn data(&self, index: usize) -> u64 {
-        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET).sub(index*size_of::<u64>()) as *const u64 };
+        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET).sub(index * size_of::<u64>()) as *const u64 };
         unsafe { data_raw_ptr.read() }
     }
 
-    pub fn all_data<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) -> Vec<u64>{
+    pub fn all_data<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) -> Vec<u64> {
         let _frame_size = self.frame_size(ir_vm_state);
         todo!()
     }
@@ -319,17 +342,16 @@ impl<'l> IRFrameMut<'l> {
 
     pub fn assert_prev_rip(&mut self, prev_rip: *const c_void) {
         let actual_prev_rip = self.downgrade().read_at_offset(FramePointerOffset(FRAME_HEADER_PREV_RIP_OFFSET));
-        assert_eq!(actual_prev_rip,prev_rip as u64);
+        assert_eq!(actual_prev_rip, prev_rip as u64);
     }
 }
-
 
 
 pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct UnPackedIRFrameHeader {
-    _prev_rip: *mut c_void,
+    prev_rip: *mut c_void,
     prev_rbp: *mut c_void,
     ir_method_id: IRMethodID,
     method_id_ignored: u64,
@@ -363,7 +385,7 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
     let magic_1 = magic1_ptr.read();
     let magic_2 = magic2_ptr.read();
     let res = UnPackedIRFrameHeader {
-        _prev_rip: rip_ptr.read(),
+        prev_rip: rip_ptr.read(),
         prev_rbp: rbp_ptr.read(),
         ir_method_id: IRMethodID(*ir_method_id_ptr),
         method_id_ignored: *method_id_ptr,

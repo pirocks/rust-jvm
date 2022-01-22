@@ -3,14 +3,15 @@
 #![feature(box_syntax)]
 #![feature(once_cell)]
 #![feature(trait_alias)]
+#![feature(bound_as_ref)]
 
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
-use std::collections::Bound::Unbounded;
+use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
-use std::ops::Deref;
+use std::iter::Step;
+use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
-use bimap::BiHashMap;
 use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
 use itertools::Itertools;
@@ -37,8 +38,9 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
-    current_implementation: BiHashMap<IRMethodID, MethodImplementationID>,
-    //todo not used currently
+    current_implementation: HashMap<IRMethodID, MethodImplementationID>,
+    implementation_id_to_ir_method_id: HashMap<MethodImplementationID,IRMethodID>,
+
     frame_sizes_by_ir_method_id: HashMap<IRMethodID, usize>,
     method_ir_offsets_range: HashMap<IRMethodID, BTreeMap<IRInstructNativeOffset, IRInstructIndex>>,
     method_ir_offsets_at_index: HashMap<IRMethodID, HashMap<IRInstructIndex, IRInstructNativeOffset>>,
@@ -55,6 +57,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             ir_method_id_max: IRMethodID(0),
             top_level_return_function_id: None,
             current_implementation: Default::default(),
+            implementation_id_to_ir_method_id: Default::default(),
             frame_sizes_by_ir_method_id: Default::default(),
             method_ir_offsets_range: Default::default(),
             method_ir_offsets_at_index: Default::default(),
@@ -126,10 +129,21 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         }
     }
 
+    pub fn lookup_ip(&self, ip: *const c_void) -> (IRMethodID, IRInstructIndex) {
+        let implementation_id = self.native_vm.lookup_ip(ip);
+        let method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
+        let native_offset = IRInstructNativeOffset(unsafe { method_start.offset_from(ip) } as usize);
+        let guard = self.inner.read().unwrap();
+        let ir_method_id = *guard.implementation_id_to_ir_method_id.get(&implementation_id).unwrap();
+        let native_offsets_to_index = guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
+        let ir_instruct_index = *native_offsets_to_index.range(Unbounded..Included(native_offset)).last().unwrap().1;
+        (ir_method_id,ir_instruct_index)
+    }
+
     pub fn lookup_ir_method_id_pointer(&self, ir_method_id: IRMethodID) -> *const c_void {
         let guard = self.inner.read().unwrap();
         let current_implementation = &guard.current_implementation;
-        let ir_method_implementation = *current_implementation.get_by_left(&ir_method_id).unwrap();
+        let ir_method_implementation = *current_implementation.get(&ir_method_id).unwrap();
         drop(guard);
         self.native_vm.lookup_method_addresses(ir_method_implementation).start
     }
@@ -163,7 +177,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
     pub fn run_method(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
-        let current_implementation = *inner_read_guard.current_implementation.get_by_left(&method_id).unwrap();
+        let current_implementation = *inner_read_guard.current_implementation.get(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
         unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr); }
@@ -176,8 +190,8 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let ir_stack = &mut ir_stack_frame.ir_stack;
         let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
-            let ir_method_id = *self.inner.read().unwrap().current_implementation.get_by_right(&vm_exit_event.method).unwrap();
-            let implementation_id = *self.inner.read().unwrap().current_implementation.get_by_left(&method_id).unwrap();
+            let ir_method_id = *self.inner.read().unwrap().implementation_id_to_ir_method_id.get(&vm_exit_event.method).unwrap();
+            let implementation_id = *self.inner.read().unwrap().current_implementation.get(&method_id).unwrap();
             let current_method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
@@ -266,6 +280,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let code = result.code_buffer;
         let method_implementation_id = self.native_vm.add_method_implementation(code, base_address);
         inner_guard.current_implementation.insert(current_ir_id, method_implementation_id);
+        inner_guard.implementation_id_to_ir_method_id.insert(method_implementation_id, current_ir_id);
         (current_ir_id, restart_points)
     }
 }
@@ -434,6 +449,30 @@ pub struct IRInstructIndex(pub usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct IRInstructNativeOffset(usize);
+
+impl RangeBounds<IRInstructNativeOffset> for Range<Bound<IRInstructNativeOffset>>{
+    fn start_bound(&self) -> Bound<&IRInstructNativeOffset> {
+        self.start.as_ref()
+    }
+
+    fn end_bound(&self) -> Bound<&IRInstructNativeOffset> {
+        self.end.as_ref()
+    }
+}
+
+impl Step for IRInstructNativeOffset {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        Some(end.0 - start.0)
+    }
+
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(Self(start.0 + count))
+    }
+
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        Some(Self(start.0 - count))
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct AssemblyInstructionIndex(usize);

@@ -10,6 +10,7 @@ use std::thread::current;
 
 use bimap::BiHashMap;
 use iced_x86::CC_b::c;
+use iced_x86::CC_g::g;
 use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
 use itertools::Itertools;
@@ -41,7 +42,7 @@ use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
 use crate::runtime_class::RuntimeClass;
-use crate::stack_entry::StackEntryMut;
+use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::utils::run_static_or_virtual;
 
 pub mod compiler;
@@ -207,8 +208,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NPE { .. } => {
-                int_state.debug_print_stack_trace(jvm);
+                int_state.debug_print_stack_trace(jvm,true);
                 todo!()
+            }
+            RuntimeVMExitInput::BeforeReturn { return_to_ptr, frame_size_allegedly } => {
+                int_state.debug_print_stack_trace(jvm,true);
+                if let Some(previous_frame) = int_state.previous_frame(){
+                    previous_frame.ir_stack_entry_debug_print();
+                    dbg!(frame_size_allegedly);
+                }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
     }
@@ -216,6 +225,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 
 pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>) {
     let current_frame = int_state.current_frame();
+    dump_frame_contents_impl(jvm, current_frame)
+}
+
+pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
     let local_var_types = current_frame.local_var_types(jvm);
     let local_vars = current_frame.local_vars(jvm);
     println!("Local Vars:");
@@ -328,6 +341,18 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let ir_instruct_index = read_guard.restart_location(ir_method_id, restart_point_id);
         drop(read_guard);
         self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
+    }
+
+    pub fn lookup_ip(&self, ip: *const c_void) -> Option<(MethodId, ByteCodeOffset)> {
+        let (ir_method_id, ir_instruct_index) = self.ir.lookup_ip(ip);
+        if ir_method_id == self.ir.get_top_level_return_ir_method_id(){
+            return None
+        }
+        let guard = self.inner.read().unwrap();
+        let method = guard.methods.get(&ir_method_id).unwrap();
+        let method_id = method.associated_method_id;
+        let pc = *method.ir_index_to_bytecode_pc.get(&ir_instruct_index).unwrap();
+        Some((method_id, pc))
     }
 }
 

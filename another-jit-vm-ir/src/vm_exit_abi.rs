@@ -147,6 +147,13 @@ impl TraceInstructionAfter {
     pub const RESTART_IP: Register = Register(4);
 }
 
+pub struct BeforeReturn;
+
+impl BeforeReturn {
+    pub const FRAME_SIZE: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+}
+
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
@@ -190,6 +197,9 @@ pub enum IRVMExitType {
     TraceInstructionAfter {
         method_id: MethodId,
         offset: ByteCodeOffset,
+    },
+    BeforeReturn {
+        frame_size_allegedly: usize,
     },
 }
 
@@ -266,6 +276,11 @@ impl IRVMExitType {
                 assembler.mov(TraceInstructionAfter::BYTECODE_OFFSET.to_native_64(), offset.0 as u64).unwrap();
                 assembler.lea(TraceInstructionAfter::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::BeforeReturn { frame_size_allegedly } => {
+                assembler.mov(rax, RawVMExitType::BeforeReturn as u64).unwrap();
+                assembler.mov(BeforeReturn::FRAME_SIZE.to_native_64(), *frame_size_allegedly as u64).unwrap();
+                assembler.lea(BeforeReturn::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -293,6 +308,7 @@ pub enum RawVMExitType {
     LogWholeFrame,
     TraceInstructionBefore,
     TraceInstructionAfter,
+    BeforeReturn,
 }
 
 
@@ -328,9 +344,7 @@ pub enum RuntimeVMExitInput {
         res_ptr: *mut c_void,
         return_to_ptr: *mut c_void,
     },
-    NPE {
-
-    },
+    NPE {},
     TopLevelReturn {
         return_value: u64
     },
@@ -361,6 +375,10 @@ pub enum RuntimeVMExitInput {
         method_id: MethodId,
         bytecode_offset: ByteCodeOffset,
         return_to_ptr: *const c_void,
+    },
+    BeforeReturn {
+        return_to_ptr: *const c_void,
+        frame_size_allegedly: usize,
     },
 }
 
@@ -399,9 +417,7 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::NPE => {
-                RuntimeVMExitInput::NPE{
-
-                }
+                RuntimeVMExitInput::NPE {}
             }
             RawVMExitType::PutStatic => {
                 RuntimeVMExitInput::PutStatic {
@@ -442,6 +458,12 @@ impl RuntimeVMExitInput {
                     method_id: register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::METHOD_ID) as MethodId,
                     bytecode_offset: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::BYTECODE_OFFSET) as u16),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::RESTART_IP) as *const c_void,
+                }
+            }
+            RawVMExitType::BeforeReturn => {
+                RuntimeVMExitInput::BeforeReturn {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(BeforeReturn::RESTART_IP) as *const c_void,
+                    frame_size_allegedly: register_state.saved_registers_without_ip.get_register(BeforeReturn::FRAME_SIZE) as usize,
                 }
             }
         }

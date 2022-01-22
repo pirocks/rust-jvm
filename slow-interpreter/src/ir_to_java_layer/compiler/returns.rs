@@ -1,6 +1,7 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::IRInstr;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn ireturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
@@ -19,9 +20,11 @@ pub fn ireturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
 }
 
 pub fn return_void<'vm_life>(method_frame_data: &JavaCompilerMethodAndFrameData) -> impl Iterator<Item=IRInstr> {
-    array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::BeforeReturn{
-
-    } }, IRInstr::Return {
+    array_into_iter([IRInstr::VMExit2 {
+        exit_type: IRVMExitType::BeforeReturn {
+            frame_size_allegedly: method_frame_data.full_frame_size()
+        }
+    }, IRInstr::Return {
         return_val: None,
         temp_register_1: Register(1),
         temp_register_2: Register(2),

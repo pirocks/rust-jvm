@@ -182,7 +182,7 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
         Some(JavaValue::Int(4096)) //todo actually get page size
     } else {
-        int_state.debug_print_stack_trace(jvm);
+        int_state.debug_print_stack_trace(jvm,false);
         dbg!(mangled);
         panic!()
     })
