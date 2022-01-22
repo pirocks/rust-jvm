@@ -62,8 +62,6 @@ pub fn anewarray(
             let arr_len = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let arr_res = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             Either::Right(array_into_iter([restart_point,
-                IRInstr::VMExit2 { exit_type: IRVMExitType::NPE },
-                // IRInstr::VMExit2 { exit_type: IRVMExitType::LogWholeFrame {} },
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::AllocateObjectArray_ {
                         array_type,

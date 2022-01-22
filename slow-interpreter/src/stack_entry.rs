@@ -694,6 +694,14 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
         }
     }
 
+    pub unsafe fn raw_get(&self, i: u16) -> u64 {
+        match self {
+            LocalVarsRef::Jit { jvm, frame_view, pc } => {
+                frame_view.ir_ref.data(i as usize)
+            }
+        }
+    }
+
     pub fn num_vars(&self) -> u16 {
         match self {
             LocalVarsRef::Jit { frame_view, jvm, pc } => {
@@ -743,9 +751,9 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
                 let num_locals = LocalVarsRef::Jit {
                     frame_view,
                     jvm,
-                    pc: *pc
+                    pc: *pc,
                 }.num_vars();
-                let data = frame_view.ir_ref.data((num_locals as usize + self.types().len() -  from_start as usize) as usize);//todo replace this with a layout lookup thing again
+                let data = frame_view.ir_ref.data((num_locals as usize + self.types().len() - from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types()[from_start as usize], expected_type);
                 let native_jv = StackNativeJavaValue { as_u64: data };
                 native_jv.to_java_value(expected_type, jvm)
@@ -761,7 +769,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
                 let function_frame_data_guard = jvm.function_frame_type_data.read().unwrap();
                 let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
                 let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
-                frame.stack_map.data.iter().map(|vtype|vtype.to_runtime_type()).collect()
+                frame.stack_map.data.iter().map(|vtype| vtype.to_runtime_type()).collect()
             }
         }
     }

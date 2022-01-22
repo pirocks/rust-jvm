@@ -9,7 +9,7 @@ use num_traits::FromPrimitive;
 
 use another_jit_vm::{Register, SavedRegistersWithIP};
 use gc_memory_layout_common::FramePointerOffset;
-use rust_jvm_common::{FieldId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 
@@ -119,7 +119,7 @@ impl LoadClassAndRecompile {
 
 pub struct LogFramePointerOffsetValue;
 
-impl LogFramePointerOffsetValue{
+impl LogFramePointerOffsetValue {
     pub const VALUE: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
     // pub const STRING_MESSAGE: Register = Register(4);
@@ -127,8 +127,24 @@ impl LogFramePointerOffsetValue{
 
 pub struct LogWholeFrame;
 
-impl LogWholeFrame{
+impl LogWholeFrame {
     pub const RESTART_IP: Register = Register(2);
+}
+
+pub struct TraceInstructionBefore;
+
+impl TraceInstructionBefore {
+    pub const METHOD_ID: Register = Register(2);
+    pub const BYTECODE_OFFSET: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+}
+
+pub struct TraceInstructionAfter;
+
+impl TraceInstructionAfter {
+    pub const METHOD_ID: Register = Register(2);
+    pub const BYTECODE_OFFSET: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
 }
 
 pub enum IRVMExitType {
@@ -164,14 +180,17 @@ pub enum IRVMExitType {
     },
     LogFramePointerOffsetValue {
         value_string: &'static str,
-        value: FramePointerOffset
+        value: FramePointerOffset,
     },
-    LogWholeFrame{
-        //todo
+    LogWholeFrame {},
+    TraceInstructionBefore {
+        method_id: MethodId,
+        offset: ByteCodeOffset,
     },
-    TraceInstruction{
-
-    }
+    TraceInstructionAfter {
+        method_id: MethodId,
+        offset: ByteCodeOffset,
+    },
 }
 
 impl IRVMExitType {
@@ -235,6 +254,18 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::LogWholeFrame as u64).unwrap();
                 assembler.lea(LogWholeFrame::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::TraceInstructionBefore { method_id, offset } => {
+                assembler.mov(rax, RawVMExitType::TraceInstructionBefore as u64).unwrap();
+                assembler.mov(TraceInstructionBefore::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
+                assembler.mov(TraceInstructionBefore::BYTECODE_OFFSET.to_native_64(), offset.0 as u64).unwrap();
+                assembler.lea(TraceInstructionBefore::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
+            IRVMExitType::TraceInstructionAfter { method_id, offset } => {
+                assembler.mov(rax, RawVMExitType::TraceInstructionAfter as u64).unwrap();
+                assembler.mov(TraceInstructionAfter::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
+                assembler.mov(TraceInstructionAfter::BYTECODE_OFFSET.to_native_64(), offset.0 as u64).unwrap();
+                assembler.lea(TraceInstructionAfter::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -259,7 +290,9 @@ pub enum RawVMExitType {
     NPE,
     PutStatic,
     LogFramePointerOffsetValue,
-    LogWholeFrame
+    LogWholeFrame,
+    TraceInstructionBefore,
+    TraceInstructionAfter,
 }
 
 
@@ -295,6 +328,9 @@ pub enum RuntimeVMExitInput {
         res_ptr: *mut c_void,
         return_to_ptr: *mut c_void,
     },
+    NPE {
+
+    },
     TopLevelReturn {
         return_value: u64
     },
@@ -308,14 +344,24 @@ pub enum RuntimeVMExitInput {
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
-    LogFramePointerOffsetValue{
+    LogFramePointerOffsetValue {
         value: u64,
         return_to_ptr: *const c_void,
         // str_message: &'static str
     },
-    LogWholeFrame{
+    LogWholeFrame {
         return_to_ptr: *const c_void,
-    }
+    },
+    TraceInstructionBefore {
+        method_id: MethodId,
+        bytecode_offset: ByteCodeOffset,
+        return_to_ptr: *const c_void,
+    },
+    TraceInstructionAfter {
+        method_id: MethodId,
+        bytecode_offset: ByteCodeOffset,
+        return_to_ptr: *const c_void,
+    },
 }
 
 impl RuntimeVMExitInput {
@@ -353,7 +399,9 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::NPE => {
-                todo!()
+                RuntimeVMExitInput::NPE{
+
+                }
             }
             RawVMExitType::PutStatic => {
                 RuntimeVMExitInput::PutStatic {
@@ -380,6 +428,20 @@ impl RuntimeVMExitInput {
             RawVMExitType::LogWholeFrame => {
                 RuntimeVMExitInput::LogWholeFrame {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(LogWholeFrame::RESTART_IP) as *const c_void
+                }
+            }
+            RawVMExitType::TraceInstructionBefore => {
+                RuntimeVMExitInput::TraceInstructionBefore {
+                    method_id: register_state.saved_registers_without_ip.get_register(TraceInstructionBefore::METHOD_ID) as MethodId,
+                    bytecode_offset: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(TraceInstructionBefore::BYTECODE_OFFSET) as u16),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(TraceInstructionBefore::RESTART_IP) as *const c_void,
+                }
+            }
+            RawVMExitType::TraceInstructionAfter => {
+                RuntimeVMExitInput::TraceInstructionAfter {
+                    method_id: register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::METHOD_ID) as MethodId,
+                    bytecode_offset: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::BYTECODE_OFFSET) as u16),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(TraceInstructionAfter::RESTART_IP) as *const c_void,
                 }
             }
         }

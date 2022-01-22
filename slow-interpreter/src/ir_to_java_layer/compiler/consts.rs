@@ -10,6 +10,5 @@ pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_inst
     array_into_iter([
         IRInstr::Const64bit { to: const_register, const_: n },
         IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) },
-        IRInstr::VMExit2 { exit_type: IRVMExitType::LogWholeFrame {} }
     ])
 }

@@ -40,8 +40,8 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter<ExtraData>(&'_ self, start_frame: *mut c_void, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIter<'_, 'h, 'vm_life, ExtraData> {
-        IRFrameIter {
+    pub unsafe fn frame_iter<ExtraData>(&'_ self, start_frame: *mut c_void, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'_, 'h, 'vm_life, ExtraData> {
+        IRFrameIterRef {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
             ir_vm_state,
@@ -126,9 +126,7 @@ impl<'l, 'k> IRStackMut<'l> {
     }
 
     pub fn debug_print_stack_strace<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
-        let frame_iter = unsafe {
-            self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state)
-        };
+        let frame_iter = self.frame_iter(ir_vm_state);
         eprintln!("Start IR stacktrace:");
         for frame in frame_iter {
             match frame.ir_method_id() {
@@ -140,6 +138,11 @@ impl<'l, 'k> IRStackMut<'l> {
         }
         eprintln!("End IR stacktrace");
     }
+
+    pub fn frame_iter<ExtraData>(&'l self, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'l, 'h, 'vm_life,ExtraData>{
+        unsafe { self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state) }
+    }
+
 
     pub fn current_frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
@@ -172,13 +175,13 @@ impl Drop for IRPushFrameGuard {
 
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIter<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
+pub struct IRFrameIterRef<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
     ir_stack: &'l OwnedIRStack,
     current_frame_ptr: Option<*mut c_void>,
     ir_vm_state: &'h IRVMState<'vm_life, ExtraData>,
 }
 
-impl<'l, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIter<'l, 'h, 'vm_life, ExtraData> {
+impl<'l, 'h, 'vm_life, ExtraData: 'vm_life> Iterator for IRFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
     type Item = IRFrameRef<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {

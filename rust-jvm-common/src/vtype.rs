@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::classfile::UninitializedVariableInfo;
 use crate::compressed_classfile::{CompressedClassfileStringPool, CPDType};
-use crate::compressed_classfile::names::CompressedClassName;
+use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
 use crate::runtime_type::{RuntimeRefType, RuntimeType};
@@ -93,13 +93,13 @@ impl VType {
             VType::VoidType => panic!(),
             VType::TopType => RuntimeType::TopType,
             VType::NullType => RuntimeType::Ref(RuntimeRefType::NullType),
-            VType::Uninitialized(_) => RuntimeType::TopType,
-            VType::UninitializedThis => RuntimeType::TopType,
-            VType::UninitializedThisOrClass(_) => RuntimeType::TopType,
+            VType::Uninitialized(_) => RuntimeType::Ref(RuntimeRefType::Class(CClassName::object())),
+            VType::UninitializedThis => RuntimeType::Ref(RuntimeRefType::Class(CClassName::object())),
+            VType::UninitializedThisOrClass(_) => RuntimeType::Ref(RuntimeRefType::Class(CClassName::object())),
             VType::TwoWord => panic!(),
             VType::OneWord => panic!(),
             VType::Reference => panic!(),
-            VType::UninitializedEmpty => RuntimeType::TopType,
+            VType::UninitializedEmpty => RuntimeType::Ref(RuntimeRefType::Class(CClassName::object())),
         }
     }
 }

@@ -134,6 +134,8 @@ impl IRInstr {
                     IRVMExitType::PutStatic { .. } => { "PutStatic" }
                     IRVMExitType::LogFramePointerOffsetValue { .. } => { "LogFramePointerOffsetValue" }
                     IRVMExitType::LogWholeFrame { .. } => { "LogWholeFrame" }
+                    IRVMExitType::TraceInstructionBefore { .. } => { "TraceInstructionBefore" }
+                    IRVMExitType::TraceInstructionAfter { .. } => { "TraceInstructionAfter" }
                 })
             }
             IRInstr::NPECheck { .. } => {

@@ -10,7 +10,7 @@ use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
 use iced_x86::CC_b::c;
 use itertools::Itertools;
 
-use another_jit_vm_ir::ir_stack::{IRPushFrameGuard, IRStackMut, OwnedIRStack};
+use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut, OwnedIRStack};
 use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
@@ -409,32 +409,38 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         self.current_frame().method_i(jvm)
     }
 
+
+    pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc_life, ()> {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
+                JavaFrameIterRef {
+                    ir: int_state.frame_iter(&jvm.java_vm_state.ir),
+                    jvm,
+                }
+            }
+        }
+    }
+
     pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        /*let iter = match self.int_state.as_ref().unwrap().deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                Either::Left(call_stack.iter().cloned().enumerate().rev())
-            }*/
-            InterpreterState::Jit { call_stack, .. } => StackIter::new(jvm, call_stack).into_iter().enumerate(),
-        };
-        for (i, stack_entry) in iter {
-            if stack_entry.try_method_i().is_some()
-            /*&& stack_entry.method_i() > 0*/
+        let iter = self.frame_iter();
+        for (i, stack_entry) in iter.enumerate() {
+            if stack_entry.try_class_pointer(jvm).is_some()
             {
-                let type_ = stack_entry.class_pointer().view().type_();
-                let view = stack_entry.class_pointer().view();
-                let method_view = view.method_view_i(stack_entry.method_i());
+                let type_ = stack_entry.class_pointer(jvm).view().type_();
+                let view = stack_entry.class_pointer(jvm).view();
+                let method_view = view.method_view_i(stack_entry.method_i(jvm));
                 let meth_name = method_view.name().0.to_str(&jvm.string_pool);
                 let method_desc_str = method_view.desc_str().to_str(&jvm.string_pool);
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} pc: {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.pc(), stack_entry.loader())
+                    println!("{:?}.{} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm))
                 }
             } else {
                 println!("missing");
             }
-        }*/
-        todo!()
+        }
     }
 
     pub fn cloned_stack_snapshot(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<StackEntry<'gc_life>> {
@@ -476,6 +482,25 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         };
         Ok(())*/
         todo!()
+    }
+}
+
+pub struct JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
+    ir: IRFrameIterRef<'l, 'h, 'vm_life, ExtraData>,
+    jvm: &'vm_life JVMState<'vm_life>,
+}
+
+impl<'l, 'h, 'vm_life, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
+    type Item = StackEntryRef<'vm_life, 'l>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.ir.next().map(|ir_frame_ref| StackEntryRef {
+            frame_view: RuntimeJavaStackFrameRef {
+                ir_ref: ir_frame_ref,
+                jvm: self.jvm,
+            },
+            pc: None,//todo can get this out of prev_rip
+        })
     }
 }
 

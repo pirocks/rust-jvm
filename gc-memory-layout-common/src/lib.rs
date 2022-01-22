@@ -169,7 +169,7 @@ impl MemoryRegions {
             None => current_region_to_use.region_base(&self.early_mmaped_regions),
         };
         unsafe {
-            let length = (dbg!(current_region_to_use.region_size()) / dbg!(to_allocate_type.size())) / 8;
+            let length = (current_region_to_use.region_size() / to_allocate_type.size()) / 8;
             assert_ne!(length, 0);
             to_push_to.push(RegionData {
                 region_base: new_region_base,
@@ -305,8 +305,8 @@ impl GCState {
         }
         let (new_live_pointers, to_free): (Vec<(_, _)>, Vec<_>) = self.live_pointers.iter()
             .partition_map(|(pointer, layout)| {
-            if touched_pointers.contains(pointer) { Either::Left((*pointer, layout.clone())) } else { Either::Right(pointer) }
-        });
+                if touched_pointers.contains(pointer) { Either::Left((*pointer, layout.clone())) } else { Either::Right(pointer) }
+            });
         self.live_pointers = new_live_pointers.into_iter().collect::<HashMap<*mut c_void, PointerMemoryLayout>>();
         for to_free_pointer in to_free {
             unsafe { self.free(to_free_pointer) }

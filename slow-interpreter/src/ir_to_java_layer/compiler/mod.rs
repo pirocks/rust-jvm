@@ -117,6 +117,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
     };
     let mut restart_point_generator = RestartPointGenerator::new();
+    let mut prev_offset: Option<ByteCodeOffset> = None;
     for (i, compressed_instruction) in cinstructions.iter().enumerate() {
         let current_offset = compressed_instruction.offset;
         let current_index = ByteCodeIndex(i as u16);
@@ -128,6 +129,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             compiler_labeler: &mut compiler_labeler,
         };
         let mut this_function_ir = vec![];
+        if let Some(prev_offset) = prev_offset {
+            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset } });
+        }
+        this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset } });
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type));
@@ -228,7 +233,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 todo!()
             }
         }
-        final_ir.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()))
+        final_ir.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
+        prev_offset = Some(current_offset);
     }
     final_ir.into_iter().collect_vec()
 }

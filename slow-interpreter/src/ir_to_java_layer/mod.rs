@@ -6,6 +6,7 @@ use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 use std::sync::{Arc, RwLock};
+use std::thread::current;
 
 use bimap::BiHashMap;
 use iced_x86::CC_b::c;
@@ -100,8 +101,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
-                // int_state.current_frame().ir_stack_entry_debug_print();
-                // dbg!(int_state.current_frame().operand_stack(jvm).get(0, RuntimeType::IntType/*RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))*/));
                 assert!(*len > 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
@@ -157,7 +156,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
                 *static_var = jv;
-                int_state.current_frame().ir_stack_entry_debug_print();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
@@ -186,32 +184,64 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                 dbg!(method_view.desc_str().to_str(&jvm.string_pool));
                 current_frame.ir_stack_entry_debug_print();
-                let local_var_types = current_frame.local_var_types(jvm);
-                let local_vars = current_frame.local_vars(jvm);
-                eprintln!("Local Vars:");
-                for (i, local_var_type) in local_var_types.into_iter().enumerate() {
-                    match local_var_type.to_runtime_type(){
-                        RuntimeType::TopType => {
-                            eprintln!("LocalVar #{}: Top",i)
-                        }
-                        _ => {
-                            let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
-                            eprintln!("LocalVar #{}: {:?}", i, jv)
-                        }
-                    }
-
-                }
-                let operand_stack_types = current_frame.operand_stack(jvm).types();
-                let operand_stack = current_frame.operand_stack(jvm);
-                eprintln!("Operand Stacks:");
-                for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-                    let jv = operand_stack.get(i as u16, operand_stack_type);
-                    eprintln!("OperandStack #{}: {:?}", i, jv)
-                }
+                dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::TraceInstructionBefore { method_id, return_to_ptr, bytecode_offset } => {
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                let view = rc.view();
+                let method_view = view.method_view_i(method_i);
+                let code = method_view.code_attribute().unwrap();
+                let instr = code.instructions.get(bytecode_offset).unwrap();
+                eprintln!("Before:{:?}", instr.info);
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                let view = rc.view();
+                let method_view = view.method_view_i(method_i);
+                let code = method_view.code_attribute().unwrap();
+                let instr = code.instructions.get(bytecode_offset).unwrap();
+                eprintln!("After:{:?}", instr.info);
+                dump_frame_contents(jvm, int_state);
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::NPE { .. } => {
+                int_state.debug_print_stack_trace(jvm);
+                todo!()
             }
         }
     }
+}
+
+pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>) {
+    let current_frame = int_state.current_frame();
+    let local_var_types = current_frame.local_var_types(jvm);
+    let local_vars = current_frame.local_vars(jvm);
+    println!("Local Vars:");
+    unsafe {
+        for (i, local_var_type) in local_var_types.into_iter().enumerate() {
+            match local_var_type.to_runtime_type() {
+                RuntimeType::TopType => {
+                    let jv = local_vars.raw_get(i as u16);
+                    eprint!("#{}: Top: {:?}\t", i, jv as *const c_void)
+                }
+                _ => {
+                    let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
+                    eprint!("#{}: {:?}\t", i, jv)
+                }
+            }
+        }
+    }
+    eprintln!();
+    let operand_stack_types = current_frame.operand_stack(jvm).types();
+    let operand_stack = current_frame.operand_stack(jvm);
+    eprintln!("Operand Stack:");
+    for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+        let jv = operand_stack.get(i as u16, operand_stack_type);
+        eprint!("#{}: {:?}\t", i, jv)
+    }
+    eprintln!()
 }
 
 pub struct JavaVMStateWrapper<'vm_life> {
@@ -250,6 +280,13 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let method_name = method_view.name().0.to_str(&jvm.string_pool);
+        let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
+        let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
+        eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let mut frame_to_run_on = int_state.current_frame_mut();
         let frame_ir_method_id = frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap();
@@ -259,7 +296,9 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         }
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
 
-        self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ())
+        let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
+        eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
+        res
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
@@ -330,10 +369,10 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
         let mut write_guard = self.inner.write().unwrap();
         write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
-        write_guard.methods.insert(ir_method_id,JavaVMStateMethod{
+        write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
             restart_points,
             ir_index_to_bytecode_pc,
-            associated_method_id: method_id
+            associated_method_id: method_id,
         });
     }
 }
