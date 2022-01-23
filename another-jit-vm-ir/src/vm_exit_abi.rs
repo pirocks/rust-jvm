@@ -165,6 +165,14 @@ impl NewString{
     pub const RESTART_IP: Register = Register(4);
 }
 
+pub struct NewClass;
+
+impl NewClass{
+    pub const CPDTYPE_ID: Register = Register(2);
+    pub const RES: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+}
+
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
@@ -178,6 +186,10 @@ pub enum IRVMExitType {
     NewString{
         res: FramePointerOffset,
         compressed_wtf8_buf: CompressedWtf8String
+    },
+    NewClass{
+        res: FramePointerOffset,
+        type_: CPDTypeID
     },
     NPE,
     LoadClassAndRecompile {
@@ -317,6 +329,9 @@ impl IRVMExitType {
                 assembler.lea(NewString::RES.to_native_64(), rbp - res.0).unwrap();
                 assembler.lea(NewString::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::NewClass { res, type_ } => {
+                assembler.mov(rax, RawVMExitType::NewClass as u64).unwrap()
+            }
         }
     }
 }
@@ -345,7 +360,8 @@ pub enum RawVMExitType {
     TraceInstructionBefore,
     TraceInstructionAfter,
     BeforeReturn,
-    NewString
+    NewString,
+    NewClass
 }
 
 
@@ -426,6 +442,11 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         res: *mut c_void,
         compressed_wtf8: CompressedWtf8String
+    },
+    NewClass {
+        return_to_ptr: *const c_void,
+        res: *mut c_void,
+        type_: CPDTypeID
     }
 }
 
@@ -525,6 +546,13 @@ impl RuntimeVMExitInput {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(NewString::RESTART_IP) as *const c_void,
                     res: register_state.saved_registers_without_ip.get_register(NewString::RES) as *mut c_void,
                     compressed_wtf8: CompressedWtf8String(register_state.saved_registers_without_ip.get_register(NewString::COMPRESSED_WTF8) as usize)
+                }
+            }
+            RawVMExitType::NewClass => {
+                RuntimeVMExitInput::NewClass{
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(NewClass::RESTART_IP) as *const c_void,
+                    res: register_state.saved_registers_without_ip.get_register(NewClass::RES) as *mut c_void,
+                    type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(NewClass::CPDTYPE_ID) as u32)
                 }
             }
         }

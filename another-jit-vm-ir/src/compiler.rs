@@ -142,6 +142,7 @@ impl IRInstr {
                     IRVMExitType::BeforeReturn { .. } => { "BeforeReturn" }
                     IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
                     IRVMExitType::NewString { .. } => { "NewString" }
+                    IRVMExitType::NewClass { .. } => { "NewClass" }
                 })
             }
             IRInstr::NPECheck { .. } => {

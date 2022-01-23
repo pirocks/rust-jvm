@@ -48,5 +48,28 @@ pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
                  current_instr_data: &CurrentInstructionCompilerData,
                  restart_point_generator: &mut RestartPointGenerator,
                  type_: &CPDType) -> impl Iterator<Item=IRInstr> {
-    todo!()
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let to_load_cpdtype = type_.clone();
+    let cpd_type_id = resolver.get_cpdtype_id(&to_load_cpdtype);
+    //todo we could do this in the exit and cut down on recompilations
+    match resolver.lookup_type_loaded(&to_load_cpdtype) {
+        None => {
+            array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: cpd_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id,
+                }
+            }])
+        }
+        Some((loaded_class, loader)) => {
+            array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::NewClass {
+                    res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                    type_: cpd_type_id
+                }
+            }])
+        }
+    }
 }

@@ -36,6 +36,7 @@ use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
+use crate::java::lang::class::JClass;
 use crate::java::lang::int::Int;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{MethodResolver, ToIR};
@@ -250,6 +251,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     let raw_64 = jv.to_native().as_u64;
                     (*res as *mut u64).write(raw_64);
                 }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::NewClass { type_, res, return_to_ptr } => {
+                let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(*type_).clone();
+                let jclass = JClass::from_type(jvm,int_state,cpdtype).unwrap();
+                let jv = jclass.java_value();
+                unsafe {
+                    let raw_64 = jv.to_native().as_u64;
+                    (*res as *mut u64).write(raw_64);
+                };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
