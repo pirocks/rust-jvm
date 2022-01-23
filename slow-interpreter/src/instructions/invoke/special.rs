@@ -44,6 +44,8 @@ pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         jvm.java_vm_state.add_method(jvm, &MethodResolver{ jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         let mut function_call_frame = int_state.push_frame(next_entry);
+        // dbg!(function_call_frame.ir_frame_push_guard.return_to_rbp);
+        // dbg!(function_call_frame.ir_frame_push_guard.return_to_rsp);
         match run_function(jvm, int_state, &mut function_call_frame) {
             Ok(res) => {
                 int_state.pop_frame(jvm, function_call_frame, false);

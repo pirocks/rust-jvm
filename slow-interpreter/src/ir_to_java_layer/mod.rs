@@ -102,7 +102,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
-                assert!(*len > 0);
+                dump_frame_contents(jvm,int_state);
+                assert!(*len >= 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
@@ -162,7 +163,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
+                let saved= int_state.frame_state_assert_save();
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+                int_state.saved_assert_frame_same(saved);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
@@ -203,18 +206,21 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
-                eprintln!("After:{:?}", instr.info);
+                let method_name = method_view.name().0.to_str(&jvm.string_pool);
+                let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
+                let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
+                eprintln!("After:{}/{}/{}{:?}", class_name, method_name, desc_str, instr.info);
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NPE { .. } => {
-                int_state.debug_print_stack_trace(jvm,true);
+                int_state.debug_print_stack_trace(jvm, true);
                 todo!()
             }
             RuntimeVMExitInput::BeforeReturn { return_to_ptr, frame_size_allegedly } => {
-                int_state.debug_print_stack_trace(jvm,true);
-                if let Some(previous_frame) = int_state.previous_frame(){
-                    previous_frame.ir_stack_entry_debug_print();
+                // int_state.debug_print_stack_trace(jvm, true);
+                if let Some(previous_frame) = int_state.previous_frame() {
+                    // previous_frame.ir_stack_entry_debug_print();
                     dbg!(frame_size_allegedly);
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -231,7 +237,7 @@ pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_
 pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
     let local_var_types = current_frame.local_var_types(jvm);
     let local_vars = current_frame.local_vars(jvm);
-    println!("Local Vars:");
+    eprint!("Local Vars:");
     unsafe {
         for (i, local_var_type) in local_var_types.into_iter().enumerate() {
             match local_var_type.to_runtime_type() {
@@ -249,7 +255,8 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     eprintln!();
     let operand_stack_types = current_frame.operand_stack(jvm).types();
     let operand_stack = current_frame.operand_stack(jvm);
-    eprintln!("Operand Stack:");
+    // current_frame.ir_stack_entry_debug_print();
+    eprint!("Operand Stack:");
     for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
         let jv = operand_stack.get(i as u16, operand_stack_type);
         eprint!("#{}: {:?}\t", i, jv)
@@ -301,6 +308,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
         eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
+        let current_frame_pointer = int_state.current_frame().frame_view.ir_ref.frame_ptr();
+        let assert_data = int_state.frame_state_assert_save_from(current_frame_pointer);
         let mut frame_to_run_on = int_state.current_frame_mut();
         let frame_ir_method_id = frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap();
         assert_eq!(self.inner.read().unwrap().associated_method_id(ir_method_id), method_id);
@@ -308,8 +317,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
         assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-
         let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
+        int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
         eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         res
     }
@@ -345,8 +354,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn lookup_ip(&self, ip: *const c_void) -> Option<(MethodId, ByteCodeOffset)> {
         let (ir_method_id, ir_instruct_index) = self.ir.lookup_ip(ip);
-        if ir_method_id == self.ir.get_top_level_return_ir_method_id(){
-            return None
+        if ir_method_id == self.ir.get_top_level_return_ir_method_id() {
+            return None;
         }
         let guard = self.inner.read().unwrap();
         let method = guard.methods.get(&ir_method_id).unwrap();
@@ -359,7 +368,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
-        eprintln!("Re/Compile: {}", method_id);
+        eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool));
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data);

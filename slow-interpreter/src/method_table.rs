@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use iced_x86::OpCodeOperandKind::cl;
 
 use jvmti_jni_bindings::_jmethodID;
 use rust_jvm_common::{MethodId, MethodTableIndex};
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::string_pool::StringPool;
 
 use crate::runtime_class::RuntimeClass;
-
 
 pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
@@ -58,6 +60,16 @@ impl<'gc_life> MethodTable<'gc_life> {
         } else {
             None
         }
+    }
+
+    pub fn lookup_method_string(&self, method_id: MethodId, string_pool: &CompressedClassfileStringPool) -> String {
+        let (rc, method_i) = self.try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let method_name = method_view.name().0.to_str(string_pool);
+        let method_desc = method_view.desc_str().to_str(string_pool);
+        let class_name = view.name().unwrap_name().0.to_str(string_pool);
+        format!("{}/{}/{}", class_name, method_name, method_desc)
     }
 
     pub fn new() -> Self {

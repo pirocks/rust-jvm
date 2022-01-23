@@ -753,7 +753,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
                     jvm,
                     pc: *pc,
                 }.num_vars();
-                let data = frame_view.ir_ref.data((num_locals as usize + self.types().len() - from_start as usize) as usize);//todo replace this with a layout lookup thing again
+                let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types()[from_start as usize], expected_type);
                 let native_jv = StackNativeJavaValue { as_u64: data };
                 native_jv.to_java_value(expected_type, jvm)
@@ -951,7 +951,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     pub fn ir_stack_entry_debug_print(&self) {
         let ir_ref = &self.frame_view.ir_ref;
         for i in 0..6 {
-            eprintln!("{}:{:?}", i, ir_ref.data(i) as *const c_void);
+            unsafe { eprintln!("{:?}:{:?}", ir_ref.frame_ptr().offset(i * size_of::<u64>() as isize), ir_ref.data(i as usize) as *const c_void); }
         }
         // dbg!(ir_ref.method_id());
         // dbg!(ir_ref.frame_ptr());

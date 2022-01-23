@@ -3,7 +3,7 @@ use itertools::Either;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::StackframeMemoryLayout;
+use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
@@ -39,7 +39,7 @@ pub fn invokespecial(
                         exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                             current_method_id: method_frame_data.current_method_id,
                             target_method_id: method_id,
-                            restart_point_id
+                            restart_point_id,
                         }
                     };
                     //todo have restart point ids for matching same restart points
@@ -50,7 +50,7 @@ pub fn invokespecial(
                     if is_native {
                         todo!()
                     } else {
-                        Either::Right(array_into_iter([restart_point,IRInstr::IRCall {
+                        Either::Right(array_into_iter([restart_point, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
                             current_frame_size: method_frame_data.full_frame_size(),
@@ -86,7 +86,11 @@ pub fn invokestatic(
             Either::Right(if is_native {
                 let exit_label = current_instr_data.compiler_labeler.label_at(current_instr_data.current_offset);
                 let num_args = resolver.num_args(method_id);
-                let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args);
+                let arg_start_frame_offset = if num_args != 0 {
+                    method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args)
+                } else {
+                    FramePointerOffset(usize::MAX)
+                };
                 array_into_iter([IRInstr::VMExit2 {
                     exit_type: IRVMExitType::RunStaticNative {
                         method_id,

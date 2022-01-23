@@ -2,9 +2,9 @@ use std::arch::x86_64::_mm256_testc_pd;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::mem::transmute;
+use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
-use std::ptr::null_mut;
+use std::ptr::{null_mut, slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
 
 use iced_x86::CC_b::c;
@@ -21,6 +21,7 @@ use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::InstructionInfo::{ireturn, jsr};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use threads::signal::__pthread_cond_s__bindgen_ty_2;
 
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::ir_to_java_layer::dump_frame_contents_impl;
@@ -238,7 +239,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
                 let current = int_state.previous_frame_ref();
                 let prev_method_id = int_state.previous_frame_ref().ir_method_id();
-                if prev_method_id.is_none() || prev_method_id.unwrap() == dbg!(jvm.java_vm_state.ir.get_top_level_return_ir_method_id()) {
+                if prev_method_id.is_none() || prev_method_id.unwrap() == jvm.java_vm_state.ir.get_top_level_return_ir_method_id() {
                     return None;
                 }
                 let (prev_method_id, prev_pc) = jvm.java_vm_state.lookup_ip(current.prev_rip())?;
@@ -429,7 +430,6 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         self.current_frame().method_i(jvm)
     }
 
-
     pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc_life, ()> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
@@ -442,6 +442,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             }
         }
     }
+
 
     pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, full: bool) {
         let pc = self.current_frame().pc;
@@ -461,8 +462,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                     if full {
                         if stack_entry.pc.is_some() {
                             dump_frame_contents_impl(jvm, stack_entry);
-                        }else {
-                            stack_entry.ir_stack_entry_debug_print();
+                        } else {
+                            // stack_entry.ir_stack_entry_debug_print();
                         }
                     }
                 }
@@ -512,6 +513,58 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         Ok(())*/
         todo!()
     }
+
+    pub fn frame_state_assert_save(&self) -> SavedAssertState {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
+                self.frame_state_assert_save_from(int_state.current_rsp)
+            }
+        }
+    }
+
+    pub fn frame_state_assert_save_from(&self, from: *const c_void) -> SavedAssertState {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
+                let mmaped_top = int_state.owned_ir_stack.native.mmaped_top;
+                let curent_rsp = int_state.current_rsp;
+                let curent_rbp = int_state.current_rbp;
+                let slice = unsafe { slice_from_raw_parts(from as *const u64, mmaped_top.offset_from(from).abs() as usize / size_of::<u64>() + 1)  };
+                let data = unsafe { slice.as_ref() }.unwrap().iter().cloned().map(|elem| elem as usize as *const c_void).collect();
+                SavedAssertState {
+                    frame_pointer: curent_rbp,
+                    stack_pointer: curent_rsp,
+                    data,
+                }
+            }
+        }
+    }
+
+    pub fn saved_assert_frame_from(&self, previous: SavedAssertState, from: *const c_void) {
+        let current = self.frame_state_assert_save_from(from);
+        // dbg!(&current.data);
+        // dbg!(&previous.data);
+        assert_eq!(current, previous);
+    }
+
+    pub fn saved_assert_frame_same(&self, previous: SavedAssertState) {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
+                let from = int_state.current_rsp;
+                self.saved_assert_frame_from(previous, from)
+            }
+        }
+    }
+}
+
+#[must_use]
+#[derive(Eq, PartialEq, Debug)]
+pub struct SavedAssertState {
+    frame_pointer: *const c_void,
+    stack_pointer: *const c_void,
+    data: Vec<*const c_void>,
 }
 
 pub struct JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
@@ -536,10 +589,10 @@ impl<'l, 'h, 'vm_life, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm_life
             match self.jvm.java_vm_state.lookup_ip(prev_rip) {
                 Some((_, new_pc)) => {
                     self.current_pc = Some(new_pc);
-                },
+                }
                 None => {
                     self.current_pc = None
-                },
+                }
             };
             res
         })
@@ -682,7 +735,7 @@ pub enum AddFrameNotifyError {
 pub struct FramePushGuard {
     _correctly_exited: bool,
     prev_stack_location: JavaStackPosition,
-    ir_frame_push_guard: IRPushFrameGuard,
+    pub ir_frame_push_guard: IRPushFrameGuard,
 }
 
 /*impl Default for FramePushGuard {

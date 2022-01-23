@@ -71,8 +71,8 @@ impl<'k> OwnedIRStack {
 
 pub struct IRStackMut<'l> {
     pub owned_ir_stack: &'l mut OwnedIRStack,
-    pub(crate) current_rbp: *mut c_void,
-    pub(crate) current_rsp: *mut c_void,
+    pub current_rbp: *mut c_void,
+    pub current_rsp: *mut c_void,
 }
 
 impl<'l, 'k> IRStackMut<'l> {
@@ -98,7 +98,7 @@ impl<'l, 'k> IRStackMut<'l> {
         unsafe {
             //todo assert stack frame sizes
             if self.current_rsp != self.owned_ir_stack.native.mmaped_top {
-                let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
+                let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize /*+ size_of::<u64>()*/;
                 let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
                 assert_eq!(offset, expected_current_frame_size);
             }
@@ -178,8 +178,8 @@ impl<'l, 'k> IRStackMut<'l> {
 #[must_use]
 pub struct IRPushFrameGuard {
     exited_correctly: bool,
-    return_to_rbp: *const c_void,
-    return_to_rsp: *const c_void,
+    pub return_to_rbp: *const c_void,
+    pub return_to_rsp: *const c_void,
 }
 
 
