@@ -11,8 +11,8 @@ pub enum ReferenceEqualityType {
 }
 
 pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_equality: ReferenceEqualityType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
-    let value1 = Register(0);
-    let value2 = Register(1);
+    let value1 = Register(1);
+    let value2 = Register(2);
     let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
     let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
 

@@ -102,7 +102,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
-                dump_frame_contents(jvm,int_state);
                 assert!(*len >= 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
@@ -223,6 +222,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     // previous_frame.ir_stack_entry_debug_print();
                     dbg!(frame_size_allegedly);
                 }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address } => {
+                eprintln!("AllocateObject");
+                let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
+                let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
+                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None, int_state.thread().java_tid);
+                let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
+                unsafe { res_address.write(allocated_object) }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }

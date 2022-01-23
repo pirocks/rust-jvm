@@ -20,37 +20,44 @@ pub fn invokespecial(
     classname_ref_type: &CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
     let class_cpdtype = CPDType::Ref(classname_ref_type.clone());
+    let restart_point_id_class_load = restart_point_generator.new_restart_point();
+    let restart_point_class_load = IRInstr::RestartPoint(restart_point_id_class_load);
     match resolver.lookup_type_loaded(&class_cpdtype) {
         None => {
-            Either::Left(array_into_iter([
+            let cpd_type_id = resolver.get_cpdtype_id(&CPDType::Ref(classname_ref_type.clone()));
+            Either::Left(array_into_iter([restart_point_class_load,
                 IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::LoadClassAndRecompile { class: todo!() },
+                    exit_type: IRVMExitType::LoadClassAndRecompile {
+                        class: cpd_type_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id: restart_point_id_class_load,
+                    },
                 }]))
         }
         Some((rc, loader)) => {
             let view = rc.view();
             let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
             let maybe_address = resolver.lookup_address(method_id);
-            let restart_point_id = restart_point_generator.new_restart_point();
-            let restart_point = IRInstr::RestartPoint(restart_point_id);
+            let restart_point_id_function_address = restart_point_generator.new_restart_point();
+            let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
             Either::Right(match maybe_address {
                 None => {
                     let exit_instr = IRInstr::VMExit2 {
                         exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                             current_method_id: method_frame_data.current_method_id,
                             target_method_id: method_id,
-                            restart_point_id,
+                            restart_point_id: restart_point_id_function_address,
                         }
                     };
                     //todo have restart point ids for matching same restart points
-                    Either::Left(array_into_iter([restart_point, exit_instr]))
+                    Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
                 }
                 Some(address) => {
                     let method_layout = resolver.lookup_method_layout(method_id);
                     if is_native {
                         todo!()
                     } else {
-                        Either::Right(array_into_iter([restart_point, IRInstr::IRCall {
+                        Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
                             current_frame_size: method_frame_data.full_frame_size(),
@@ -68,17 +75,22 @@ pub fn invokestatic(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
     let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
             let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
-            Either::Left(array_into_iter([IRInstr::VMExit2 {
-                exit_type: IRVMExitType::LoadClassAndRecompile {
-                    class: cpdtype_id
+            Either::Left(array_into_iter([restart_point,IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: cpdtype_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id: restart_point_id
                 },
             }]))
         }
@@ -91,7 +103,7 @@ pub fn invokestatic(
                 } else {
                     FramePointerOffset(usize::MAX)
                 };
-                array_into_iter([IRInstr::VMExit2 {
+                array_into_iter([restart_point,IRInstr::VMExit2 {
                     exit_type: IRVMExitType::RunStaticNative {
                         method_id,
                         arg_start_frame_offset,

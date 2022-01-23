@@ -4,18 +4,18 @@ use std::mem::size_of;
 use std::sync::Arc;
 
 use iced_x86::CC_be::na;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 
 use another_jit_vm::Register;
-use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
-use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
+use rust_jvm_common::{ByteCodeOffset, MethodId};
+use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
@@ -24,10 +24,11 @@ use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::putfield;
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
+use crate::ir_to_java_layer::compiler::ldc::ldc_string;
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
-use crate::jit::{MethodResolver};
+use crate::jit::MethodResolver;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
@@ -106,7 +107,7 @@ impl<'l> CompilerLabeler<'l> {
 }
 
 
-pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset,IRInstr)> {
+pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.code_by_index.as_slice();
     let mut final_ir: Vec<(ByteCodeOffset, IRInstr)> = vec![];
     let mut labels = vec![];
@@ -135,7 +136,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset } });
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, *method_name, descriptor, classname_ref_type));
+                this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
                 this_function_ir.extend(return_void(method_frame_data));
@@ -209,7 +210,11 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         let exit_label = labeler.new_label(&mut labels);
                         this_function_ir.push(
                             IRInstr::VMExit2 {
-                                exit_type: IRVMExitType::LoadClassAndRecompile { class: todo!() },
+                                exit_type: IRVMExitType::InitClassAndRecompile {
+                                    class: todo!(),
+                                    this_method_id: todo!(),
+                                    restart_point_id: todo!(),
+                                },
                             },
                         );
                     }
@@ -227,6 +232,29 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
                 this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, elem_type))
+            }
+            CompressedInstructionInfo::ldc(either) => {
+                match either {
+                    Either::Left(left) => {
+                        match left {
+                            CompressedLdcW::String { str } => {
+                                this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, str))
+                            }
+                            CompressedLdcW::Class { .. } => todo!(),
+                            CompressedLdcW::Float { .. } => todo!(),
+                            CompressedLdcW::Integer { .. } => todo!(),
+                            CompressedLdcW::MethodType { .. } => todo!(),
+                            CompressedLdcW::MethodHandle { .. } => todo!(),
+                            CompressedLdcW::LiveObject(_) => todo!(),
+                        }
+                    }
+                    Either::Right(right) => {
+                        match right {
+                            CompressedLdc2W::Long(_) => todo!(),
+                            CompressedLdc2W::Double(_) => todo!(),
+                        }
+                    }
+                }
             }
             other => {
                 dbg!(other);
@@ -248,6 +276,7 @@ pub mod returns;
 pub mod consts;
 pub mod branching;
 pub mod local_var_loads;
+pub mod ldc;
 
 pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {
     <[T; N]>::into_iter(array)

@@ -45,14 +45,6 @@ impl VMExitStaticArgs {
     }
 }
 
-pub struct AllocateVMExit;
-
-impl AllocateVMExit {
-    pub const RES: Register = Register(1);
-    pub const TYPE: Register = Register(2);
-    pub const RESTART_IP: Register = Register(3);
-}
-
 pub struct AllocateObjectArray;
 
 impl AllocateObjectArray {
@@ -61,6 +53,15 @@ impl AllocateObjectArray {
     pub const RES_PTR: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
 }
+
+pub struct AllocateObject;
+
+impl AllocateObject {
+    pub const TYPE: Register = Register(3);
+    pub const RES_PTR: Register = Register(4);
+    pub const RESTART_IP: Register = Register(5);
+}
+
 
 pub struct RunStaticNative;
 
@@ -113,8 +114,9 @@ pub struct LoadClassAndRecompileStaticArgs {
 pub struct LoadClassAndRecompile;
 
 impl LoadClassAndRecompile {
-    pub const VM_EXIT_STATIC_ARGS_ID: Register = Register(1);
-    pub const LOADER_NUM: Register = Register(2);
+    pub const CPDTYPE_ID: Register = Register(2);
+    pub const TO_RECOMPILE: Register = Register(3);
+    pub const RESTART_POINT_ID: Register = Register(4);
 }
 
 pub struct LogFramePointerOffsetValue;
@@ -160,9 +162,15 @@ pub enum IRVMExitType {
         arr_len: FramePointerOffset,
         arr_res: FramePointerOffset,
     },
+    AllocateObject{
+        class_type: CPDTypeID,
+        res: FramePointerOffset
+    },
     NPE,
     LoadClassAndRecompile {
         class: CPDTypeID,
+        this_method_id: MethodId,
+        restart_point_id: RestartPointID,
     },
     InitClassAndRecompile {
         class: CPDTypeID,
@@ -214,8 +222,11 @@ impl IRVMExitType {
                 assembler.lea(AllocateObjectArray::RES_PTR.to_native_64(), rbp - arr_res.0).unwrap();
                 assembler.lea(AllocateObjectArray::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::LoadClassAndRecompile { .. } => {
-                todo!()
+            IRVMExitType::LoadClassAndRecompile { class, this_method_id, restart_point_id } => {
+                assembler.mov(rax, RawVMExitType::LoadClassAndRecompile as u64).unwrap();
+                assembler.mov(LoadClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
+                assembler.mov(LoadClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
+                assembler.mov(LoadClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
             }
             IRVMExitType::RunStaticNative { method_id, arg_start_frame_offset, num_args } => {
                 assert!(registers.contains(&RunStaticNative::METHODID));
@@ -281,12 +292,17 @@ impl IRVMExitType {
                 assembler.mov(BeforeReturn::FRAME_SIZE.to_native_64(), *frame_size_allegedly as u64).unwrap();
                 assembler.lea(BeforeReturn::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::AllocateObject { class_type, res } => {
+                assembler.mov(rax, RawVMExitType::AllocateObject as u64).unwrap();
+                assembler.lea(AllocateObject::RES_PTR.to_native_64(), rbp - res.0).unwrap();
+                assembler.mov(AllocateObject::TYPE.to_native_64(), class_type.0 as u64).unwrap();
+                assembler.lea(AllocateObject::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap()
+            }
         }
     }
 }
 
 pub enum VMExitTypeWithArgs {
-    Allocate(AllocateVMExit),
     LoadClassAndRecompile(LoadClassAndRecompile),
     RunStaticNative(RunStaticNative),
     TopLevelReturn,
@@ -297,6 +313,7 @@ pub enum VMExitTypeWithArgs {
 #[repr(u64)]
 pub enum RawVMExitType {
     AllocateObjectArray = 1,
+    AllocateObject,
     LoadClassAndRecompile,
     InitClassAndRecompile,
     RunStaticNative,
@@ -317,6 +334,11 @@ pub enum RuntimeVMExitInput {
     AllocateObjectArray {
         type_: CPDTypeID,
         len: i32,
+        return_to_ptr: *const c_void,
+        res_address: *mut NonNull<c_void>,
+    },
+    AllocateObject {
+        type_: CPDTypeID,
         return_to_ptr: *const c_void,
         res_address: *mut NonNull<c_void>,
     },
@@ -464,6 +486,13 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::BeforeReturn {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(BeforeReturn::RESTART_IP) as *const c_void,
                     frame_size_allegedly: register_state.saved_registers_without_ip.get_register(BeforeReturn::FRAME_SIZE) as usize,
+                }
+            }
+            RawVMExitType::AllocateObject => {
+                RuntimeVMExitInput::AllocateObject {
+                    type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(AllocateObject::TYPE) as u32),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObject::RESTART_IP) as *const c_void,
+                    res_address: register_state.saved_registers_without_ip.get_register(AllocateObject::RES_PTR) as *mut NonNull<c_void>
                 }
             }
         }

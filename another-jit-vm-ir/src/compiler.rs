@@ -137,6 +137,7 @@ impl IRInstr {
                     IRVMExitType::TraceInstructionBefore { .. } => { "TraceInstructionBefore" }
                     IRVMExitType::TraceInstructionAfter { .. } => { "TraceInstructionAfter" }
                     IRVMExitType::BeforeReturn { .. } => { "BeforeReturn" }
+                    IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
                 })
             }
             IRInstr::NPECheck { .. } => {
