@@ -29,6 +29,8 @@ use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
+use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
+use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
 
@@ -85,6 +87,7 @@ pub struct JVMState<'gc_life> {
     pub thread_state: ThreadState<'gc_life>,
     pub method_table: RwLock<MethodTable<'gc_life>>,
     pub field_table: RwLock<FieldTable<'gc_life>>,
+    pub wtf8_pool: Wtf8Pool,
     pub cpdtype_table: RwLock<CPDTypeTable>,
     pub opaque_ids: RwLock<OpaqueIDs>,
     pub native: Native,
@@ -254,6 +257,7 @@ impl<'gc_life> JVMState<'gc_life> {
             thread_state,
             method_table: RwLock::new(MethodTable::new()),
             field_table: RwLock::new(FieldTable::new()),
+            wtf8_pool: Wtf8Pool::new(),
             cpdtype_table: RwLock::new(CPDTypeTable::new()),
             opaque_ids: RwLock::new(OpaqueIDs::new()),
             native: Native {

@@ -28,7 +28,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 
-use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JVMState};
+use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
@@ -162,7 +162,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
                 eprintln!("InitClassAndRecompile");
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
-                let saved= int_state.frame_state_assert_save();
+                let saved = int_state.frame_state_assert_save();
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
                 int_state.saved_assert_frame_same(saved);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
@@ -197,18 +197,22 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("Before:{:?}", instr.info);
+                // match int_state.previous_frame() {
+                //     None => {}
+                //     Some(prev) => {
+                //         prev.ir_stack_entry_debug_print()
+                //     }
+                // }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
+                assert_eq!(Some(*method_id), int_state.current_frame().frame_view.ir_ref.method_id());
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let view = rc.view();
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
-                let method_name = method_view.name().0.to_str(&jvm.string_pool);
-                let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
-                let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
-                eprintln!("After:{}/{}/{}{:?}", class_name, method_name, desc_str, instr.info);
+                eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info);
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -217,7 +221,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 todo!()
             }
             RuntimeVMExitInput::BeforeReturn { return_to_ptr, frame_size_allegedly } => {
-                // int_state.debug_print_stack_trace(jvm, true);
+                // int_state.debug_print_stack_trace(jvm, false);
+                let saved = int_state.frame_state_assert_save();
+                dbg!(saved);
+                int_state.current_frame().ir_stack_entry_debug_print();
                 if let Some(previous_frame) = int_state.previous_frame() {
                     // previous_frame.ir_stack_entry_debug_print();
                     dbg!(frame_size_allegedly);
@@ -232,6 +239,17 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
+                eprintln!("NewString");
+                let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
+                let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
+                let jv = jstring.java_value();
+                unsafe {
+                    let raw_64 = jv.to_native().as_u64;
+                    (*res as *mut u64).write(raw_64);
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
@@ -377,7 +395,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
-        eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool));
+        eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+        //todo need some mechanism for detecting recompile necessary
         let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
         let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
         let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data);

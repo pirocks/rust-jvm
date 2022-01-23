@@ -2,6 +2,8 @@ use std::string::FromUtf8Error;
 
 use wtf8::{CodePoint, Wtf8Buf};
 
+pub mod wtf8_pool;
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JVMString {
     pub buf: Vec<u8>,

@@ -12,6 +12,7 @@ use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
+use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
 
@@ -156,6 +157,14 @@ impl BeforeReturn {
     pub const RESTART_IP: Register = Register(3);
 }
 
+pub struct NewString;
+
+impl NewString{
+    pub const COMPRESSED_WTF8: Register = Register(2);
+    pub const RES: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+}
+
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
@@ -165,6 +174,10 @@ pub enum IRVMExitType {
     AllocateObject{
         class_type: CPDTypeID,
         res: FramePointerOffset
+    },
+    NewString{
+        res: FramePointerOffset,
+        compressed_wtf8_buf: CompressedWtf8String
     },
     NPE,
     LoadClassAndRecompile {
@@ -298,6 +311,12 @@ impl IRVMExitType {
                 assembler.mov(AllocateObject::TYPE.to_native_64(), class_type.0 as u64).unwrap();
                 assembler.lea(AllocateObject::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap()
             }
+            IRVMExitType::NewString { res, compressed_wtf8_buf } => {
+                assembler.mov(rax, RawVMExitType::NewString as u64).unwrap();
+                assembler.mov(NewString::COMPRESSED_WTF8.to_native_64(), compressed_wtf8_buf.0 as u64).unwrap();
+                assembler.lea(NewString::RES.to_native_64(), rbp - res.0).unwrap();
+                assembler.lea(NewString::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -326,6 +345,7 @@ pub enum RawVMExitType {
     TraceInstructionBefore,
     TraceInstructionAfter,
     BeforeReturn,
+    NewString
 }
 
 
@@ -402,6 +422,11 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         frame_size_allegedly: usize,
     },
+    NewString {
+        return_to_ptr: *const c_void,
+        res: *mut c_void,
+        compressed_wtf8: CompressedWtf8String
+    }
 }
 
 impl RuntimeVMExitInput {
@@ -493,6 +518,13 @@ impl RuntimeVMExitInput {
                     type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(AllocateObject::TYPE) as u32),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObject::RESTART_IP) as *const c_void,
                     res_address: register_state.saved_registers_without_ip.get_register(AllocateObject::RES_PTR) as *mut NonNull<c_void>
+                }
+            }
+            RawVMExitType::NewString => {
+                RuntimeVMExitInput::NewString {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(NewString::RESTART_IP) as *const c_void,
+                    res: register_state.saved_registers_without_ip.get_register(NewString::RES) as *mut c_void,
+                    compressed_wtf8: CompressedWtf8String(register_state.saved_registers_without_ip.get_register(NewString::COMPRESSED_WTF8) as usize)
                 }
             }
         }

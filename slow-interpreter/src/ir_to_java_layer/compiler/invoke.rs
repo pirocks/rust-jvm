@@ -52,7 +52,7 @@ pub fn invokespecial(
                     //todo have restart point ids for matching same restart points
                     Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
                 }
-                Some(address) => {
+                Some((ir_method_id, address)) => {
                     let method_layout = resolver.lookup_method_layout(method_id);
                     if is_native {
                         todo!()
@@ -62,6 +62,8 @@ pub fn invokespecial(
                             temp_register_2: Register(2),
                             current_frame_size: method_frame_data.full_frame_size(),
                             new_frame_size: method_layout.full_frame_size(),
+                            new_method_id: method_id,
+                            new_ir_method_id: ir_method_id,
                             target_address: address,
                         }]))
                     }
@@ -90,7 +92,7 @@ pub fn invokestatic(
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpdtype_id,
                     this_method_id: method_frame_data.current_method_id,
-                    restart_point_id: restart_point_id
+                    restart_point_id
                 },
             }]))
         }

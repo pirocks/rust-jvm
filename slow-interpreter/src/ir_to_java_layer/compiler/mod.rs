@@ -12,6 +12,7 @@ use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
+use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -24,7 +25,7 @@ use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::putfield;
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
-use crate::ir_to_java_layer::compiler::ldc::ldc_string;
+use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
@@ -238,9 +239,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     Either::Left(left) => {
                         match left {
                             CompressedLdcW::String { str } => {
-                                this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, str))
+                                let compressed = resolver.get_commpressed_version_of_wtf8(str);
+                                this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, compressed))
                             }
-                            CompressedLdcW::Class { .. } => todo!(),
+                            CompressedLdcW::Class { type_ } => {
+                                this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, type_))
+                            }
                             CompressedLdcW::Float { .. } => todo!(),
                             CompressedLdcW::Integer { .. } => todo!(),
                             CompressedLdcW::MethodType { .. } => todo!(),

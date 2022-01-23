@@ -518,19 +518,19 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
-                self.frame_state_assert_save_from(int_state.current_rsp)
+                unsafe { self.frame_state_assert_save_from(int_state.current_rsp.add(size_of::<u64>())) }
             }
         }
     }
 
-    pub fn frame_state_assert_save_from(&self, from: *const c_void) -> SavedAssertState {
+    pub fn frame_state_assert_save_from(&self, from_inclusive: *const c_void) -> SavedAssertState {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
                 let mmaped_top = int_state.owned_ir_stack.native.mmaped_top;
                 let curent_rsp = int_state.current_rsp;
                 let curent_rbp = int_state.current_rbp;
-                let slice = unsafe { slice_from_raw_parts(from as *const u64, mmaped_top.offset_from(from).abs() as usize / size_of::<u64>() + 1)  };
+                let slice = unsafe { slice_from_raw_parts(from_inclusive as *const u64, mmaped_top.offset_from(from_inclusive).abs() as usize / size_of::<u64>() + 1)  };
                 let data = unsafe { slice.as_ref() }.unwrap().iter().cloned().map(|elem| elem as usize as *const c_void).collect();
                 SavedAssertState {
                     frame_pointer: curent_rbp,
@@ -541,8 +541,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn saved_assert_frame_from(&self, previous: SavedAssertState, from: *const c_void) {
-        let current = self.frame_state_assert_save_from(from);
+    pub fn saved_assert_frame_from(&self, previous: SavedAssertState, from_inclusive: *const c_void) {
+        let current = self.frame_state_assert_save_from(from_inclusive);
         // dbg!(&current.data);
         // dbg!(&previous.data);
         assert_eq!(current, previous);
@@ -552,7 +552,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
-                let from = int_state.current_rsp;
+                let from = unsafe { int_state.current_rsp.add(size_of::<u64>()) };
                 self.saved_assert_frame_from(previous, from)
             }
         }

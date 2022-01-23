@@ -11,18 +11,21 @@ use iced_x86::BlockEncoderOptions;
 use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
 use itertools::Itertools;
 use memoffset::offset_of;
-use wtf8::Wtf8Buf;
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
-use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
+use wtf8::{Wtf8, Wtf8Buf};
 
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
+use another_jit_vm_ir::IRMethodID;
+use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
-use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
+use rust_jvm_common::loading::LoaderName;
+use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -34,7 +37,6 @@ use crate::rust_jni::interface::array::release_boolean_array_elements;
 
 pub mod ir;
 pub mod state;
-
 
 
 /*#[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -66,7 +68,6 @@ pub struct CompiledCodeID(pub u32);
 pub struct IRInstructionIndex(u32);
 
 
-
 #[derive(Clone, Debug)]
 pub struct NotSupported;
 
@@ -84,8 +85,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(method_view.is_static());
-        let mut method_table_guard = self.jvm.method_table.write().unwrap();
-        let method_id = method_table_guard.get_method_id(rc.clone(), method_view.method_i());
+        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
 
@@ -96,8 +96,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(!method_view.is_static());
-        let mut method_table_guard = self.jvm.method_table.write().unwrap();
-        let method_id = method_table_guard.get_method_id(rc.clone(), method_view.method_i());
+        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
 
@@ -107,8 +106,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
-        let mut method_table_guard = self.jvm.method_table.write().unwrap();
-        let method_id = method_table_guard.get_method_id(rc.clone(), method_view.method_i());
+        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
 
@@ -144,20 +142,24 @@ impl<'gc_life> MethodResolver<'gc_life> {
         method_view.num_args() as u16
     }
 
-    pub fn lookup_address(&self, method_id: MethodId) -> Option<*const c_void> {
-        let ir_method_id= self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
+    pub fn lookup_address(&self, method_id: MethodId) -> Option<(IRMethodID, *const c_void)> {
+        let ir_method_id = self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
         let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-        Some(ptr)
+        Some((ir_method_id,ptr))
     }
 
-    pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> FieldId{
+    pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> FieldId {
         let view = runtime_class.view();
         let field_view = view.lookup_field(field_name).unwrap();
-        self.jvm.field_table.write().unwrap().get_field_id(runtime_class,field_view.field_i())
+        self.jvm.field_table.write().unwrap().get_field_id(runtime_class, field_view.field_i())
     }
 
-    pub fn get_cpdtype_id(&self, cpdtype: &CPDType) -> CPDTypeID{
+    pub fn get_cpdtype_id(&self, cpdtype: &CPDType) -> CPDTypeID {
         self.jvm.cpdtype_table.write().unwrap().get_cpdtype_id(cpdtype)
+    }
+
+    pub fn get_commpressed_version_of_wtf8(&self, wtf8: &Wtf8Buf) -> CompressedWtf8String{
+        self.jvm.wtf8_pool.add_entry(wtf8.clone())
     }
 }
 

@@ -22,7 +22,7 @@ use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
-use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRFrameMut, IRStackMut};
+use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
 #[cfg(test)]
@@ -367,7 +367,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
 
             assembler.set_label(&mut skip_assert).unwrap();
             assembler.mov(rsp, rbp).unwrap();
-            //load prev fram pointer
+            //load prev frame pointer
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
             assembler.ret().unwrap();
             // todo!("{:?}",frame_size)
@@ -395,7 +395,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             todo!()
         }
         // IRInstr::VMExit { .. } => panic!("legacy"),
-        IRInstr::IRCall { current_frame_size: _, new_frame_size, temp_register_1, temp_register_2, target_address } => {
+        IRInstr::IRCall { current_frame_size: _, new_frame_size, temp_register_1, temp_register_2, new_method_id, new_ir_method_id, target_address } => {
             let temp_register = temp_register_1.to_native_64();
             let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();
@@ -407,6 +407,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RBP_OFFSET) as u64, return_to_rbp).unwrap();
+            assembler.mov(temp_register, *new_method_id as u64).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
+            assembler.mov(temp_register, new_ir_method_id.0 as u64).unwrap();
+            assembler.mov(rbp - (FRAME_HEADER_IR_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
             let return_to_rip = temp_register_2.to_native_64();
             assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();

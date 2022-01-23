@@ -4,8 +4,9 @@ use iced_x86::code_asm::CodeAssembler;
 
 use another_jit_vm::Register;
 use gc_memory_layout_common::FramePointerOffset;
+use rust_jvm_common::MethodId;
 
-use crate::IRVMExitType;
+use crate::{IRMethodID, IRVMExitType};
 
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register },
@@ -46,6 +47,8 @@ pub enum IRInstr {
         temp_register_2: Register,
         current_frame_size: usize,
         new_frame_size: usize,
+        new_method_id: MethodId,
+        new_ir_method_id: IRMethodID,
         target_address: *const c_void, //todo perhaps this should be an ir_method id
     },
     NOP,
@@ -138,6 +141,7 @@ impl IRInstr {
                     IRVMExitType::TraceInstructionAfter { .. } => { "TraceInstructionAfter" }
                     IRVMExitType::BeforeReturn { .. } => { "BeforeReturn" }
                     IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
+                    IRVMExitType::NewString { .. } => { "NewString" }
                 })
             }
             IRInstr::NPECheck { .. } => {

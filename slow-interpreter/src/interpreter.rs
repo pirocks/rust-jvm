@@ -63,6 +63,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
         jvm.java_vm_state.add_method(jvm, &resolver, method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
+        assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
         let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id);
         //todo bug what if gc happens here
         let return_type = &method.desc().return_type;
