@@ -4,7 +4,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
@@ -37,7 +37,7 @@ pub fn invokespecial(
         Some((rc, loader)) => {
             let view = rc.view();
             let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
-            let maybe_address = resolver.lookup_address(method_id);
+            let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
             let restart_point_id_function_address = restart_point_generator.new_restart_point();
             let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
             Either::Right(match maybe_address {
@@ -57,6 +57,17 @@ pub fn invokespecial(
                     if is_native {
                         todo!()
                     } else {
+                        let mut arg_from_to_offsets = vec![];
+                        let num_args = descriptor.arg_types.len();
+                        for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
+                            let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
+                            todo!("make the two implementations of layout the same here");
+                            let to = method_layout.local_var_entry(0, i as u16);
+                            arg_from_to_offsets.push((from, to))
+                        }
+                        let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
+                        let object_ref_to = method_layout.local_var_entry(0, 0);
+                        arg_from_to_offsets.push((object_ref_from, object_ref_to));
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
@@ -64,6 +75,12 @@ pub fn invokespecial(
                             new_frame_size: method_layout.full_frame_size(),
                             new_method_id: method_id,
                             new_ir_method_id: ir_method_id,
+                            arg_from_to_offsets,
+                            return_value: if let CompressedParsedDescriptorType::VoidType = descriptor.return_type {
+                                None
+                            } else {
+                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                            },
                             target_address: address,
                         }]))
                     }
@@ -88,11 +105,11 @@ pub fn invokestatic(
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
             let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
-            Either::Left(array_into_iter([restart_point,IRInstr::VMExit2 {
+            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpdtype_id,
                     this_method_id: method_frame_data.current_method_id,
-                    restart_point_id
+                    restart_point_id,
                 },
             }]))
         }
@@ -105,7 +122,7 @@ pub fn invokestatic(
                 } else {
                     FramePointerOffset(usize::MAX)
                 };
-                array_into_iter([restart_point,IRInstr::VMExit2 {
+                array_into_iter([restart_point, IRInstr::VMExit2 {
                     exit_type: IRVMExitType::RunStaticNative {
                         method_id,
                         arg_start_frame_offset,

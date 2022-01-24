@@ -39,7 +39,7 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
     current_implementation: HashMap<IRMethodID, MethodImplementationID>,
-    implementation_id_to_ir_method_id: HashMap<MethodImplementationID,IRMethodID>,
+    implementation_id_to_ir_method_id: HashMap<MethodImplementationID, IRMethodID>,
 
     frame_sizes_by_ir_method_id: HashMap<IRMethodID, usize>,
     method_ir_offsets_range: HashMap<IRMethodID, BTreeMap<IRInstructNativeOffset, IRInstructIndex>>,
@@ -82,7 +82,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
         let indexes = offsets_range.iter().map(|(_, instruct)| *instruct).collect::<HashSet<_>>();
         assert_eq!(indexes.iter().max().unwrap().0 + 1, indexes.len());
         self.method_ir_offsets_range.insert(current_ir_id, offsets_range);
-        self.method_ir_offsets_at_index.insert(current_ir_id,offsets_at_index);
+        self.method_ir_offsets_at_index.insert(current_ir_id, offsets_at_index);
     }
 }
 
@@ -137,7 +137,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let ir_method_id = *guard.implementation_id_to_ir_method_id.get(&implementation_id).unwrap();
         let native_offsets_to_index = guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
         let ir_instruct_index = *native_offsets_to_index.range(Unbounded..Included(native_offset)).last().unwrap().1;
-        (ir_method_id,ir_instruct_index)
+        (ir_method_id, ir_instruct_index)
     }
 
     pub fn lookup_ir_method_id_pointer(&self, ir_method_id: IRMethodID) -> *const c_void {
@@ -395,13 +395,28 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             todo!()
         }
         // IRInstr::VMExit { .. } => panic!("legacy"),
-        IRInstr::IRCall { current_frame_size: _, new_frame_size, temp_register_1, temp_register_2, new_method_id, new_ir_method_id, target_address } => {
+        IRInstr::IRCall {
+            current_frame_size: _,
+            new_frame_size,
+            temp_register_1,
+            temp_register_2,
+            new_method_id,
+            new_ir_method_id,
+            arg_from_to_offsets,
+            return_value,
+            target_address
+        } => {
             let temp_register = temp_register_1.to_native_64();
             let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();
             assembler.mov(return_to_rbp, rbp).unwrap();
             assembler.mov(rbp, rsp).unwrap();
             assembler.sub(rsp, *new_frame_size as i32).unwrap();
+            for (from, to) in arg_from_to_offsets {
+                assembler.mov(temp_register, return_to_rbp - from.0).unwrap();
+                assembler.mov(rbp - to.0, temp_register).unwrap();
+            }
+
             assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
@@ -411,12 +426,16 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(rbp - (FRAME_HEADER_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(temp_register, new_ir_method_id.0 as u64).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_IR_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
+
             let return_to_rip = temp_register_2.to_native_64();
             assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
             assembler.mov(temp_register, *target_address as u64).unwrap();
             assembler.jmp(temp_register).unwrap();
             assembler.set_label(&mut after_call_label).unwrap();
+            if let Some(return_value) = return_value{
+                assembler.mov(rbp - return_value.0, rax).unwrap();
+            }
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
             let mut after_exit_label = assembler.create_label();
@@ -454,7 +473,7 @@ pub struct IRInstructIndex(pub usize);
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct IRInstructNativeOffset(usize);
 
-impl RangeBounds<IRInstructNativeOffset> for Range<Bound<IRInstructNativeOffset>>{
+impl RangeBounds<IRInstructNativeOffset> for Range<Bound<IRInstructNativeOffset>> {
     fn start_bound(&self) -> Bound<&IRInstructNativeOffset> {
         self.start.as_ref()
     }

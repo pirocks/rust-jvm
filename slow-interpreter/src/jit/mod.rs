@@ -20,7 +20,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::classfile::InstructionInfo::jsr;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -85,6 +85,8 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(method_view.is_static());
+        assert_eq!(method_view.num_args(), 0);
+        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -96,6 +98,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(!method_view.is_static());
+        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -106,6 +109,8 @@ impl<'gc_life> MethodResolver<'gc_life> {
         assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
+        assert_eq!(method_view.num_args(), 0);
+        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -142,7 +147,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         method_view.num_args() as u16
     }
 
-    pub fn lookup_address(&self, method_id: MethodId) -> Option<(IRMethodID, *const c_void)> {
+    pub fn lookup_ir_method_id_and_address(&self, method_id: MethodId) -> Option<(IRMethodID, *const c_void)> {
         let ir_method_id = self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
         let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
         Some((ir_method_id,ptr))

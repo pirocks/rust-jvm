@@ -49,6 +49,8 @@ pub enum IRInstr {
         new_frame_size: usize,
         new_method_id: MethodId,
         new_ir_method_id: IRMethodID,
+        arg_from_to_offsets: Vec<(FramePointerOffset,FramePointerOffset)>,
+        return_value: Option<FramePointerOffset>,
         target_address: *const c_void, //todo perhaps this should be an ir_method id
     },
     NOP,
