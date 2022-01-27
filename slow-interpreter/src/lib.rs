@@ -9,7 +9,6 @@
 #![feature(in_band_lifetimes)]
 #![feature(destructuring_assignment)]
 #![feature(asm)]
-// #![feature(asm_const)]
 #![feature(thread_id_value)]
 #![feature(unboxed_closures)]
 #![feature(exclusive_range_pattern)]
@@ -84,6 +83,8 @@ pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
 pub mod native_tracing;
 pub mod opaque_ids;
+pub mod inheritance_method_ids;
+pub mod inheritance_vtable;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

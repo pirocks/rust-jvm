@@ -21,6 +21,7 @@ use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAc
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
+use gc_memory_layout_common::AllocatedObjectType;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -254,6 +255,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr } => {
+                eprintln!("NewClass");
                 let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(*type_).clone();
                 let jclass = JClass::from_type(jvm,int_state,cpdtype).unwrap();
                 let jv = jclass.java_value();
@@ -264,6 +266,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr } => {
+                let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap());
+                match allocated_type{
+                    AllocatedObjectType::Class { thread, name, loader, size } => {
+                        let rc = assert_inited_or_initing_class(jvm,(*name).into());
+
+                    }
+                    _ => panic!()
+                }
                 todo!()
             }
         }

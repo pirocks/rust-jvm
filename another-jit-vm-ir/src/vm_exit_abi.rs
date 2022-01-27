@@ -179,6 +179,10 @@ pub struct InvokeVirtualResolve;
 impl InvokeVirtualResolve {
     pub const OBJECT_REF: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
+    pub const ADDRESS_RES: Register = Register(4);
+    pub const IR_METHOD_ID_RES: Register = Register(5);
+    pub const METHOD_ID_RES: Register = Register(6);
+    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
 }
 
 #[derive(Debug)]

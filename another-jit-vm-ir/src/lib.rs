@@ -114,6 +114,10 @@ pub enum IRVMExitAction {
     RestartAtIRestartPoint {
         restart_point: RestartPointID
     },
+    RestartWithRegisterState{
+        //todo major abstraction leak
+        diff: SavedRegistersWithIPDiff
+    }
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
@@ -240,6 +244,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 }
                 IRVMExitAction::RestartAtIRestartPoint { restart_point: _ } => {
                     todo!()
+                }
+                IRVMExitAction::RestartWithRegisterState { diff } => {
+                    launched_vm.return_to(vm_exit_event,diff)
                 }
             }
         }
