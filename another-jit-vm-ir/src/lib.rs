@@ -74,6 +74,10 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
         let mut offsets_range = BTreeMap::new();
         let mut offsets_at_index = HashMap::new();
         for ((i, instruction_offset), (ir_instruction_index, assembly_instruction_index_2)) in new_instruction_offsets.into_iter().enumerate().zip(ir_instruct_index_to_assembly_index.into_iter()) {
+            if instruction_offset.0 as u32 == u32::MAX{
+                //hack to work around iced generating annoying jumps
+                continue
+            }
             let assembly_instruction_index_1 = AssemblyInstructionIndex(i);
             assert_eq!(assembly_instruction_index_1, assembly_instruction_index_2);
             let overwritten = offsets_range.insert(dbg!(instruction_offset), dbg!(ir_instruction_index));
@@ -274,7 +278,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         dbg!(&instructions);
-        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::DONT_FIX_BRANCHES).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
+        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS /*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address, &assembly_index_to_ir_instruct_index, &instructions);
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
