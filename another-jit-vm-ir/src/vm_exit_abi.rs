@@ -284,8 +284,8 @@ impl IRVMExitType {
                     }
                 }
                 assembler.mov(RunStaticNative::NUM_ARGS.to_native_64(), *num_args as u64).unwrap();
-                if let Some(res_pointer_offset) = res_pointer_offset{
-                    assembler.lea(RunStaticNative::RES.to_native_64(),rbp - res_pointer_offset.0).unwrap();
+                if let Some(res_pointer_offset) = res_pointer_offset {
+                    assembler.lea(RunStaticNative::RES.to_native_64(), rbp - res_pointer_offset.0).unwrap();
                 }
                 // assembler.mov(RunStaticNative::RES.to_native_64(),).unwrap()
             }
@@ -353,7 +353,10 @@ impl IRVMExitType {
                 assembler.lea(NewString::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::NewClass { res, type_ } => {
-                assembler.mov(rax, RawVMExitType::NewClass as u64).unwrap()
+                assembler.mov(rax, RawVMExitType::NewClass as u64).unwrap();
+                assembler.mov(NewClass::CPDTYPE_ID.to_native_64(), type_.0 as u64).unwrap();
+                assembler.lea(NewClass::RES.to_native_64(), rbp - res.0).unwrap();
+                assembler.lea(NewClass::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::InvokeVirtualResolve { object_ref } => {
                 assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();

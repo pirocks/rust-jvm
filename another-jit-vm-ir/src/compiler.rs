@@ -1,7 +1,5 @@
 use std::ffi::c_void;
 
-use iced_x86::code_asm::CodeAssembler;
-
 use another_jit_vm::Register;
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::MethodId;

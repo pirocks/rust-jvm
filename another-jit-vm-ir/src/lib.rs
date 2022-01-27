@@ -80,7 +80,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             }
             let assembly_instruction_index_1 = AssemblyInstructionIndex(i);
             assert_eq!(assembly_instruction_index_1, assembly_instruction_index_2);
-            let overwritten = offsets_range.insert(dbg!(instruction_offset), dbg!(ir_instruction_index));
+            let overwritten = offsets_range.insert(instruction_offset, ir_instruction_index);
             assert!(overwritten.is_none());
             offsets_at_index.entry(ir_instruction_index).or_insert(instruction_offset);
         }
