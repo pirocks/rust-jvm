@@ -263,6 +263,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
+            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr } => {
+                todo!()
+            }
         }
     }
 }

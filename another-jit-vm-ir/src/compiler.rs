@@ -8,6 +8,7 @@ use rust_jvm_common::MethodId;
 
 use crate::{IRMethodID, IRVMExitType};
 
+#[derive(Debug)]
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register },
     StoreFPRelative { from: Register, to: FramePointerOffset },
@@ -36,7 +37,7 @@ pub enum IRInstr {
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     GrowStack { amount: usize },
     LoadSP { to: Register },
-    WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
+    // WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
     IRNewFrame {
         current_frame_size: usize,
         temp_register: Register,
@@ -46,16 +47,29 @@ pub enum IRInstr {
         temp_register_1: Register,
         temp_register_2: Register,
         current_frame_size: usize,
-        new_frame_size: usize,
-        new_method_id: MethodId,
-        new_ir_method_id: IRMethodID,
-        arg_from_to_offsets: Vec<(FramePointerOffset,FramePointerOffset)>,
+        arg_from_to_offsets: Vec<(FramePointerOffset, FramePointerOffset)>,
         return_value: Option<FramePointerOffset>,
-        target_address: *const c_void, //todo perhaps this should be an ir_method id
+        target_address: IRCallTarget,
     },
     NOP,
     DebuggerBreakpoint,
     Label(IRLabel),
+}
+
+#[derive(Debug)]
+pub enum IRCallTarget {
+    Constant {
+        address: *const c_void,
+        ir_method_id: IRMethodID,
+        method_id: MethodId,
+        new_frame_size: usize,
+    },
+    Variable{
+        address: Register,
+        ir_method_id: Register,
+        method_id: Register,
+        new_frame_size: Register,
+    },
 }
 
 impl IRInstr {
@@ -145,6 +159,7 @@ impl IRInstr {
                     IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
                     IRVMExitType::NewString { .. } => { "NewString" }
                     IRVMExitType::NewClass { .. } => { "NewClass" }
+                    IRVMExitType::InvokeVirtualResolve { .. } => {"InvokeVirtualResolve"}
                 })
             }
             IRInstr::NPECheck { .. } => {
@@ -155,9 +170,6 @@ impl IRInstr {
             }
             IRInstr::LoadSP { .. } => {
                 "LoadSP".to_string()
-            }
-            IRInstr::WithAssembler { .. } => {
-                "WithAssembler".to_string()
             }
             IRInstr::IRNewFrame { .. } => {
                 "IRNewFrame".to_string()

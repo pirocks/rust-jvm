@@ -174,25 +174,6 @@ impl JITedCodeState {
         next_code_id
     }
 
-    pub fn add_function(&mut self, code: &CompressedCode, methodid: usize, resolver: MethodResolver<'l>) -> *mut c_void {
-        let current_code_id = self.next_code_id(methodid);
-        let CompressedCode { instructions, max_locals, max_stack, exception_table, stack_map_table } = code;
-        let cinstructions = instructions.iter().sorted_by_key(|(offset, _)| **offset).map(|(_, ci)| ci).collect_vec();
-        let layout = resolver.lookup_method_layout(methodid);
-        let ir = self.to_ir(cinstructions, &layout, resolver).unwrap();
-        let (current_rc, method_i) = resolver.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
-        let view = current_rc.unwrap_class_class().class_view.clone();
-        let method_view = view.method_view_i(method_i);
-        let method_name = method_view.name().0.to_str(&resolver.jvm.string_pool);
-        let class_name = view.name().unwrap_name().0.to_str(&resolver.jvm.string_pool);
-        let res_ptr = self.add_from_ir(format!("{} {} {:?}", class_name, method_name, current_code_id), current_code_id, ir);
-        res_ptr
-    }
-
-    fn to_ir<'l>(&mut self, byte_code: Vec<&CInstruction>, layout: &dyn StackframeMemoryLayout, resolver: MethodResolver<'l>) -> Result<ToIR, NotSupported> {
-        todo!()
-    }
-
 
     pub fn ir_to_native(&self, ir: ToIR, base_address: *mut c_void, method_log_info: String) -> ToNative {
         let ToIR { labels: ir_labels, ir, function_start_label } = ir;
@@ -353,7 +334,6 @@ impl JITedCodeState {
                 IRInstr::CopyRegister { .. } => todo!(),
                 IRInstr::BinaryBitAnd { .. } => todo!(),
                 IRInstr::ForwardBitScan { .. } => todo!(),
-                IRInstr::WithAssembler { .. } => todo!(),
                 IRInstr::IRNewFrame { .. } => todo!(),
                 IRInstr::VMExit2 { .. } => todo!(),
                 IRInstr::IRCall { .. } => todo!(),
@@ -377,7 +357,7 @@ impl JITedCodeState {
             formatted_instructions.push_str(format!("#{}: {:<35}{}\n", i, temp, instruction_info_as_string).as_str());
         }
         eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
-        let result = BlockEncoder::encode(assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
+        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::DONT_FIX_BRANCHES).unwrap();
         let mut bytecode_offset_to_address = BiRangeMap::new();
         let mut new_labels: HashMap<LabelName, *mut c_void> = Default::default();
         let mut label_instruction_indexes = label_instruction_offsets.into_iter().peekable();
@@ -450,23 +430,6 @@ impl JITedCodeState {
             self.function_addresses.insert_range(install_at..(install_at.offset(code.len() as isize)), current_code_id);
         }
         install_at
-    }
-
-    pub fn recompile_method_and_restart(jit_state: &RefCell<JITedCodeState>, methodid: usize, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, code: &CompressedCode, old_java_ip: *mut c_void, transition_type: TransitionType) -> Result<Option<JavaValue<'gc_life>>, WasException> {
-        transition_stack_frame(transition_type, todo!()/*int_state.java_stack()*/);
-        let instruct_pointer = todo!()/*int_state.java_stack().saved_registers().instruction_pointer*/;
-        assert_eq!(instruct_pointer, old_java_ip);
-        let compiled_code_id = *jit_state.borrow().function_addresses.get(&instruct_pointer).unwrap();
-        let temp = jit_state.borrow();
-        let compiled_code = temp.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
-        // problem here is that a function call overwrites the old old ip
-        let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
-        drop(temp);
-        let new_base_address = jit_state.borrow_mut().add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader(jvm) });
-        let new_code_id = *jit_state.borrow().function_addresses.get(&new_base_address).unwrap();
-        let start_byte_code_addresses = jit_state.borrow().address_to_byte_code_offset.get(&new_code_id).unwrap().get_reverse(&return_to_byte_code_offset).unwrap().clone();
-        let restart_execution_at = start_byte_code_addresses.start;
-        unsafe { Self::resume_method(jit_state, restart_execution_at, jvm, int_state, methodid, new_code_id) }
     }
 
     pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {

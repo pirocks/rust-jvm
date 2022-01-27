@@ -22,6 +22,7 @@ use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
+use crate::compiler::IRCallTarget;
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
@@ -75,9 +76,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
         for ((i, instruction_offset), (ir_instruction_index, assembly_instruction_index_2)) in new_instruction_offsets.into_iter().enumerate().zip(ir_instruct_index_to_assembly_index.into_iter()) {
             let assembly_instruction_index_1 = AssemblyInstructionIndex(i);
             assert_eq!(assembly_instruction_index_1, assembly_instruction_index_2);
-            let overwritten = offsets_range.insert(instruction_offset, ir_instruction_index);
-            offsets_at_index.entry(ir_instruction_index).or_insert(instruction_offset);
+            let overwritten = offsets_range.insert(dbg!(instruction_offset), dbg!(ir_instruction_index));
             assert!(overwritten.is_none());
+            offsets_at_index.entry(ir_instruction_index).or_insert(instruction_offset);
         }
         let indexes = offsets_range.iter().map(|(_, instruct)| *instruct).collect::<HashSet<_>>();
         assert_eq!(indexes.iter().max().unwrap().0 + 1, indexes.len());
@@ -260,7 +261,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             };
             unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
         }
-        // eprintln!("{}", formatted_instructions);
+        eprintln!("{}", formatted_instructions);
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
@@ -272,7 +273,8 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
-        let result = BlockEncoder::encode(code_assembler.bitness(), block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS).unwrap();
+        dbg!(&instructions);
+        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::DONT_FIX_BRANCHES).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address, &assembly_index_to_ir_instruct_index, &instructions);
         inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
@@ -334,7 +336,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::BranchToLabel { label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.jmp(code_label.clone()).unwrap();
+            assembler.jmp(*code_label).unwrap();
         }
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
@@ -343,7 +345,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::BranchNotEqual { a, b, label, } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
-            assembler.jne(code_label.clone()).unwrap();
+            assembler.jne(*code_label).unwrap();
         }
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
             if let Some(return_register) = return_val {
@@ -377,15 +379,14 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::GrowStack { .. } => todo!(),
         IRInstr::LoadSP { .. } => todo!(),
-        IRInstr::WithAssembler { .. } => todo!(),
         IRInstr::NOP => {
             assembler.nop().unwrap();
         }
         IRInstr::Label(label) => {
             let label_name = label.name;
             let code_label = labels.entry(label_name).or_insert_with(|| assembler.create_label());
-            assembler.set_label(code_label).unwrap();
             assembler.nop().unwrap();
+            assembler.set_label(code_label).unwrap();
         }
         IRInstr::IRNewFrame {
             current_frame_size: _,
@@ -397,11 +398,8 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         // IRInstr::VMExit { .. } => panic!("legacy"),
         IRInstr::IRCall {
             current_frame_size: _,
-            new_frame_size,
             temp_register_1,
             temp_register_2,
-            new_method_id,
-            new_ir_method_id,
             arg_from_to_offsets,
             return_value,
             target_address
@@ -411,7 +409,14 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             let mut after_call_label = assembler.create_label();
             assembler.mov(return_to_rbp, rbp).unwrap();
             assembler.mov(rbp, rsp).unwrap();
-            assembler.sub(rsp, *new_frame_size as i32).unwrap();
+            match target_address {
+                IRCallTarget::Constant { new_frame_size, .. } => {
+                    assembler.sub(rsp, *new_frame_size as i32).unwrap();
+                }
+                IRCallTarget::Variable { new_frame_size, .. } => {
+                    assembler.sub(rsp, new_frame_size.to_native_64()).unwrap();
+                }
+            }
             for (from, to) in arg_from_to_offsets {
                 assembler.mov(temp_register, return_to_rbp - from.0).unwrap();
                 assembler.mov(rbp - to.0, temp_register).unwrap();
@@ -422,18 +427,39 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RBP_OFFSET) as u64, return_to_rbp).unwrap();
-            assembler.mov(temp_register, *new_method_id as u64).unwrap();
+            match target_address {
+                IRCallTarget::Constant { method_id, .. } => {
+                    assembler.mov(temp_register, *method_id as u64).unwrap();
+                }
+                IRCallTarget::Variable { method_id, .. } => {
+                    assembler.mov(temp_register, method_id.to_native_64()).unwrap();
+                }
+            }
             assembler.mov(rbp - (FRAME_HEADER_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
-            assembler.mov(temp_register, new_ir_method_id.0 as u64).unwrap();
+            match target_address {
+                IRCallTarget::Constant { ir_method_id,.. } => {
+                    assembler.mov(temp_register, ir_method_id.0 as u64).unwrap();
+                }
+                IRCallTarget::Variable { ir_method_id,.. } => {
+                    assembler.mov(temp_register, ir_method_id.to_native_64()).unwrap();
+                }
+            }
             assembler.mov(rbp - (FRAME_HEADER_IR_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
 
             let return_to_rip = temp_register_2.to_native_64();
             assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
             assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
-            assembler.mov(temp_register, *target_address as u64).unwrap();
+            match target_address {
+                IRCallTarget::Constant { address, .. } => {
+                    assembler.mov(temp_register, *address as u64).unwrap();
+                }
+                IRCallTarget::Variable { address, .. } => {
+                    assembler.mov(temp_register, address.to_native_64()).unwrap();
+                }
+            }
             assembler.jmp(temp_register).unwrap();
             assembler.set_label(&mut after_call_label).unwrap();
-            if let Some(return_value) = return_value{
+            if let Some(return_value) = return_value {
                 assembler.mov(rbp - return_value.0, rax).unwrap();
             }
         }

@@ -243,6 +243,13 @@ impl CompressedParsedDescriptorType {
         }
     }
 
+    pub fn is_void(&self) -> bool {
+        match self {
+            CompressedParsedDescriptorType::VoidType => true,
+            _ => false,
+        }
+    }
+
     pub fn array(sub_type: Self) -> Self {
         Self::Ref(CPRefType::Array(box sub_type))
     }

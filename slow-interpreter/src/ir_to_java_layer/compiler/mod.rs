@@ -14,17 +14,19 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::classfile::Code;
+use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_acmp, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, IntEqualityType, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::putfield;
-use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic};
+use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
@@ -40,10 +42,7 @@ pub struct ByteCodeIndex(pub u16);
 
 // all metadata needed to compile to ir, excluding resolver stuff
 pub struct JavaCompilerMethodAndFrameData {
-    max_locals: u16,
-    max_stack: u16,
-    stack_depth_by_index: Vec<u16>,
-    code_by_index: Vec<CompressedInstruction>,
+    layout: YetAnotherLayoutImpl,
     index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
     current_method_id: MethodId,
 }
@@ -52,18 +51,45 @@ impl JavaCompilerMethodAndFrameData {
     pub fn new(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
         let function_frame_type_guard = jvm.function_frame_type_data.read().unwrap();
         let frames = function_frame_type_guard.get(&method_id).unwrap();
-        let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| frame.stack_map.len() as u16).collect();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         Self {
+            layout: YetAnotherLayoutImpl::new(frames, code),
+            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
+            current_method_id: method_id,
+        }
+    }
+
+    pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
+        self.layout.operand_stack_entry(index, from_end)
+    }
+
+    pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
+        self.layout.local_var_entry(index, local_var_index)
+    }
+
+    pub fn full_frame_size(&self) -> usize {
+        self.layout.full_frame_size()
+    }
+}
+
+pub struct YetAnotherLayoutImpl {
+    max_locals: u16,
+    max_stack: u16,
+    stack_depth_by_index: Vec<u16>,
+    code_by_index: Vec<CompressedInstruction>,
+}
+
+impl YetAnotherLayoutImpl {
+    pub fn new(frames: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
+        let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| frame.stack_map.len() as u16).collect();
+        Self {
             max_locals: code.max_locals,
             max_stack: code.max_stack,
             stack_depth_by_index: stack_depth,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
-            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
-            current_method_id: method_id,
         }
     }
 
@@ -91,7 +117,7 @@ pub struct CurrentInstructionCompilerData<'l, 'k> {
 pub struct CompilerLabeler<'l> {
     labeler: &'l Labeler,
     labels_vec: Vec<IRLabel>,
-    label_to_offset: HashMap<ByteCodeIndex, LabelName>,
+    label_to_index: HashMap<ByteCodeIndex, LabelName>,
     index_by_bytecode_offset: &'l HashMap<ByteCodeOffset, ByteCodeIndex>,
 }
 
@@ -99,7 +125,7 @@ impl<'l> CompilerLabeler<'l> {
     pub fn label_at(&mut self, byte_code_offset: ByteCodeOffset) -> LabelName {
         let byte_code_index = self.index_by_bytecode_offset[&byte_code_offset];
         let labels_vec = &mut self.labels_vec;
-        let label_to_offset = &mut self.label_to_offset;
+        let label_to_offset = &mut self.label_to_index;
         let labeler = self.labeler;
         *label_to_offset.entry(byte_code_index).or_insert_with(|| {
             labeler.new_label(labels_vec)
@@ -109,13 +135,12 @@ impl<'l> CompilerLabeler<'l> {
 
 
 pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset, IRInstr)> {
-    let cinstructions = method_frame_data.code_by_index.as_slice();
-    let mut final_ir: Vec<(ByteCodeOffset, IRInstr)> = vec![];
-    let mut labels = vec![];
+    let cinstructions = method_frame_data.layout.code_by_index.as_slice();
+    let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![];
     let mut compiler_labeler = CompilerLabeler {
         labeler,
         labels_vec: vec![],
-        label_to_offset: Default::default(),
+        label_to_index: Default::default(),
         index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
     };
     let mut restart_point_generator = RestartPointGenerator::new();
@@ -169,6 +194,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::if_acmpeq(offset) => {
                 this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::EQ, *offset as i32));
             }
+            CompressedInstructionInfo::ifne(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::NE, *offset as i32))
+            }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
@@ -206,27 +234,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor.clone()) {
-                    None => {
-                        let exit_label = labeler.new_label(&mut labels);
-                        this_function_ir.push(
-                            IRInstr::VMExit2 {
-                                exit_type: IRVMExitType::InitClassAndRecompile {
-                                    class: todo!(),
-                                    this_method_id: todo!(),
-                                    restart_point_id: todo!(),
-                                },
-                            },
-                        );
-                    }
-                    Some((method_id, is_native)) => {
-                        if is_native {
-                            todo!()
-                        } else {
-                            todo!()
-                        }
-                    }
-                }
+                this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::putstatic { name, desc, target_class } => {
                 this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
@@ -265,10 +273,18 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 todo!()
             }
         }
-        final_ir.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
+        final_ir_without_labels.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
         prev_offset = Some(current_offset);
     }
-    final_ir.into_iter().collect_vec()
+    let mut final_ir = vec![];
+    for (offset, ir_instr) in final_ir_without_labels {
+        let index = *compiler_labeler.index_by_bytecode_offset.get(&offset).unwrap();
+        if let Some(label_name) = compiler_labeler.label_to_index.remove(&index) {
+            final_ir.push((offset, IRInstr::Label(IRLabel { name: label_name })));
+        }
+        final_ir.push((offset, ir_instr));
+    }
+    final_ir
 }
 
 pub mod static_fields;

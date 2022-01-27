@@ -26,6 +26,7 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -85,8 +86,6 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(method_view.is_static());
-        assert_eq!(method_view.num_args(), 0);
-        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -98,7 +97,6 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
         assert!(!method_view.is_static());
-        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -109,8 +107,6 @@ impl<'gc_life> MethodResolver<'gc_life> {
         assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let method_view = view.lookup_method(name, &desc).unwrap();
-        assert_eq!(method_view.num_args(), 0);
-        assert!(matches!(method_view.desc().return_type,CompressedParsedDescriptorType::VoidType));
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))
     }
@@ -122,15 +118,14 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((rc, loader))
     }
 
-    pub fn lookup_method_layout(&self, methodid: usize) -> NaiveStackframeLayout {
+    pub fn lookup_method_layout(&self, methodid: usize) -> YetAnotherLayoutImpl {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let function_frame_type = self.jvm.function_frame_type_data.read().unwrap();
         let frames = function_frame_type.get(&methodid).unwrap();
-        let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| (i as u16, frame.stack_map.len() as u16)).collect();
         let code = method_view.code_attribute().unwrap();
-        NaiveStackframeLayout::from_stack_depth(stack_depth, code.max_locals, code.max_stack)
+        YetAnotherLayoutImpl::new(frames,code)
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {

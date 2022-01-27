@@ -159,7 +159,7 @@ impl BeforeReturn {
 
 pub struct NewString;
 
-impl NewString{
+impl NewString {
     pub const COMPRESSED_WTF8: Register = Register(2);
     pub const RES: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
@@ -167,29 +167,38 @@ impl NewString{
 
 pub struct NewClass;
 
-impl NewClass{
+impl NewClass {
     pub const CPDTYPE_ID: Register = Register(2);
     pub const RES: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
 }
 
+
+pub struct InvokeVirtualResolve;
+
+impl InvokeVirtualResolve {
+    pub const OBJECT_REF: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+}
+
+#[derive(Debug)]
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
         arr_len: FramePointerOffset,
         arr_res: FramePointerOffset,
     },
-    AllocateObject{
+    AllocateObject {
         class_type: CPDTypeID,
-        res: FramePointerOffset
-    },
-    NewString{
         res: FramePointerOffset,
-        compressed_wtf8_buf: CompressedWtf8String
     },
-    NewClass{
+    NewString {
         res: FramePointerOffset,
-        type_: CPDTypeID
+        compressed_wtf8_buf: CompressedWtf8String,
+    },
+    NewClass {
+        res: FramePointerOffset,
+        type_: CPDTypeID,
     },
     NPE,
     LoadClassAndRecompile {
@@ -205,7 +214,8 @@ pub enum IRVMExitType {
     RunStaticNative {
         //todo should I actually use these args?
         method_id: MethodId,
-        arg_start_frame_offset: FramePointerOffset,
+        arg_start_frame_offset: Option<FramePointerOffset>,
+        res_pointer_offset: Option<FramePointerOffset>,
         num_args: u16,
     },
     CompileFunctionAndRecompileCurrent {
@@ -234,6 +244,9 @@ pub enum IRVMExitType {
     BeforeReturn {
         frame_size_allegedly: usize,
     },
+    InvokeVirtualResolve {
+        object_ref: FramePointerOffset
+    },
 }
 
 impl IRVMExitType {
@@ -253,7 +266,7 @@ impl IRVMExitType {
                 assembler.mov(LoadClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
                 assembler.mov(LoadClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
             }
-            IRVMExitType::RunStaticNative { method_id, arg_start_frame_offset, num_args } => {
+            IRVMExitType::RunStaticNative { method_id, arg_start_frame_offset, res_pointer_offset, num_args } => {
                 assert!(registers.contains(&RunStaticNative::METHODID));
                 assert!(registers.contains(&RunStaticNative::RESTART_IP));
                 assert!(registers.contains(&RunStaticNative::NUM_ARGS));
@@ -262,8 +275,18 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::RunStaticNative as u64).unwrap();
                 assembler.mov(RunStaticNative::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunStaticNative::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
-                assembler.lea(RunStaticNative::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
+                match arg_start_frame_offset {
+                    None => {
+                        assembler.mov(RunStaticNative::ARG_START.to_native_64(), 0u64).unwrap();
+                    }
+                    Some(arg_start_frame_offset) => {
+                        assembler.lea(RunStaticNative::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
+                    }
+                }
                 assembler.mov(RunStaticNative::NUM_ARGS.to_native_64(), *num_args as u64).unwrap();
+                if let Some(res_pointer_offset) = res_pointer_offset{
+                    assembler.lea(RunStaticNative::RES.to_native_64(),rbp - res_pointer_offset.0).unwrap();
+                }
                 // assembler.mov(RunStaticNative::RES.to_native_64(),).unwrap()
             }
             IRVMExitType::TopLevelReturn => {
@@ -332,6 +355,11 @@ impl IRVMExitType {
             IRVMExitType::NewClass { res, type_ } => {
                 assembler.mov(rax, RawVMExitType::NewClass as u64).unwrap()
             }
+            IRVMExitType::InvokeVirtualResolve { object_ref } => {
+                assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
+                assembler.mov(InvokeVirtualResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
+                assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -361,7 +389,8 @@ pub enum RawVMExitType {
     TraceInstructionAfter,
     BeforeReturn,
     NewString,
-    NewClass
+    NewClass,
+    InvokeVirtualResolve,
 }
 
 
@@ -441,13 +470,17 @@ pub enum RuntimeVMExitInput {
     NewString {
         return_to_ptr: *const c_void,
         res: *mut c_void,
-        compressed_wtf8: CompressedWtf8String
+        compressed_wtf8: CompressedWtf8String,
     },
     NewClass {
         return_to_ptr: *const c_void,
         res: *mut c_void,
-        type_: CPDTypeID
-    }
+        type_: CPDTypeID,
+    },
+    InvokeVirtualResolve {
+        return_to_ptr: *const c_void,
+        object_ref: u64,
+    },
 }
 
 impl RuntimeVMExitInput {
@@ -538,21 +571,27 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::AllocateObject {
                     type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(AllocateObject::TYPE) as u32),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObject::RESTART_IP) as *const c_void,
-                    res_address: register_state.saved_registers_without_ip.get_register(AllocateObject::RES_PTR) as *mut NonNull<c_void>
+                    res_address: register_state.saved_registers_without_ip.get_register(AllocateObject::RES_PTR) as *mut NonNull<c_void>,
                 }
             }
             RawVMExitType::NewString => {
                 RuntimeVMExitInput::NewString {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(NewString::RESTART_IP) as *const c_void,
                     res: register_state.saved_registers_without_ip.get_register(NewString::RES) as *mut c_void,
-                    compressed_wtf8: CompressedWtf8String(register_state.saved_registers_without_ip.get_register(NewString::COMPRESSED_WTF8) as usize)
+                    compressed_wtf8: CompressedWtf8String(register_state.saved_registers_without_ip.get_register(NewString::COMPRESSED_WTF8) as usize),
                 }
             }
             RawVMExitType::NewClass => {
-                RuntimeVMExitInput::NewClass{
+                RuntimeVMExitInput::NewClass {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(NewClass::RESTART_IP) as *const c_void,
                     res: register_state.saved_registers_without_ip.get_register(NewClass::RES) as *mut c_void,
-                    type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(NewClass::CPDTYPE_ID) as u32)
+                    type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(NewClass::CPDTYPE_ID) as u32),
+                }
+            }
+            RawVMExitType::InvokeVirtualResolve => {
+                RuntimeVMExitInput::InvokeVirtualResolve {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::RESTART_IP) as *const c_void,
+                    object_ref: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF) as u64,
                 }
             }
         }
