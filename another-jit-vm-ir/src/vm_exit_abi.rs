@@ -187,7 +187,7 @@ impl InvokeVirtualResolve {
     pub const INHERITANCE_METHOD_ID: Register = Register(8);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,

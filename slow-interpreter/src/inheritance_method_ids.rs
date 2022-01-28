@@ -31,7 +31,6 @@ impl InheritanceMethodIDs {
     pub fn register_impl(&mut self,  rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
         return match rc.deref() {
             RuntimeClass::Object(class_class) => {
-                dbg!(class_class.class_view.name().unwrap_name());
                 match &class_class.parent {
                     None => {
                         let object_methods = self.ids.entry((CClassName::object(), LoaderName::BootstrapLoader)).or_default();
@@ -72,7 +71,6 @@ impl InheritanceMethodIDs {
     }
 
     pub fn lookup(&self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId) -> InheritanceMethodID {
-        dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = rc.view();
         let name = class_view.name().unwrap_name();
@@ -80,6 +78,6 @@ impl InheritanceMethodIDs {
         let method_name = method_view.name();
         let method_desc = method_view.desc().clone();
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
-        *dbg!(self.ids.get(&(name, loader)).unwrap()).get(dbg!(&(method_name, method_desc))).unwrap()
+        *self.ids.get(&(name, loader)).unwrap().get(&(method_name, method_desc)).unwrap()
     }
 }

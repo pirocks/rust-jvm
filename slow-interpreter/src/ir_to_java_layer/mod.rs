@@ -15,7 +15,7 @@ use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
 use iced_x86::OpCodeOperandKind::al;
 use itertools::Itertools;
-use libc::read;
+use libc::{memcpy, memset, read};
 
 use another_jit_vm::{Method, VMExitAction};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -24,6 +24,7 @@ use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use gc_memory_layout_common::AllocatedObjectType;
+use jvmti_jni_bindings::jint;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -111,8 +112,12 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                let array_size = object_array.size();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
+                unsafe {
+                    memset(allocated_object.as_ptr(), 0, array_size); }//todo init this properly according to type
+                unsafe { *allocated_object.cast::<jint>().as_mut() = *len }//init the length
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),

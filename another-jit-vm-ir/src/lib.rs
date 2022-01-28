@@ -285,7 +285,6 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
-        dbg!(&instructions);
         let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS /*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address, &assembly_index_to_ir_instruct_index, &instructions);
@@ -489,6 +488,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::DebuggerBreakpoint => {
             assembler.int3().unwrap();
+        }
+        IRInstr::Load32 { to, from_address } => {
+            assembler.mov(to.to_native_32(),qword_ptr(from_address.to_native_64())).unwrap();
         }
     }
 }

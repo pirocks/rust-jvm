@@ -268,6 +268,14 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     }
                 }
             }
+            CompressedInstructionInfo::arraylength => {
+                let iterator = array_into_iter([
+                    IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: Register(1) },
+                    IRInstr::Load32 { to: Register(2), from_address: Register(1) },
+                    IRInstr::StoreFPRelative { from: Register(2), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+                ]);
+                this_function_ir.extend(iterator);
+            }
             other => {
                 dbg!(other);
                 todo!()

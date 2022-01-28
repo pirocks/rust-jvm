@@ -342,6 +342,9 @@ impl JITedCodeState {
                 IRInstr::DebuggerBreakpoint => {
                     assembler.int3().unwrap();
                 }
+                IRInstr::Load32 { to, from_address } => {
+                    assembler.mov(to.to_native_32(),qword_ptr(from_address.to_native_64())).unwrap();
+                }
             }
         }
         let block = InstructionBlock::new(assembler.instructions(), base_address as u64);

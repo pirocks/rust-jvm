@@ -6,11 +6,12 @@ use rust_jvm_common::MethodId;
 
 use crate::{IRMethodID, IRVMExitType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register },
     StoreFPRelative { from: Register, to: FramePointerOffset },
     Load { to: Register, from_address: Register },
+    Load32 { to: Register, from_address: Register },
     Store { to_address: Register, from: Register },
     CopyRegister { from: Register, to: Register },
     Add { res: Register, a: Register },
@@ -53,7 +54,7 @@ pub enum IRInstr {
     Label(IRLabel),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IRCallTarget {
     Constant {
         address: *const c_void,
@@ -182,6 +183,9 @@ impl IRInstr {
             }
             IRInstr::DebuggerBreakpoint => {
                 "DebuggerBreakpoint".to_string()
+            }
+            IRInstr::Load32 { .. } => {
+                "Load32".to_string()
             }
         }
     }

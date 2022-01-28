@@ -1,7 +1,6 @@
 use std::ffi::c_void;
 use std::ptr::null_mut;
 
-use iced_x86::CC_ne::ne;
 
 use crate::Register;
 
@@ -196,7 +195,7 @@ impl SavedRegistersWithoutIPDiff {
 
     //todo keep in sync with other get_registers
     pub fn get_register_mut(&mut self, register: Register) -> &mut Option<*mut c_void> {
-        (match register.0 {
+        match register.0 {
             0 => &mut self.rax,
             1 => &mut self.rbx,
             2 => &mut self.rcx,
@@ -209,7 +208,7 @@ impl SavedRegistersWithoutIPDiff {
             9 => &mut self.r13,
             10 => &mut self.r14,
             _ => todo!()
-        })
+        }
     }
 
     pub fn add_change(&mut self, register: Register, new_val: *mut c_void) {
