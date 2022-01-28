@@ -6,6 +6,7 @@ use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType};
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::MethodId;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::MethodResolver;
@@ -57,16 +58,8 @@ pub fn invokespecial(
                         todo!()
                     } else {
                         let target_method_layout = resolver.lookup_method_layout(method_id);
-                        let mut arg_from_to_offsets = vec![];
                         let num_args = descriptor.arg_types.len();
-                        for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
-                            let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-                            let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16);
-                            arg_from_to_offsets.push((from, to))
-                        }
-                        let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
-                        let object_ref_to = target_method_layout.local_var_entry(ByteCodeIndex(0), 0);
-                        arg_from_to_offsets.push((object_ref_from, object_ref_to));
+                        let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
@@ -172,6 +165,7 @@ pub fn invokevirtual(
                 // investigate ways of making IRcall work for variable targets,
                 // and investigate size of table for invokevirtual without tagging.
                 let num_args = descriptor.arg_types.len();
+                let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
                 array_into_iter([restart_point,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeVirtualResolve {
@@ -182,7 +176,7 @@ pub fn invokevirtual(
                     IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
-                        arg_from_to_offsets: vec![],
+                        arg_from_to_offsets,
                         return_value: None,
                         target_address: IRCallTarget::Variable {
                             address: InvokeVirtualResolve::ADDRESS_RES,
@@ -194,4 +188,19 @@ pub fn invokevirtual(
             })
         }
     }
+}
+
+fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+    let target_method_layout = resolver.lookup_method_layout(target_method_id);
+    let num_args = descriptor.arg_types.len();
+    let mut arg_from_to_offsets = vec![];
+    for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
+        let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
+        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16);
+        arg_from_to_offsets.push((from, to))
+    }
+    let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
+    let object_ref_to = target_method_layout.local_var_entry(ByteCodeIndex(0), 0);
+    arg_from_to_offsets.push((object_ref_from, object_ref_to));
+    arg_from_to_offsets
 }
