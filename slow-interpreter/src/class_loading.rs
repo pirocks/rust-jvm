@@ -112,7 +112,7 @@ pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
 pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
-    match guard.is_loaded(ptype) {
+    let res = match guard.is_loaded(ptype) {
         None => {
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
@@ -158,7 +158,9 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
             Ok(res)
         }
         Some(res) => Ok(res.clone()),
-    }
+    }?;
+    jvm.inheritance_ids.write().unwrap().register(jvm,&res);
+    Ok(res)
 }
 
 pub struct DefaultClassfileGetter<'l, 'k> {

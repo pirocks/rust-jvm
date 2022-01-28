@@ -275,7 +275,9 @@ impl<'gc_life> JVMState<'gc_life> {
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             function_frame_type_data: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
-            java_function_frame_data: Default::default()
+            java_function_frame_data: Default::default(),
+            vtables: RwLock::new(VTables::new()),
+            inheritance_ids: RwLock::new(InheritanceMethodIDs::new())
         };
         (args, jvm)
     }
@@ -322,6 +324,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), runtime_class);
         let runtime_class = classes.class_class.clone();
+        self.inheritance_ids.write().unwrap().register(self,&runtime_class);
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 
@@ -330,11 +333,12 @@ impl<'gc_life> JVMState<'gc_life> {
         let field_numbers = JVMState::get_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
         let static_vars = Default::default();
-        let parent = None;
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let recursive_num_fields = field_numbers.len();
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status)));
+        let object_class_view  = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
+        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(object_class_view,HashMap::new(),0,RwLock::new(HashMap::new()),None,vec![],RwLock::new(ClassStatus::INITIALIZED))));
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, Some(temp_object_class), interfaces, status)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddressGcManagedObject<'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();

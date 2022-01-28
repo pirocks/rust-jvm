@@ -16,7 +16,8 @@ use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, I
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
 use itertools::Itertools;
 
-use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, VMExitEvent, VMState};
+use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
+use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
@@ -408,7 +409,6 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         // IRInstr::VMExit { .. } => panic!("legacy"),
         IRInstr::IRCall {
-            current_frame_size: _,
             temp_register_1,
             temp_register_2,
             arg_from_to_offsets,

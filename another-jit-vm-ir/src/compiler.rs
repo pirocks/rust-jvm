@@ -44,7 +44,6 @@ pub enum IRInstr {
     IRCall {
         temp_register_1: Register,
         temp_register_2: Register,
-        current_frame_size: usize,
         arg_from_to_offsets: Vec<(FramePointerOffset, FramePointerOffset)>,
         return_value: Option<FramePointerOffset>,
         target_address: IRCallTarget,

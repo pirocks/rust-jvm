@@ -13,14 +13,16 @@ use iced_x86::CC_b::c;
 use iced_x86::CC_g::g;
 use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
+use iced_x86::OpCodeOperandKind::al;
 use itertools::Itertools;
 use libc::read;
 
-use another_jit_vm::{Method, SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff, VMExitAction};
+use another_jit_vm::{Method, VMExitAction};
+use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
-use another_jit_vm_ir::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
+use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use gc_memory_layout_common::AllocatedObjectType;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
@@ -31,6 +33,7 @@ use rust_jvm_common::vtype::VType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::inheritance_vtable::ResolvedInvokeVirtual;
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
@@ -257,7 +260,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr } => {
                 eprintln!("NewClass");
                 let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(*type_).clone();
-                let jclass = JClass::from_type(jvm,int_state,cpdtype).unwrap();
+                let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
                 let jv = jclass.java_value();
                 unsafe {
                     let raw_64 = jv.to_native().as_u64;
@@ -265,18 +268,28 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
-            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr } => {
-                let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-                let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap());
-                match allocated_type{
-                    AllocatedObjectType::Class { thread, name, loader, size } => {
-                        let rc = assert_inited_or_initing_class(jvm,(*name).into());
+            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id } => {
+                let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
+                let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
+                let ResolvedInvokeVirtual {
+                    address,
+                    ir_method_id,
+                    method_id,
+                    new_frame_size
+                } = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
+                let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
+                start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES,address as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES,ir_method_id.0 as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES,method_id as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES,new_frame_size as *mut c_void);
 
+                IRVMExitAction::RestartWithRegisterState {
+                    diff: SavedRegistersWithIPDiff {
+                        rip: Some(*return_to_ptr),
+                        saved_registers_without_ip: Some(start_diff),
                     }
-                    _ => panic!()
                 }
-                jvm
-                todo!()
             }
         }
     }
@@ -462,6 +475,13 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             ir_index_to_bytecode_pc,
             associated_method_id: method_id,
         });
+        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {
+            address: self.ir.lookup_ir_method_id_pointer(ir_method_id),
+            ir_method_id,
+            method_id,
+            new_frame_size: java_frame_data.full_frame_size(),
+        });
+        drop(write_guard);
     }
 }
 

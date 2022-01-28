@@ -2,7 +2,7 @@ use itertools::Either;
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
-use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType};
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -70,7 +70,6 @@ pub fn invokespecial(
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
-                            current_frame_size: method_frame_data.full_frame_size(),
                             arg_from_to_offsets,
                             return_value: if let CompressedParsedDescriptorType::VoidType = descriptor.return_type {
                                 None
@@ -130,7 +129,7 @@ pub fn invokestatic(
                         res_pointer_offset: if descriptor.return_type.is_void() {
                             None
                         } else {
-                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index,0))
+                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                         },
                         num_args,
                     },
@@ -174,18 +173,22 @@ pub fn invokevirtual(
                 // and investigate size of table for invokevirtual without tagging.
                 let num_args = descriptor.arg_types.len();
                 array_into_iter([restart_point,
-                    IRInstr::VMExit2 { exit_type: IRVMExitType::InvokeVirtualResolve { object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16) } },
+                    IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::InvokeVirtualResolve {
+                            object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
+                            inheritance_method_id: resolver.lookup_inheritance_method_id(method_id),
+                        }
+                    },
                     IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
-                        current_frame_size: 0,
                         arg_from_to_offsets: vec![],
                         return_value: None,
                         target_address: IRCallTarget::Variable {
-                            address: Register(3),
-                            ir_method_id: Register(4),
-                            method_id: Register(5),
-                            new_frame_size: Register(6),
+                            address: InvokeVirtualResolve::ADDRESS_RES,
+                            ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
+                            method_id: InvokeVirtualResolve::METHOD_ID_RES,
+                            new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
                         },
                     }])
             })

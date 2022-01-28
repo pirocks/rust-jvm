@@ -7,7 +7,8 @@ use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use another_jit_vm::{Register, SavedRegistersWithIP};
+use another_jit_vm::{Register};
+use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::{ByteCodeOffset, FieldId, InheritanceMethodID, MethodId};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -183,6 +184,7 @@ impl InvokeVirtualResolve {
     pub const IR_METHOD_ID_RES: Register = Register(5);
     pub const METHOD_ID_RES: Register = Register(6);
     pub const NEW_FRAME_SIZE_RES: Register = Register(7);
+    pub const INHERITANCE_METHOD_ID: Register = Register(8);
 }
 
 #[derive(Debug)]
@@ -249,7 +251,8 @@ pub enum IRVMExitType {
         frame_size_allegedly: usize,
     },
     InvokeVirtualResolve {
-        object_ref: FramePointerOffset
+        object_ref: FramePointerOffset,
+        inheritance_method_id: InheritanceMethodID
     },
 }
 
@@ -362,10 +365,11 @@ impl IRVMExitType {
                 assembler.lea(NewClass::RES.to_native_64(), rbp - res.0).unwrap();
                 assembler.lea(NewClass::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::InvokeVirtualResolve { object_ref } => {
+            IRVMExitType::InvokeVirtualResolve { object_ref, inheritance_method_id } => {
                 assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
                 assembler.mov(InvokeVirtualResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+                assembler.mov(InvokeVirtualResolve::INHERITANCE_METHOD_ID.to_native_64(),inheritance_method_id.0).unwrap();
             }
         }
     }
@@ -600,6 +604,7 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::InvokeVirtualResolve {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::RESTART_IP) as *const c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF) as u64,
+                    inheritance_id: InheritanceMethodID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::INHERITANCE_METHOD_ID) as u64)
                 }
             }
         }

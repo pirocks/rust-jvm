@@ -18,7 +18,7 @@ use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, FieldId, InheritanceMethodID, MethodI, MethodId};
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
@@ -29,6 +29,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::java::lang::reflect::method::Method;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::jit::state::birangemap::BiRangeMap;
 use crate::jit_common::java_stack::JavaStack;
@@ -160,6 +161,10 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
     pub fn get_commpressed_version_of_wtf8(&self, wtf8: &Wtf8Buf) -> CompressedWtf8String{
         self.jvm.wtf8_pool.add_entry(wtf8.clone())
+    }
+
+    pub fn lookup_inheritance_method_id(&self, method_id: MethodId) -> InheritanceMethodID{
+        self.jvm.inheritance_ids.read().unwrap().lookup(self.jvm,method_id)
     }
 }
 

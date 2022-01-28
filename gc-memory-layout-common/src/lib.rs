@@ -99,7 +99,7 @@ unsafe impl Send for MemoryRegions {}
 unsafe impl Sync for MemoryRegions {}
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AllocatedTypeID(pub u64);
 
 //never directly accessed from native code to make syncing this somewhat sane.
@@ -139,7 +139,7 @@ impl MemoryRegions {
         }
     }
 
-    fn lookup_or_add_type(&mut self, type_: &AllocatedObjectType) -> AllocatedTypeID {
+    pub fn lookup_or_add_type(&mut self, type_: &AllocatedObjectType) -> AllocatedTypeID {
         let new_id = AllocatedTypeID(self.types_reverse.len() as u64);
         let object_size = type_.size();
         match self.types_reverse.get(type_) {
