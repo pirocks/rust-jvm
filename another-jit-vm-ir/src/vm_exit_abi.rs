@@ -9,7 +9,7 @@ use num_traits::FromPrimitive;
 
 use another_jit_vm::{Register, SavedRegistersWithIP};
 use gc_memory_layout_common::FramePointerOffset;
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, FieldId, InheritanceMethodID, MethodId};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
@@ -487,6 +487,7 @@ pub enum RuntimeVMExitInput {
     InvokeVirtualResolve {
         return_to_ptr: *const c_void,
         object_ref: u64,
+        inheritance_id: InheritanceMethodID
     },
 }
 

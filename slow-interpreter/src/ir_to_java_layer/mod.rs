@@ -275,6 +275,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                     _ => panic!()
                 }
+                jvm
                 todo!()
             }
         }

@@ -13,12 +13,12 @@ pub struct ResolvedInvokeVirtual{
     pub new_frame_size: usize
 }
 
-pub struct VTable{
+pub struct VTables {
     //todo make into vecs later
     table: HashMap<AllocatedTypeID, HashMap<InheritanceMethodID, ResolvedInvokeVirtual>>
 }
 
-impl VTable {
+impl VTables {
     pub fn notify_compile_or_recompile(&mut self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, resolved: ResolvedInvokeVirtual){
         todo!()
     }

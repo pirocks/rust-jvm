@@ -36,6 +36,8 @@ use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
+use crate::inheritance_method_ids::InheritanceMethodIDs;
+use crate::inheritance_vtable::VTables;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::ir_to_java_layer::compiler::JavaCompilerMethodAndFrameData;
@@ -97,6 +99,8 @@ pub struct JVMState<'gc_life> {
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
     pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
+    pub vtables: RwLock<VTables>,
+    pub inheritance_ids: RwLock<InheritanceMethodIDs>
 }
 
 pub struct Classes<'gc_life> {

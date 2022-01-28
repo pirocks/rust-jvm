@@ -29,3 +29,9 @@ pub type FieldId = usize;
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
 pub struct ByteCodeOffset(pub u16);//todo unify this with bytecode offset
+
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+pub struct InheritanceMethodID(u64);
+
+pub type MethodI = u16;
