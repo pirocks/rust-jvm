@@ -498,7 +498,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
 fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
-    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5)];
+    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5), Register(6),Register(7),Register(8), Register(9)];
     exit_type.gen_assembly(assembler, &mut after_exit_label, registers.clone());
     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers.into_iter().collect());
 }

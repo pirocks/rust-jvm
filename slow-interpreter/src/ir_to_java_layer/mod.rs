@@ -254,6 +254,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
                 eprintln!("NewString");
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
+                int_state.debug_print_stack_trace(jvm,false);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
                 let jv = jstring.java_value();
                 unsafe {
@@ -273,7 +274,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
-            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id } => {
+            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id, debug_method_id } => {
+                eprintln!("InvokeVirtualResolve");
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
@@ -283,11 +285,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     method_id,
                     new_frame_size
                 } = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
+                dbg!(jvm.vtables.read().unwrap().lookup_all(jvm,*inheritance_id));
                 let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
                 start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES,address as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES,ir_method_id.0 as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES,method_id as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES,new_frame_size as *mut c_void);
+                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                dbg!(jvm.method_table.read().unwrap().lookup_method_string(*debug_method_id, &jvm.string_pool));
+                // let inheritance_method_id = jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id);
+                // let (rc, method_i)= jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
 
                 IRVMExitAction::RestartWithRegisterState {
                     diff: SavedRegistersWithIPDiff {

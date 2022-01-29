@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::ops::Deref;
 use std::sync::Arc;
-use iced_x86::CC_b::c;
 
+use iced_x86::CC_b::c;
+use iced_x86::ConditionCode::o;
 use iced_x86::OpCodeOperandKind::cl;
 use itertools::Itertools;
 
@@ -19,46 +20,68 @@ use crate::runtime_class::RuntimeClass;
 pub struct InheritanceMethodIDs {
     //todo need loader here?
     ids: HashMap<(CClassName, LoaderName), HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID>>,
+    current_id: InheritanceMethodID,
 }
 
 impl InheritanceMethodIDs {
     pub fn new() -> Self {
         Self {
             ids: Default::default(),
+            current_id: InheritanceMethodID(0),
         }
     }
 
-    pub fn register_impl(&mut self,  rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
+    fn new_id(&mut self) -> InheritanceMethodID {
+        let res = self.current_id;
+        self.current_id.0 += 1;
+        res
+    }
+
+    pub fn register_impl(&mut self, rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
         return match rc.deref() {
             RuntimeClass::Object(class_class) => {
                 match &class_class.parent {
                     None => {
-                        let object_methods = self.ids.entry((CClassName::object(), LoaderName::BootstrapLoader)).or_default();
-                        assert_eq!(class_class.class_view.name().unwrap_name(), CClassName::object());
-                        for (i,method) in class_class.class_view.methods().enumerate(){
-                            let method_name = method.name();
-                            let desc = method.desc().clone();
-                            object_methods.insert((method_name,desc),InheritanceMethodID(i as u64));
+                        let object_key = (CClassName::object(), LoaderName::BootstrapLoader);
+                        match self.ids.get(&object_key) {
+                            Some(object_methods) => {
+                                return object_methods.clone();
+                            }
+                            None => {
+                                let mut object_methods = HashMap::new();
+                                assert_eq!(class_class.class_view.name().unwrap_name(), CClassName::object());
+                                for method in class_class.class_view.virtual_methods() {
+                                    let method_name = method.name();
+                                    let desc = method.desc().clone();
+                                    object_methods.insert((method_name, desc), self.new_id());
+                                }
+                                let res = object_methods.clone();
+                                self.ids.insert(object_key, object_methods);
+                                res
+                            }
                         }
-                        object_methods.clone()
                     }
                     Some(parent_class) => {
+                        let this_rc_key = (class_class.class_view.name().unwrap_name(), LoaderName::BootstrapLoader);//todo loader nonsense
                         let already_registered_methods = self.register_impl(parent_class);
-                        let mut this_class_ids = HashMap::new();
-                        for method in class_class.class_view.methods() {
-                            let mut next_inheritance_id = InheritanceMethodID(already_registered_methods.len() as u64 + this_class_ids.len() as u64);
-                            let method_name = method.name();
-                            let c_method_descriptor = method.desc().clone();
-                            let inheritance_id = *match already_registered_methods.get(&(method_name, c_method_descriptor.clone())) {
-                                Some(x) => x,
-                                None => {
-                                    &next_inheritance_id
-                                },
-                            };
-                            this_class_ids.insert((method_name, c_method_descriptor), inheritance_id);
-                        }
-                        self.ids.insert((class_class.class_view.name().unwrap_name(), LoaderName::BootstrapLoader), this_class_ids.clone());//todo loader nonsense
-                        this_class_ids
+                        let this_method_ids = if let Some(method_ids) = self.ids.get(&this_rc_key) {
+                            method_ids.clone()
+                        } else {
+                            let mut this_class_method_ids = HashMap::new();
+                            for method in class_class.class_view.virtual_methods() {
+                                let method_name = method.name();
+                                let c_method_descriptor = method.desc().clone();
+                                let inheritance_id = already_registered_methods.get(&(method_name, c_method_descriptor.clone())).cloned().unwrap_or_else(|| self.new_id());
+                                this_class_method_ids.insert((method_name, c_method_descriptor), inheritance_id);
+                            }
+                            let overwritten = self.ids.insert(this_rc_key, this_class_method_ids.clone());
+                            assert!(overwritten.is_none());
+                            this_class_method_ids
+                        };
+                        let mut all = HashMap::new();
+                        all.extend(this_method_ids.into_iter());
+                        all.extend(already_registered_methods.into_iter());
+                        all
                     }
                 }
             }
@@ -67,7 +90,23 @@ impl InheritanceMethodIDs {
     }
 
     pub fn register(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: &Arc<RuntimeClass<'gc_life>>) {
-        self.register_impl(rc);
+        let all_ids = self.register_impl(rc);
+        for ((method_name, c_method_descriptor), id) in all_ids.into_iter() {
+            let name = rc.view().name().unwrap_name().0.to_str(&jvm.string_pool);
+            // dbg!(name);
+            // dbg!(method_name.0.to_str(&jvm.string_pool));
+            // dbg!(id);
+        }
+    }
+
+
+    pub fn integrity_assert(&self) {
+        let method_names_and_desc_to_id = todo!();
+        for ((current_class_name, current_loader), names_to_ids) in self.ids.iter() {
+            for ((current_method_name, current_method_desc), current_inheritance_id) in names_to_ids.iter() {
+                todo!()
+            }
+        }
     }
 
     pub fn lookup(&self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId) -> InheritanceMethodID {
@@ -76,8 +115,16 @@ impl InheritanceMethodIDs {
         let name = class_view.name().unwrap_name();
         let method_view = class_view.method_view_i(method_i);
         let method_name = method_view.name();
-        let method_desc = method_view.desc().clone();
+        let method_desc = method_view.desc();
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
-        *self.ids.get(&(name, loader)).unwrap().get(&(method_name, method_desc)).unwrap()
+        let res = *self.ids.get(&(name, loader)).unwrap().get(&(method_name, method_desc.clone())).unwrap();
+        for ((current_class_name, _), method_names_and_descs) in self.ids.iter() {
+            for ((current_method_name, current_method_desc), current_inheritance_id) in method_names_and_descs.iter() {
+                if method_name == *current_method_name && current_method_desc == method_desc {
+                    dbg!(current_inheritance_id);
+                }
+            }
+        }
+        res
     }
 }

@@ -4,6 +4,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType};
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
+use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::MethodId;
@@ -171,13 +172,14 @@ pub fn invokevirtual(
                         exit_type: IRVMExitType::InvokeVirtualResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                             inheritance_method_id: resolver.lookup_inheritance_method_id(method_id),
+                            debug_method_id: method_id
                         }
                     },
                     IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
                         arg_from_to_offsets,
-                        return_value: None,
+                        return_value: Some(method_frame_data.operand_stack_entry(current_instr_data.next_index,0)),
                         target_address: IRCallTarget::Variable {
                             address: InvokeVirtualResolve::ADDRESS_RES,
                             ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
