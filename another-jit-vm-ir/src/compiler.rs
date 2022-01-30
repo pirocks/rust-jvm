@@ -159,6 +159,7 @@ impl IRInstr {
                     IRVMExitType::NewClass { .. } => { "NewClass" }
                     IRVMExitType::InvokeVirtualResolve { .. } => { "InvokeVirtualResolve" }
                     IRVMExitType::MonitorEnter { .. } => { "MonitorEnter" }
+                    IRVMExitType::MonitorExit { .. } => {"MonitorExit"}
                 })
             }
             IRInstr::NPECheck { .. } => {

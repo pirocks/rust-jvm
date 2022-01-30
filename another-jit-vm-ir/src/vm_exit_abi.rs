@@ -7,7 +7,7 @@ use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use another_jit_vm::{Register};
+use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::{ByteCodeOffset, FieldId, InheritanceMethodID, MethodId};
@@ -190,7 +190,14 @@ impl InvokeVirtualResolve {
 
 pub struct MonitorEnter;
 
-impl MonitorEnter{
+impl MonitorEnter {
+    pub const OBJ_ADDR: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+}
+
+pub struct MonitorExit;
+
+impl MonitorExit {
     pub const OBJ_ADDR: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
 }
@@ -261,11 +268,14 @@ pub enum IRVMExitType {
     InvokeVirtualResolve {
         object_ref: FramePointerOffset,
         inheritance_method_id: InheritanceMethodID,
-        target_method_id: MethodId
+        target_method_id: MethodId,
     },
-    MonitorEnter{
+    MonitorEnter {
         obj: FramePointerOffset
-    }
+    },
+    MonitorExit {
+        obj: FramePointerOffset
+    },
 }
 
 impl IRVMExitType {
@@ -381,13 +391,18 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
                 assembler.mov(InvokeVirtualResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
-                assembler.mov(InvokeVirtualResolve::INHERITANCE_METHOD_ID.to_native_64(),inheritance_method_id.0).unwrap();
-                assembler.mov(InvokeVirtualResolve::DEBUG_METHOD_ID.to_native_64(),*target_method_id as u64).unwrap();
+                assembler.mov(InvokeVirtualResolve::INHERITANCE_METHOD_ID.to_native_64(), inheritance_method_id.0).unwrap();
+                assembler.mov(InvokeVirtualResolve::DEBUG_METHOD_ID.to_native_64(), *target_method_id as u64).unwrap();
             }
             IRVMExitType::MonitorEnter { obj } => {
-                assembler.mov(rax,RawVMExitType::MonitorEnter as u64).unwrap();
-                assembler.lea(MonitorEnter::OBJ_ADDR.to_native_64(),rbp - obj.0).unwrap();
+                assembler.mov(rax, RawVMExitType::MonitorEnter as u64).unwrap();
+                assembler.lea(MonitorEnter::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
                 assembler.lea(MonitorEnter::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
+            IRVMExitType::MonitorExit { obj } => {
+                assembler.mov(rax, RawVMExitType::MonitorExit as u64).unwrap();
+                assembler.lea(MonitorExit::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
+                assembler.lea(MonitorExit::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
         }
     }
@@ -420,7 +435,8 @@ pub enum RawVMExitType {
     NewString,
     NewClass,
     InvokeVirtualResolve,
-    MonitorEnter
+    MonitorEnter,
+    MonitorExit,
 }
 
 
@@ -511,12 +527,16 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         object_ref: u64,
         inheritance_id: InheritanceMethodID,
-        target_method_id: MethodId
+        target_method_id: MethodId,
     },
-    MonitorEnter{
+    MonitorEnter {
         obj_ptr: *const c_void,
         return_to_ptr: *const c_void,
-    }
+    },
+    MonitorExit {
+        obj_ptr: *const c_void,
+        return_to_ptr: *const c_void,
+    },
 }
 
 impl RuntimeVMExitInput {
@@ -629,13 +649,19 @@ impl RuntimeVMExitInput {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::RESTART_IP) as *const c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF) as u64,
                     inheritance_id: InheritanceMethodID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::INHERITANCE_METHOD_ID) as u64),
-                    target_method_id: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::DEBUG_METHOD_ID) as usize
+                    target_method_id: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::DEBUG_METHOD_ID) as usize,
                 }
             }
             RawVMExitType::MonitorEnter => {
                 RuntimeVMExitInput::MonitorEnter {
                     obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnter::OBJ_ADDR) as *const c_void,
-                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnter::RESTART_IP) as *const c_void
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnter::RESTART_IP) as *const c_void,
+                }
+            }
+            RawVMExitType::MonitorExit => {
+                RuntimeVMExitInput::MonitorExit {
+                    obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::OBJ_ADDR) as *const c_void,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::RESTART_IP) as *const c_void,
                 }
             }
         }
