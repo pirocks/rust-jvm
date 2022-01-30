@@ -276,13 +276,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(arraylength(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::astore_1 => {
-                this_function_ir.extend(astore_n(method_frame_data,&current_instr_data, 1))
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 1))
+            }
+            CompressedInstructionInfo::astore_2 => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 2))
             }
             CompressedInstructionInfo::ifnonnull(offset) => {
-                this_function_ir.extend(if_nonnull(method_frame_data,current_instr_data, *offset as i32))
+                this_function_ir.extend(if_nonnull(method_frame_data, current_instr_data, *offset as i32))
             }
-            CompressedInstructionInfo::getfield { name, desc:_, target_class } => {
-                this_function_ir.extend(gettfield(resolver,method_frame_data,&current_instr_data,&mut restart_point_generator, *target_class, *name))
+            CompressedInstructionInfo::getfield { name, desc: _, target_class } => {
+                this_function_ir.extend(gettfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             other => {
                 dbg!(other);
