@@ -117,7 +117,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
                 unsafe { res_address.write(allocated_object) }
                 unsafe {
-                    memset(allocated_object.as_ptr(), 0, array_size); }//todo init this properly according to type
+                    memset(allocated_object.as_ptr(), 0, array_size);
+                }//todo init this properly according to type
                 unsafe { *allocated_object.cast::<jint>().as_mut() = *len }//init the length
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -246,16 +247,20 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("AllocateObject");
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
-                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None, int_state.thread().java_tid);
+                let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None, int_state.thread().java_tid);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-                let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
+                let object_size = object_type.size();
+                let allocated_object = memory_region_guard.find_or_new_region_for(object_type).get_allocation();
+                unsafe {
+                    libc::memset(allocated_object.as_ptr(), 0, object_size);
+                }//todo do correct initing of fields
                 unsafe { res_address.write(allocated_object) }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
                 eprintln!("NewString");
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-                int_state.debug_print_stack_trace(jvm,false);
+                int_state.debug_print_stack_trace(jvm, false);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
                 let jv = jstring.java_value();
                 unsafe {
@@ -280,8 +285,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
-                dbg!(jvm.method_table.read().unwrap().lookup_method_string(*debug_method_id, &jvm.string_pool));
-                dbg!(jvm.vtables.read().unwrap().lookup_all(jvm,*inheritance_id));
                 let lookup_res = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
                 let ResolvedInvokeVirtual {
                     address,
@@ -292,17 +295,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     Ok(resolved) => {
                         resolved
                     }
-                    Err(NotCompiledYet{}) => {
-                        jvm.java_vm_state.add_method(jvm,&MethodResolver{ jvm, loader: int_state.current_loader(jvm) },*debug_method_id);
+                    Err(NotCompiledYet {}) => {
+                        jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *debug_method_id);
                         jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
                     }
                 };
                 let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-                start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES,address as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES,ir_method_id.0 as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES,method_id as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES,new_frame_size as *mut c_void);
-                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, method_id as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
 
                 IRVMExitAction::RestartWithRegisterState {
                     diff: SavedRegistersWithIPDiff {

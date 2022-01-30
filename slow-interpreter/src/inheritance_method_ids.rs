@@ -117,14 +117,6 @@ impl InheritanceMethodIDs {
         let method_name = method_view.name();
         let method_desc = method_view.desc();
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
-        let res = *self.ids.get(&(name, loader)).unwrap().get(&(method_name, method_desc.clone())).unwrap();
-        for ((current_class_name, _), method_names_and_descs) in self.ids.iter() {
-            for ((current_method_name, current_method_desc), current_inheritance_id) in method_names_and_descs.iter() {
-                if method_name == *current_method_name && current_method_desc == method_desc {
-                    dbg!(current_inheritance_id);
-                }
-            }
-        }
-        res
+        *self.ids.get(&(name, loader)).unwrap().get(&(method_name, method_desc.clone())).unwrap()
     }
 }

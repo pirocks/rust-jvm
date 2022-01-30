@@ -15,6 +15,7 @@ use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::Code;
+use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
@@ -27,7 +28,7 @@ use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, IntEqualityType, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
-use crate::ir_to_java_layer::compiler::fields::putfield;
+use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
@@ -280,8 +281,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifnonnull(offset) => {
                 this_function_ir.extend(if_nonnull(method_frame_data,current_instr_data, *offset as i32))
             }
-            CompressedInstructionInfo::getfield { name, desc, target_class } => {
-                todo!()
+            CompressedInstructionInfo::getfield { name, desc:_, target_class } => {
+                this_function_ir.extend(gettfield(resolver,method_frame_data,&current_instr_data,&mut restart_point_generator, *target_class, *name))
             }
             other => {
                 dbg!(other);
