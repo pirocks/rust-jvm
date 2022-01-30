@@ -72,10 +72,11 @@ pub fn invokespecial(
                             },
                             target_address: IRCallTarget::Constant {
                                 address,
-                                new_frame_size: target_method_layout.full_frame_size(),
+                                new_frame_size: dbg!(target_method_layout.full_frame_size()),
                                 method_id,
                                 ir_method_id,
                             },
+                            current_frame_size: method_frame_data.full_frame_size()
                         }]))
                     }
                 }
@@ -186,6 +187,7 @@ pub fn invokevirtual(
                             method_id: InvokeVirtualResolve::METHOD_ID_RES,
                             new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
                         },
+                        current_frame_size: method_frame_data.full_frame_size()
                     }])
             })
         }

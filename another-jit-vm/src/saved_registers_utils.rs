@@ -33,7 +33,7 @@ impl SavedRegistersWithIP {
                         r12,
                         r13,
                         r14,
-                        xsave_area
+                        xsave_area: _
                     }) = saved_registers_without_ip {
             if let Some(rax) = rax {
                 self.saved_registers_without_ip.rax = rax;

@@ -194,7 +194,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = ir_stack_frame.ptr;
-        initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
+        initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(dbg!(ir_stack_frame.downgrade().frame_size(self))) };
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = &mut ir_stack_frame.ir_stack;
@@ -222,8 +222,10 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 _exiting_frame_position_rbp: exiting_frame_position_rbp,
                 exit_ir_instr: ir_instr_index,
             };
+            let mmaped_top = ir_stack.native.mmaped_top;
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
+
             let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
             // ir_stack_mut.debug_print_stack_strace(self);
             drop(read_guard);
@@ -373,22 +375,23 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
                 assembler.mov(rax, return_register.to_native_64()).unwrap();
             }
             //rsp is now equal is to prev rbp qword, so that we can pop the previous rip in ret
-            assembler.mov(temp_register_1.to_native_64(), rsp).unwrap();
-            assembler.sub(temp_register_1.to_native_64(), rbp).unwrap();
-            assembler.mov(temp_register_2.to_native_64(), *frame_size as u64).unwrap();
-            assembler.cmp(temp_register_1.to_native_64(), temp_register_2.to_native_64()).unwrap();
-            let mut skip_assert = assembler.create_label();
-            assembler.jne(skip_assert).unwrap();
+            // assembler.mov(temp_register_1.to_native_64(), rsp).unwrap();
+            // assembler.sub(temp_register_1.to_native_64(), rbp).unwrap();
+            // assembler.mov(temp_register_2.to_native_64(), *frame_size as u64).unwrap();
+            // assembler.cmp(temp_register_1.to_native_64(), temp_register_2.to_native_64()).unwrap();
+            // let mut skip_assert = assembler.create_label();
+            // assembler.jne(skip_assert).unwrap();
+            //
+            // assembler.int3().unwrap();
+            // assembler.mov(temp_register_2.to_native_64(), 0u64).unwrap();
+            // assembler.mov(temp_register_2.to_native_64(), qword_ptr(temp_register_2.to_native_64())).unwrap();
 
-            assembler.int3().unwrap();
-            assembler.mov(temp_register_2.to_native_64(), 0u64).unwrap();
-            assembler.mov(temp_register_2.to_native_64(), qword_ptr(temp_register_2.to_native_64())).unwrap();
-
-            assembler.set_label(&mut skip_assert).unwrap();
-            assembler.mov(rsp, rbp).unwrap();
+            // assembler.set_label(&mut skip_assert).unwrap();
             //load prev frame pointer
+            assembler.mov(temp_register_1.to_native_64(), rbp - FRAME_HEADER_PREV_RIP_OFFSET).unwrap();
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
-            assembler.ret().unwrap();
+            assembler.add(rsp, *frame_size as i32).unwrap();
+            assembler.jmp(temp_register_1.to_native_64()).unwrap();
             // todo!("{:?}",frame_size)
         }
         IRInstr::VMExit2 { exit_type } => {
@@ -418,16 +421,17 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             temp_register_2,
             arg_from_to_offsets,
             return_value,
-            target_address
+            target_address,
+            current_frame_size
         } => {
             let temp_register = temp_register_1.to_native_64();
             let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();
             assembler.mov(return_to_rbp, rbp).unwrap();
-            assembler.mov(rbp, rsp).unwrap();
+            assembler.sub(rbp, *current_frame_size as i32).unwrap();
             match target_address {
                 IRCallTarget::Constant { new_frame_size, .. } => {
-                    assembler.sub(rsp, *new_frame_size as i32).unwrap();
+                    assembler.sub(rsp, dbg!(*new_frame_size) as i32).unwrap();
                 }
                 IRCallTarget::Variable { new_frame_size, .. } => {
                     assembler.sub(rsp, new_frame_size.to_native_64()).unwrap();

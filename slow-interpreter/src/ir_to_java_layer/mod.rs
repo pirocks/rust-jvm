@@ -13,6 +13,7 @@ use iced_x86::CC_b::c;
 use iced_x86::CC_g::g;
 use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
+use iced_x86::CpuidFeature::UDBG;
 use iced_x86::OpCodeOperandKind::al;
 use itertools::Itertools;
 use libc::{memcpy, memset, read};
@@ -106,6 +107,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         // let method_view = view.method_view_i(method_i);
         // let code = method_view.code_attribute().unwrap();
         // drop(current_frame);
+
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
                 eprintln!("AllocateObjectArray");
@@ -126,6 +128,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
                 eprintln!("RunStaticNative");
+                int_state.debug_print_stack_trace(jvm, false);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let mut args_jv = vec![];
                 let class_view = rc.view();
@@ -210,12 +213,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("Before:{:?}", instr.info);
-                // match int_state.previous_frame() {
-                //     None => {}
-                //     Some(prev) => {
-                //         prev.ir_stack_entry_debug_print()
-                //     }
-                // }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
@@ -318,15 +315,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr } => {
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(||Monitor2::new(next_id));
-                monitor.lock(jvm,int_state).unwrap();
+                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                monitor.lock(jvm, int_state).unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr } => {
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(||Monitor2::new(next_id));
-                monitor.unlock(jvm,int_state).unwrap();
+                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                monitor.unlock(jvm, int_state).unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
@@ -487,6 +484,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             let method_id = method.associated_method_id;
             let exiting_pc = *method.ir_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
             drop(read_guard);
+            let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
+
             let mut int_state = InterpreterStateGuard::LocalInterpreterState {
                 int_state: ir_stack_mut,
                 thread: jvm.thread_state.get_current_thread(),
@@ -495,6 +494,18 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 current_exited_pc: Some(exiting_pc),
             };
             int_state.register_interpreter_state_guard(jvm);
+            unsafe {
+                let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
+                let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
+                if exiting_stack_pointer != mmaped_top {
+                    let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize /*+ size_of::<u64>()*/;
+                    let frame_ref = int_state.current_frame().frame_view.ir_ref;
+                    let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
+                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(int_state.current_frame().frame_view.ir_ref.method_id().unwrap(), &jvm.string_pool));
+                    dbg!(&ir_vm_exit_event.exit_type);
+                    assert_eq!(offset, expected_current_frame_size);
+                }
+            }
             JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc)
         });
         let mut ir_instructions = vec![];
