@@ -352,7 +352,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
-        IRInstr::BranchEqual { .. } => todo!(),
+        IRInstr::BranchEqual { a, b, label } => {
+            let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
+            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            assembler.je(*code_label).unwrap();
+        },
         IRInstr::BranchNotEqual { a, b, label, } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
