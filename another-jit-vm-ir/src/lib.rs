@@ -75,9 +75,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
         let mut offsets_range = BTreeMap::new();
         let mut offsets_at_index = HashMap::new();
         for ((i, instruction_offset), (ir_instruction_index, assembly_instruction_index_2)) in new_instruction_offsets.into_iter().enumerate().zip(ir_instruct_index_to_assembly_index.into_iter()) {
-            if instruction_offset.0 as u32 == u32::MAX{
+            if instruction_offset.0 as u32 == u32::MAX {
                 //hack to work around iced generating annoying jumps
-                continue
+                continue;
             }
             let assembly_instruction_index_1 = AssemblyInstructionIndex(i);
             assert_eq!(assembly_instruction_index_1, assembly_instruction_index_2);
@@ -115,10 +115,10 @@ pub enum IRVMExitAction {
     RestartAtIRestartPoint {
         restart_point: RestartPointID
     },
-    RestartWithRegisterState{
+    RestartWithRegisterState {
         //todo major abstraction leak
         diff: SavedRegistersWithIPDiff
-    }
+    },
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
@@ -247,7 +247,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                     todo!()
                 }
                 IRVMExitAction::RestartWithRegisterState { diff } => {
-                    launched_vm.return_to(vm_exit_event,diff)
+                    launched_vm.return_to(vm_exit_event, diff)
                 }
             }
         }
@@ -327,7 +327,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::StoreFPRelative { from, to } => {
             assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap();
         }
-        IRInstr::Load { .. } => todo!(),
+        IRInstr::Load { to, from_address } => {
+            assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap();
+        }
         IRInstr::Store { from, to_address } => {
             assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap()
         }
@@ -356,7 +358,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.je(*code_label).unwrap();
-        },
+        }
         IRInstr::BranchNotEqual { a, b, label, } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
@@ -451,10 +453,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             }
             assembler.mov(rbp - (FRAME_HEADER_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
             match target_address {
-                IRCallTarget::Constant { ir_method_id,.. } => {
+                IRCallTarget::Constant { ir_method_id, .. } => {
                     assembler.mov(temp_register, ir_method_id.0 as u64).unwrap();
                 }
-                IRCallTarget::Variable { ir_method_id,.. } => {
+                IRCallTarget::Variable { ir_method_id, .. } => {
                     assembler.mov(temp_register, ir_method_id.to_native_64()).unwrap();
                 }
             }
@@ -494,7 +496,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.int3().unwrap();
         }
         IRInstr::Load32 { to, from_address } => {
-            assembler.mov(to.to_native_32(),qword_ptr(from_address.to_native_64())).unwrap();
+            assembler.mov(to.to_native_32(), qword_ptr(from_address.to_native_64())).unwrap();
         }
     }
 }
@@ -502,7 +504,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
 fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
-    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5), Register(6),Register(7),Register(8), Register(9)];
+    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5), Register(6), Register(7), Register(8), Register(9)];
     exit_type.gen_assembly(assembler, &mut after_exit_label, registers.clone());
     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers.into_iter().collect());
 }

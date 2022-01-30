@@ -34,7 +34,7 @@ use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
-use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
+use crate::ir_to_java_layer::compiler::returns::{areturn, ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::jit::MethodResolver;
@@ -304,6 +304,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::athrow => {
                 this_function_ir.extend(athrow());
+            }
+            CompressedInstructionInfo::areturn => {
+                this_function_ir.extend(areturn(method_frame_data, current_instr_data));
             }
             other => {
                 dbg!(other);
