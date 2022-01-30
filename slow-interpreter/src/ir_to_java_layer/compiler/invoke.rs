@@ -147,14 +147,16 @@ pub fn invokevirtual(
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_virtual(CPDType::Ref(classname_ref_type.clone()), method_name, descriptor.clone()) {
+    let target_class_type = CPDType::Ref(classname_ref_type.clone());
+    let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
+    match resolver.lookup_virtual(target_class_type, method_name, descriptor.clone()) {
         None => {
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: todo!(),
-                        this_method_id: todo!(),
-                        restart_point_id: todo!(),
+                        class: target_class_type_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id,
                     },
                 }]))
         }
@@ -162,9 +164,7 @@ pub fn invokevirtual(
             Either::Right(if is_native {
                 todo!()
             } else {
-                // todo have a vm exit which performs the lookup
-                // investigate ways of making IRcall work for variable targets,
-                // and investigate size of table for invokevirtual without tagging.
+                // todo investigate size of table for invokevirtual without tagging.
                 let num_args = descriptor.arg_types.len();
                 let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
                 array_into_iter([restart_point,

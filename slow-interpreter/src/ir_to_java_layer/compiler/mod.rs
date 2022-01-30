@@ -298,6 +298,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifnull(offset) => {
                 this_function_ir.extend(if_null(method_frame_data, current_instr_data, *offset as i32))
             }
+            CompressedInstructionInfo::astore_3 => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 3))
+            }
             other => {
                 dbg!(other);
                 todo!()
