@@ -172,7 +172,7 @@ pub fn invokevirtual(
                         exit_type: IRVMExitType::InvokeVirtualResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                             inheritance_method_id: resolver.lookup_inheritance_method_id(method_id),
-                            debug_method_id: method_id
+                            target_method_id: method_id
                         }
                     },
                     IRInstr::IRCall {

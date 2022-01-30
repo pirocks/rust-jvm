@@ -18,17 +18,20 @@ use rust_jvm_common::classfile::Code;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use verification::verifier::codecorrectness::method_is_type_safe;
 use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, IntEqualityType, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::arrays::arraylength;
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, IntEqualityType, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::putfield;
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
+use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
 use crate::jit::MethodResolver;
@@ -269,12 +272,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 }
             }
             CompressedInstructionInfo::arraylength => {
-                let iterator = array_into_iter([
-                    IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: Register(1) },
-                    IRInstr::Load32 { to: Register(2), from_address: Register(1) },
-                    IRInstr::StoreFPRelative { from: Register(2), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
-                ]);
-                this_function_ir.extend(iterator);
+                this_function_ir.extend(arraylength(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::astore_1 => {
+                this_function_ir.extend(astore_n(method_frame_data,&current_instr_data, 1))
+            }
+            CompressedInstructionInfo::ifnonnull(offset) => {
+                this_function_ir.extend(if_nonnull(method_frame_data,current_instr_data, *offset as i32))
+            }
+            CompressedInstructionInfo::getfield { name, desc, target_class } => {
+                todo!()
             }
             other => {
                 dbg!(other);
@@ -295,6 +302,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
+
+pub mod arrays;
 pub mod static_fields;
 pub mod fields;
 pub mod allocate;
@@ -304,6 +313,7 @@ pub mod returns;
 pub mod consts;
 pub mod branching;
 pub mod local_var_loads;
+pub mod local_var_stores;
 pub mod ldc;
 
 pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {

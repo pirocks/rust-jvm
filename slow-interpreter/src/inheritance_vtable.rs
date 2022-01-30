@@ -44,15 +44,15 @@ impl VTables {
         }
     }
 
-    pub fn lookup_resolved(&self, runtime_type: AllocatedTypeID, inheritance_method_id: InheritanceMethodID) -> ResolvedInvokeVirtual {
+    pub fn lookup_resolved(&self, runtime_type: AllocatedTypeID, inheritance_method_id: InheritanceMethodID) -> Result<ResolvedInvokeVirtual,NotCompiledYet> {
         match self.table.get(&runtime_type).unwrap().get(&inheritance_method_id) {
             Some(resolved) => {
-                return resolved.clone()
+                Ok(resolved.clone())
             },
             None => {
-                dbg!(self.table.get(&runtime_type).unwrap());
-                dbg!(inheritance_method_id);
-                panic!()
+                // dbg!(self.table.get(&runtime_type).unwrap());
+                // dbg!(inheritance_method_id);
+                Err(NotCompiledYet{})
             },
         }
     }
@@ -68,3 +68,6 @@ impl VTables {
         res
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct NotCompiledYet;

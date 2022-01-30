@@ -29,12 +29,13 @@ use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::inheritance_vtable::ResolvedInvokeVirtual;
+use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::FrameToRunOn;
@@ -274,27 +275,34 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
-            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id, debug_method_id } => {
+            RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id, target_method_id: debug_method_id } => {
                 eprintln!("InvokeVirtualResolve");
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
+                dbg!(jvm.method_table.read().unwrap().lookup_method_string(*debug_method_id, &jvm.string_pool));
+                dbg!(jvm.vtables.read().unwrap().lookup_all(jvm,*inheritance_id));
+                let lookup_res = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
                 let ResolvedInvokeVirtual {
                     address,
                     ir_method_id,
                     method_id,
                     new_frame_size
-                } = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
-                dbg!(jvm.vtables.read().unwrap().lookup_all(jvm,*inheritance_id));
+                } = match lookup_res {
+                    Ok(resolved) => {
+                        resolved
+                    }
+                    Err(NotCompiledYet{}) => {
+                        jvm.java_vm_state.add_method(jvm,&MethodResolver{ jvm, loader: int_state.current_loader(jvm) },*debug_method_id);
+                        jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
+                    }
+                };
                 let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
                 start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES,address as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES,ir_method_id.0 as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES,method_id as *mut c_void);
                 start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES,new_frame_size as *mut c_void);
                 dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                dbg!(jvm.method_table.read().unwrap().lookup_method_string(*debug_method_id, &jvm.string_pool));
-                // let inheritance_method_id = jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id);
-                // let (rc, method_i)= jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
 
                 IRVMExitAction::RestartWithRegisterState {
                     diff: SavedRegistersWithIPDiff {
