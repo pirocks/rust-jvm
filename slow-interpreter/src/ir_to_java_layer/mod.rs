@@ -50,6 +50,7 @@ use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocat
 use crate::jit_common::java_stack::JavaStack;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
+use crate::threading::safepoints::Monitor2;
 use crate::utils::run_static_or_virtual;
 
 pub mod compiler;
@@ -312,6 +313,13 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         saved_registers_without_ip: Some(start_diff),
                     }
                 }
+            }
+            RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr } => {
+                let mut monitors_guard = jvm.object_monitors.write().unwrap();
+                let next_id = monitors_guard.len();
+                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(||Monitor2::new(next_id));
+                monitor.lock(jvm,int_state).unwrap();
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
     }

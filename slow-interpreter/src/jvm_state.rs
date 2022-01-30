@@ -100,7 +100,8 @@ pub struct JVMState<'gc_life> {
     pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub vtables: RwLock<VTables>,
-    pub inheritance_ids: RwLock<InheritanceMethodIDs>
+    pub inheritance_ids: RwLock<InheritanceMethodIDs>,
+    pub object_monitors:RwLock<HashMap<*const c_void, Monitor2>>
 }
 
 pub struct Classes<'gc_life> {
@@ -277,7 +278,8 @@ impl<'gc_life> JVMState<'gc_life> {
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             vtables: RwLock::new(VTables::new()),
-            inheritance_ids: RwLock::new(InheritanceMethodIDs::new())
+            inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
+            object_monitors: Default::default()
         };
         (args, jvm)
     }

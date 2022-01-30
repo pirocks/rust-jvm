@@ -62,7 +62,7 @@ pub enum IRCallTarget {
         method_id: MethodId,
         new_frame_size: usize,
     },
-    Variable{
+    Variable {
         address: Register,
         ir_method_id: Register,
         method_id: Register,
@@ -157,7 +157,8 @@ impl IRInstr {
                     IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
                     IRVMExitType::NewString { .. } => { "NewString" }
                     IRVMExitType::NewClass { .. } => { "NewClass" }
-                    IRVMExitType::InvokeVirtualResolve { .. } => {"InvokeVirtualResolve"}
+                    IRVMExitType::InvokeVirtualResolve { .. } => { "InvokeVirtualResolve" }
+                    IRVMExitType::MonitorEnter { .. } => { "MonitorEnter" }
                 })
             }
             IRInstr::NPECheck { .. } => {

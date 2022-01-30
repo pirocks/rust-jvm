@@ -188,6 +188,13 @@ impl InvokeVirtualResolve {
     pub const DEBUG_METHOD_ID: Register = Register(9);
 }
 
+pub struct MonitorEnter;
+
+impl MonitorEnter{
+    pub const OBJ_ADDR: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+}
+
 #[derive(Debug, Clone)]
 pub enum IRVMExitType {
     AllocateObjectArray_ {
@@ -256,6 +263,9 @@ pub enum IRVMExitType {
         inheritance_method_id: InheritanceMethodID,
         target_method_id: MethodId
     },
+    MonitorEnter{
+        obj: FramePointerOffset
+    }
 }
 
 impl IRVMExitType {
@@ -374,6 +384,11 @@ impl IRVMExitType {
                 assembler.mov(InvokeVirtualResolve::INHERITANCE_METHOD_ID.to_native_64(),inheritance_method_id.0).unwrap();
                 assembler.mov(InvokeVirtualResolve::DEBUG_METHOD_ID.to_native_64(),*target_method_id as u64).unwrap();
             }
+            IRVMExitType::MonitorEnter { obj } => {
+                assembler.mov(rax,RawVMExitType::MonitorEnter as u64).unwrap();
+                assembler.lea(MonitorEnter::OBJ_ADDR.to_native_64(),rbp - obj.0).unwrap();
+                assembler.lea(MonitorEnter::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -405,6 +420,7 @@ pub enum RawVMExitType {
     NewString,
     NewClass,
     InvokeVirtualResolve,
+    MonitorEnter
 }
 
 
@@ -497,6 +513,10 @@ pub enum RuntimeVMExitInput {
         inheritance_id: InheritanceMethodID,
         target_method_id: MethodId
     },
+    MonitorEnter{
+        obj_ptr: *const c_void,
+        return_to_ptr: *const c_void,
+    }
 }
 
 impl RuntimeVMExitInput {
@@ -610,6 +630,12 @@ impl RuntimeVMExitInput {
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF) as u64,
                     inheritance_id: InheritanceMethodID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::INHERITANCE_METHOD_ID) as u64),
                     target_method_id: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::DEBUG_METHOD_ID) as usize
+                }
+            }
+            RawVMExitType::MonitorEnter => {
+                RuntimeVMExitInput::MonitorEnter {
+                    obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnter::OBJ_ADDR) as *const c_void,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnter::RESTART_IP) as *const c_void
                 }
             }
         }
