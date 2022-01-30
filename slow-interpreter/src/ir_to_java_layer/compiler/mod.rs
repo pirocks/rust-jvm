@@ -36,6 +36,7 @@ use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::putstatic;
+use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::jit::MethodResolver;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
@@ -301,6 +302,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::astore_3 => {
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 3))
             }
+            CompressedInstructionInfo::athrow => {
+                this_function_ir.extend(athrow());
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -320,6 +324,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
+pub mod throw;
 pub mod monitors;
 pub mod arrays;
 pub mod static_fields;

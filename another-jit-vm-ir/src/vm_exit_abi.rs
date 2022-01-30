@@ -276,6 +276,7 @@ pub enum IRVMExitType {
     MonitorExit {
         obj: FramePointerOffset
     },
+    Throw{}
 }
 
 impl IRVMExitType {
@@ -404,6 +405,9 @@ impl IRVMExitType {
                 assembler.lea(MonitorExit::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
                 assembler.lea(MonitorExit::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::Throw { .. } => {
+                assembler.mov(rax, RawVMExitType::Throw as u64).unwrap();
+            }
         }
     }
 }
@@ -437,6 +441,7 @@ pub enum RawVMExitType {
     InvokeVirtualResolve,
     MonitorEnter,
     MonitorExit,
+    Throw
 }
 
 
@@ -663,6 +668,9 @@ impl RuntimeVMExitInput {
                     obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::OBJ_ADDR) as *const c_void,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::RESTART_IP) as *const c_void,
                 }
+            }
+            RawVMExitType::Throw => {
+                todo!()
             }
         }
     }
