@@ -25,7 +25,7 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, IntEqualityType, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, if_null, IntEqualityType, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
@@ -294,6 +294,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::monitorexit => {
                 this_function_ir.extend(monitor_exit(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::ifnull(offset) => {
+                this_function_ir.extend(if_null(method_frame_data, current_instr_data, *offset as i32))
             }
             other => {
                 dbg!(other);

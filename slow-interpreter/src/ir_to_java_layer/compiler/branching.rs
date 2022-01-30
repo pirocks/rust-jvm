@@ -73,3 +73,22 @@ pub fn if_nonnull(method_frame_data: &JavaCompilerMethodAndFrameData, current_in
         }
     ])
 }
+
+
+pub fn if_null(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
+    //todo dup with above
+    let value1 = Register(1);
+    let null = Register(2);
+    let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
+    let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
+
+    array_into_iter([
+        IRInstr::Const64bit { to: null, const_: 0 },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1 },
+        IRInstr::BranchEqual {
+            a: value1,
+            b: null,
+            label: target_label
+        }
+    ])
+}
