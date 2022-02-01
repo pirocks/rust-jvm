@@ -21,6 +21,7 @@ pub enum IRInstr {
     Mul { res: Register, a: Register },
     BinaryBitAnd { res: Register, a: Register },
     ForwardBitScan { to_scan: Register, res: Register },
+    Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
     BranchToLabel { label: LabelName },
@@ -29,6 +30,8 @@ pub enum IRInstr {
     WriteRBP { from: Register },
     BranchEqual { a: Register, b: Register, label: LabelName },
     BranchNotEqual { a: Register, b: Register, label: LabelName },
+    BranchAGreaterB { a: Register, b: Register, label: LabelName },
+    BranchALessB { a: Register, b: Register, label: LabelName },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
     RestartPoint(RestartPointID),
@@ -190,6 +193,15 @@ impl IRInstr {
             }
             IRInstr::Load32 { .. } => {
                 "Load32".to_string()
+            }
+            IRInstr::Const16bit { .. } => {
+                "Const16bit".to_string()
+            }
+            IRInstr::BranchAGreaterB { .. } => {
+                "BranchAGreaterB".to_string()
+            }
+            IRInstr::BranchALessB { .. } => {
+                "BranchALessB".to_string()
             }
         }
     }

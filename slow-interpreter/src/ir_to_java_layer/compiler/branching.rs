@@ -5,20 +5,22 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ReferenceEqualityType {
+pub enum ReferenceComparisonType {
     NE,
     EQ,
+    GT,
 }
 
-pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_equality: ReferenceEqualityType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
+pub fn if_acmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_comparison: ReferenceComparisonType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(1);
     let value2 = Register(2);
     let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + bytecode_offset) as u16);
     let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
 
-    let compare_instr = match ref_equality {
-        ReferenceEqualityType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
-        ReferenceEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label }
+    let compare_instr = match ref_comparison {
+        ReferenceComparisonType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
+        ReferenceComparisonType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label },
+        ReferenceComparisonType::GT => IRInstr::BranchAGreaterB { a: value1, b: value2, label: target_label },
     };
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },

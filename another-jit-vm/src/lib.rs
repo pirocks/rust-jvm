@@ -19,7 +19,7 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister32, AsmRegister64, CodeAssembler, CodeLabel, ebx, ecx, edx, qword_ptr, r10, r10d, r11, r11d, r12, r12d, r13, r13d, r14, r14d, r15, r8, r8d, r9, r9d, rax, rbp, rbx, rcx, rdx, rsp};
+use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, bx, CodeAssembler, CodeLabel, cx, dx, ebx, ecx, edx, qword_ptr, r10, r10d, r10w, r11, r11d, r11w, r12, r12d, r12w, r13, r13d, r13w, r14, r14d, r14w, r15, r8, r8d, r8w, r9, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
@@ -82,6 +82,22 @@ impl Register {
             8 => r12d,
             9 => r13d,
             10 => r14d,
+            _ => todo!(),
+        }
+    }
+    pub fn to_native_16(&self) -> AsmRegister16 {
+        match self.0 {
+            0 => panic!(),
+            1 => bx,
+            2 => cx,
+            3 => dx,
+            4 => r8w,
+            5 => r9w,
+            6 => r10w,
+            7 => r11w,
+            8 => r12w,
+            9 => r13w,
+            10 => r14w,
             _ => todo!(),
         }
     }

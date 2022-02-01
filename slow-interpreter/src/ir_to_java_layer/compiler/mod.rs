@@ -25,12 +25,12 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, if_null, IntEqualityType, ReferenceEqualityType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
-use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_float, ldc_string};
+use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
@@ -195,10 +195,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
             CompressedInstructionInfo::if_acmpne(offset) => {
-                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::NE, *offset as i32));
+                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceComparisonType::NE, *offset as i32));
             }
             CompressedInstructionInfo::if_acmpeq(offset) => {
-                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceEqualityType::EQ, *offset as i32));
+                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceComparisonType::EQ, *offset as i32));
             }
             CompressedInstructionInfo::ifne(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::NE, *offset as i32))
@@ -260,8 +260,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                                 this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, type_))
                             }
                             CompressedLdcW::Float { float } => {
-                                this_function_ir.extend(ldc_float(method_frame_data,&current_instr_data,*float))
-                            },
+                                this_function_ir.extend(ldc_float(method_frame_data, &current_instr_data, *float))
+                            }
                             CompressedLdcW::Integer { .. } => todo!(),
                             CompressedLdcW::MethodType { .. } => todo!(),
                             CompressedLdcW::MethodHandle { .. } => todo!(),
@@ -318,6 +318,24 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::i2l => {
                 //for now does nothing but should really store ints as  actual 32 bit ints so in future todo
+            }
+            CompressedInstructionInfo::ldc2_w(ldc2) => {
+                match ldc2 {
+                    CompressedLdc2W::Long(_) => { todo!() }
+                    CompressedLdc2W::Double(double) => {
+                        this_function_ir.extend(ldc_double(method_frame_data, &current_instr_data, *double))
+                    }
+                }
+            }
+            CompressedInstructionInfo::sipush(val) => {
+                this_function_ir.extend(array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
+                    IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }]))
+            }
+            CompressedInstructionInfo::iload_0 => {
+                this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 0))
+            }
+            CompressedInstructionInfo::if_icmpgt(offset) => {
+                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceComparisonType::GT, *offset as i32));
             }
             other => {
                 dbg!(other);
