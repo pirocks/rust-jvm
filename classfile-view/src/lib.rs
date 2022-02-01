@@ -1,5 +1,4 @@
 #![feature(box_syntax)]
-
+#[allow(unreachable_code)]
+#[allow(dead_code)]
 pub mod view;
-pub mod loading;
-pub mod vtype;

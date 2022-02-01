@@ -5,9 +5,7 @@ use std::ops::Deref;
 use crate::classfile::UninitializedVariableInfo;
 use crate::classnames::ClassName;
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum PType {
     ByteType,
     CharType,
@@ -27,12 +25,9 @@ pub enum PType {
     //todo hack. so b/c stackmapframes doesn't really know what type to give to UninitializedThis, b/c invoke special could have happened or not
     // I suspect that Uninitialized might work for this, but making my own anyway
     UninitializedThisOrClass(Box<PType>),
-
 }
 
-#[derive(Debug)]
-#[derive(Eq, PartialEq)]
-#[derive(Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum ReferenceType {
     Class(ClassName),
     Array(Box<PType>),
@@ -50,34 +45,57 @@ impl Clone for ReferenceType {
 impl PType {
     pub fn unwrap_array_type(&self) -> PType {
         match self {
-            PType::Ref(r) => {
-                match r {
-                    ReferenceType::Class(_) => panic!(),
-                    ReferenceType::Array(a) => {
-                        a.deref().clone()
-                    }
-                }
-            }
-            _ => panic!()
+            PType::Ref(r) => match r {
+                ReferenceType::Class(_) => panic!(),
+                ReferenceType::Array(a) => a.deref().clone(),
+            },
+            _ => panic!(),
         }
     }
     pub fn unwrap_class_type(&self) -> ClassName {
         match self {
-            PType::Ref(r) => {
-                match r {
-                    ReferenceType::Class(c) => c.clone(),
-                    ReferenceType::Array(_) => panic!(),
-                }
-            }
-            _ => panic!()
+            PType::Ref(r) => match r {
+                ReferenceType::Class(c) => c.clone(),
+                ReferenceType::Array(_) => panic!(),
+            },
+            _ => panic!(),
         }
     }
 
     pub fn unwrap_ref_type(&self) -> ReferenceType {
         match self {
             PType::Ref(ref_) => ref_.clone(),
-            _ => panic!()
+            _ => panic!(),
         }
+    }
+
+    pub fn jvm_representation(&self) -> String{
+        let mut res = String::new();
+        //todo dup with ptypeview
+        match self {
+            PType::ByteType => res.push('B'),
+            PType::CharType => res.push('C'),
+            PType::DoubleType => res.push('D'),
+            PType::FloatType => res.push('F'),
+            PType::IntType => res.push('I'),
+            PType::LongType => res.push('J'),
+            PType::Ref(ref_) => match ref_ {
+                ReferenceType::Class(c) => {
+                    res.push('L');
+                    res.push_str(c.get_referred_name());
+                    res.push(';')
+                }
+                ReferenceType::Array(subtype) => {
+                    res.push('[');
+                    res.push_str(&subtype.deref().jvm_representation())
+                }
+            },
+            PType::ShortType => res.push('S'),
+            PType::BooleanType => res.push('Z'),
+            PType::VoidType => res.push('V'),
+            _ => panic!(),
+        }
+        res
     }
 }
 
@@ -98,8 +116,7 @@ impl Clone for PType {
             PType::Uninitialized(uvi) => PType::Uninitialized(uvi.clone()),
             PType::UninitializedThis => PType::UninitializedThis,
             PType::UninitializedThisOrClass(t) => PType::UninitializedThisOrClass(t.clone()),
-            PType::Ref(r) => PType::Ref(r.clone())
+            PType::Ref(r) => PType::Ref(r.clone()),
         }
     }
 }
-

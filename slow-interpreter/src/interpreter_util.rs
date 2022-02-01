@@ -1,42 +1,32 @@
 use std::sync::Arc;
 
-use classfile_view::loading::LoaderName;
-use classfile_view::view::{ClassView, HasAccessFlags};
-use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use classfile_view::view::HasAccessFlags;
+use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::check_resolved_class;
+use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, JavaValue, Object};
+use crate::java_values::{default_value, GcManagedObject, JavaValue};
 use crate::runtime_class::RuntimeClass;
 
 //todo jni should really live in interpreter state
 
-pub fn push_new_object(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    runtime_class: &Arc<RuntimeClass>
-) {
+pub fn new_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc_life>>) -> JavaValue<'gc_life> {
+    check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
     let new_obj = JavaValue::Object(object_pointer.clone());
-    let loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
-    default_init_fields(jvm, int_state, loader, object_pointer, &*runtime_class.view()).unwrap();//todo pass the error up
-    int_state.current_frame_mut().push(new_obj);
+    let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
+    default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
+    new_obj
 }
 
-fn default_init_fields(
-    jvm: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    loader: LoaderName,
-    object_pointer: Option<Arc<Object>>,
-    view: &dyn ClassView,
-) -> Result<(), WasException> {
-    if let Some(super_name) = view.super_name() {
-        let loaded_super = check_resolved_class(jvm, int_state, super_name.into())?;
-        default_init_fields(jvm, int_state, loader.clone(), object_pointer.clone(), &*loaded_super.view())?;
+fn default_init_fields<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, object_pointer: &GcManagedObject<'gc_life>) {
+    if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
+        default_init_fields(jvm, super_, object_pointer);
     }
-    for field in view.fields() {
+    for field in current_class_pointer.view().fields() {
         if !field.is_static() {
             //todo should I look for constant val attributes?
             /*let _value_i = match field.constant_value_attribute() {
@@ -45,30 +35,21 @@ fn default_init_fields(
             };*/
             let name = field.field_name();
             let type_ = field.field_type();
-            let val = default_value(type_);
-            {
-                object_pointer.clone().unwrap().unwrap_normal_object().fields_mut().insert(name, val);
-            }
+            let val = default_value(type_.clone());
+
+            object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val);
+            // unsafe {
+            // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
+            // }
         }
     }
-    Ok(())
 }
 
-pub fn run_constructor(
-    state: &JVMState,
-    int_state: &mut InterpreterStateGuard,
-    target_classfile: Arc<RuntimeClass>,
-    full_args: Vec<JavaValue>,
-    descriptor: String,
-) -> Result<(), WasException> {
+pub fn run_constructor<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, target_classfile: Arc<RuntimeClass<'gc_life>>, full_args: Vec<JavaValue<'gc_life>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
-    let method_view = target_classfile_view.lookup_method(&"<init>".to_string(), &parse_method_descriptor(descriptor.as_str()).unwrap()).unwrap();
+    let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    let this_ptr = full_args[0].clone();
-    let actual_args = &full_args[1..];
-    int_state.push_current_operand_stack(this_ptr);
-    for arg in actual_args {
-        int_state.push_current_operand_stack(arg.clone());
-    }
-    invoke_special_impl(state, int_state, &md, method_view.method_i(), target_classfile.clone())
+    let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), full_args)?;
+    assert!(res.is_none());
+    Ok(())
 }

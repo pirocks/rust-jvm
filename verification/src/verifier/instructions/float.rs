@@ -1,4 +1,4 @@
-use classfile_view::vtype::VType;
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
@@ -53,4 +53,3 @@ pub fn instruction_is_type_safe_fcmpg(env: &Environment, stack_frame: Frame) -> 
 pub fn instruction_is_type_safe_fneg(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     type_transition(env, stack_frame, vec![VType::FloatType], VType::FloatType)
 }
-

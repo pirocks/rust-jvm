@@ -40,4 +40,3 @@ unsafe extern "system" fn JVM_EnableCompiler(env: *mut JNIEnv, compCls: jclass) 
 unsafe extern "system" fn JVM_DisableCompiler(env: *mut JNIEnv, compCls: jclass) {
     eprintln!("JVM_DisableCompiler not supported");
 }
-

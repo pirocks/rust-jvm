@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, InvokeDynamic, LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8};
+use rust_jvm_common::classfile::{
+    ACC_ABSTRACT, ACC_ANNOTATION, ACC_ENUM, ACC_FINAL, ACC_INTERFACE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_SUPER, ACC_VOLATILE, Annotation, AnnotationDefault, AnnotationValue, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, Class, Classfile, ClassInfoIndex, Code, ConstantInfo, ConstantKind, ElementValue, ElementValuePair, EnclosingMethod, EnumConstValue, Exceptions, FieldInfo, Fieldref, InterfaceMethodref, InvokeDynamic,
+    LocalVariableTableEntry, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodInfo, MethodParameter, MethodParameters, Methodref, NameAndType, ReferenceKind, String_, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, Utf8,
+};
+use rust_jvm_common::EXPECTED_CLASSFILE_MAGIC;
 use sketch_jvm_version_of_utf8::ValidationError;
 
-use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::parse_validation::ClassfileError::{BadConstantPoolEntry, ExpectedClassEntry, ExpectedDoubleCPEntry, ExpectedFloatCPEntry, ExpectedIntegerCPEntry, ExpectedLongCPEntry, ExpectedNameAndType, ExpectedUtf8CPEntry, TooManyOfSameAttribute};
 
 pub const MAX_ARRAY_DIMENSIONS: usize = 255;
@@ -51,6 +54,12 @@ pub enum ClassfileError {
     BadUTF8,
 }
 
+impl From<wtf8::Wtf8Buf> for ClassfileError {
+    fn from(_: wtf8::Wtf8Buf) -> Self {
+        ClassfileError::BadUTF8
+    }
+}
+
 impl From<ValidationError> for ClassfileError {
     fn from(_: ValidationError) -> Self {
         Self::BadUTF8
@@ -63,7 +72,6 @@ pub enum AttributeEnclosingType<'l> {
     Class(&'l Classfile),
     Field,
 }
-
 
 impl ValidatorSettings {
     pub fn validate_parsed(&self, c: &Classfile) -> Result<(), ClassfileError> {
@@ -145,7 +153,7 @@ impl ValidatorSettings {
         self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::Utf8(utf8) => Result::Ok(utf8),
-            _ => Result::Err(ClassfileError::ExpectedUtf8CPEntry)
+            _ => Result::Err(ClassfileError::ExpectedUtf8CPEntry),
         }
     }
 
@@ -153,7 +161,7 @@ impl ValidatorSettings {
         self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::Class(class) => Result::Ok(class),
-            _ => Result::Err(ClassfileError::ExpectedClassEntry)
+            _ => Result::Err(ClassfileError::ExpectedClassEntry),
         }
     }
 
@@ -161,7 +169,7 @@ impl ValidatorSettings {
         self.index_check(cpi, c)?;
         match &c.constant_pool[cpi as usize].kind {
             ConstantKind::NameAndType(nt) => Result::Ok(nt),
-            _ => Result::Err(ClassfileError::ExpectedNameAndType)
+            _ => Result::Err(ClassfileError::ExpectedNameAndType),
         }
     }
 
@@ -187,66 +195,57 @@ impl ValidatorSettings {
             ConstantKind::MethodHandle(mh) => {
                 self.index_check(mh.reference_index, c)?;
                 match mh.reference_kind {
-                    ReferenceKind::GetField |
-                    ReferenceKind::GetStatic |
-                    ReferenceKind::PutField |
-                    ReferenceKind::PutStatic => {
-                        match &c.constant_pool[mh.reference_index as usize].kind {
-                            ConstantKind::Fieldref(field_ref) => {
-                                self.validate_field_ref(c, field_ref)?;
-                            }
-                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                    ReferenceKind::GetField | ReferenceKind::GetStatic | ReferenceKind::PutField | ReferenceKind::PutStatic => match &c.constant_pool[mh.reference_index as usize].kind {
+                        ConstantKind::Fieldref(field_ref) => {
+                            self.validate_field_ref(c, field_ref)?;
                         }
-                    }
-                    ReferenceKind::InvokeVirtual |
-                    ReferenceKind::NewInvokeSpecial => {
-                        match &c.constant_pool[mh.reference_index as usize].kind {
-                            ConstantKind::Methodref(method_ref) => {
-                                self.validate_method_ref(c, method_ref)?;
-                            }
-                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        _ => return Err(ClassfileError::BadConstantPoolEntry),
+                    },
+                    ReferenceKind::InvokeVirtual | ReferenceKind::NewInvokeSpecial => match &c.constant_pool[mh.reference_index as usize].kind {
+                        ConstantKind::Methodref(method_ref) => {
+                            self.validate_method_ref(c, method_ref)?;
                         }
-                    }
-                    ReferenceKind::InvokeStatic |
-                    ReferenceKind::InvokeSpecial => {
-                        match &c.constant_pool[mh.reference_index as usize].kind {
-                            ConstantKind::Methodref(method_ref) => {
-                                self.validate_method_ref(c, method_ref)?;
-                            }
-                            ConstantKind::InterfaceMethodref(method_ref) => {
-                                if c.major_version < 52 {
-                                    return Err(BadConstantPoolEntry);
-                                }
-                                self.validate_interface_method_ref(c, method_ref)?;
-                            }
-                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        _ => return Err(ClassfileError::BadConstantPoolEntry),
+                    },
+                    ReferenceKind::InvokeStatic | ReferenceKind::InvokeSpecial => match &c.constant_pool[mh.reference_index as usize].kind {
+                        ConstantKind::Methodref(method_ref) => {
+                            self.validate_method_ref(c, method_ref)?;
                         }
-                    }
-                    ReferenceKind::InvokeInterface => {
-                        match &c.constant_pool[mh.reference_index as usize].kind {
-                            ConstantKind::InterfaceMethodref(method_ref) => {
-                                self.validate_interface_method_ref(c, method_ref)?;
+                        ConstantKind::InterfaceMethodref(method_ref) => {
+                            if c.major_version < 52 {
+                                return Err(BadConstantPoolEntry);
                             }
-                            _ => return Err(ClassfileError::BadConstantPoolEntry)
+                            self.validate_interface_method_ref(c, method_ref)?;
                         }
-                    }
+                        _ => return Err(ClassfileError::BadConstantPoolEntry),
+                    },
+                    ReferenceKind::InvokeInterface => match &c.constant_pool[mh.reference_index as usize].kind {
+                        ConstantKind::InterfaceMethodref(method_ref) => {
+                            self.validate_interface_method_ref(c, method_ref)?;
+                        }
+                        _ => return Err(ClassfileError::BadConstantPoolEntry),
+                    },
                 }
             }
-            ConstantKind::MethodType(mt) => { self.is_utf8_check(mt.descriptor_index, c)?; }
+            ConstantKind::MethodType(mt) => {
+                self.is_utf8_check(mt.descriptor_index, c)?;
+            }
             ConstantKind::InvokeDynamic(InvokeDynamic { bootstrap_method_attr_index, name_and_type_index }) => {
                 self.index_check(*name_and_type_index, c)?;
                 match &c.constant_pool[*name_and_type_index as usize].kind {
                     ConstantKind::NameAndType(nt) => {
                         self.validate_name_and_type(c, nt)?;
                     }
-                    _ => return Err(ClassfileError::BadConstantPoolEntry)
+                    _ => return Err(ClassfileError::BadConstantPoolEntry),
                 }
-                let bootstrap_attribute = c.attributes.iter().find_map(|attr| {
-                    match &attr.attribute_type {
+                let bootstrap_attribute = c
+                    .attributes
+                    .iter()
+                    .find_map(|attr| match &attr.attribute_type {
                         AttributeType::BootstrapMethods(attr) => Some(attr),
-                        _ => None
-                    }
-                }).ok_or(ClassfileError::BadConstantPoolEntry)?;
+                        _ => None,
+                    })
+                    .ok_or(ClassfileError::BadConstantPoolEntry)?;
                 if *bootstrap_method_attr_index as usize >= bootstrap_attribute.bootstrap_methods.len() {
                     return Err(BadConstantPoolEntry);
                 }
@@ -296,10 +295,8 @@ impl ValidatorSettings {
 
     pub fn validate_class_info(&self, c: &Classfile, i: u16) -> Result<(), ClassfileError> {
         match &c.constant_pool[i as usize].kind {
-            ConstantKind::Class(class_info) => {
-                self.validate_class_info_impl(&c, &class_info)
-            }
-            _ => return Err(ExpectedClassEntry)
+            ConstantKind::Class(class_info) => self.validate_class_info_impl(&c, &class_info),
+            _ => return Err(ExpectedClassEntry),
         }
     }
 
@@ -312,10 +309,10 @@ impl ValidatorSettings {
         // interface name encoded in internal form (§4.2.1).
         match &c.constant_pool[class_info.name_index as usize].kind {
             ConstantKind::Utf8(utf8) => {
-                let name_string = &utf8.string;
+                let name_string = &utf8.string.clone().into_string()?;
                 self.validate_class_name(&name_string)?;
             }
-            _ => return Result::Err(ClassfileError::ExpectedUtf8CPEntry)
+            _ => return Result::Err(ClassfileError::ExpectedUtf8CPEntry),
         }
         Result::Ok(())
     }
@@ -391,7 +388,6 @@ impl ValidatorSettings {
         Result::Ok(())
     }
 
-
     pub fn validate_attribute(&self, attribute_validation_context: &mut AttributeValidationContext, a: &AttributeInfo, c: &Classfile, attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
         match &a.attribute_type {
             AttributeType::SourceFile(sourcefile) => {
@@ -402,7 +398,7 @@ impl ValidatorSettings {
                 attribute_validation_context.has_been_source = true;
                 match attr {
                     AttributeEnclosingType::Class(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
             }
             AttributeType::SourceDebugExtension(_) => {
@@ -412,51 +408,43 @@ impl ValidatorSettings {
                 attribute_validation_context.has_been_source_debug_extension = true;
                 match attr {
                     AttributeEnclosingType::Class(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
             }
-            AttributeType::LineNumberTable(lnt) => {
-                match attr {
-                    AttributeEnclosingType::Code(c) => {
-                        for lnte in &lnt.line_number_table {
-                            if lnte.start_pc as usize >= c.code_raw.len() {
-                                return Err(ClassfileError::BadPC);
-                            }
+            AttributeType::LineNumberTable(lnt) => match attr {
+                AttributeEnclosingType::Code(c) => {
+                    for lnte in &lnt.line_number_table {
+                        if lnte.start_pc as usize >= c.code_raw.len() {
+                            return Err(ClassfileError::BadPC);
                         }
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
-            AttributeType::LocalVariableTable(lvt) => {
-                match attr {
-                    AttributeEnclosingType::Code(code) => {
-                        for LocalVariableTableEntry { start_pc, length, name_index, descriptor_index, .. } in &lvt.local_variable_table {
-                            ValidatorSettings::validate_pcs(code, start_pc, length)?;
-                            self.validate_utf8(c, *name_index)?;
-                            self.validate_utf8(c, *descriptor_index)?;
-                        }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
+            AttributeType::LocalVariableTable(lvt) => match attr {
+                AttributeEnclosingType::Code(code) => {
+                    for LocalVariableTableEntry { start_pc, length, name_index, descriptor_index, .. } in &lvt.local_variable_table {
+                        ValidatorSettings::validate_pcs(code, start_pc, length)?;
+                        self.validate_utf8(c, *name_index)?;
+                        self.validate_utf8(c, *descriptor_index)?;
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
-            AttributeType::LocalVariableTypeTable(lvtt) => {
-                match attr {
-                    AttributeEnclosingType::Code(code) => {
-                        for LocalVariableTypeTableEntry { start_pc, length, name_index, descriptor_index, .. } in &lvtt.type_table {
-                            ValidatorSettings::validate_pcs(code, start_pc, length)?;
-                            self.validate_utf8(c, *name_index)?;
-                            self.validate_utf8(c, *descriptor_index)?;
-                        }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
+            AttributeType::LocalVariableTypeTable(lvtt) => match attr {
+                AttributeEnclosingType::Code(code) => {
+                    for LocalVariableTypeTableEntry { start_pc, length, name_index, descriptor_index, .. } in &lvtt.type_table {
+                        ValidatorSettings::validate_pcs(code, start_pc, length)?;
+                        self.validate_utf8(c, *name_index)?;
+                        self.validate_utf8(c, *descriptor_index)?;
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
-            AttributeType::Deprecated(_) => {
-                match attr {
-                    AttributeEnclosingType::Code(_) => return Err(ClassfileError::AttributeOnWrongType),
-                    _ => {}
-                }
-            }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
+            AttributeType::Deprecated(_) => match attr {
+                AttributeEnclosingType::Code(_) => return Err(ClassfileError::AttributeOnWrongType),
+                _ => {}
+            },
             AttributeType::InnerClasses(ic) => {
                 for x in &ic.classes {
                     self.validate_is_class(c, x.inner_class_info_index)?;
@@ -464,7 +452,7 @@ impl ValidatorSettings {
                 }
                 match attr {
                     AttributeEnclosingType::Class(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 if attribute_validation_context.has_been_inner_class {
                     return Result::Err(ClassfileError::TooManyOfSameAttribute);
@@ -477,25 +465,18 @@ impl ValidatorSettings {
             AttributeType::BootstrapMethods(BootstrapMethods { bootstrap_methods }) => {
                 match attr {
                     AttributeEnclosingType::Class(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 for BootstrapMethod { bootstrap_method_ref, bootstrap_arguments } in bootstrap_methods {
                     self.index_check(*bootstrap_method_ref, c)?;
                     match c.constant_pool[*bootstrap_method_ref as usize].kind {
                         ConstantKind::MethodHandle(_) => {}
-                        _ => return Err(ClassfileError::BadConstantPoolEntry)
+                        _ => return Err(ClassfileError::BadConstantPoolEntry),
                     }
                     for bootstrap_arg in bootstrap_arguments {
                         self.index_check(*bootstrap_arg, c)?;
                         match c.constant_pool[*bootstrap_arg as usize].kind {
-                            ConstantKind::Integer(_) |
-                            ConstantKind::Float(_) |
-                            ConstantKind::Long(_) |
-                            ConstantKind::Double(_) |
-                            ConstantKind::Class(_) |
-                            ConstantKind::String(_) |
-                            ConstantKind::MethodHandle(_) |
-                            ConstantKind::MethodType(_) => {}
+                            ConstantKind::Integer(_) | ConstantKind::Float(_) | ConstantKind::Long(_) | ConstantKind::Double(_) | ConstantKind::Class(_) | ConstantKind::String(_) | ConstantKind::MethodHandle(_) | ConstantKind::MethodType(_) => {}
                             _ => return Err(ClassfileError::BadConstantPoolEntry),
                         }
                     }
@@ -519,7 +500,7 @@ impl ValidatorSettings {
             AttributeType::RuntimeVisibleParameterAnnotations(annotations) => {
                 match attr {
                     AttributeEnclosingType::Method(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 for annotation in annotations.parameter_annotations.iter().flat_map(|param| param.iter()) {
                     self.validate_annotation(&c, annotation)?;
@@ -532,7 +513,7 @@ impl ValidatorSettings {
             AttributeType::RuntimeInvisibleParameterAnnotations(annotations) => {
                 match attr {
                     AttributeEnclosingType::Method(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 for annotation in annotations.parameter_annotations.iter().flat_map(|param| param.iter()) {
                     self.validate_annotation(&c, annotation)?;
@@ -545,7 +526,7 @@ impl ValidatorSettings {
             AttributeType::AnnotationDefault(AnnotationDefault { default_value }) => {
                 match attr {
                     AttributeEnclosingType::Method(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 if attribute_validation_context.has_been_annotation_default {
                     return Err(TooManyOfSameAttribute);
@@ -556,7 +537,7 @@ impl ValidatorSettings {
             AttributeType::MethodParameters(MethodParameters { parameters }) => {
                 match attr {
                     AttributeEnclosingType::Method(_) => {}
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
+                    _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 if attribute_validation_context.has_been_method_parameters {
                     return Err(TooManyOfSameAttribute);
@@ -632,38 +613,32 @@ impl ValidatorSettings {
             TargetInfo::TypeParameterBoundTarget { .. } => {}
             TargetInfo::EmptyTarget => {}
             TargetInfo::FormalParameterTarget { .. } => {}
-            TargetInfo::ThrowsTarget { throws_type_index } => {
-                match attr {
-                    AttributeEnclosingType::Method(method) => {
-                        let exceptions = method.exception_attribute().ok_or(ClassfileError::MissingExceptionsAttribute)?;
-                        if *throws_type_index as usize >= exceptions.exception_index_table.len() {
-                            return Err(ClassfileError::BadIndex);
-                        }
+            TargetInfo::ThrowsTarget { throws_type_index } => match attr {
+                AttributeEnclosingType::Method(method) => {
+                    let exceptions = method.exception_attribute().ok_or(ClassfileError::MissingExceptionsAttribute)?;
+                    if *throws_type_index as usize >= exceptions.exception_index_table.len() {
+                        return Err(ClassfileError::BadIndex);
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
-            TargetInfo::LocalVarTarget { table } => {
-                match attr {
-                    AttributeEnclosingType::Code(code) => {
-                        for LocalVarTargetTableEntry { start_pc, length, .. } in table {
-                            ValidatorSettings::validate_pcs(code, start_pc, length)?;
-                        }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
+            TargetInfo::LocalVarTarget { table } => match attr {
+                AttributeEnclosingType::Code(code) => {
+                    for LocalVarTargetTableEntry { start_pc, length, .. } in table {
+                        ValidatorSettings::validate_pcs(code, start_pc, length)?;
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
-            TargetInfo::CatchTarget { exception_table_entry } => {
-                match attr {
-                    AttributeEnclosingType::Method(method) => {
-                        let exceptions = method.exception_attribute().ok_or(ClassfileError::MissingExceptionsAttribute)?;
-                        if *exception_table_entry as usize >= exceptions.exception_index_table.len() {
-                            return Err(ClassfileError::BadIndex);
-                        }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
+            TargetInfo::CatchTarget { exception_table_entry } => match attr {
+                AttributeEnclosingType::Method(method) => {
+                    let exceptions = method.exception_attribute().ok_or(ClassfileError::MissingExceptionsAttribute)?;
+                    if *exception_table_entry as usize >= exceptions.exception_index_table.len() {
+                        return Err(ClassfileError::BadIndex);
                     }
-                    _ => return Err(ClassfileError::AttributeOnWrongType)
                 }
-            }
+                _ => return Err(ClassfileError::AttributeOnWrongType),
+            },
             TargetInfo::OffsetTarget { .. } => {
                 //this amounts to bytecode validation.
                 // out of scope
@@ -742,11 +717,11 @@ impl ValidatorSettings {
             ConstantKind::NameAndType(nt) => {
                 self.validate_name_and_type(c, nt)?;
             }
-            _ => return Err(ExpectedNameAndType)
+            _ => return Err(ExpectedNameAndType),
         }
         match attr {
             AttributeEnclosingType::Class(_) => {}
-            _ => return Err(ClassfileError::AttributeOnWrongType)
+            _ => return Err(ClassfileError::AttributeOnWrongType),
         }
         if attribute_validation_context.has_been_enclosing_method {
             return Err(ClassfileError::TooManyOfSameAttribute);
@@ -758,10 +733,8 @@ impl ValidatorSettings {
     fn validate_synthetic(attr: &AttributeEnclosingType) -> Result<(), ClassfileError> {
         //doesn't say anything about only one
         match attr {
-            AttributeEnclosingType::Class(_) |
-            AttributeEnclosingType::Field |
-            AttributeEnclosingType::Method(_) => {}
-            _ => return Err(ClassfileError::AttributeOnWrongType)
+            AttributeEnclosingType::Class(_) | AttributeEnclosingType::Field | AttributeEnclosingType::Method(_) => {}
+            _ => return Err(ClassfileError::AttributeOnWrongType),
         }
         Ok(())
     }
@@ -770,7 +743,7 @@ impl ValidatorSettings {
         self.index_check(index, c)?;
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Utf8(_) => {}
-            _ => return Err(ExpectedUtf8CPEntry)
+            _ => return Err(ExpectedUtf8CPEntry),
         }
         Ok(())
     }
@@ -779,7 +752,7 @@ impl ValidatorSettings {
         self.index_check(index, c)?;
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Integer(_) => {}
-            _ => return Err(ExpectedIntegerCPEntry)
+            _ => return Err(ExpectedIntegerCPEntry),
         }
         Ok(())
     }
@@ -788,7 +761,7 @@ impl ValidatorSettings {
         self.index_check(index, c)?;
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Long(_) => {}
-            _ => return Err(ExpectedLongCPEntry)
+            _ => return Err(ExpectedLongCPEntry),
         }
         Ok(())
     }
@@ -797,7 +770,7 @@ impl ValidatorSettings {
         self.index_check(index, c)?;
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Integer(_) => {}
-            _ => return Err(ExpectedDoubleCPEntry)
+            _ => return Err(ExpectedDoubleCPEntry),
         }
         Ok(())
     }
@@ -805,7 +778,7 @@ impl ValidatorSettings {
         self.index_check(index, c)?;
         match &c.constant_pool[index as usize].kind {
             ConstantKind::Integer(_) => {}
-            _ => return Err(ExpectedFloatCPEntry)
+            _ => return Err(ExpectedFloatCPEntry),
         }
         Ok(())
     }
@@ -813,7 +786,7 @@ impl ValidatorSettings {
     fn validate_exceptions(&self, attribute_validation_context: &mut AttributeValidationContext, c: &Classfile, attr: &AttributeEnclosingType, exc: &Exceptions) -> Result<(), ClassfileError> {
         match attr {
             AttributeEnclosingType::Method(_) => {}
-            _ => return Result::Err(ClassfileError::AttributeOnWrongType)
+            _ => return Result::Err(ClassfileError::AttributeOnWrongType),
         }
         for index in &exc.exception_index_table {
             self.validate_is_class(c, *index)?;
@@ -833,7 +806,7 @@ impl ValidatorSettings {
                     return Result::Err(ClassfileError::NativeOrAbstractCannotHaveCode);
                 }
             }
-            _ => return Result::Err(ClassfileError::AttributeOnWrongType)
+            _ => return Result::Err(ClassfileError::AttributeOnWrongType),
         }
         if attribute_validation_context.has_been_code {
             return Result::Err(ClassfileError::TooManyOfSameAttribute);
@@ -855,7 +828,7 @@ impl ValidatorSettings {
     }
 
     fn validate_constant_value(attribute_validation_context: &mut AttributeValidationContext) -> Result<(), ClassfileError> {
-//so the spec says:
+        //so the spec says:
         //If the ACC_STATIC flag in the access_flags item of the field_info structure is set,
         // then the field represented by the field_info structure is assigned the value
         // represented  by  its  ConstantValue  attribute  as  part  of  the  initialization
@@ -877,7 +850,6 @@ impl ValidatorSettings {
         self.validate_class_info(c, i)
     }
 }
-
 
 pub struct AttributeValidationContext {
     has_been_constant_value: bool,

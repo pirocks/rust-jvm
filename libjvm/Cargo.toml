@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 rust-jvm-common = { path = "../rust-jvm-common" }
 slow-interpreter = { path = "../slow-interpreter" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+jmm-bindings = { path = "../jmm-bindings" }
 classfile-parser = { path = "../classfile-parser" }
 classfile-view = { path = "../classfile-view" }
 verification = { path = "../verification" }
@@ -23,5 +24,8 @@ num_cpus = "1.0"
 regex = "1"
 lock_api = "0.3.4"
 parking_lot = "0.10.2"
-nix = "0.17.0"
+nix = "0.23"
 by_address = "1.0.4"
+crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
+itertools = "0.10"
+wtf8 = "0.1"

@@ -31,7 +31,6 @@ impl Debug for Monitor {
     }
 }
 
-
 impl Monitor {
     pub fn new(name: String, i: usize) -> Self {
         Self {
@@ -44,12 +43,12 @@ impl Monitor {
         }
     }
 
-    pub fn lock(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_lock(self, jvm);
+    pub fn lock(&self, jvm: &'gc_life JVMState<'gc_life>) {
+        jvm.config.tracing.trace_monitor_lock(self, jvm);
         self.lock_impl(jvm)
     }
 
-    fn lock_impl(&self, jvm: &JVMState) {
+    fn lock_impl(&self, jvm: &'gc_life JVMState<'gc_life>) {
         let mut current_owners_guard = self.owned.write().unwrap();
         //first we check if we currently own the lock. If we do increment and return.
         //If we do not currently hold the lock then we will continue to not own the lock until
@@ -66,19 +65,21 @@ impl Monitor {
         }
     }
 
-    pub fn unlock(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_unlock(self, jvm);
+    pub fn unlock(&self, jvm: &'gc_life JVMState<'gc_life>) {
+        jvm.config.tracing.trace_monitor_unlock(self, jvm);
         let mut current_owners_guard = self.owned.write().unwrap();
         assert_eq!(current_owners_guard.owner, Monitor::get_tid(jvm).into());
         current_owners_guard.count -= 1;
         if current_owners_guard.count == 0 {
             current_owners_guard.owner = None;
-            unsafe { self.mutex.force_unlock_fair(); }
+            unsafe {
+                self.mutex.force_unlock_fair();
+            }
         }
     }
 
-    pub fn wait(&self, millis: i64, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_wait(self, jvm);
+    pub fn wait(&self, millis: i64, jvm: &'gc_life JVMState<'gc_life>) {
+        jvm.config.tracing.trace_monitor_wait(self, jvm);
         let mut count_and_owner = self.owned.write().unwrap();
         if count_and_owner.owner != Monitor::get_tid(jvm).into() {
             // in javaspace this throws an illegal monitor exception.
@@ -90,7 +91,9 @@ impl Monitor {
         count_and_owner.count = 0;
         count_and_owner.owner = None;
         let guard1 = self.condvar_mutex.lock().unwrap();
-        unsafe { self.mutex.force_unlock_fair(); }
+        unsafe {
+            self.mutex.force_unlock_fair();
+        }
         std::mem::drop(count_and_owner);
         //after this line any other thread can now lock.
         // assert!(millis >= 0);// would throw an illegal argument exception, however the java agent seems to use -1 instead of 0
@@ -106,41 +109,39 @@ impl Monitor {
         write_guard.count = count;
     }
 
-    pub fn destroy(&self, jvm: &JVMState) -> Result<(), MonitorOwnedBySomeoneElse> {
+    pub fn destroy(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<(), MonitorOwnedBySomeoneElse> {
         let mut current_owners_guard = self.owned.write().unwrap();
         if current_owners_guard.owner != Monitor::get_tid(jvm).into() {
-            return Result::Err(MonitorOwnedBySomeoneElse {})
+            return Result::Err(MonitorOwnedBySomeoneElse {});
         }
         current_owners_guard.count = 0;
         current_owners_guard.owner = None;
-        unsafe { self.mutex.force_unlock_fair(); }
+        unsafe {
+            self.mutex.force_unlock_fair();
+        }
         Result::Ok(())
     }
 
-    pub fn get_tid(jvm: &JVMState) -> usize {
+    pub fn get_tid(jvm: &'gc_life JVMState<'gc_life>) -> usize {
         jvm.thread_state.get_current_thread().java_tid as usize
     }
 
-    pub fn notify_all(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_notify_all(self, jvm);
+    pub fn notify_all(&self, jvm: &'gc_life JVMState<'gc_life>) {
+        jvm.config.tracing.trace_monitor_notify_all(self, jvm);
         self.condvar.notify_all();
     }
 
-    pub fn notify(&self, jvm: &JVMState) {
-        jvm.tracing.trace_monitor_notify(self, jvm);
+    pub fn notify(&self, jvm: &'gc_life JVMState<'gc_life>) {
+        jvm.config.tracing.trace_monitor_notify(self, jvm);
         self.condvar.notify_one();
     }
 
-    pub fn this_thread_holds_lock(&self, jvm: &JVMState) -> bool {
+    pub fn this_thread_holds_lock(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
         match self.owned.read().unwrap().owner.as_ref() {
             None => false,
-            Some(owner_tid) => {
-                *owner_tid == Monitor::get_tid(jvm)
-            }
+            Some(owner_tid) => *owner_tid == Monitor::get_tid(jvm),
         }
     }
 }
 
 pub struct MonitorOwnedBySomeoneElse {}
-
-

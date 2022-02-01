@@ -5,9 +5,8 @@ use std::sync::Arc;
 
 pub type StringPoolEntry = String;
 
-
 pub struct StringPool {
-    pub entries: HashSet<Arc<StringPoolEntry>>
+    pub entries: HashSet<Arc<StringPoolEntry>>,
 }
 
 impl StringPool {
@@ -18,9 +17,7 @@ impl StringPool {
                 self.entries.insert(string_arc.clone());
                 string_arc
             }
-            Some(res) => {
-                res.clone()
-            }
+            Some(res) => res.clone(),
         }
     }
 

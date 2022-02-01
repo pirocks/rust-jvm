@@ -1,8 +1,7 @@
 use std::ptr::null_mut;
-use std::sync::Arc;
 
-use classfile_view::loading::{ClassLoadingError, LoaderName};
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
+use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
@@ -18,10 +17,10 @@ use slow_interpreter::sun::misc::launcher::Launcher;
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let ptype = int_state.current_frame().class_pointer().ptypeview();
+    let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
     match get_or_create_class_object(jvm, ptype, int_state) {
         Ok(class_obj) => to_object(class_obj.into()),
-        Err(_) => null_mut()
+        Err(_) => null_mut(),
     }
 }
 
@@ -29,11 +28,11 @@ unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
 unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let loader_name = int_state.current_frame().loader();
+    let loader_name = int_state.current_loader(jvm);
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj(jvm: &JVMState, int_state: &mut InterpreterStateGuard, loader_name: LoaderName) -> jobject {
+unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, loader_name: LoaderName) -> jobject {
     new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object()), int_state)
 }
 
@@ -97,22 +96,27 @@ unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currCla
 unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    for stack_entry in int_state.cloned_stack_snapshot() {
+    for stack_entry in int_state.cloned_stack_snapshot(jvm) {
         if !stack_entry.privileged_frame() {
             return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
         }
     }
-    return new_local_ref_public(match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
-        Ok(res) => res,
-        Err(_) => todo!()
-    }.object().into(), int_state);
+    return new_local_ref_public(
+        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+            Ok(res) => res,
+            Err(_) => todo!(),
+        }
+            .object()
+            .into(),
+        int_state,
+    );
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let runtime_class = from_jclass(cls).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, cls).as_runtime_class(jvm);
     let loader_name = jvm.classes.read().unwrap().get_initiating_loader(&runtime_class);
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }

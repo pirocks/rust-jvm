@@ -1,11 +1,13 @@
 use std::sync::RwLock;
 
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::JavaThreadId;
 
+use crate::java_values::JavaValue;
 use crate::JVMState;
-use crate::threading::JavaThreadId;
 use crate::threading::monitors::Monitor;
 
 pub struct TracingSettings {
@@ -35,7 +37,7 @@ impl TracingSettings {
             trace_class_loads: false,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
-            trace_jdwp_function_exit: true,//todo parse this from options in future
+            trace_jdwp_function_exit: true, //todo parse this from options in future
             trace_monitor_lock: false,
             trace_monitor_unlock: false,
             trace_monitor_wait: false,
@@ -62,11 +64,20 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_function_enter<'l>(&self, classname: &'l PTypeView, meth_name: &'l str, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
-        if *self.trace_function_start.read().unwrap() {
-            println!("CALL END:{:?} {} {} {} {}", classname, meth_name, method_desc, current_depth, threadtid);
-        }
+    pub fn trace_function_enter<'l>(&self, pool: &'l CompressedClassfileStringPool, classname: &'l CPDType, meth_name: &'l MethodName, method_desc: &'l str, current_depth: usize, threadtid: JavaThreadId) -> FunctionEnterExitTraceGuard<'l> {
+        // unsafe {
+        // if TIMES > 25000000 && !classname.class_name_representation().contains("java") && !classname.class_name_representation().contains("google")
+        //     && !meth_name.contains("hashCode")
+        //     && !meth_name.contains("equals"){
+        //     println!("{:indent$}start:{:?} {} {}","", classname, meth_name, method_desc,indent = current_depth);
+        // }
+        // }
+        //IN BEG.<INIT>, second iterator
+        //
+        // if *self.trace_function_start.read().unwrap() {
+        // }
         FunctionEnterExitTraceGuard {
+            string_pool: pool,
             classname,
             meth_name,
             method_desc,
@@ -88,50 +99,40 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_lock {
             println!("Monitor lock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_unlock {
-            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(), Monitor::get_tid(jvm));
+            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(jvm), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_wait {
-            println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
+            println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_notify {
-            println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
+            println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &JVMState) {
+    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_notify_all {
-            println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name());
+            println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_jdwp_function_enter(&self, jvm: &JVMState, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
+    pub fn trace_jdwp_function_enter(&self, jvm: &'gc_life JVMState<'gc_life>, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
         let current_thread = std::thread::current();
-        let thread_name = if jvm.vm_live() {
-            current_thread.name().unwrap_or("unknown thread")
-        } else {
-            "VM not live"
-        }.to_string();
-        if self.trace_jdwp_function_enter &&
-            function_name != "Deallocate" &&
-            function_name != "Allocate" &&
-            function_name != "RawMonitorNotify" &&
-            function_name != "RawMonitorExit" &&
-            function_name != "RawMonitorWait" &&
-            function_name != "RawMonitorEnter" {
+        let thread_name = if jvm.vm_live() { current_thread.name().unwrap_or("unknown thread") } else { "VM not live" }.to_string();
+        if self.trace_jdwp_function_enter && function_name != "Deallocate" && function_name != "Allocate" && function_name != "RawMonitorNotify" && function_name != "RawMonitorExit" && function_name != "RawMonitorWait" && function_name != "RawMonitorEnter" {
             println!("JVMTI [{}] {} {{ ", thread_name, function_name);
         }
         JVMTIEnterExitTraceGuard {
@@ -142,18 +143,17 @@ impl TracingSettings {
         }
     }
 
-    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard) {
+    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue<'gc_life>) {
+        // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
+        //     && !guard.meth_name.contains("hashCode")
+        //     && !guard.meth_name.contains("equals"){
+        //     println!("{:indent$}exit:{} {} {}","", guard.classname.class_name_representation(), guard.meth_name,res.try_unwrap_int().map(|int|int.to_string()).unwrap_or("not int".to_string()),indent= guard.current_depth);
+        // }
         drop(guard);
     }
 
     pub fn trace_jdwp_function_exit(&self, mut guard: JVMTIEnterExitTraceGuard, error: jvmtiError) -> jvmtiError {
-        if guard.trace_jdwp_function_exit &&
-            guard.function_name != "Deallocate" &&
-            guard.function_name != "Allocate" &&
-            guard.function_name != "RawMonitorNotify" &&
-            guard.function_name != "RawMonitorExit" &&
-            guard.function_name != "RawMonitorWait" &&
-            guard.function_name != "RawMonitorEnter" {
+        if guard.trace_jdwp_function_exit && guard.function_name != "Deallocate" && guard.function_name != "Allocate" && guard.function_name != "RawMonitorNotify" && guard.function_name != "RawMonitorExit" && guard.function_name != "RawMonitorWait" && guard.function_name != "RawMonitorEnter" {
             if error != jvmtiError_JVMTI_ERROR_NONE {
                 println!("JVMTI [{}] {} }} {:?}", guard.thread_name, guard.function_name, error);
             } else {
@@ -167,19 +167,25 @@ impl TracingSettings {
 
     pub fn trace_event_enable_global(&self, event_name: &str) {
         if self.trace_jdwp_events {
-            println!("JVMTI [ALL] # user enabled event {}
+            println!(
+                "JVMTI [ALL] # user enabled event {}
 JVMTI [-] # recompute enabled - before 0
 JVMTI [-] # Enabling event {}
-JVMTI [-] # recompute enabled - after 0", event_name, event_name);
+JVMTI [-] # recompute enabled - after 0",
+                event_name, event_name
+            );
         }
     }
 
     pub fn trace_event_disable_global(&self, event_name: &str) {
         if self.trace_jdwp_events {
-            println!("JVMTI [ALL] # user disabled event {}
+            println!(
+                "JVMTI [ALL] # user disabled event {}
 JVMTI [-] # recompute enabled - before 0
 JVMTI [-] # Disabling event {}
-JVMTI [-] # recompute enabled - after 0", event_name, event_name);
+JVMTI [-] # recompute enabled - after 0",
+                event_name, event_name
+            );
         }
     }
 
@@ -204,8 +210,9 @@ impl Drop for JVMTIEnterExitTraceGuard {
 }
 
 pub struct FunctionEnterExitTraceGuard<'l> {
-    classname: &'l PTypeView,
-    meth_name: &'l str,
+    string_pool: &'l CompressedClassfileStringPool,
+    classname: &'l CPDType,
+    meth_name: &'l MethodName,
     method_desc: &'l str,
     current_depth: usize,
     threadtid: JavaThreadId,
@@ -215,7 +222,7 @@ pub struct FunctionEnterExitTraceGuard<'l> {
 impl Drop for FunctionEnterExitTraceGuard<'_> {
     fn drop(&mut self) {
         if self.trace_function_end {
-            println!("CALL END:{:?} {} {} {} {}", self.classname, self.meth_name, self.method_desc, self.current_depth, self.threadtid);
+            println!("CALL END:{:?} {} {} {} {}", self.classname, self.meth_name.0.to_str(self.string_pool), self.method_desc, self.current_depth, self.threadtid);
         }
     }
 }

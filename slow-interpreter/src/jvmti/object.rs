@@ -3,7 +3,6 @@ use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_E
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
-use crate::rust_jni::native_util::from_object;
 
 ///Get Object Hash Code
 ///
@@ -39,15 +38,15 @@ pub unsafe extern "C" fn get_object_hash_code(env: *mut jvmtiEnv, object: jobjec
     let int_state = get_interpreter_state(env);
     assert!(jvm.vm_live());
     null_check!(hash_code_ptr);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetObjectHashCode");
     if object.is_null() {
         return jvmtiError_JVMTI_ERROR_INVALID_OBJECT;
     }
-    let object = JavaValue::Object(from_object(object)).cast_object();
+    let object = JavaValue::Object(todo!() /*from_jclass(jvm,object)*/).cast_object();
     let hashcode = match object.hash_code(jvm, int_state) {
         Ok(res) => res,
-        Err(WasException {}) => return universal_error()
+        Err(WasException {}) => return universal_error(),
     };
     hash_code_ptr.write(hashcode);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

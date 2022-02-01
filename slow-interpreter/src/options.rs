@@ -20,23 +20,11 @@ pub struct JVMOptions {
     pub(crate) unittest_mode: bool,
     pub(crate) store_generated_classes: bool,
     pub(crate) debug_print_exceptions: bool,
-    pub(crate) assertions_enabled: bool
+    pub(crate) assertions_enabled: bool,
 }
 
 impl JVMOptions {
-    pub fn new(main_class_name: ClassName,
-               classpath: Classpath,
-               args: Vec<String>,
-               libjava: OsString,
-               libjdwp: OsString,
-               enable_tracing: bool,
-               enable_jvmti: bool,
-               properties: Vec<String>,
-               unittest_mode: bool,
-               store_generated_classes: bool,
-               debug_print_exceptions: bool,
-               assertions_enabled: bool,
-    ) -> Self {
+    pub fn new(main_class_name: ClassName, classpath: Classpath, args: Vec<String>, libjava: OsString, libjdwp: OsString, enable_tracing: bool, enable_jvmti: bool, properties: Vec<String>, unittest_mode: bool, store_generated_classes: bool, debug_print_exceptions: bool, assertions_enabled: bool) -> Self {
         Self {
             main_class_name,
             classpath,

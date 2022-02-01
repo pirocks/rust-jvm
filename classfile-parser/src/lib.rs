@@ -1,15 +1,13 @@
 #![feature(exclusive_range_pattern)]
 
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-use std::fmt;
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};
-use sketch_jvm_version_of_utf8::ValidationError;
+use rust_jvm_common::EXPECTED_CLASSFILE_MAGIC;
+use rust_jvm_common::loading::ClassfileParsingError;
+use rust_jvm_common::loading::ClassfileParsingError::WrongMagic;
 
 use crate::attribute_infos::parse_attributes;
-use crate::ClassfileParsingError::WrongMagic;
 use crate::constant_infos::parse_constant_infos;
 use crate::parsing_util::ParsingContext;
 use crate::parsing_util::ReadParsingContext;
@@ -17,9 +15,6 @@ use crate::parsing_util::ReadParsingContext;
 pub mod attribute_infos;
 pub mod code;
 pub mod constant_infos;
-
-const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
-
 
 mod parsing_util;
 
@@ -70,38 +65,6 @@ pub fn parse_class_file(read: &mut dyn Read) -> Result<Classfile, ClassfileParsi
     let mut class_file = parse_from_context(&mut p)?;
     class_file.constant_pool = p.constant_pool();
     Ok(class_file)
-}
-
-#[derive(Debug)]
-pub enum ClassfileParsingError {
-    EOF,
-    WrongMagic,
-    NoAttributeName,
-    EndOfInstructions,
-    WrongInstructionType,
-    ATypeWrong,
-    WrongPtype,
-    UsedReservedStackMapEntry,
-    WrongStackMapFrameType,
-    WrongTag,
-    WromngCPEntry,
-    UTFValidationError(ValidationError),
-    WrongDescriptor
-}
-
-impl From<ValidationError> for ClassfileParsingError {
-    fn from(err: ValidationError) -> Self {
-        Self::UTFValidationError(err)
-    }
-}
-
-impl Error for ClassfileParsingError {}
-
-
-impl Display for ClassfileParsingError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 fn parse_from_context(p: &mut dyn ParsingContext) -> Result<Classfile, ClassfileParsingError> {

@@ -19,7 +19,7 @@ pub enum AllocationType {
 }
 
 pub struct NativeAllocator {
-    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>//todo impl default or something
+    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>, //todo impl default or something
 }
 
 unsafe impl Send for NativeAllocator {}
@@ -48,7 +48,7 @@ impl NativeAllocator {
     pub fn allocate_box<'life, ElemType>(&self, vec: ElemType) -> &'life mut ElemType {
         let res = Box::leak(box vec);
         let mut guard = self.allocations.write().unwrap();
-        guard.insert(res as *mut ElemType as *mut c_void as usize , AllocationType::BoxLeak);
+        guard.insert(res as *mut ElemType as *mut c_void as usize, AllocationType::BoxLeak);
         res
     }
 
@@ -62,7 +62,6 @@ impl NativeAllocator {
     pub unsafe fn allocate_string(&self, cstr: String) -> *mut i8 {
         self.allocate_cstring(CString::new(cstr).unwrap())
     }
-
 
     pub unsafe fn allocate_modified_string(&self, cstr: String) -> *mut i8 {
         let buf = JVMString::from_regular_string(cstr.as_str()).buf.clone();
@@ -79,7 +78,8 @@ impl NativeAllocator {
         let allocation_type = match self.allocations.read().unwrap().get(&(ptr as usize)) {
             Some(x) => x,
             None => return,
-        }.clone();
+        }
+            .clone();
         match allocation_type {
             AllocationType::BoxLeak => {
                 unimplemented!()
@@ -89,7 +89,7 @@ impl NativeAllocator {
                 self.allocations.write().unwrap().remove(&(ptr as usize));
             }
             AllocationType::CString => {
-                CString::from_raw(ptr as *mut i8);
+                let _ = CString::from_raw(ptr as *mut i8);
             }
         }
     }

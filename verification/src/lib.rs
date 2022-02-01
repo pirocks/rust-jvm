@@ -1,13 +1,15 @@
 extern crate elapsed;
 
+use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use classfile_view::loading::{ClassWithLoader, LivePoolGetter, LoaderName};
-use classfile_view::view::{ClassBackedView, ClassView};
-use classfile_view::vtype::VType;
-use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
+use classfile_view::view::ClassView;
+use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LivePoolGetter, LoaderName};
+use rust_jvm_common::vtype::VType;
 
 use crate::verifier::class_is_type_safe;
 use crate::verifier::Frame;
@@ -15,41 +17,51 @@ use crate::verifier::TypeSafetyError;
 
 pub mod verifier;
 
-pub fn verify(vf: &VerifierContext, to_verify: &ClassBackedView, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    class_is_type_safe(vf, &ClassWithLoader {
-        class_name: to_verify.name().unwrap_name(),
-        loader,
-    })
+pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
+    class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader })
 }
 
 #[derive(Debug)]
 pub struct StackMap {
-    pub offset: usize,
+    pub offset: ByteCodeOffset,
     pub map_frame: Frame,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct CodeIndex(u16);
+
+
+
 pub struct VerifierContext<'l> {
-    pub live_pool_getter: Arc<dyn LivePoolGetter>,
+    pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
-    // pub classes: &'l ,
+    pub string_pool: &'l CompressedClassfileStringPool,
+    pub class_view_cache: Mutex<HashMap<ClassWithLoader, Arc<dyn ClassView>>>,
     pub current_loader: LoaderName,
+    pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
+    pub debug: bool,
 }
 
-
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: ClassName) -> Arc<Classfile>;
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
+}
+
+pub struct NoopClassFileGetter;
+
+impl ClassFileGetter for NoopClassFileGetter {
+    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+        todo!("{:?}{:?}", loader, class)
+    }
 }
 
 #[derive(Eq, Debug)]
 pub struct OperandStack {
-    data: VecDeque<VType>
+    pub data: VecDeque<VType>,
 }
 
 impl Clone for OperandStack {
     fn clone(&self) -> Self {
-        OperandStack {
-            data: self.data.clone()
-        }
+        OperandStack { data: self.data.clone() }
     }
 }
 
@@ -58,7 +70,6 @@ impl PartialEq for OperandStack {
         self.data == other.data
     }
 }
-
 
 impl OperandStack {
     pub fn operand_push(&mut self, type_: VType) {
@@ -101,5 +112,3 @@ impl OperandStack {
         }
     }
 }
-
-

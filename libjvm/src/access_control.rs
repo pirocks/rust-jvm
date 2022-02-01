@@ -1,5 +1,4 @@
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use by_address::ByAddress;
 
@@ -7,6 +6,8 @@ use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
@@ -21,23 +22,20 @@ use slow_interpreter::utils::throw_npe;
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let action = from_object(action);
+    let action = from_object(jvm, action);
     let unwrapped_action = match action.clone() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let expected_descriptor = MethodDescriptor {
-        parameter_types: vec![],
-        return_type: PType::Ref(ReferenceType::Class(ClassName::object())),
-    };
+    let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) };
     int_state.push_current_operand_stack(JavaValue::Object(action));
-    invoke_virtual(jvm, int_state, "run", &expected_descriptor);
+    invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor);
     if int_state.throw().is_some() {
         return null_mut();
     }
-    let res = int_state.pop_current_operand_stack().unwrap_object();
+    let res = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     new_local_ref_public(res, int_state)
 }
 
@@ -52,9 +50,8 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
 unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(JavaValue::Object(jvm.thread_state.get_current_thread().thread_object().object().into()).cast_thread().get_inherited_access_control_context().object().into(), int_state)
+    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().into(), int_state)
 }
-
 
 ///  /**
 //      * Returns the AccessControl context. i.e., it gets
@@ -69,20 +66,27 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let stack = int_state.cloned_stack_snapshot();
-    let protection_domains = jvm.protection_domains.read().unwrap();
-    let protection_domains = stack.iter().rev().flat_map(|entry| {
-        match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
-            None => None,
-            Some(domain) => { JavaValue::Object(domain.clone().0.into()).cast_protection_domain().into() }
-        }
-    }).collect::<Vec<_>>();
+    let stack = int_state.cloned_stack_snapshot(jvm);
+    let classes_guard = jvm.classes.read().unwrap();
+    let protection_domains = &classes_guard.protection_domains;
+    let protection_domains = stack
+        .iter()
+        .rev()
+        .flat_map(|entry| {
+            match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
+                None => None,
+                Some(domain) => {
+                    JavaValue::Object(todo!() /*domain.clone().0.into()*/).cast_protection_domain().into()
+                }
+            }
+        })
+        .collect::<Vec<_>>();
     if protection_domains.is_empty() {
-        return null_mut()
+        return null_mut();
     } else {
         match AccessControlContext::new(jvm, int_state, protection_domains) {
             Ok(access_control_ctx) => new_local_ref_public(access_control_ctx.object().into(), int_state),
-            Err(WasException {}) => return null_mut()
+            Err(WasException {}) => return null_mut(),
         }
     }
 }

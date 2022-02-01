@@ -4,7 +4,6 @@ use std::time::Instant;
 use nix::errno::Errno::EINTR;
 use nix::sys::socket::setsockopt;
 
-use classfile_parser::code::InstructionTypeNum::{lookupswitch, ret};
 use jvmti_jni_bindings::{jint, sockaddr};
 
 use crate::util::retry_on_eintr;
@@ -43,11 +42,7 @@ unsafe extern "system" fn JVM_Send(fd: jint, buf: *mut ::std::os::raw::c_char, n
 unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std::os::raw::c_long) -> jint {
     let start = Instant::now();
     loop {
-        let mut pollfd = libc::pollfd {
-            fd,
-            events: libc::POLLIN | libc::POLLERR,
-            revents: 0,
-        };
+        let mut pollfd = libc::pollfd { fd, events: libc::POLLIN | libc::POLLERR, revents: 0 };
         let err = libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout as i32);
         if nix::errno::errno() == EINTR as i32 && err == -1 {
             if timeout >= 0 {
@@ -56,7 +51,7 @@ unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std:
                 }
             }
         } else {
-            return err
+            return err;
         }
     }
 }
@@ -102,24 +97,11 @@ unsafe extern "system" fn JVM_GetHostName(name: *mut ::std::os::raw::c_char, nam
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetSockOpt(
-    fd: jint,
-    level: ::std::os::raw::c_int,
-    optname: ::std::os::raw::c_int,
-    optval: *mut ::std::os::raw::c_char,
-    optlen: *mut ::std::os::raw::c_int,
-) -> jint {
+unsafe extern "system" fn JVM_GetSockOpt(fd: jint, level: ::std::os::raw::c_int, optname: ::std::os::raw::c_int, optval: *mut ::std::os::raw::c_char, optlen: *mut ::std::os::raw::c_int) -> jint {
     libc::getsockopt(fd, level, optname, optval as *mut c_void, optlen as *mut libc::socklen_t)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetSockOpt(
-    fd: jint,
-    level: ::std::os::raw::c_int,
-    optname: ::std::os::raw::c_int,
-    optval: *const ::std::os::raw::c_char,
-    optlen: ::std::os::raw::c_int,
-) -> jint {
+unsafe extern "system" fn JVM_SetSockOpt(fd: jint, level: ::std::os::raw::c_int, optname: ::std::os::raw::c_int, optval: *const ::std::os::raw::c_char, optlen: ::std::os::raw::c_int) -> jint {
     libc::setsockopt(fd, level, optname, optval as *mut c_void, optlen as u32)
 }
-

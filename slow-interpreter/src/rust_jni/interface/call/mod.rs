@@ -2,73 +2,61 @@ use std::ffi::{VaList, VaListImpl};
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
-use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
-use rust_jvm_common::ptype::PType;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::MethodId;
 
+use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
-use crate::method_table::{from_jmethod_id, MethodId};
+use crate::jvm_state::JVMState;
+use crate::method_table::{from_jmethod_id};
 use crate::rust_jni::interface::push_type_to_operand_stack;
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
-
-unsafe fn call_nonstatic_method(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
+unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of unwrap
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of unwrap
     let classview = class.view().clone();
-    let method = &classview.method_view_i(method_i as usize);
+    let method = &classview.method_view_i(method_i);
     if method.is_static() {
         unimplemented!()
     }
     let parsed = method.desc();
-    int_state.push_current_operand_stack(JavaValue::Object(from_object(obj)));
-    for type_ in &parsed.parameter_types {
-        push_type_to_operand_stack(int_state, type_, &mut l)
+    int_state.push_current_operand_stack(JavaValue::Object(from_object(jvm, obj)));
+    for type_ in &parsed.arg_types {
+        push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class, &method)?;
+    invoke_virtual_method_i(jvm, int_state, parsed, class, &method, todo!())?;
     assert!(int_state.throw().is_none());
-    Ok(if method.desc().return_type == PType::VoidType {
-        None
-    } else {
-        int_state.pop_current_operand_stack().into()
-    })
+    Ok(if method.desc().return_type == CPDType::VoidType { None } else { int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into() })
 }
 
-pub unsafe fn call_static_method_impl(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue>, WasException> {
+pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();//todo should really return error instead of lookup
+    let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
+    check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
-    let method = &classfile.method_view_i(method_i as usize);
-    let method_descriptor_str = method.desc_str();
-    let _name = method.name();
-    let parsed = parse_method_descriptor(method_descriptor_str.as_str()).unwrap();
-    push_params_onto_frame(&mut l, int_state, &parsed);
-    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i as usize, method)?;
-    Ok(if method.desc().return_type == PType::VoidType {
-        None
-    } else {
-        int_state.pop_current_operand_stack().into()
-    })
+    let method = &classfile.method_view_i(method_i);
+    let parsed = method.desc();
+    push_params_onto_frame(jvm, &mut l, int_state, &parsed);
+    invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method)?;
+    Ok(if method.desc().return_type == CPDType::VoidType { None } else { int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into() })
 }
 
-unsafe fn push_params_onto_frame(
-    l: &mut VarargProvider,
-    int_state: &mut InterpreterStateGuard,
-    parsed: &MethodDescriptor,
-) {
-    for type_ in &parsed.parameter_types {
-        push_type_to_operand_stack(int_state, type_, l)
+unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed: &CMethodDescriptor) {
+    for type_ in &parsed.arg_types {
+        push_type_to_operand_stack(jvm, int_state, type_, l)
     }
 }
 
@@ -138,7 +126,6 @@ impl VarargProvider<'_, '_, '_> {
             }
         }
     }
-
 
     pub unsafe fn arg_float(&mut self) -> f32 {
         match self {

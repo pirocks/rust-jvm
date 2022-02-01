@@ -5,7 +5,6 @@ use crate::jvmti::get_state;
 pub const JVMTI_INTERFACE_MAJOR_VERSION: u32 = 1;
 pub const JVMTI_INTERFACE_MINOR_VERSION: u32 = 2;
 
-
 ///
 /// Get Version Number
 //
@@ -51,11 +50,9 @@ pub const JVMTI_INTERFACE_MINOR_VERSION: u32 = 2;
 // JVMTI_ERROR_NULL_POINTER	version_ptr is NULL.
 pub unsafe extern "C" fn get_version_number(env: *mut jvmtiEnv, version_ptr: *mut jint) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "GetVersionNumber");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetVersionNumber");
     null_check!(version_ptr);
-    let version = (JVMTI_VERSION_INTERFACE_JVMTI |
-        (JVMTI_VERSION_MASK_MAJOR & (JVMTI_INTERFACE_MAJOR_VERSION << 16)) |
-        (JVMTI_VERSION_MASK_MINOR & (JVMTI_INTERFACE_MINOR_VERSION << 8))) as u32;
+    let version = (JVMTI_VERSION_INTERFACE_JVMTI | (JVMTI_VERSION_MASK_MAJOR & (JVMTI_INTERFACE_MAJOR_VERSION << 16)) | (JVMTI_VERSION_MASK_MINOR & (JVMTI_INTERFACE_MINOR_VERSION << 8))) as u32;
     version_ptr.write(version as jint);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

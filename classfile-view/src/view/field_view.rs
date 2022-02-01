@@ -1,36 +1,36 @@
-use rust_jvm_common::classfile::FieldInfo;
-use rust_jvm_common::descriptor_parser::parse_field_descriptor;
+use rust_jvm_common::compressed_classfile::{CompressedFieldInfo, CPDType};
+use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;
-use crate::view::ptype_view::PTypeView;
 
 pub struct FieldView<'l> {
     view: &'l ClassBackedView,
-    i: usize,
+    i: u16,
 }
 
 impl FieldView<'_> {
-    fn field_info(&self) -> &FieldInfo {
-        &self.view.backing_class.fields[self.i]
+    fn field_info(&self) -> &CompressedFieldInfo {
+        &self.view.backing_class.fields[self.i as usize]
     }
-    pub fn field_name(&self) -> String {
-        self.field_info().name(&self.view.backing_class)
+    pub fn field_name(&self) -> FieldName {
+        FieldName(self.field_info().name)
     }
     pub fn field_desc(&self) -> String {
-        self.view.backing_class.constant_pool[self.field_info().descriptor_index as usize].extract_string_from_utf8()
+        self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i as usize].descriptor_index as usize].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo")
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
-        self.field_info().constant_value_attribute_i().map(|i| { self.view.constant_pool_view(i as usize) })
+        self.view.underlying_class.fields[self.i as usize].constant_value_attribute_i().map(|i| self.view.constant_pool_view(i as usize))
     }
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
-        FieldView { view: c, i }
+        FieldView { view: c, i: i as u16 }
     }
-    pub fn field_type(&self) -> PTypeView {
-        PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)
+    pub fn field_type(&self) -> CPDType {
+        self.field_info().descriptor_type.clone()
+        /*PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)*/
     }
 
-    pub fn field_i(&self) -> usize {
+    pub fn field_i(&self) -> u16 {
         self.i
     }
 }
@@ -41,15 +41,10 @@ impl HasAccessFlags for FieldView<'_> {
     }
 }
 
-
 pub enum FieldIterator<'l> {
-    ClassBacked {
-        backing_class: &'l ClassBackedView,
-        i: usize,
-    },
+    ClassBacked { backing_class: &'l ClassBackedView, i: usize },
     Empty,
 }
-
 
 impl<'l> Iterator for FieldIterator<'l> {
     type Item = FieldView<'l>;
@@ -64,9 +59,7 @@ impl<'l> Iterator for FieldIterator<'l> {
                 *i += 1;
                 Some(res)
             }
-            FieldIterator::Empty => {
-                None
-            }
+            FieldIterator::Empty => None,
         }
     }
 }

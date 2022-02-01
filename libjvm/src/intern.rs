@@ -11,6 +11,6 @@ unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring
     let int_state = get_interpreter_state(env);
     match intern_impl_unsafe(jvm, int_state, str_unsafe) {
         Ok(res) => res,
-        Err(WasException {}) => null_mut()
+        Err(WasException {}) => null_mut(),
     }
 }

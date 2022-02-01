@@ -11,12 +11,9 @@ unsafe extern "system" fn JVM_DTraceIsProbeEnabled(env: *mut JNIEnv, method: jme
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DTraceDispose(env: *mut JNIEnv, activation_handle: jlong) {
-
-}
+unsafe extern "system" fn JVM_DTraceDispose(env: *mut JNIEnv, activation_handle: jlong) {}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DTraceIsSupported(env: *mut JNIEnv) -> jboolean {
     u8::from(false)
 }
-

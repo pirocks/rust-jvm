@@ -3,9 +3,14 @@ name = "rust-jvm"
 version = "0.1.0"
 authors = ["Francis Nixon <13nixonf@gmail.com>"]
 edition = "2018"
+
 [[bin]]
 name = "java"
 path = "src/main.rs"
+
+[lib]
+name = "rust_jvm"
+path = "src/lib.rs"
 
 [dependencies]
 rust-jvm-common = { path = "./rust-jvm-common" }
@@ -18,10 +23,20 @@ classfile-view = { path = "./classfile-view" }
 jvmti-jni-bindings = { path = "./jvmti-jni-bindings" }
 type-safe-proc-macro-utils = { path = "./type-safe-proc-macro-utils" }
 sketch-jvm-version-of-utf8 = { path = "./sketch-jvm-version-of-utf8" }
+crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
+early-startup = { path = "./early-startup" }
+itertools = "0.10.0"
 argparse = "0.2.2"
 
+[dev-dependencies]
+classfile-writer = { path = "./classfile-writer" }
+wtf8 = "0.1.0"
+tempdir = "0.3.7"
+ntest = "0.7.3"
+
 [workspace]
-members = ["rust-jvm-common",
+members = [
+    "rust-jvm-common",
     "classfile-parser",
     "verification",
     "slow-interpreter",
@@ -31,5 +46,13 @@ members = ["rust-jvm-common",
     "jvmti-jni-bindings",
     "threads",
     "type-safe-proc-macro-utils",
-    "sketch-jvm-version-of-utf8"
+    "sketch-jvm-version-of-utf8",
+    "add-only-static-vec",
+    "jmm-bindings",
+    "method-table",
+    "early-startup",
+    "another-jit-vm",
+    "classfile-writer",
+    "another-jit-vm-ir",
+    "gc-memory-layout-common"
 ]

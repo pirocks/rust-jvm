@@ -6,7 +6,6 @@ pub fn get_test_resources_global() -> PathBuf {
     test_resources_path
 }
 
-
 pub fn get_test_resources_local() -> PathBuf {
     let mut test_resources_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     test_resources_path.push("resources/test");

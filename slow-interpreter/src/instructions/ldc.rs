@@ -1,34 +1,31 @@
-use std::sync::Arc;
+use itertools::Either;
 
-use classfile_view::view::constant_info_view::{ClassPoolElemView, ConstantInfoView, StringView};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JVMState, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter::{run_function, WasException};
-use crate::interpreter_util::push_new_object;
+use crate::interpreter_util::new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::rust_jni::interface::string::intern_safe;
+use crate::stack_entry::StackEntryMut;
 
-fn load_class_constant(state: &JVMState, int_state: &mut InterpreterStateGuard, c: &ClassPoolElemView) -> Result<(), WasException> {
-    let res_class_name = c.class_ref_type();
-    let type_ = PTypeView::Ref(res_class_name);
-    load_class_constant_by_type(state, int_state, type_)?;
-    Ok(())
+fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, type_: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
+    load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type(jvm: &JVMState, int_state: &mut InterpreterStateGuard, res_class_type: PTypeView) -> Result<(), WasException> {
-    let object = get_or_create_class_object(jvm, res_class_type, int_state)?;
-    int_state.current_frame_mut().push(JavaValue::Object(object.into()));
-    Ok(())
+pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, res_class_type: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
+    let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
+    Ok(JavaValue::Object(object.into()))
 }
 
-fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s: &StringView) {
+fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, s: &StringView) {
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
@@ -36,94 +33,90 @@ fn load_string_constant(jvm: &JVMState, int_state: &mut InterpreterStateGuard, s
     int_state.push_current_operand_stack(string.java_value());
 }
 
-pub fn create_string_on_stack(jvm: &JVMState, interpreter_state: &mut InterpreterStateGuard, res_string: String) -> Result<(), WasException> {
-    let java_lang_string = ClassName::string();
-    let string_class = assert_inited_or_initing_class(
-        jvm,
-        interpreter_state,
-        java_lang_string.into(),
-    );
+pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, res_string: String) -> Result<(), WasException> {
+    let java_lang_string = CClassName::string();
+    let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
     let str_as_vec = res_string.chars();
-    let chars: Vec<JavaValue> = str_as_vec.map(|x| { JavaValue::Char(x as u16) }).collect();
-    push_new_object(jvm, interpreter_state, &string_class);
-    let string_object = interpreter_state.pop_current_operand_stack();
+    let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| JavaValue::Char(x as u16)).collect();
+    let string_object = new_object(jvm, interpreter_state, &string_class);
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(Arc::new(Object::Array(ArrayObject::new_array(
-        jvm,
-        interpreter_state,
-        chars,
-        PTypeView::CharType,
-        jvm.thread_state.new_monitor("monitor for a string".to_string()),
-    )?)))));
-    let char_array_type = PTypeView::Ref(ReferenceTypeView::Array(PTypeView::CharType.into()));
-    let expected_descriptor = MethodDescriptor { parameter_types: vec![char_array_type.to_ptype()], return_type: PTypeView::VoidType.to_ptype() };
-    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, "<init>".to_string(), &expected_descriptor, string_class);
+    args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)))));
+    let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
+    let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
+    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
-    let function_call_frame = interpreter_state.push_frame(next_entry);
-    match run_function(jvm, interpreter_state) {
+    let mut function_call_frame = interpreter_state.push_frame(next_entry);
+    match run_function(jvm, interpreter_state, &mut function_call_frame) {
         Ok(_) => {}
-        Err(_) => todo!()
+        Err(_) => todo!(),
     }
     let was_exception = interpreter_state.throw().is_some();
     interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
+    if !jvm.config.compiled_mode_active {
+    }
     if interpreter_state.throw().is_some() {
         unimplemented!()
     }
-    let function_return = interpreter_state.function_return_mut();
-    if *function_return {
-        *function_return = false;
+    if interpreter_state.function_return() {
+        interpreter_state.set_function_return(false);
     }
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
     Ok(())
 }
 
-pub fn ldc2_w(current_frame: &mut StackEntry, cp: u16) {
-    let view = current_frame.class_pointer().view();
-    let pool_entry = &view.constant_pool_view(cp as usize);
-    match &pool_entry {
-        ConstantInfoView::Long(l) => {
-            current_frame.push(JavaValue::Long(l.long));
+pub fn ldc2_w(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, ldc2w: &CompressedLdc2W) {
+    match ldc2w {
+        CompressedLdc2W::Long(l) => {
+            current_frame.push(JavaValue::Long(*l));
         }
-        ConstantInfoView::Double(d) => {
-            current_frame.push(JavaValue::Double(d.double));
+        CompressedLdc2W::Double(d) => {
+            current_frame.push(JavaValue::Double(*d));
         }
         _ => {}
     }
 }
 
-
-pub fn ldc_w(jvm: &JVMState, int_state: &mut InterpreterStateGuard, cp: u16) {
-    let view = int_state.current_class_view().clone();
-    let pool_entry = &view.constant_pool_view(cp as usize);
-    match &pool_entry {
-        ConstantInfoView::String(s) => {
-            let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, s.string()).expect("todo").object().into()).java_value();
-            int_state.push_current_operand_stack(string_value)
-        }
-        ConstantInfoView::Class(c) => match load_class_constant(jvm, int_state, &c) {
-            Err(WasException {}) => {
-                return;
+pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) {
+    match either {
+        Either::Left(ldcw) => {
+            match &ldcw {
+                CompressedLdcW::String { str } => {
+                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().into()).java_value();
+                    int_state.push_current_operand_stack(string_value)
+                }
+                CompressedLdcW::Class { type_ } => {
+                    if let Err(WasException {}) = load_class_constant(jvm, int_state, type_) {
+                        return;
+                    }
+                }
+                CompressedLdcW::Float { float } => {
+                    let float: f32 = *float;
+                    int_state.push_current_operand_stack(JavaValue::Float(float));
+                }
+                CompressedLdcW::Integer { integer } => {
+                    let int: i32 = *integer;
+                    int_state.push_current_operand_stack(JavaValue::Int(int));
+                }
+                CompressedLdcW::LiveObject(live_object_index) => {
+                    let classes_guard = jvm.classes.read().unwrap();
+                    let obj = classes_guard.lookup_live_object_pool(live_object_index);
+                    int_state.push_current_operand_stack(JavaValue::Object(Some(obj.clone())));
+                }
+                _ => {
+                    // dbg!(cp);
+                    int_state.debug_print_stack_trace(jvm,false);
+                    // dbg!(&pool_entry);
+                    unimplemented!()
+                }
             }
-            Ok(()) => {}
-        },
-        ConstantInfoView::Float(f) => {
-            let float: f32 = f.float;
-            int_state.push_current_operand_stack(JavaValue::Float(float));
         }
-        ConstantInfoView::Integer(i) => {
-            let int: i32 = i.int;
-            int_state.push_current_operand_stack(JavaValue::Int(int));
-        }
-        _ => {
-            dbg!(cp);
-            int_state.debug_print_stack_trace();
-            dbg!(&pool_entry);
-            unimplemented!()
+        Either::Right(ldc2w) => {
+            todo!()
         }
     }
 }
 
-pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state: &mut InterpreterStateGuard) -> JavaValue {
+pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> JavaValue<'gc_life> {
     match &c {
         ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
         ConstantInfoView::Float(f) => JavaValue::Float(f.float),
@@ -131,9 +124,9 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &JVMState, int_state:
         ConstantInfoView::Double(d) => JavaValue::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
-            let string_value = int_state.pop_current_operand_stack();
+            let string_value = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
             intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
         }
-        _ => panic!()
+        _ => panic!(),
     }
 }

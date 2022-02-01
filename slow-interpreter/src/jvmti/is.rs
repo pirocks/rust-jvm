@@ -33,22 +33,22 @@ use crate::rust_jni::native_util::try_from_jclass;
 /// JVMTI_ERROR_NULL_POINTER	is_array_class_ptr is NULL.
 pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_array_class_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsArrayClass");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "IsArrayClass");
     let res = match is_array_impl(jvm, klass) {
         Ok(res) => res,
-        Err(err) => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, err)
+        Err(err) => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, err),
     };
     is_array_class_ptr.write(res);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub unsafe fn is_array_impl(jvm: &JVMState, cls: jclass) -> Result<u8, jvmtiError> {
-    let jclass = match try_from_jclass(cls) {
+pub unsafe fn is_array_impl(jvm: &'gc_life JVMState<'gc_life>, cls: jclass) -> Result<u8, jvmtiError> {
+    let jclass = match try_from_jclass(jvm, cls) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
     };
-    let ptype = jclass.as_type(jvm);
-    let is_array = ptype.is_array();
+    let rtype = jclass.as_type(jvm);
+    let is_array = rtype.is_array();
     Result::Ok((if is_array { JNI_TRUE } else { JNI_FALSE }) as jboolean)
 }
 
@@ -82,13 +82,16 @@ pub unsafe fn is_array_impl(jvm: &JVMState, cls: jclass) -> Result<u8, jvmtiErro
 /// JVMTI_ERROR_NULL_POINTER	is_interface_ptr is NULL.
 pub unsafe extern "C" fn is_interface(env: *mut jvmtiEnv, klass: jclass, is_interface_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
-    let tracing_guard = jvm.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
+    let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "IsInterface");
     null_check!(is_interface_ptr);
-    let is_interface = match try_from_jclass(klass) {
-        None => return jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS),
+    let is_interface = match try_from_jclass(jvm, klass) {
+        None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,
-    }.as_runtime_class(jvm).view().is_interface();
+    }
+        .as_runtime_class(jvm)
+        .view()
+        .is_interface();
     let res = if is_interface { JNI_TRUE } else { JNI_FALSE };
     is_interface_ptr.write(res as jboolean);
-    jvm.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

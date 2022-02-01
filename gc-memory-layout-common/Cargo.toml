@@ -1,0 +1,15 @@
+[package]
+name = "gc-memory-layout-common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rust-jvm-common = { path = "../rust-jvm-common" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+early-startup = { path = "../early-startup" }
+verification = { path = "../verification" }
+nix = "0.23.0"
+libc = "0.2"
+itertools = "0.10"

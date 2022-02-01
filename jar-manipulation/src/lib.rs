@@ -10,7 +10,8 @@ use zip::ZipArchive;
 
 use classfile_parser::parse_class_file;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 #[derive(Debug)]
 pub struct JarHandle<R: Read + io::Seek> {
@@ -36,8 +37,8 @@ impl JarHandle<File> {
         Result::Ok(JarHandle { path, zip_archive })
     }
 
-    pub fn lookup(&mut self, class_name: &ClassName) -> Result<Arc<Classfile>, Box<dyn Error>> {
-        let lookup_res = &mut self.zip_archive.by_name(format!("{}.class", class_name.get_referred_name()).as_str())?;
+    pub fn lookup(&mut self, pool: &CompressedClassfileStringPool, class_name: &CClassName) -> Result<Arc<Classfile>, Box<dyn Error>> {
+        let lookup_res = &mut self.zip_archive.by_name(format!("{}.class", class_name.0.to_str(pool)).as_str())?;
         if lookup_res.is_file() {
             Result::Ok(Arc::new(parse_class_file(lookup_res)?))
         } else {
