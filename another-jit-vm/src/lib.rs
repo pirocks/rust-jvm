@@ -341,7 +341,6 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         return iterator;
     }
 }
-static mut GOING_IN_COUNT: usize = 1;
 
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     #[allow(named_asm_labels)]

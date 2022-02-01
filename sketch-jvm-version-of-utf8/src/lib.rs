@@ -1,6 +1,6 @@
-use std::char::from_u32;
 
 use wtf8::{CodePoint, Wtf8Buf};
+use std::string::FromUtf8Error;
 
 pub mod wtf8_pool;
 
@@ -8,6 +8,8 @@ pub mod wtf8_pool;
 pub struct JVMString {
     pub buf: Vec<u8>,
 }
+
+//todo if issues with this go dumpster diving in history there where some issues merging to master.
 
 impl JVMString {
     pub fn from_regular_string(str: &str) -> Self {
