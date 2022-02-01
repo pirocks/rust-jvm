@@ -212,7 +212,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
-                eprintln!("Before:{:?}", instr.info);
+                eprintln!("Before:{:?} {}", instr.info, bytecode_offset.0);
+                if jvm.static_breakpoints.should_break(view.name().unwrap_name(),method_view.name(),method_view.desc().clone(),*bytecode_offset){
+                    eprintln!("here");
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
@@ -501,8 +504,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize /*+ size_of::<u64>()*/;
                     let frame_ref = int_state.current_frame().frame_view.ir_ref;
                     let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
-                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(int_state.current_frame().frame_view.ir_ref.method_id().unwrap(), &jvm.string_pool));
-                    dbg!(&ir_vm_exit_event.exit_type);
+                    // dbg!(jvm.method_table.read().unwrap().lookup_method_string(int_state.current_frame().frame_view.ir_ref.method_id().unwrap(), &jvm.string_pool));
+                    // dbg!(&ir_vm_exit_event.exit_type);
                     assert_eq!(offset, expected_current_frame_size);
                 }
             }

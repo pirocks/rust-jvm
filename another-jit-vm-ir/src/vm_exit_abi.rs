@@ -344,7 +344,7 @@ impl IRVMExitType {
                 assembler.mov(PutStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
                 assembler.lea(PutStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::LogFramePointerOffsetValue { value, value_string } => {
+            IRVMExitType::LogFramePointerOffsetValue { value, value_string: _ } => {
                 assembler.mov(rax, RawVMExitType::LogFramePointerOffsetValue as u64).unwrap();
                 assembler.mov(LogFramePointerOffsetValue::VALUE.to_native_64(), rbp - value.0).unwrap();
                 assembler.lea(LogFramePointerOffsetValue::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();

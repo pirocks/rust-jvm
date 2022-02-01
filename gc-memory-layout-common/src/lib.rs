@@ -54,7 +54,7 @@ impl AllocatedObjectType {
                 if *len == 0 {
                     return 1;
                 } else {
-                    *len as usize * match primitive_type {
+                    *len as usize * size_of::<jlong>() + size_of::<jlong>()/*match primitive_type {
                         CPDType::BooleanType => 1,
                         CPDType::ByteType => 1,
                         CPDType::ShortType => 2,
@@ -65,7 +65,7 @@ impl AllocatedObjectType {
                         CPDType::DoubleType => 8,
                         CPDType::VoidType => panic!(),
                         CPDType::Ref(_) => panic!(),
-                    } + size_of::<jint>()
+                    } + size_of::<jint>()*/
                 }
             }
         }

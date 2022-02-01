@@ -330,15 +330,15 @@ static mut GOING_IN_COUNT: usize = 1;
 impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
     #[allow(named_asm_labels)]
     fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitEvent {
-        unsafe {
-            if GOING_IN_COUNT == 5 {
-                eprintln!("here")
-            }
-            GOING_IN_COUNT += 1;
-        }
-        eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}",
-                  jit_context.guest_registers.saved_registers_without_ip.rbp,
-                  jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
+        // unsafe {
+        //     if GOING_IN_COUNT == 5 {
+        //         eprintln!("here")
+        //     }
+        //     GOING_IN_COUNT += 1;
+        // }
+        // eprintln!("GOING IN AT: rbp:{:?} rsp:{:?} rip:{:?}",
+        //           jit_context.guest_registers.saved_registers_without_ip.rbp,
+        //           jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
@@ -448,7 +448,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             out("ymm15") _,
             )
         }
-        eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
+        // eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
         self.generate_exit_event(jit_context.guest_registers.rip, jit_context.guest_registers/*, extra*/)
     }
 

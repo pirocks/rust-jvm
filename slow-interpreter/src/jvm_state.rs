@@ -53,6 +53,7 @@ use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
+use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -101,7 +102,8 @@ pub struct JVMState<'gc_life> {
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub vtables: RwLock<VTables>,
     pub inheritance_ids: RwLock<InheritanceMethodIDs>,
-    pub object_monitors:RwLock<HashMap<*const c_void, Monitor2>>
+    pub object_monitors:RwLock<HashMap<*const c_void, Monitor2>>,
+    pub static_breakpoints: StaticBreakpoints
 }
 
 pub struct Classes<'gc_life> {
@@ -279,7 +281,8 @@ impl<'gc_life> JVMState<'gc_life> {
             java_function_frame_data: Default::default(),
             vtables: RwLock::new(VTables::new()),
             inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
-            object_monitors: Default::default()
+            object_monitors: Default::default(),
+            static_breakpoints: StaticBreakpoints::new()
         };
         (args, jvm)
     }

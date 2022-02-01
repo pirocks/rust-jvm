@@ -194,7 +194,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = ir_stack_frame.ptr;
-        initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(dbg!(ir_stack_frame.downgrade().frame_size(self))) };
+        initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = &mut ir_stack_frame.ir_stack;
@@ -222,7 +222,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 _exiting_frame_position_rbp: exiting_frame_position_rbp,
                 exit_ir_instr: ir_instr_index,
             };
-            let mmaped_top = ir_stack.native.mmaped_top;
+            // let mmaped_top = ir_stack.native.mmaped_top;
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
             let read_guard = self.inner.read().unwrap();
 
@@ -431,7 +431,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.sub(rbp, *current_frame_size as i32).unwrap();
             match target_address {
                 IRCallTarget::Constant { new_frame_size, .. } => {
-                    assembler.sub(rsp, dbg!(*new_frame_size) as i32).unwrap();
+                    assembler.sub(rsp, *new_frame_size as i32).unwrap();
                 }
                 IRCallTarget::Variable { new_frame_size, .. } => {
                     assembler.sub(rsp, new_frame_size.to_native_64()).unwrap();
