@@ -3,6 +3,7 @@ use itertools::Either;
 
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
@@ -32,7 +33,7 @@ pub fn new(resolver: &MethodResolver<'vm_life>,
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::AllocateObject {
                     class_type: cpd_type_id,
-                    res: method_frame_data.operand_stack_entry(current_instr_data.next_index,0),
+                    res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 }
             }])
         }
@@ -78,4 +79,24 @@ pub fn anewarray(
                 }]))
         }
     }
+}
+
+
+pub fn newarray(
+    resolver: &MethodResolver<'vm_life>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: &CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
+    elem_type: &Atype,
+) -> impl Iterator<Item=IRInstr> {
+    anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, &match elem_type {
+        Atype::TBoolean => todo!(),
+        Atype::TChar => CPDType::CharType,
+        Atype::TFloat => todo!(),
+        Atype::TDouble => todo!(),
+        Atype::TByte => todo!(),
+        Atype::TShort => todo!(),
+        Atype::TInt => todo!(),
+        Atype::TLong => todo!(),
+    })
 }

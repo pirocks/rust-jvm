@@ -14,7 +14,7 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::jvalue;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::Code;
+use rust_jvm_common::classfile::{Atype, Code};
 use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -23,15 +23,15 @@ use verification::verifier::codecorrectness::method_is_type_safe;
 use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
-use crate::ir_to_java_layer::compiler::allocate::{anewarray, new};
+use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, if_null, IntEqualityType, ReferenceEqualityType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
-use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_string};
-use crate::ir_to_java_layer::compiler::local_var_loads::aload_n;
+use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_float, ldc_string};
+use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, ireturn, return_void};
@@ -259,7 +259,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                             CompressedLdcW::Class { type_ } => {
                                 this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, type_))
                             }
-                            CompressedLdcW::Float { .. } => todo!(),
+                            CompressedLdcW::Float { float } => {
+                                this_function_ir.extend(ldc_float(method_frame_data,&current_instr_data,*float))
+                            },
                             CompressedLdcW::Integer { .. } => todo!(),
                             CompressedLdcW::MethodType { .. } => todo!(),
                             CompressedLdcW::MethodHandle { .. } => todo!(),
@@ -307,6 +309,15 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::areturn => {
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::iload_1 => {
+                this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 1))
+            }
+            CompressedInstructionInfo::newarray(atype) => {
+                this_function_ir.extend(newarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, atype))
+            }
+            CompressedInstructionInfo::i2l => {
+                //for now does nothing but should really store ints as  actual 32 bit ints so in future todo
             }
             other => {
                 dbg!(other);
