@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
+use num_integer::Integer;
 
 use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jint, jlong, jobject};
@@ -148,6 +149,7 @@ impl MemoryRegions {
                 let region_to_use = RegionToUse::smallest_which_fits(object_size);
                 self.current_region_type.push(region_to_use);
                 self.current_region_index.push(None);
+                self.types_reverse.insert(type_.clone(),new_id);
                 new_id
             }
             Some(cur_id) => *cur_id,
@@ -169,11 +171,11 @@ impl MemoryRegions {
             None => current_region_to_use.region_base(&self.early_mmaped_regions),
         };
         unsafe {
-            let length = (current_region_to_use.region_size() / to_allocate_type.size()) / 8;
-            assert_ne!(length, 0);
+            let bitmap_length = ((current_region_to_use.region_size()) / (to_allocate_type.size())).div_ceil(&8);
+            assert_ne!(bitmap_length, 0);
             to_push_to.push(RegionData {
                 region_base: new_region_base,
-                used_bitmap: mmap(null_mut(), length, ProtFlags::PROT_WRITE | ProtFlags::PROT_READ, MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE, -1, 0).unwrap(),
+                used_bitmap: mmap(null_mut(), bitmap_length, ProtFlags::PROT_WRITE | ProtFlags::PROT_READ, MapFlags::MAP_ANONYMOUS | MapFlags::MAP_PRIVATE, -1, 0).unwrap(),
                 num_current_elements: AtomicUsize::new(0),
                 region_type: type_id,
                 region_elem_size: to_allocate_type.size(),
@@ -188,12 +190,16 @@ impl MemoryRegions {
         let mask = !(!0u64 << num_zeros);
         let region_base_masked_ptr = ptr.as_ptr() as u64 & !mask;
         let region_type = if region_base_masked_ptr == self.early_mmaped_regions.small_regions as u64 {
-            todo!()
+            let region_index = ((ptr.as_ptr() as u64 & mask) / SMALL_REGION_SIZE as u64) as usize;
+            let region_data = &self.small_region_types[region_index];
+            region_data.region_type
         } else if region_base_masked_ptr == self.early_mmaped_regions.medium_regions as u64 {
             let region_index = ((ptr.as_ptr() as u64 & mask) / MEDIUM_REGION_SIZE as u64) as usize;
             let region_data = &self.medium_region_types[region_index];
             region_data.region_type
         } else {
+            dbg!(self.early_mmaped_regions.large_regions);
+            dbg!(&self.early_mmaped_regions);
             dbg!(region_base_masked_ptr as *mut c_void);
             dbg!(ptr.as_ptr());
             todo!()

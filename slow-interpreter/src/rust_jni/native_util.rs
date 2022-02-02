@@ -46,7 +46,11 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
 
 pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
     let option = NonNull::new(obj as *mut c_void)?;
-    assert!(jvm.gc.all_allocated_object.read().unwrap().contains(&option));
+    // if !jvm.gc.all_allocated_object.read().unwrap().contains(&option) {
+    //     dbg!(option.as_ptr());
+    //     dbg!(jvm.gc.all_allocated_object.read().unwrap());
+    //     panic!()
+    // }
     Some(GcManagedObject::from_native(option, jvm))
 }
 

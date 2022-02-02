@@ -81,7 +81,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JN
             let curval = arr.get_i(jvm, (offset as i32));
             let old = from_object(jvm, old);
             let (should_replace, new) = do_swap(curval, old, new);
-            arr.set_i(jvm, offset as i32, new);
+            todo!();
+            // arr.set_i(jvm, offset as i32, new);
             should_replace
         }
         Object::Object(normal_obj) => {

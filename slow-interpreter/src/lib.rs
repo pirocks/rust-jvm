@@ -14,7 +14,6 @@
 #![feature(exclusive_range_pattern)]
 #![feature(step_trait)]
 extern crate errno;
-extern crate futures_intrusive;
 extern crate libc;
 extern crate libloading;
 extern crate lock_api;

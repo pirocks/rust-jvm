@@ -59,7 +59,7 @@ pub mod init;
 /// so this is completely undocumented
 /// supported match flags IS_METHOD | IS_CONSTRUCTOR |  IS_FIELD | SEARCH_SUPERCLASSES | SEARCH_INTERFACES
 ///
-pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, mut args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
     //name to lookup on
@@ -73,7 +73,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMSt
     //seems to be where to start putting in array
     let skip = args[5].unwrap_int();
     //results arr
-    let results = args[6].unwrap_array();
+    let mut results = args[6].unwrap_array_mut();
 
     let rc = defc.as_runtime_class(jvm);
     let view = rc.view();

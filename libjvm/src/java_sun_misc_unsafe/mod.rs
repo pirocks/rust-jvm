@@ -247,7 +247,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
         Some(object_to_read) => match object_to_read.deref() {
             Object::Array(arr) => {
                 let array_idx = offset;
-                arr.set_i(jvm, array_idx as i32, JavaValue::Object(from_object(jvm, to_put)));
+                todo!()
+                // arr.set_i(jvm, array_idx as i32, JavaValue::Object(from_object(jvm, to_put)));
             }
             Object::Object(obj) => {
                 let field_id = offset as FieldId;

@@ -119,14 +119,14 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
         None => return throw_npe(jvm, int_state),
     }
         .unwrap_array();
-    let dest_o = from_object(jvm, dst);
-    let dest = match dest_o.as_ref() {
+    let mut dest_o = from_object(jvm, dst);
+    let gc_managed_object = match dest_o.as_mut() {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
-    }
-        .unwrap_array();
+    };
+    let dest = gc_managed_object.unwrap_array_mut();
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }
@@ -137,7 +137,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
         to_copy.push(temp);
     }
     for i in 0..(length) {
-        let borrowed = dest;
+        let borrowed = &mut *dest;
         borrowed.set_i(jvm, dst_pos + i, to_copy[i as usize].clone());
     }
 }

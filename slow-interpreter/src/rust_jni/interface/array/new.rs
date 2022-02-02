@@ -19,7 +19,8 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     };
     let array = res_safe.unwrap_array();
     for i in 0..array.len() {
-        array.set_i(jvm, i, JavaValue::Object(from_object(jvm, init)));
+        todo!()
+        // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, init)));
     }
     res
 }

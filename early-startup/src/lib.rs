@@ -32,6 +32,7 @@ pub const EXTRA_LARGE_REGION_SIZE: usize = 16 * GIGABYTE;
 static_assertions::const_assert_eq!(1 << EXTRA_LARGE_REGION_SIZE_SIZE, EXTRA_LARGE_REGION_SIZE);
 
 #[repr(packed, C)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Regions {
     pub small_regions: *mut c_void,
     pub medium_regions: *mut c_void,

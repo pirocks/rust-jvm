@@ -52,7 +52,8 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
         }
     };
     let array = notnull.unwrap_array();
-    array.set_i(jvm, index, from_object(jvm, val).into());
+    todo!()
+    // array.set_i(jvm, index, from_object(jvm, val).into());
 }
 
 pub mod array_region;
@@ -77,33 +78,42 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     for i in 0..array.len() {
         match array_type {
             CPDType::ByteType => {
-                array.set_i(jvm, i, JavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
+                todo!()
             }
             CPDType::CharType => {
-                array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
+                todo!()
             }
             CPDType::DoubleType => {
-                array.set_i(jvm, i, JavaValue::Double((carray as *const jdouble).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Double((carray as *const jdouble).offset(i as isize).read()));
+                todo!()
             }
             CPDType::FloatType => {
-                array.set_i(jvm, i, JavaValue::Float((carray as *const jfloat).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Float((carray as *const jfloat).offset(i as isize).read()));
+                todo!()
             }
             CPDType::IntType => {
-                array.set_i(jvm, i, JavaValue::Int((carray as *const jint).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Int((carray as *const jint).offset(i as isize).read()));
+                todo!()
             }
             CPDType::LongType => {
-                array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
+                todo!()
             }
             CPDType::Ref(_) => {
-                array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
+                // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
+                todo!()
             }
             CPDType::ShortType => {
-                array.set_i(jvm, i, JavaValue::Short((carray as *const jshort).offset(i as isize).read()));
+                // array.set_i(jvm, i, JavaValue::Short((carray as *const jshort).offset(i as isize).read()));
+                todo!()
             }
             CPDType::BooleanType => {
                 let boolean = (carray as *const jboolean).offset(i as isize).read();
                 assert!(boolean == 1 || boolean == 0);
-                array.set_i(jvm, i, JavaValue::Boolean(boolean));
+                // array.set_i(jvm, i, JavaValue::Boolean(boolean));
+                todo!()
             }
             _ => panic!(),
         }

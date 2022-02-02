@@ -275,7 +275,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             };
             unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
         }
-        eprintln!("{}", formatted_instructions);
+        // eprintln!("{}", formatted_instructions);
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {

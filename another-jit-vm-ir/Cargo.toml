@@ -10,12 +10,12 @@ another-jit-vm = { path = "../another-jit-vm" }
 rust-jvm-common = { path = "../rust-jvm-common" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
-bimap = "0.5.2"
+bimap = "0.6"
 libc = "0.2"
-num-derive = "0.3.3"
-num-traits = "0.2.14"
+num-derive = "0.3"
+num-traits = "0.2"
 itertools = "0.10"
 
 [dependencies.iced-x86]
-version = "1.15.0"
+version = "1.15"
 features = ["code_asm"]

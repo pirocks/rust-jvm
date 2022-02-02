@@ -29,7 +29,7 @@ impl JVMString {
                     let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
                     vec![x, y, z]
                 } else {
-                    assert!(char_ > 0xFFFF);
+                    assert!(dbg!(char_) > 0xFFFF);
                     let u = 0b1110_1101;
                     let v = 0b1010_0000 | (0b1111_0000 & ((char_ >> 16) as u8 - 1));
                     let w = 0b1000_0000 | (0b1100_0000 & ((char_ >> 10) as u8));

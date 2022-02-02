@@ -177,7 +177,6 @@ impl JITedCodeState {
 
     pub fn ir_to_native(&self, ir: ToIR, base_address: *mut c_void, method_log_info: String) -> ToNative {
         let ToIR { labels: ir_labels, ir, function_start_label } = ir;
-        let mut exits = HashMap::new();
         let mut assembler: CodeAssembler = CodeAssembler::new(64).unwrap();
         let mut iced_labels = ir_labels.into_iter().map(|label| (label.name, assembler.create_label())).collect::<HashMap<_, _>>();
         let mut label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
@@ -187,62 +186,7 @@ impl JITedCodeState {
             instruction_index_to_bytecode_offset_start.insert(assembler.instructions().len() as u32, (bytecode_offset, cinstruction));
             todo!()
         }
-        let block = InstructionBlock::new(assembler.instructions(), base_address as u64);
-        let mut formatted_instructions = String::new();
-        let mut formatter = IntelFormatter::default();
-        for (i, instruction) in assembler.instructions().iter().enumerate() {
-            let mut temp = "".to_string();
-            formatter.format(instruction, &mut temp);
-            let instruction_info_as_string = &match instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
-                Some((_, x)) => x.info.instruction_to_string_without_meta(),
-                None => "".to_string(),
-            };
-            formatted_instructions.push_str(format!("#{}: {:<35}{}\n", i, temp, instruction_info_as_string).as_str());
-        }
-        eprintln!("{}", format!("{} :\n{}", method_log_info, formatted_instructions));
-        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::DONT_FIX_BRANCHES).unwrap();
-        let mut bytecode_offset_to_address = BiRangeMap::new();
-        let mut new_labels: HashMap<LabelName, *mut c_void> = Default::default();
-        let mut label_instruction_indexes = label_instruction_offsets.into_iter().peekable();
-        let mut current_byte_code_offset = Some((0, ByteCodeOffset(0)));
-        let mut current_byte_code_start_address = Some(base_address);
-        for (i, native_offset) in result.new_instruction_offsets.iter().enumerate() {
-            if *native_offset == u32::MAX {
-                continue;
-            }
-            let current_instruction_address = unsafe { base_address.offset(*native_offset as isize) };
-            loop {
-                match label_instruction_indexes.peek() {
-                    None => break,
-                    Some((label, instruction_index)) => {
-                        assert!(i <= *instruction_index as usize);
-                        if *instruction_index as usize == i {
-                            new_labels.insert(*label, current_instruction_address);
-                            let _ = label_instruction_indexes.next();
-                            continue;
-                        }
-                    }
-                }
-                break;
-            }
-            if i == 0 {
-                continue;
-            }
-            if let Some((new_byte_code_offset, cinstr)) = instruction_index_to_bytecode_offset_start.get(&(i as u32)) {
-                assert!(((current_byte_code_start_address.unwrap()) as u64) < ((current_instruction_address) as u64));
-                bytecode_offset_to_address.insert_range(current_byte_code_start_address.unwrap()..current_instruction_address, (current_byte_code_offset.unwrap().0, current_byte_code_offset.unwrap().1, cinstr.clone()));
-                current_byte_code_offset = Some((i as u16, *new_byte_code_offset));
-                current_byte_code_start_address = Some(current_instruction_address);
-            }
-        }
-        assert!(label_instruction_indexes.peek().is_none());
-        ToNative {
-            code: result.code_buffer,
-            new_labels,
-            bytecode_offset_to_address,
-            exits,
-            function_start_label,
-        }
+        todo!()
     }
 
     fn add_from_ir(&mut self, method_log_info: String, current_code_id: CompiledCodeID, ir: ToIR) -> *mut c_void {

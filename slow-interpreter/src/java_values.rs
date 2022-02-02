@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::LocalKey;
 
+use iced_x86::CC_be::na;
+use iced_x86::CC_le::le;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 use num_traits::one;
@@ -19,7 +21,7 @@ use num_traits::one;
 use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -42,6 +44,7 @@ pub struct GC<'gc_life> {
     //doesn't really need to be atomic usize
     vm_temp_owned_roots: RwLock<HashMap<NonNull<c_void>, AtomicUsize>>,
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
+    //todo deprecated/ not in use
     phantom: PhantomData<&'gc_life ()>,
 }
 
@@ -259,6 +262,7 @@ impl PartialEq for ByAddressGcManagedObject<'_> {
 
 pub struct GcManagedObject<'gc_life> {
     obj: Arc<Object<'gc_life, 'gc_life>>,
+    //todov this double gc life thing is kinda unsafe
     raw_ptr: NonNull<c_void>,
     //allocated from a box
     gc: &'gc_life GC<'gc_life>,
@@ -286,8 +290,35 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                     }))
                 }
             }
-            AllocatedObjectType::ObjectArray { .. } => todo!(),
-            AllocatedObjectType::PrimitiveArray { .. } => todo!(),
+            AllocatedObjectType::ObjectArray { thread, sub_type, sub_type_loader, len } => {
+                let classes = jvm.classes.read().unwrap();
+                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::Ref(CompressedParsedRefType::Array(box CPDType::Ref(sub_type.clone()))));
+                unsafe {
+                    Arc::new(Object::Array(ArrayObject {
+                        whole_array_runtime_class: runtime_class.clone(),
+                        loader: *sub_type_loader,
+                        len: *len,
+                        elems: slice::from_raw_parts_mut(raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>, *len as usize),//offset the length
+                        phantom_data: Default::default(),
+                        elem_type: CPDType::Ref(sub_type.clone()),
+                    }))
+                }
+            }
+            AllocatedObjectType::PrimitiveArray { thread, primitive_type, len } => {
+                let classes = jvm.classes.read().unwrap();
+                //todo loader nonsense
+                let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::Ref(CompressedParsedRefType::Array(box primitive_type.clone())));
+                unsafe {
+                    Arc::new(Object::Array(ArrayObject {
+                        whole_array_runtime_class: runtime_class.clone(),
+                        loader: LoaderName::BootstrapLoader,//todo loader nonsense
+                        len: *len,
+                        elems: slice::from_raw_parts_mut(raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>, *len as usize),//offset the length
+                        phantom_data: Default::default(),
+                        elem_type: primitive_type.clone(),
+                    }))
+                }
+            }
         };
         Self { obj, raw_ptr, gc: jvm.gc, jvm }
     }
@@ -317,6 +348,15 @@ impl<'gc_life> Deref for GcManagedObject<'gc_life> {
         &self.obj
     }
 }
+
+
+impl<'gc_life> DerefMut for GcManagedObject<'gc_life> {
+    #[allow(mutable_transmutes)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { transmute(self.obj.deref()) }//todo mega unsafe this whole model needs a rethink
+    }
+}
+
 
 impl<'gc_life> Clone for GcManagedObject<'gc_life> {
     fn clone(&self) -> Self {
@@ -624,6 +664,10 @@ impl<'gc_life> JavaValue<'gc_life> {
         }
     }
 
+    pub fn unwrap_array_mut<'l>(&'l mut self) -> &'l mut ArrayObject<'gc_life, 'gc_life> {
+        todo!()
+    }
+
     pub fn try_unwrap_object(&self) -> Option<Option<GcManagedObject<'gc_life>>> {
         match self {
             JavaValue::Object(o) => Some(o.clone()),
@@ -853,8 +897,9 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
             }
             Some(res) => res,
         };
-        // unsafe { self.unwrap_normal_object().objinfo.fields[*field_number].get().as_ref() }.unwrap().to_java_value(rtype.clone(), jvm)
-        todo!()
+        let normal_object = self.unwrap_normal_object();
+        let guard = normal_object.objinfo.fields.read().unwrap();
+        guard[*field_number].to_java_value(rtype, jvm)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life, 'l> {
@@ -882,8 +927,19 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         match self {
             Object::Array(a) => a,
             Object::Object(obj) => {
-                // dbg!(obj.objinfo.class_pointer.view().name());
-                // dbg!(obj.objinfo.class_pointer.unwrap_class_class().class_view.name());
+                dbg!(obj.objinfo.class_pointer.view().name().unwrap_name());
+                dbg!(obj.objinfo.class_pointer.unwrap_class_class().class_view.name());
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_array_mut(&mut self) -> &mut ArrayObject<'gc_life, 'l> {
+        match self {
+            Object::Array(a) => a,
+            Object::Object(obj) => {
+                dbg!(obj.objinfo.class_pointer.view().name().unwrap_name());
+                dbg!(obj.objinfo.class_pointer.unwrap_class_class().class_view.name());
                 panic!()
             }
         }
@@ -962,28 +1018,24 @@ impl<'gc_life> Iterator for ArrayIterator<'gc_life, '_, '_> {
     type Item = JavaValue<'gc_life>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let elems = todo!()/*unsafe { todo!()/*self.elems.elems.get().as_ref()*/ }.unwrap()*/;
-        /*let res = match elems.get(self.i) {
-            None => None,
-            Some(item) => {
-                Some(item.to_java_value(self.elems.elem_type.clone(), self.jvm))
-            }
-        };*/
-        todo!();
+        if self.i >= self.elems.len as usize {
+            return None;
+        }
+        let next = self.elems.get_i(self.jvm, self.i as i32);
         self.i += 1;
-        todo!()
+        Some(next)
     }
 }
 
 impl<'gc_life> ArrayObject<'gc_life, '_> {
     pub fn get_i(&self, jvm: &'gc_life JVMState<'gc_life>, i: i32) -> JavaValue<'gc_life> {
-        /*unsafe { todo!()/*self.elems.get().as_ref()*/ }.unwrap()[i as usize].to_java_value(self.elem_type.clone(), jvm)*/
-        todo!()
+        let inner_type = &self.elem_type;
+        self.elems[i as usize].to_java_value(inner_type, jvm)
     }
 
-    pub fn set_i(&self, jvm: &'gc_life JVMState<'gc_life>, i: i32, jv: JavaValue<'gc_life>) {
-        /*unsafe { self.elems.get().as_mut() }.unwrap()[i as usize] = jv.to_native();*/
-        todo!()
+    pub fn set_i(&mut self, jvm: &'gc_life JVMState<'gc_life>, i: i32, jv: JavaValue<'gc_life>) {
+        let native = jv.to_native();
+        self.elems[i as usize] = native;
     }
 
     pub fn array_iterator(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l, '_> {
@@ -991,8 +1043,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
     }
 
     pub fn len(&self) -> i32 {
-        /*unsafe { self.elems.get().as_ref() }.unwrap().len() as i32*/
-        todo!()
+        self.len
     }
 
     pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
@@ -1022,6 +1073,12 @@ pub union NativeJavaValue<'gc_life/*, 'l*/> {
     phantom_data: PhantomData<&'gc_life ()>,
     // phantom_data2: PhantomData<&'l ()>,//the owned java value needs to still be alive for ref to stay alive
     pub as_u64: u64,
+}
+
+impl Debug for NativeJavaValue<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        unsafe { write!(f, "NativeJavaValue({:?})", self.object) }
+    }
 }
 
 impl<'gc_life> NativeJavaValue<'gc_life> {
@@ -1106,8 +1163,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                        }.unwrap() = jv.to_native();*/
+                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                }.unwrap() = jv.to_native();*/
         todo!()
     }
 

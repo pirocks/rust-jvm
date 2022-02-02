@@ -6,7 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-assert_no_alloc = "1.1.2"
-procmaps = "0.4.1"
-libc = "0.2.104"
-static_assertions = "1.1.0"
+assert_no_alloc = "1"
+procmaps = "0.4"
+libc = "0.2"
+static_assertions = "1"

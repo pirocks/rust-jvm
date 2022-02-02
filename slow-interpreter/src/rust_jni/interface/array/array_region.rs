@@ -135,6 +135,7 @@ unsafe fn set_array_region<'gc_life>(env: *mut JNIEnv, array: jarray, start: i32
     };
     let vec_mut = non_nullarray.unwrap_array();
     for i in 0..len {
-        vec_mut.set_i(jvm, start + i, java_value_getter(i as isize));
+        todo!()
+        // vec_mut.set_i(jvm, start + i, java_value_getter(i as isize));
     }
 }

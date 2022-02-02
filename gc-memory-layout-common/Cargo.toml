@@ -10,6 +10,7 @@ rust-jvm-common = { path = "../rust-jvm-common" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 early-startup = { path = "../early-startup" }
 verification = { path = "../verification" }
-nix = "0.23.0"
+nix = "0.23"
 libc = "0.2"
 itertools = "0.10"
+num-integer = "0.1"

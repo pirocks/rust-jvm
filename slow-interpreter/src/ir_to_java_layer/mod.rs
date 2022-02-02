@@ -25,7 +25,7 @@ use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
 use gc_memory_layout_common::AllocatedObjectType;
-use jvmti_jni_bindings::jint;
+use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -117,7 +117,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let array_size = object_array.size();
-                let allocated_object = memory_region_guard.find_or_new_region_for(object_array).get_allocation();
+                let region_data = memory_region_guard.find_or_new_region_for(object_array);
+                dbg!(region_data.region_type);
+                let allocated_object = region_data.get_allocation();
                 unsafe { res_address.write(allocated_object) }
                 unsafe {
                     memset(allocated_object.as_ptr(), 0, array_size);
@@ -136,8 +138,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let arg_types = &method_view.desc().arg_types;
                 unsafe {
                     for (i, cpdtype) in (0..*num_args).zip(arg_types.iter()) {
-                        let arg_ptr = arg_start.offset(-(i as isize)) as *const u64;//stack grows down
+                        let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
                         let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
+                        dbg!(native_jv.as_u64);
                         args_jv.push(native_jv.to_java_value(cpdtype, jvm))
                     }
                 }
