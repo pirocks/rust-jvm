@@ -51,7 +51,7 @@ use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::options::{JVMOptions, SharedLibraryPaths};
-use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
 use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
@@ -360,7 +360,7 @@ impl<'gc_life> JVMState<'gc_life> {
         classes
     }
 
-    pub fn get_class_field_numbers() -> HashMap<FieldName, (usize, CPDType)> {
+    pub fn get_class_field_numbers() -> HashMap<FieldName, (FieldNumber, CPDType)> {
         let class_class_fields = vec![
             (FieldName::field_cachedConstructor(), CClassName::constructor().into()),
             (FieldName::field_newInstanceCallerCache(), CClassName::class().into()),
@@ -375,7 +375,7 @@ impl<'gc_life> JVMState<'gc_life> {
             (FieldName::field_annotationType(), CPDType::object()),
             (FieldName::field_classValueMap(), CPDType::object()),
         ];
-        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (_1, _2_type.clone()))).collect_vec().into_iter());
+        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1), _2_type.clone()))).collect_vec().into_iter());
         field_numbers
     }
 

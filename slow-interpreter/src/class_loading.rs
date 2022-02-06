@@ -28,7 +28,7 @@ use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressGcManagedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
-use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use crate::runtime_class::{FieldNumber, initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
 pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
@@ -288,9 +288,9 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     Ok(runtime_class)
 }
 
-pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (usize, CompressedParsedDescriptorType)>) {
+pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
     let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-    let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.0).enumerate().map(|(index, (name, ptype))| (name, (index + start_field_number, ptype))).collect::<HashMap<_, _>>();
+    let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.0).enumerate().map(|(index, (name, ptype))| (name, (FieldNumber(index + start_field_number), ptype))).collect::<HashMap<_, _>>();
     (start_field_number + field_numbers.len(), field_numbers)
 }
 

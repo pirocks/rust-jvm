@@ -31,6 +31,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
+use crate::new_java_values::NewJavaValue;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
@@ -899,7 +900,7 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         };
         let normal_object = self.unwrap_normal_object();
         let guard = normal_object.objinfo.fields.read().unwrap();
-        guard[*field_number].to_java_value(rtype, jvm)
+        guard[field_number.0].to_java_value(rtype, jvm)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life, 'l> {
@@ -1101,6 +1102,23 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
             }
         }
     }
+
+    pub fn to_new_java_value(&self, ptype: &CPDType, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValue<'gc_life> {
+        unsafe {
+            match ptype {
+                CPDType::ByteType => NewJavaValue::Byte(self.byte),
+                CPDType::CharType => NewJavaValue::Char(self.char),
+                CPDType::DoubleType => NewJavaValue::Double(self.double),
+                CPDType::FloatType => NewJavaValue::Float(self.float),
+                CPDType::IntType => NewJavaValue::Int(self.int),
+                CPDType::LongType => NewJavaValue::Long(self.long),
+                CPDType::Ref(_) => todo!(),
+                CPDType::ShortType => NewJavaValue::Short(self.short),
+                CPDType::BooleanType => NewJavaValue::Boolean(self.boolean),
+                CPDType::VoidType => panic!(),
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -1183,7 +1201,7 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
                     do_class_check = false;
                 }
                 Some((field_index, ptype)) => {
-                    self.objinfo.fields.write().unwrap().get_mut(*field_index).map(|set| *set = jv.to_native());
+                    self.objinfo.fields.write().unwrap().get_mut(field_index.0).map(|set| *set = jv.to_native());
                     return;
                 }
             };

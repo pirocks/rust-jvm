@@ -124,9 +124,12 @@ pub struct RuntimeClassArray<'gc_life> {
     pub sub_class: Arc<RuntimeClass<'gc_life>>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct FieldNumber(pub(crate) usize);
+
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<FieldName, (usize, CPDType)>,
+    pub field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
     pub recursive_num_fields: usize,
     pub static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
     pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
@@ -138,7 +141,7 @@ pub struct RuntimeClassClass<'gc_life> {
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
-    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (usize, CPDType)>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>) -> Self {
+    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>) -> Self {
         Self { class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status }
     }
 
