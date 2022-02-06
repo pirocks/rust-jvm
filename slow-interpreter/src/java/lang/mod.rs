@@ -371,6 +371,7 @@ pub mod string {
     use std::cell::UnsafeCell;
 
     use itertools::Itertools;
+    use libc::c_void;
     use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jchar, jint};
@@ -410,14 +411,17 @@ pub mod string {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
                 loader: int_state.current_loader(jvm),
                 len: vec1.len() as i32,
-                elems: vec1.as_mut_slice(),
+                elems_base: vec1.as_mut_ptr(),//todo major unsafe here need to switch to new java value
                 phantom_data: Default::default(),
                 elem_type: CPDType::CharType,
                 // monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
             let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
-            run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
+            let addr = array.unwrap_object().unwrap().raw_ptr_usize();
+            dbg!(addr as *const c_void);
+            dbg!(array.unwrap_array().array_iterator(jvm).collect_vec());
+            run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array.clone()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(string_object.cast_string().expect("error creating string"))
         }
 

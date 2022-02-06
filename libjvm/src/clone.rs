@@ -26,7 +26,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                             whole_array_runtime_class: a.whole_array_runtime_class.clone(),
                             loader: a.loader.clone(),
                             len: todo!(),
-                            elems: todo!(),
+                            elems_base: todo!(),
                             phantom_data: Default::default(),
                             elem_type: a.elem_type.clone(),
                             // monitor: jvm.thread_state.new_monitor("".to_string()),

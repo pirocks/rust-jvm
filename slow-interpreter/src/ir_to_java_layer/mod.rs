@@ -264,8 +264,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
                 eprintln!("NewString");
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
+                dbg!(&wtf8buf);
                 int_state.debug_print_stack_trace(jvm, false);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
+                dbg!(jstring.value(jvm));
                 let jv = jstring.java_value();
                 unsafe {
                     let raw_64 = jv.to_native().as_u64;

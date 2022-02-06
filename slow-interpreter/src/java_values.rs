@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
-use std::ptr::{NonNull, null, null_mut};
+use std::ptr::{NonNull, null, null_mut, slice_from_raw_parts};
 use std::slice;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -14,6 +14,7 @@ use std::thread::LocalKey;
 
 use iced_x86::CC_be::na;
 use iced_x86::CC_le::le;
+use iced_x86::OpCodeOperandKind::al;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 use num_traits::one;
@@ -74,19 +75,24 @@ impl<'gc_life> GC<'gc_life> {
         };
         let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
         let allocated = memory_region.get_allocation();
+        let allocated_size = memory_region.region_elem_size;
+        unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
         self.all_allocated_object.write().unwrap().insert(allocated);
         self.register_root_reentrant(allocated);
         GcManagedObject {
             obj: match object {
-                Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems, phantom_data, elem_type }) => {
-                    assert_eq!(len as usize, elems.len());
+                Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems_base, phantom_data, elem_type }) => {
                     unsafe {
                         (allocated.as_ptr() as *mut i32).write(len);
-                        let new_elems = slice::from_raw_parts_mut(allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(size_of::<jlong>() as isize), len as usize);
-                        for (i, elem) in elems.iter().enumerate() {
-                            new_elems[i] = *elem;
+                        let elems = slice::from_raw_parts_mut(elems_base, len as usize);
+                        let new_elems_base = allocated.as_ptr().offset(size_of::<jlong>() as isize).cast::<NativeJavaValue<'gc_life>>();
+                        for (i, current_elem) in elems.iter().enumerate() {
+                            let current_new_elem_ptr = new_elems_base.offset((i /* * size_of::<jlong>()*/) as isize);//not a void pointer so need to mul here
+                            current_new_elem_ptr.write(*current_elem);
                         }
-                        Arc::new(Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems: new_elems, phantom_data, elem_type }))
+                        dbg!(&slice::from_raw_parts(new_elems_base, len as usize));
+                        assert_eq!(allocated_size, (len + 1) as usize * size_of::<jlong>());
+                        Arc::new(Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems_base: new_elems_base, phantom_data: Default::default(), elem_type }))
                     }
                 }
                 Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields, class_pointer }, obj_ptr }) => {
@@ -263,7 +269,7 @@ impl PartialEq for ByAddressGcManagedObject<'_> {
 
 pub struct GcManagedObject<'gc_life> {
     obj: Arc<Object<'gc_life, 'gc_life>>,
-    //todov this double gc life thing is kinda unsafe
+    //todo this double gc life thing is kinda unsafe
     raw_ptr: NonNull<c_void>,
     //allocated from a box
     gc: &'gc_life GC<'gc_life>,
@@ -299,7 +305,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                         whole_array_runtime_class: runtime_class.clone(),
                         loader: *sub_type_loader,
                         len: *len,
-                        elems: slice::from_raw_parts_mut(raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>, *len as usize),//offset the length
+                        elems_base: raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>,
                         phantom_data: Default::default(),
                         elem_type: CPDType::Ref(sub_type.clone()),
                     }))
@@ -314,9 +320,9 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                         whole_array_runtime_class: runtime_class.clone(),
                         loader: LoaderName::BootstrapLoader,//todo loader nonsense
                         len: *len,
-                        elems: slice::from_raw_parts_mut(raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>, *len as usize),//offset the length
                         phantom_data: Default::default(),
                         elem_type: primitive_type.clone(),
+                        elems_base: raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc_life>,
                     }))
                 }
             }
@@ -724,7 +730,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
             len: todo!(),
-            elems: todo!(),
+            elems_base: todo!(),
             phantom_data: Default::default(),
             elem_type,
         }))))
@@ -955,7 +961,7 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
                     whole_array_runtime_class: a.whole_array_runtime_class.clone(),
                     loader: a.loader,
                     len: todo!(),
-                    elems: todo!(),
+                    elems_base: todo!(),
                     phantom_data: Default::default(),
                     elem_type: a.elem_type.clone(),
                 })
@@ -1004,8 +1010,9 @@ pub struct ArrayObject<'gc_life, 'l> {
     pub whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
     pub loader: LoaderName,
     pub len: jint,
-    pub elems: &'l mut [NativeJavaValue<'gc_life/*, 'l*/>],
-    pub phantom_data: PhantomData<&'gc_life ()>,
+    pub elems_base: *mut NativeJavaValue<'gc_life/*, 'l*/>,
+    //pointer to elems bas
+    pub phantom_data: PhantomData<&'l ()>,
     pub elem_type: CPDType,
 }
 
@@ -1031,12 +1038,12 @@ impl<'gc_life> Iterator for ArrayIterator<'gc_life, '_, '_> {
 impl<'gc_life> ArrayObject<'gc_life, '_> {
     pub fn get_i(&self, jvm: &'gc_life JVMState<'gc_life>, i: i32) -> JavaValue<'gc_life> {
         let inner_type = &self.elem_type;
-        self.elems[i as usize].to_java_value(inner_type, jvm)
+        unsafe { self.elems_base.offset(i as isize).as_ref().unwrap().to_java_value(inner_type, jvm) }
     }
 
     pub fn set_i(&mut self, jvm: &'gc_life JVMState<'gc_life>, i: i32, jv: JavaValue<'gc_life>) {
         let native = jv.to_native();
-        self.elems[i as usize] = native;
+        unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
     }
 
     pub fn array_iterator(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l, '_> {
@@ -1053,7 +1060,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
             len: todo!(),
-            elems: todo!(),
+            elems_base: todo!(),
             phantom_data: Default::default(),
             elem_type: type_,
         })
@@ -1181,8 +1188,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                }.unwrap() = jv.to_native();*/
+                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                }.unwrap() = jv.to_native();*/
         todo!()
     }
 
