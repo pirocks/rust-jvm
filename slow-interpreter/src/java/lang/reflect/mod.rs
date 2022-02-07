@@ -12,6 +12,7 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::jvm_state::JVMState;
+use crate::NewJavaValue;
 
 /*
 // unofficial modifier flags, used by HotSpot:
@@ -87,7 +88,7 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     for ptype in types_iter {
         exception_table.push(JClass::from_type(jvm, int_state, ptype)?.java_value())
     }
-    Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, int_state, exception_table, class_type, jvm.thread_state.new_monitor("".to_string()))?)))))
+    Ok(NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, exception_table, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)).to_jv())
 }
 
 fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
@@ -98,7 +99,7 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         res.push(JClass::from_type(jvm, int_state, param_type.clone())?.java_value());
     }
 
-    Ok(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, int_state, res, class_type, jvm.thread_state.new_monitor("".to_string()))?)))))
+    Ok(NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, res, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)).to_jv())
 }
 
 pub mod method {
@@ -158,15 +159,15 @@ pub mod method {
             //todo what does slot do?
             let slot = -1;
             let signature = get_signature(jvm, int_state, &method_view)?;
-            let annotations = JavaValue::empty_byte_array(jvm, int_state)?;
-            let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state)?;
-            let annotation_default = JavaValue::empty_byte_array(jvm, int_state)?;
+            let annotations = JavaValue::empty_byte_array(jvm, int_state)?.to_jv();
+            let parameter_annotations = JavaValue::empty_byte_array(jvm, int_state)?.to_jv();
+            let annotation_default = JavaValue::empty_byte_array(jvm, int_state)?.to_jv();
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
         pub fn new_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, clazz: JClass<'gc_life>, name: JString<'gc_life>, parameter_types: JavaValue<'gc_life>, return_type: JClass<'gc_life>, exception_types: JavaValue<'gc_life>, modifiers: jint, slot: jint, signature: JString<'gc_life>, annotations: JavaValue<'gc_life>, parameter_annotations: JavaValue<'gc_life>, annotation_default: JavaValue<'gc_life>) -> Result<Method<'gc_life>, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
-            let method_object = new_object(jvm, int_state, &method_class);
+            let method_object = new_object(jvm, int_state, &method_class).to_jv();
             let full_args = vec![method_object.clone(), clazz.java_value(), name.java_value(), parameter_types, return_type.java_value(), exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), annotations, parameter_annotations, annotation_default];
             //todo replace with wrapper object
             let c_method_descriptor = CMethodDescriptor::void_return(vec![
@@ -288,11 +289,11 @@ pub mod constructor {
 
         pub fn new_constructor(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, clazz: JClass<'gc_life>, parameter_types: JavaValue<'gc_life>, exception_types: JavaValue<'gc_life>, modifiers: jint, slot: jint, signature: JString<'gc_life>) -> Result<Constructor<'gc_life>, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
-            let constructor_object = new_object(jvm, int_state, &constructor_class);
+            let constructor_object = new_object(jvm, int_state, &constructor_class).to_jv();
 
             //todo impl annotations
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
-            let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.clone(), empty_byte_array];
+            let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.to_jv().clone(), empty_byte_array.to_jv()];
             let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
             run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
             Ok(constructor_object.cast_constructor())
@@ -356,7 +357,7 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{InterpreterStateGuard, JVMState};
+    use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -377,13 +378,13 @@ pub mod field {
     impl<'gc_life> Field<'gc_life> {
         pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, clazz: JClass<'gc_life>, name: JString<'gc_life>, type_: JClass<'gc_life>, modifiers: jint, slot: jint, signature: JString<'gc_life>, annotations: Vec<JavaValue<'gc_life>>) -> Result<Self, WasException> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
-            let field_object = new_object(jvm, int_state, &field_classfile);
+            let field_object = new_object(jvm, int_state, &field_classfile).to_jv();
 
             let modifiers = JavaValue::Int(modifiers);
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, int_state, annotations, CPDType::ByteType, jvm.thread_state.new_monitor("monitor for annotations array".to_string()))?))));
+            let annotations = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, annotations, CPDType::ByteType, jvm.thread_state.new_monitor("monitor for annotations array".to_string()))?)*/)).to_jv();
 
             run_constructor(
                 jvm,
@@ -431,7 +432,7 @@ pub mod constant_pool {
     impl<'gc_life> ConstantPool<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
-            let constant_pool_object = new_object(jvm, int_state, &constant_pool_classfile);
+            let constant_pool_object = new_object(jvm, int_state, &constant_pool_classfile).to_jv();
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(class);
             Ok(res)

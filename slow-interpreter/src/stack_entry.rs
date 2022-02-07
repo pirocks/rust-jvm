@@ -30,6 +30,7 @@ use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue, Object, St
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
+use crate::NewJavaValue;
 use crate::runtime_class::RuntimeClass;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -653,10 +654,10 @@ pub enum LocalVarsMut<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life, 'l, 'k> LocalVarsMut<'gc_life, 'l, 'k> {
-    pub fn set(&mut self, i: u16, to: JavaValue<'gc_life>) {
+    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life>) {
         match self {
             /*LocalVarsMut::LegacyInterpreter { .. } => todo!(),*/
-            LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to),
+            LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to.to_jv()),
         }
     }
 }

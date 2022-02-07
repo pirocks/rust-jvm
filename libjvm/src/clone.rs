@@ -2,6 +2,7 @@ use std::cell::{RefCell, UnsafeCell};
 use std::ops::Deref;
 
 use itertools::Itertools;
+use libc::time;
 
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
@@ -21,7 +22,8 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 match o.deref() {
                     Object::Array(a) => {
                         // let cloned_arr: Vec<_> = /*a.elems.get().as_ref().unwrap().iter().map(|elem| elem.clone()).collect_vec()*/todo!();
-                        Some(jvm.allocate_object(Object::Array(ArrayObject {
+                        todo!()
+/*                        Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                             // elems: UnsafeCell::new(cloned_arr),
                             whole_array_runtime_class: a.whole_array_runtime_class.clone(),
                             loader: a.loader.clone(),
@@ -30,10 +32,11 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                             phantom_data: Default::default(),
                             elem_type: a.elem_type.clone(),
                             // monitor: jvm.thread_state.new_monitor("".to_string()),
-                        })))
-                    }
+                        })*/))
+*/                    }
                     Object::Object(o) => {
-                        jvm.allocate_object(Object::Object(NormalObject {
+                        todo!()
+/*                        jvm.allocate_object(Object::Object(NormalObject {
                             // monitor: jvm.thread_state.new_monitor("".to_string()),
                             objinfo: ObjectFieldsAndClass {
                                 fields: todo!(),
@@ -42,7 +45,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                             },
                             obj_ptr: todo!(),
                         }))
-                            .into()
+*/
                     }
                 }
             }

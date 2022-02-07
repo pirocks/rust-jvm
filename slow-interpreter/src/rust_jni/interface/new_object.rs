@@ -34,12 +34,12 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     let _name = method.name();
     let parsed = method.desc();
     let obj = new_object(jvm, int_state, &class);
-    int_state.push_current_operand_stack(obj.clone());
+    int_state.push_current_operand_stack(obj.to_jv().clone());
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, &mut l)
     }
     if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), todo!()) {
         return null_mut();
     };
-    new_local_ref_public(obj.unwrap_object(), int_state)
+    new_local_ref_public(obj.to_jv().unwrap_object(), int_state)
 }

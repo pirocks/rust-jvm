@@ -6,7 +6,7 @@ pub mod method_type {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{InterpreterStateGuard, JVMState};
+    use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::interpreter_util::new_object;
@@ -52,6 +52,7 @@ pub mod method_type {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_rtype(), rtype.java_value());
         }
 
+        //noinspection DuplicatedCode
         pub fn get_rtype_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
             let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_rtype());
             if maybe_null.try_unwrap_object().is_some() {
@@ -72,8 +73,8 @@ pub mod method_type {
             self.get_rtype(jvm).as_type(jvm)
         }
 
-        pub fn set_ptypes(&self, ptypes: JavaValue<'gc_life>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_ptypes(), ptypes);
+        pub fn set_ptypes(&self, ptypes: NewJavaValue<'gc_life>) {
+            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_ptypes(), ptypes.to_jv());
         }
 
         pub fn get_ptypes_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JavaValue<'gc_life>> {
@@ -126,8 +127,8 @@ pub mod method_type {
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, rtype: JClass<'gc_life>, ptypes: Vec<JClass<'gc_life>>, form: MethodTypeForm<'gc_life>, wrap_alt: JavaValue<'gc_life>, invokers: JavaValue<'gc_life>, method_descriptor: JavaValue<'gc_life>) -> MethodType<'gc_life> {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            let res = new_object(jvm, int_state, &method_type).cast_method_type();
-            let ptypes_arr = JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject {
+            let res = new_object(jvm, int_state, &method_type).to_jv().cast_method_type();
+            let ptypes_arr = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                 // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
                 whole_array_runtime_class: todo!(),
                 loader: todo!(),
@@ -136,7 +137,7 @@ pub mod method_type {
                 phantom_data: Default::default(),
                 elem_type: CClassName::class().into(),
                 // monitor: jvm.thread_state.new_monitor("".to_string()),
-            }))));
+            })*/));
             res.set_ptypes(ptypes_arr);
             res.set_rtype(rtype);
             res.set_form(jvm, form);
@@ -207,7 +208,7 @@ pub mod method_type_form {
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, arg_to_slot_table: JavaValue<'gc_life>, slot_to_arg_table: JavaValue<'gc_life>, arg_counts: jlong, prim_counts: jlong, erased_type: Option<MethodType<'gc_life>>, basic_type: Option<MethodType<'gc_life>>, method_handles: JavaValue<'gc_life>, lambda_forms: JavaValue<'gc_life>) -> MethodTypeForm<'gc_life> {
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res = new_object(jvm, int_state, &method_type_form).cast_method_type_form();
+            let res = new_object(jvm, int_state, &method_type_form).to_jv().cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
             res.set_slot_to_arg_table(slot_to_arg_table);
             res.set_arg_counts(arg_counts);
@@ -339,6 +340,7 @@ pub mod method_handles {
                 static_vars.get(&FieldName::field_IMPL_LOOKUP()).unwrap().cast_lookup()
             }
 
+            //noinspection DuplicatedCode
             pub fn find_virtual(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
@@ -353,6 +355,7 @@ pub mod method_handles {
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
+            //noinspection DuplicatedCode
             pub fn find_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
@@ -422,6 +425,7 @@ pub mod lambda_form {
         impl<'gc_life> NamedFunction<'gc_life> {
             as_object_or_java_value!();
 
+            //noinspection DuplicatedCode
             pub fn get_member_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<MemberName<'gc_life>> {
                 let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_member());
                 if maybe_null.try_unwrap_object().is_some() {
@@ -476,6 +480,7 @@ pub mod lambda_form {
                 self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_arguments()).unwrap_array().array_iterator(jvm).collect_vec()
             }
 
+            //noinspection DuplicatedCode
             pub fn get_index_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
                 let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_index());
                 if maybe_null.try_unwrap_object().is_some() {
@@ -548,6 +553,7 @@ pub mod lambda_form {
         impl<'gc_life> BasicType<'gc_life> {
             as_object_or_java_value!();
 
+            //noinspection DuplicatedCode
             pub fn get_ordinal_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<jint> {
                 let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_ordinal());
                 if maybe_null.try_unwrap_object().is_some() {
@@ -578,6 +584,8 @@ pub mod lambda_form {
             pub fn get_bt_char(&self, jvm: &'gc_life JVMState<'gc_life>) -> jchar {
                 self.get_bt_char_or_null(jvm).unwrap()
             }
+
+            //noinspection DuplicatedCode
             pub fn get_bt_class_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
                 let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btClass());
                 if maybe_null.try_unwrap_object().is_some() {
@@ -627,6 +635,7 @@ pub mod lambda_form {
             self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_names()).unwrap_array().unwrap_object_array(jvm).iter().map(|name| JavaValue::Object(todo!() /*name.clone()*/).cast_lambda_form_name()).collect()
         }
 
+        //noinspection DuplicatedCode
         pub fn get_vmentry_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<MemberName<'gc_life>> {
             let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_vmentry());
             if maybe_null.try_unwrap_object().is_some() {

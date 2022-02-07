@@ -112,7 +112,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
-    let res = new_local_ref_public(current_thread.thread_object().object().into(), int_state);
+    let res = new_local_ref_public(current_thread.thread_object().object().to_gc_managed().into(), int_state);
     assert_ne!(res, null_mut());
     res
 }
@@ -161,7 +161,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
         })
         .collect::<Vec<_>>();
     let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object();
-    new_local_ref_public(object_array, int_state)
+    new_local_ref_public(todo!()/*object_array*/, int_state)
 }
 
 #[no_mangle]
@@ -241,7 +241,7 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
     let res = JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object();
-    Ok(new_local_ref_public(res, int_state))
+    Ok(new_local_ref_public(todo!()/*res*/, int_state))
 }
 
 #[no_mangle]

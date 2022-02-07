@@ -3,12 +3,14 @@ macro_rules! as_object_or_java_value {
         // use crate::java_values::{Object, JavaValue, NormalObject};
         //
         //
-        pub fn object(self) -> GcManagedObject<'gc_life> {
-            self.normal_object
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life> {
+            /*self.normal_object*/
+            todo!()
         }
 
         pub fn java_value(self) -> JavaValue<'gc_life> {
-            JavaValue::Object(self.object().into())
+            /*JavaValue::Object(self.object().into())*/
+            todo!()
         }
 
         pub fn to_string(&self, jvm: &'gc_life crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'l>) -> Result<Option<crate::java::lang::string::JString<'gc_life>>, crate::WasException> {

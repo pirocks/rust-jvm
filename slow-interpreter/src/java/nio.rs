@@ -9,6 +9,7 @@ pub mod heap_byte_buffer {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
     use crate::jvm_state::JVMState;
+    use crate::NewJavaValue;
 
     pub struct HeapByteBuffer<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -23,11 +24,11 @@ pub mod heap_byte_buffer {
     impl<'gc_life> HeapByteBuffer<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
-            let object = new_object(jvm, int_state, &heap_byte_buffer_class);
+            let object = new_object(jvm, int_state, &heap_byte_buffer_class).to_jv();
 
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();
             let array_object = ArrayObject::new_array(jvm, int_state, elems, CPDType::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;
-            let array = JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object))));
+            let array = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(array_object)*/)).to_jv();
             run_constructor(jvm, int_state, heap_byte_buffer_class, vec![object.clone(), array, JavaValue::Int(off), JavaValue::Int(len)], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
             Ok(object.cast_heap_byte_buffer())
         }

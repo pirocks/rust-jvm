@@ -17,7 +17,7 @@ use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::{run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
-use crate::java_values::{JavaValue, Object};
+use crate::java_values::{ByAddressAllocatedObject, JavaValue, Object};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -105,7 +105,7 @@ pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     if invoke_virtual {
         unimplemented!()
     } else if invoke_static {
-        let by_address = ByAddress(vmentry.clone().object());
+        let by_address = ByAddressAllocatedObject(vmentry.clone().object());
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();

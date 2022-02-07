@@ -29,7 +29,7 @@ fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
-    let string = intern_safe(jvm, before_intern.object().into());
+    let string = intern_safe(jvm, before_intern.object().to_gc_managed().into());
     int_state.push_current_operand_stack(string.java_value());
 }
 
@@ -38,9 +38,9 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue<'gc_life>> = str_as_vec.map(|x| JavaValue::Char(x as u16)).collect();
-    let string_object = new_object(jvm, interpreter_state, &string_class);
+    let string_object = new_object(jvm, interpreter_state, &string_class).to_jv();
     let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)))));
+    args.push(JavaValue::Object(todo!()/*Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)*/))*/));
     let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
@@ -81,7 +81,7 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
         Either::Left(ldcw) => {
             match &ldcw {
                 CompressedLdcW::String { str } => {
-                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().into()).java_value();
+                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().to_gc_managed().into()).java_value();
                     int_state.push_current_operand_stack(string_value)
                 }
                 CompressedLdcW::Class { type_ } => {
@@ -100,7 +100,7 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
                 CompressedLdcW::LiveObject(live_object_index) => {
                     let classes_guard = jvm.classes.read().unwrap();
                     let obj = classes_guard.lookup_live_object_pool(live_object_index);
-                    int_state.push_current_operand_stack(JavaValue::Object(Some(obj.clone())));
+                    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*Some(obj.clone())*/));
                 }
                 _ => {
                     // dbg!(cp);
@@ -125,7 +125,7 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'g
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
             let string_value = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
-            intern_safe(jvm, string_value.cast_string().unwrap().object().into()).java_value()
+            intern_safe(jvm, string_value.cast_string().unwrap().object().to_gc_managed().into()).java_value()
         }
         _ => panic!(),
     }

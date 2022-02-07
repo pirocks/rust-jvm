@@ -199,7 +199,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 
-        let thread_object = new_object(jvm, &mut new_int_state, &thread_classfile).cast_thread();
+        let thread_object = new_object(jvm, &mut new_int_state, &thread_classfile).to_jv().cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread_group().into()).expect("couldn't load thread group class");

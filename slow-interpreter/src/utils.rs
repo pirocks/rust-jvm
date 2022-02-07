@@ -23,6 +23,7 @@ use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::JVMState;
+use crate::new_java_values::AllocatedObject;
 use crate::runtime_class::RuntimeClass;
 
 pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
@@ -68,7 +69,7 @@ pub fn throw_npe<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_stat
     }
         .object()
         .into();
-    int_state.set_throw(npe_object);
+    int_state.set_throw(Some(npe_object));
     T::invalid_default()
 }
 
@@ -87,7 +88,7 @@ pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc
     }
         .object()
         .into();
-    int_state.set_throw(bounds_object);
+    int_state.set_throw(Some(bounds_object));
     T::invalid_default()
 }
 
@@ -106,11 +107,11 @@ pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, 
     }
         .object()
         .into();
-    int_state.set_throw(bounds_object);
+    int_state.set_throw(Some(bounds_object));
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, java_value: JavaValue<'gc_life>) -> Result<Option<GcManagedObject<'gc_life>>, WasException> {
+pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),

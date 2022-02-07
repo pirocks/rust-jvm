@@ -65,10 +65,10 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
         the_vec.push(default_value(elem_type.clone()))
     }
     new_local_ref_public(
-        Some(jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state, the_vec, elem_type, jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())) {
+        Some(todo!()/*jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, the_vec, elem_type, jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())) {
             Ok(arr) => arr,
             Err(WasException {}) => return null_mut(),
-        }))),
+        })*/)*/),
         int_state,
     )
 }

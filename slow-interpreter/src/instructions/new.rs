@@ -18,7 +18,7 @@ pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
             return;
         }
     };
-    let obj = new_object(jvm, int_state, &target_classfile);
+    let obj = new_object(jvm, int_state, &target_classfile).to_jv();
     int_state.push_current_operand_stack(obj);
 }
 
@@ -36,7 +36,7 @@ pub fn anewarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
 pub fn a_new_array_from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, len: i32, t: CPDType) -> Result<(), WasException> {
     check_resolved_class(jvm, int_state, t.clone())?;
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, JavaValue::null(), t)?;
-    Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap()))))
+    Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap().to_gc_managed()))))
 }
 
 pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, a_type: Atype) {
@@ -58,7 +58,7 @@ pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         Ok(arr) => arr,
         Err(WasException {}) => return,
     };
-    int_state.push_current_operand_stack(JavaValue::Object(new_array));
+    int_state.push_current_operand_stack(todo!()/*JavaValue::Object(new_array)*/);
 }
 
 pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, dims: u8, type_: &CPDType) {
@@ -83,10 +83,10 @@ pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         }
         drop(current);
         current = JavaValue::Object(
-            jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state, new_vec, next_type.clone(), jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string())) {
+            jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, new_vec, next_type.clone(), jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string())) {
                 Ok(arr) => arr,
                 Err(WasException {}) => return,
-            }))
+            })*/).to_gc_managed()
                 .into(),
         );
         current_type = next_type;

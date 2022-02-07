@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::ptr::null_mut;
+use libc::time;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
@@ -46,9 +47,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let res = Some(jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state, object_array, CPDType::Ref(CPRefType::Class(CClassName::field())), jvm.thread_state.new_monitor("".to_string())) {
+    let res = Some(jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, object_array, CPDType::Ref(CPRefType::Class(CClassName::field())), jvm.thread_state.new_monitor("".to_string())) {
         Ok(arr) => arr,
         Err(WasException {}) => return null_mut(),
-    })));
-    new_local_ref_public(res, int_state)
+    })*/));
+    new_local_ref_public(todo!()/*res*/, int_state)
 }

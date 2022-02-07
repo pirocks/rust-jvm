@@ -12,7 +12,7 @@ use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter::WasException;
 use crate::interpreter_util::new_object;
 use crate::java::lang::member_name::MemberName;
-use crate::java_values::JavaValue;
+use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
@@ -160,7 +160,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
                     },
                 };
                 let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i);
-                jvm.resolved_method_handles.write().unwrap().insert(ByAddress(member_name.clone().object()), method_id);
+                jvm.resolved_method_handles.write().unwrap().insert(ByAddressAllocatedObject(member_name.clone().object()), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
                 let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {

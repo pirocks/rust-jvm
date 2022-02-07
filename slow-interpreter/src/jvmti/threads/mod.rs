@@ -67,7 +67,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         .into_iter()
         .map(|thread| {
             let object = thread.thread_object().object();
-            new_local_ref_public(object.into(), int_state)
+            new_local_ref_public(object.to_gc_managed().into(), int_state)
         })
         .collect::<Vec<jobject>>();
     jvm.native.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
     };
 
     //todo get thread groups other than system thread group working at some point
-    (*info_ptr).thread_group = new_local_ref_public(jvm.thread_state.get_system_thread_group().object().into(), int_state);
+    (*info_ptr).thread_group = new_local_ref_public(jvm.thread_state.get_system_thread_group().object().to_gc_managed().into(), int_state);
     //todo deal with this whole context loader situation
     let thread_class_object = match thread_object.get_class(jvm, int_state) {
         Ok(thread_class_object) => thread_class_object,
@@ -147,7 +147,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
         Err(_) => return universal_error(),
     };
     // .expect("Expected thread class to have a class loader");
-    let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object()), int_state);
+    let context_class_loader = new_local_ref_public(class_loader.map(|x| x.object().to_gc_managed()), int_state);
     (*info_ptr).context_class_loader = context_class_loader;
     (*info_ptr).name = jvm.native.native_interface_allocations.allocate_cstring(CString::new(thread_object.name(jvm).to_rust_string(jvm)).unwrap());
     (*info_ptr).is_daemon = thread_object.daemon(jvm) as u8;

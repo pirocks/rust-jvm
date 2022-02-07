@@ -233,7 +233,7 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
         Ok(class_loader) => class_loader,
         Err(WasException {}) => return universal_error(),
     };
-    let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object()), int_state);
+    let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object().to_gc_managed()), int_state);
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE
 }

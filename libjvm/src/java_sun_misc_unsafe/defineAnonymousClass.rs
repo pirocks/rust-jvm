@@ -104,7 +104,7 @@ fn patch_single(patch: &GcManagedObject<'gc_life>, state: &JVMState<'gc_life>, _
         let mut classes_guard = state.classes.write().unwrap();
         let mut anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
         let live_object_i = anon_class_write_guard.len();
-        anon_class_write_guard.push(patch.clone());
+        anon_class_write_guard.push(todo!()/*patch.clone()*/);
         unpatched.constant_pool[i] = ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
     };
 }

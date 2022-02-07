@@ -4,21 +4,23 @@ use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::{default_value, GcManagedObject, JavaValue};
 use crate::runtime_class::RuntimeClass;
+use std::convert::AsRef;
 
 //todo jni should really live in interpreter state
 
-pub fn new_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc_life>>) -> JavaValue<'gc_life> {
+pub fn new_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc_life>>) -> NewJavaValue<'gc_life> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_pointer = JavaValue::new_object(jvm, runtime_class.clone());
-    let new_obj = JavaValue::Object(object_pointer.clone());
+    let new_obj = NewJavaValue::AllocObject(object_pointer.clone());
+    let object_pointer = object_pointer.to_gc_managed();
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
-    default_init_fields(jvm, &object_pointer.as_ref().unwrap().unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone().unwrap());
+    default_init_fields(jvm, &object_pointer.unwrap_normal_object().objinfo.class_pointer, &object_pointer.clone());
     new_obj
 }
 

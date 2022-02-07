@@ -35,7 +35,7 @@ use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
-use crate::java_values::{ByAddressGcManagedObject, JavaValue};
+use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jvm_state::ClassStatus;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
@@ -441,7 +441,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
 unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).unwrap_object();
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
     to_object(res_object)
 }
 
@@ -473,7 +473,7 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
         Ok(method_obj) => method_obj,
         Err(_) => todo!(),
     };
-    to_object(method_obj.object().into())
+    to_object(method_obj.object().to_gc_managed().into())
 }
 
 ///ExceptionDescribe
@@ -583,18 +583,18 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Ok(java_string) => java_string,
             Err(WasException {}) => return -4,
         };
-        (constructor_method_id, to_object(java_string.object().into()))
+        (constructor_method_id, to_object(java_string.object().to_gc_managed().into()))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
     let jvalue_ = jvalue { l: java_string_object };
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
     int_state.set_throw(
-        match from_object(jvm, obj) {
+        Some(match from_object(jvm, obj) {
             None => return -3,
-            Some(res) => res,
+            Some(res) => res.to_allocated_object(),
         }
-            .into(),
+            .into()),
     );
     JNI_OK as i32
 }
@@ -696,7 +696,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
             let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?;
             let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().into();
-            int_state.set_throw(to_throw);
+            int_state.set_throw(Some(to_throw));
             return Err(WasException {});
         }
         Err(TypeSafetyError::NotSafe(_)) => panic!(),
@@ -709,7 +709,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
-    classes.class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));
+    classes.class_object_pool.insert(ByAddressAllocatedObject(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
     jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
     prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());

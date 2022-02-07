@@ -64,11 +64,11 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             return null_mut();
         }
     };
-    let res = Some(jvm.allocate_object(Array(match ArrayObject::new_array(jvm, int_state, interface_vec, CClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
+    let res = Some(jvm.allocate_object(todo!()/*Array(match ArrayObject::new_array(jvm, int_state, interface_vec, CClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
         Ok(arr) => arr,
         Err(WasException {}) => return null_mut(),
-    })));
-    new_local_ref_public(res, int_state)
+    })*/));
+    new_local_ref_public(todo!()/*res*/, int_state)
 }
 
 #[no_mangle]
@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
     let class = from_jclass(jvm, cls).as_runtime_class(jvm);
     match jvm.classes.read().unwrap().protection_domains.get_by_left(&ByAddress(class)) {
         None => null_mut(),
-        Some(pd_obj) => new_local_ref_public(pd_obj.clone().0.into(), int_state),
+        Some(pd_obj) => new_local_ref_public(pd_obj.clone().0.to_gc_managed().into(), int_state),
     }
 }
 
@@ -136,7 +136,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         },
         CClassName::class().into(),
     );
-    new_local_ref_public(res_jv.unwrap_object(), int_state)
+    new_local_ref_public(todo!()/*res_jv.unwrap_object()*/, int_state)
 }
 
 #[no_mangle]
@@ -152,7 +152,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
     let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
     match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&ptype, &jvm.string_pool).jvm_representation())) {
-        Ok(jstring) => new_local_ref_public(jstring.object().into(), int_state),
+        Ok(jstring) => new_local_ref_public(todo!()/*jstring.object().into()*/, int_state),
         Err(WasException) => null_mut(),
     }
 }
@@ -189,7 +189,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public(JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).unwrap_object(), int_state)
+    new_local_ref_public(todo!()/*JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).unwrap_object()*/, int_state)
 }
 
 #[no_mangle]

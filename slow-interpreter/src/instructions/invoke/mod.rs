@@ -205,7 +205,7 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
                     };
                     let ArrayObject { elem_type, .. } = temp.unwrap_array();
                     let array_object = ArrayObject::new_array(jvm, int_state, temp.unwrap_array().array_iterator(jvm).collect_vec(), elem_type.clone(), jvm.thread_state.new_monitor("monitor for cloned object".to_string()))?;
-                    int_state.push_current_operand_stack(JavaValue::Object(Some(jvm.allocate_object(Object::Array(array_object)))));
+                    int_state.push_current_operand_stack(todo!()/*JavaValue::Object(Some(jvm.allocate_object(todo!()/*Object::Array(array_object)*/)))*/);
                     return Ok(None);
                 } else {
                     unimplemented!();

@@ -64,8 +64,8 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
             let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
             object_array.push(method.java_value());
         });
-    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, method_class.view().type_())?).into();
-    unsafe { Ok(new_local_ref_public(res, int_state)) }
+    let res = jvm.allocate_object(todo!()/*Object::object_array(jvm, int_state, object_array, method_class.view().type_())?*/);
+    unsafe { Ok(new_local_ref_public(todo!()/*res*/, int_state)) }
 }
 
 #[no_mangle]
@@ -96,6 +96,6 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.java_value())
     });
-    let res = jvm.allocate_object(Object::object_array(jvm, int_state, object_array, CClassName::constructor().into())?).into();
-    Ok(unsafe { new_local_ref_public(res, int_state) })
+    let res = jvm.allocate_object(todo!()/*Object::object_array(jvm, int_state, object_array, CClassName::constructor().into())?*/);
+    Ok(unsafe { new_local_ref_public(todo!()/*res*/, int_state) })
 }

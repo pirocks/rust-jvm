@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
 }
 
 unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, loader_name: LoaderName) -> jobject {
-    new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object()), int_state)
+    new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object().to_gc_managed()), int_state)
 }
 
 //from Java_java_lang_SecurityManager_classLoaderDepth0
@@ -98,7 +98,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
     let int_state = get_interpreter_state(env);
     for stack_entry in int_state.cloned_stack_snapshot(jvm) {
         if !stack_entry.privileged_frame() {
-            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
+            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object().to_gc_managed()), int_state);
         }
     }
     return new_local_ref_public(
@@ -106,7 +106,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
             Ok(res) => res,
             Err(_) => todo!(),
         }
-            .object()
+            .object().to_gc_managed()
             .into(),
         int_state,
     );

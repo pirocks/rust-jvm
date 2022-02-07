@@ -203,7 +203,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
         .map(|byte| JavaValue::Byte(byte as i8))
         .collect_vec();
     let res = JavaValue::new_vec_from_vec(jvm, bytes_vec, CPDType::ByteType);
-    new_local_ref_public(res.unwrap_object(), get_interpreter_state(env))
+    new_local_ref_public(todo!()/*res.unwrap_object()*/, get_interpreter_state(env))
 }
 
 #[no_mangle]

@@ -25,9 +25,11 @@ use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{ByAddressGcManagedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
+use crate::new_java_values::AllocatedObject;
+use crate::NewJavaValue;
 use crate::runtime_class::{FieldNumber, initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
@@ -117,7 +119,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.classes.read().unwrap().lookup_class_loader(loader_idx).clone();
-                    let class_loader: ClassLoader = JavaValue::Object(loader_obj.clone().into()).cast_class_loader();
+                    let class_loader: ClassLoader = NewJavaValue::AllocObject(loader_obj.clone().into()).to_jv().cast_class_loader();
                     match ptype.clone() {
                         CPDType::ByteType => Arc::new(RuntimeClass::Byte),
                         CPDType::CharType => Arc::new(RuntimeClass::Char),
@@ -137,7 +139,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                 let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                 let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
                                 let obj = create_class_object(jvm, int_state, None, loader)?;
-                                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(obj), ByAddress(res.clone()));
+                                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(obj), ByAddress(res.clone()));
                                 res
                             }
                         },
@@ -219,7 +221,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                         let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
 
                         let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
-                        int_state.set_throw(exception.into());
+                        int_state.set_throw(Some(exception.into()));
                         return Err(WasException);
                     }
                 };
@@ -274,7 +276,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 // }
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
-                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object.clone()), ByAddress(res.clone()));
+                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
             CPRefType::Array(sub_type) => {
@@ -284,7 +286,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
             }
         },
     };
-    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressGcManagedObject(class_object), ByAddress(runtime_class.clone()));
+    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
 }
 
@@ -294,21 +296,21 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
     (start_field_number + field_numbers.len(), field_numbers)
 }
 
-pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, name: Option<String>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
+pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life>, WasException> {
     let loader_object = match loader {
-        LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().into()),
+        LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().to_gc_managed().into()),
         LoaderName::BootstrapLoader => JavaValue::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
         let mut fields = JVMState::get_class_field_numbers().into_values().map(|(_, type_)| default_value(type_).to_native()).collect_vec();
-        return Ok(jvm.allocate_object(Object::Object(NormalObject {
+        return Ok(jvm.allocate_object(todo!()/*Object::Object(NormalObject {
             // monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
                 fields: RwLock::new(fields.as_mut_slice()),
                 class_pointer: jvm.classes.read().unwrap().class_class.clone(),
             },
             obj_ptr: None,
-        })));
+        })*/));
     }
     let class_object = match loader {
         LoaderName::UserDefinedLoader(_idx) => JClass::new(jvm, int_state, loader_object.cast_class_loader()),

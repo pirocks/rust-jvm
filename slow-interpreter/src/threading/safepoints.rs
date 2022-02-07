@@ -228,7 +228,7 @@ impl<'gc_life> SafePoint<'gc_life> {
         }
 
         if let Some(exception) = &guard.throw_exception {
-            int_state.set_throw(exception.clone().into());
+            int_state.set_throw(Some(exception.clone().to_allocated_object().into()));
             return Err(WasException);
         }
         if guard.suspended {

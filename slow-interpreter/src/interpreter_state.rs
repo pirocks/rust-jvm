@@ -30,6 +30,7 @@ use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
+use crate::new_java_values::{AllocatedObject, NewJVObject};
 use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
@@ -256,7 +257,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn set_throw(&mut self, val: Option<GcManagedObject<'gc_life>>) {
+    pub fn set_throw(&mut self, val: Option<NewJVObject<'gc_life>>) {
         /*match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();

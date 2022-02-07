@@ -47,7 +47,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
             Ok(jstring) => jstring,
             Err(WasException {}) => return null_mut(),
         }
-            .object()
+            .object().to_gc_managed()
             .into(),
         int_state,
     )
@@ -77,7 +77,7 @@ pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
-    Ok(to_object(intern_safe(jvm, str_obj).object().into()))
+    Ok(to_object(intern_safe(jvm, str_obj).object().to_gc_managed().into()))
 }
 
 pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {

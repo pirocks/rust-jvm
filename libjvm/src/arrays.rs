@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             let java_value = jv.unwrap_array().get_i(jvm, index);
             new_local_ref_public(
                 match java_value_to_boxed_object(jvm, int_state, java_value) {
-                    Ok(boxed) => boxed,
+                    Ok(boxed) => todo!()/*boxed*/,
                     Err(WasException {}) => None,
                 },
                 int_state,
