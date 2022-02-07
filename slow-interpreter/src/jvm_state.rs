@@ -20,6 +20,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -27,7 +28,6 @@ use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescript
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
@@ -44,13 +44,13 @@ use crate::ir_to_java_layer::compiler::JavaCompilerMethodAndFrameData;
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
-use crate::java_values::{ByAddressAllocatedObject, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressAllocatedObject, default_value, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
-use crate::new_java_values::{AllocatedObject, UnAllocatedObject};
+use crate::new_java_values::{AllocatedObject, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::options::{JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
@@ -103,8 +103,8 @@ pub struct JVMState<'gc_life> {
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub vtables: RwLock<VTables>,
     pub inheritance_ids: RwLock<InheritanceMethodIDs>,
-    pub object_monitors:RwLock<HashMap<*const c_void, Monitor2>>,
-    pub static_breakpoints: StaticBreakpoints
+    pub object_monitors: RwLock<HashMap<*const c_void, Monitor2>>,
+    pub static_breakpoints: StaticBreakpoints,
 }
 
 pub struct Classes<'gc_life> {
@@ -214,7 +214,7 @@ pub enum ClassStatus {
 }
 
 impl<'gc_life> JVMState<'gc_life> {
-    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc_life>, gc: &'gc_life GC<'gc_life>, string_pool:CompressedClassfileStringPool) -> (Vec<String>, Self) {
+    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc_life>, gc: &'gc_life GC<'gc_life>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
         let JVMOptions {
             main_class_name,
             classpath,
@@ -286,7 +286,7 @@ impl<'gc_life> JVMState<'gc_life> {
             vtables: RwLock::new(VTables::new()),
             inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
             object_monitors: Default::default(),
-            static_breakpoints: StaticBreakpoints::new()
+            static_breakpoints: StaticBreakpoints::new(),
         };
         (args, jvm)
     }
@@ -325,15 +325,20 @@ impl<'gc_life> JVMState<'gc_life> {
         fields.insert("name".to_string(), JavaValue::null());
         fields.insert("classLoader".to_string(), JavaValue::null());
         const MAX_LOCAL_VARS: i32 = 100;
-        let mut fields_vec = (0..MAX_LOCAL_VARS).map(|_| NativeJavaValue { object: null_mut() }).collect_vec();
-        let class_object = self.allocate_object(todo!()/*Object::Object(NormalObject {
-            objinfo: ObjectFieldsAndClass { fields: RwLock::new(fields_vec.as_mut_slice()), class_pointer: classes.class_class.clone() },
-            obj_ptr: None,
-        })*/);
+        let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
+        let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
+        let mut fields_map = (0..recursive_num_fields).map(|i| {
+            let field_number = FieldNumber(i);
+            let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
+            let default_jv = default_value(cpd_type.clone());
+            (field_number, default_jv)
+        }).collect::<HashMap<_, _>>();
+
+        let class_object = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: classes.class_class.clone(), fields: fields_map }));
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddressAllocatedObject(class_object), runtime_class);
         let runtime_class = classes.class_class.clone();
-        self.inheritance_ids.write().unwrap().register(self,&runtime_class);
+        self.inheritance_ids.write().unwrap().register(self, &runtime_class);
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 
@@ -345,8 +350,8 @@ impl<'gc_life> JVMState<'gc_life> {
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let recursive_num_fields = field_numbers.len();
-        let object_class_view  = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
-        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(object_class_view,HashMap::new(),0,RwLock::new(HashMap::new()),None,vec![],RwLock::new(ClassStatus::INITIALIZED))));
+        let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
+        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(object_class_view, HashMap::new(), 0, RwLock::new(HashMap::new()), None, vec![], RwLock::new(ClassStatus::INITIALIZED))));
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, Some(temp_object_class), interfaces, status)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
@@ -383,10 +388,10 @@ impl<'gc_life> JVMState<'gc_life> {
         field_numbers
     }
 
-    pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l,'interpreter_guard> {
+    pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
         assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
         let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
-        let res = transmute::<&mut InterpreterStateGuard<'static,'static>, &mut InterpreterStateGuard<'l,'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
+        let res = transmute::<&mut InterpreterStateGuard<'static, 'static>, &mut InterpreterStateGuard<'l, 'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
         assert!(res.registered());
         res
     }
@@ -456,7 +461,7 @@ pub struct NativeLibraries<'gc_life> {
 }
 
 impl<'gc_life> NativeLibraries<'gc_life> {
-    pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, path: &OsString, name: String) {
+    pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());

@@ -1342,17 +1342,17 @@ impl<'gc_life> Debug for NormalObject<'gc_life, '_> {
     }
 }
 
-pub fn default_value<'gc_life>(type_: CPDType) -> JavaValue<'gc_life> {
+pub fn default_value<'gc_life>(type_: CPDType) -> NewJavaValue<'gc_life> {
     match type_ {
-        CPDType::ByteType => JavaValue::Byte(0),
-        CPDType::CharType => JavaValue::Char('\u{000000}' as u16),
-        CPDType::DoubleType => JavaValue::Double(0.0),
-        CPDType::FloatType => JavaValue::Float(0.0),
-        CPDType::IntType => JavaValue::Int(0),
-        CPDType::LongType => JavaValue::Long(0),
-        CPDType::Ref(_) => JavaValue::Object(None),
-        CPDType::ShortType => JavaValue::Short(0),
-        CPDType::BooleanType => JavaValue::Boolean(0),
+        CPDType::ByteType => NewJavaValue::Byte(0),
+        CPDType::CharType => NewJavaValue::Char('\u{000000}' as u16),
+        CPDType::DoubleType => NewJavaValue::Double(0.0),
+        CPDType::FloatType => NewJavaValue::Float(0.0),
+        CPDType::IntType => NewJavaValue::Int(0),
+        CPDType::LongType => NewJavaValue::Long(0),
+        CPDType::Ref(_) => NewJavaValue::Null,
+        CPDType::ShortType => NewJavaValue::Short(0),
+        CPDType::BooleanType => NewJavaValue::Boolean(0),
         CPDType::VoidType => panic!(),
     }
 }

@@ -130,6 +130,7 @@ pub struct FieldNumber(pub(crate) usize);
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
     pub field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
+    pub field_numbers_reverse: HashMap<FieldNumber, (FieldName, CPDType)>,
     pub recursive_num_fields: usize,
     pub static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>,
     pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
@@ -142,7 +143,10 @@ pub struct RuntimeClassClass<'gc_life> {
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
     pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, JavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>) -> Self {
-        Self { class_view, field_numbers, recursive_num_fields, static_vars, parent, interfaces, status }
+        let field_numbers_reverse = field_numbers.iter()
+            .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
+            .collect();
+        Self { class_view, field_numbers, field_numbers_reverse, recursive_num_fields, static_vars, parent, interfaces, status }
     }
 
     pub fn num_vars(&self) -> usize {
@@ -167,7 +171,7 @@ pub fn prepare_class<'vm_life, 'l>(jvm: &'vm_life JVMState<'vm_life>, int_state:
 
     for field in classfile.fields() {
         if field.is_static() {
-            let val = default_value(field.field_type());
+            let val = default_value(field.field_type()).to_jv();
             res.insert(field.field_name(), val);
         }
     }
@@ -228,8 +232,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
         Ok(res) => {
             assert!(res.is_none());
             int_state.pop_frame(jvm, new_function_frame, true);
-            if !jvm.config.compiled_mode_active {
-            }
+            if !jvm.config.compiled_mode_active {}
             // if int_state.function_return() {
             //     int_state.set_function_return(false);
             Ok(runtime_class)

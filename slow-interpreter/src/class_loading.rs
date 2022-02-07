@@ -33,7 +33,7 @@ use crate::NewJavaValue;
 use crate::runtime_class::{FieldNumber, initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
@@ -105,13 +105,13 @@ pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) ->
     jvm.classes.read().unwrap().is_loaded(&ptype).unwrap()
 }
 
-pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let loader = int_state.current_loader(jvm);
     assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // todo cleanup how these guards work
     let guard = jvm.classes.write().unwrap();
     let res = match guard.is_loaded(ptype) {
@@ -161,7 +161,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
         }
         Some(res) => Ok(res.clone()),
     }?;
-    jvm.inheritance_ids.write().unwrap().register(jvm,&res);
+    jvm.inheritance_ids.write().unwrap().register(jvm, &res);
     Ok(res)
 }
 
@@ -194,7 +194,7 @@ impl LivePoolGetter for DefaultLivePoolGetter {
 
 static mut BOOTSRAP_LOAD_COUNT: usize = 0;
 
-pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     unsafe {
         BOOTSRAP_LOAD_COUNT += 1;
         if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
@@ -256,15 +256,9 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
-                let res = Arc::new(RuntimeClass::Object(RuntimeClassClass {
-                    class_view: class_view.clone(),
-                    field_numbers,
-                    recursive_num_fields,
-                    static_vars: Default::default(),
-                    parent,
-                    interfaces,
-                    status: ClassStatus::UNPREPARED.into(),
-                }));
+                let res = Arc::new(RuntimeClass::Object(
+                    RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into()))
+                );
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
                 let method_resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
@@ -296,13 +290,13 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
     (start_field_number + field_numbers.len(), field_numbers)
 }
 
-pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life>, WasException> {
+pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().to_gc_managed().into()),
         LoaderName::BootstrapLoader => JavaValue::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
-        let mut fields = JVMState::get_class_field_numbers().into_values().map(|(_, type_)| default_value(type_).to_native()).collect_vec();
+        let mut fields = JVMState::get_class_field_numbers().into_values().map(|(_, type_)| default_value(type_)).collect_vec();
         return Ok(jvm.allocate_object(todo!()/*Object::Object(NormalObject {
             // monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
             objinfo: ObjectFieldsAndClass {
@@ -324,7 +318,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
     Ok(class_object.object())
 }
 
-pub fn check_resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     check_loaded_class(jvm, int_state, ptype)
 }
 

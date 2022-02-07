@@ -93,7 +93,7 @@ impl<'gc_life> UnAllocatedObject<'gc_life> {
 
 pub struct UnAllocatedObjectObject<'gc_life> {
     pub(crate) object_rc: Arc<RuntimeClass<'gc_life>>,
-    fields: HashMap<FieldNumber, NewJavaValue<'gc_life>>,
+    pub(crate) fields: HashMap<FieldNumber, NewJavaValue<'gc_life>>,
 }
 
 pub struct UnAllocatedObjectArray<'gc_life> {

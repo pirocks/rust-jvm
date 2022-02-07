@@ -54,7 +54,7 @@ pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     if count < 0 {
         todo!("check array length");
     }
-    let new_array = match JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_) {
+    let new_array = match JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()).to_jv(), type_) {
         Ok(arr) => arr,
         Err(WasException {}) => return,
     };

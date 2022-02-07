@@ -37,7 +37,7 @@ fn default_init_fields<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_clas
             };*/
             let name = field.field_name();
             let type_ = field.field_type();
-            let val = default_value(type_.clone());
+            let val = default_value(type_.clone()).to_jv();
 
             object_pointer.unwrap_normal_object().set_var(current_class_pointer.clone(), field.field_name(), val);
             // unsafe {
