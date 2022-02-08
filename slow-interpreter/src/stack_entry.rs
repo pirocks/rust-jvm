@@ -542,11 +542,11 @@ impl<'gc_life, 'k> StackEntryPush<'gc_life, 'k> {
         let class_view = class_pointer.view();
         let method_view = class_view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
+        let operand_stack = (0..code.max_stack).map(|_| NewJavaValue::Top).collect_vec();
         Self::Java {
             method_id,
             local_vars: args,
-            operand_stack: todo!(),
+            operand_stack,
         }
     }
 

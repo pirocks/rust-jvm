@@ -131,7 +131,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                             CPRefType::Class(class_name) => {
                                 drop(guard);
                                 let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
-                                let res = class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm);
+                                let res = todo!()/*class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)*/;
                                 res
                             }
                             CPRefType::Array(sub_type) => {

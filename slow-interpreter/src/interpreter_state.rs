@@ -355,8 +355,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                             method_id,
                             loader,
                             native_local_refs,
-                            local_vars: todo!(),
-                            operand_stack: todo!(),
+                            local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
+                            operand_stack: operand_stack.iter().map(|njv|njv.to_native()).collect(),
                         };
                         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };

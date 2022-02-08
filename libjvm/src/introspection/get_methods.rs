@@ -42,11 +42,11 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
 }
 
 fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc_life,'_>) -> Result<jobjectArray, WasException> {
-    let class_ptype = &of_class_obj.as_type(jvm);
+    let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
     }
-    let runtime_class = of_class_obj.as_runtime_class(jvm);
+    let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
     let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;

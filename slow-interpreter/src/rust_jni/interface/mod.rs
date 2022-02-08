@@ -656,7 +656,7 @@ unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) ->
 unsafe extern "C" fn from_reflected_field(env: *mut JNIEnv, method: jobject) -> jfieldID {
     let jvm = get_state(env);
     let field_obj = JavaValue::Object(from_object(jvm, method)).cast_field();
-    let runtime_class = field_obj.clazz(jvm).as_runtime_class(jvm);
+    let runtime_class = field_obj.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let field_name = FieldName(jvm.string_pool.add_name(field_obj.name(jvm).to_rust_string(jvm), false));
     runtime_class.view().fields().find(|candidate_field| candidate_field.field_name() == field_name).map(|field| field.field_i()).map(|field_i| jvm.field_table.write().unwrap().get_field_id(runtime_class, field_i as u16) as jfieldID).unwrap_or(transmute(-1isize))
 }

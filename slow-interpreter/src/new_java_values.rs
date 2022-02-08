@@ -92,11 +92,28 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_object(&self) -> Option<NewJVObject<'gc_life, 'l>> {
-        todo!()
+        match self {
+            NewJavaValue::Null => None,
+            NewJavaValue::UnAllocObject(obj) => {
+                Some(NewJVObject::UnAllocObject(obj.clone()))//todo maybe this shouldn't clone
+            }
+            NewJavaValue::AllocObject(obj) => {
+                Some(NewJVObject::AllocObject(obj.clone()))
+            }
+            _ => {
+                panic!()
+            }
+        }
     }
 
     pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc_life, 'l>> {
-        todo!()
+        match self {
+            NewJavaValue::Null => None,
+            NewJavaValue::AllocObject(alloc) => {
+                Some(alloc.clone())
+            },
+            _ => panic!(),
+        }
     }
 
     pub fn unwrap_object_nonnull(&self) -> NewJVObject<'gc_life, 'l> {
@@ -269,7 +286,11 @@ pub struct AllocatedObjectHandle<'gc_life> {
 
 impl<'gc_life> AllocatedObjectHandle<'gc_life> {
     pub fn new_java_value(&self) -> NewJavaValue<'gc_life, '_> {
-        NewJavaValue::AllocObject(AllocatedObject { handle: self })
+        NewJavaValue::AllocObject(self.as_allocated_obj())
+    }
+
+    pub fn as_allocated_obj(&self) -> AllocatedObject<'gc_life,'_>{
+        AllocatedObject{ handle:self }
     }
 
     pub fn to_jv(&self) -> JavaValue<'gc_life> {
@@ -286,6 +307,6 @@ impl Debug for AllocatedObjectHandle<'_> {
 
 impl Drop for AllocatedObjectHandle<'_> {
     fn drop(&mut self) {
-        todo!()
+        self.jvm.gc.deregister_root_reentrant(self.ptr)
     }
 }

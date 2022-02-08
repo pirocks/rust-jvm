@@ -82,7 +82,7 @@ enum ResolveAssertionCase {
 */
 
 fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
-    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
+    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
@@ -115,7 +115,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).as_runtime_class(jvm), true)?;
+            let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).gc_lifeify().as_runtime_class(jvm), true)?;
 
             let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false));
 
@@ -190,7 +190,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         }
         _ => panic!(),
     }
-    let clazz = member_name.get_clazz(jvm);
+    let clazz = member_name.get_clazz(jvm).gc_lifeify();
     let _clazz_as_runtime_class = clazz.as_runtime_class(jvm);
     let _name = member_name.get_name(jvm).to_rust_string(jvm);
     let _type_ = type_java_value.unwrap_normal_object();

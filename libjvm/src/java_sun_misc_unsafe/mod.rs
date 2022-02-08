@@ -91,7 +91,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
-    let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
+    let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {
@@ -110,7 +110,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
     let jvm = get_state(env);
     let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
-    let clazz = jfield.clazz(jvm).as_runtime_class(jvm);
+    let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let class_view = clazz.view();
     let mut field_i = None;
     class_view.fields().enumerate().for_each(|(i, f)| {

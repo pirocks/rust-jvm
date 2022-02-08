@@ -7,7 +7,8 @@ use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 use crate::interpreter_state::{InterpreterState, NativeFrameInfo};
 use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::new_java_values::AllocatedObject;
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use crate::stack_entry::FrameView;
 
 ///PopLocalFrame
@@ -58,8 +59,8 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
     }
     let interpreter_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let rust_obj = from_object(jvm, ref_).unwrap();
-    new_local_ref_internal(rust_obj, interpreter_state)
+    let rust_obj = from_object_new(jvm, ref_).unwrap();
+    new_local_ref_internal_new(rust_obj.as_allocated_obj(), interpreter_state)
 }
 
 pub unsafe fn new_local_ref_public<'gc_life, 'l>(rust_obj: Option<GcManagedObject<'gc_life>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jobject {
@@ -69,6 +70,14 @@ pub unsafe fn new_local_ref_public<'gc_life, 'l>(rust_obj: Option<GcManagedObjec
     }
     new_local_ref_internal(rust_obj.unwrap(), interpreter_state)
     //todo use match
+}
+
+unsafe fn new_local_ref_internal_new<'gc_life, 'l>(rust_obj: AllocatedObject<'gc_life,'_>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jobject {
+    let c_obj = to_object_new(rust_obj.clone().into());
+    let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();
+    new_local_ref_frame.insert(c_obj);
+    set_local_refs_top_frame(interpreter_state, new_local_ref_frame);
+    c_obj
 }
 
 unsafe fn new_local_ref_internal<'gc_life, 'l>(rust_obj: GcManagedObject<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jobject {

@@ -132,7 +132,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("RunStaticNative");
                 int_state.debug_print_stack_trace(jvm, false);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
-                let mut args_jv = vec![];
+                let mut args_jv_handle = vec![];
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
                 let arg_types = &method_view.desc().arg_types;
@@ -141,11 +141,12 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
                         let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
                         dbg!(native_jv.as_u64);
-                        args_jv.push(native_jv.to_java_value(cpdtype, jvm))
+                        args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
                     }
                 }
                 assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-                let res = run_native_method(jvm, int_state, rc, method_i, todo!()/*args_jv*/).unwrap();
+                let args_new_jv = args_jv_handle.iter().map(|handle|handle.as_njv()).collect();
+                let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };

@@ -24,7 +24,7 @@ fn resolve_virtual_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);
     let method_descriptor = CMethodDescriptor { arg_types, return_type };
-    let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
+    let runtime_class = member_name.get_clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let temp = get_all_methods(jvm, int_state, runtime_class.clone(), include_interfaces)?;
     let res = temp.iter().find(|(candidate_rc, candidate_i)| {
         let view = candidate_rc.view();
@@ -49,7 +49,7 @@ pub fn resolve_invoke_special<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);
     let method_descriptor = CMethodDescriptor { arg_types, return_type };
-    let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
+    let runtime_class = member_name.get_clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let method_name_string = member_name.get_name(jvm).to_rust_string(jvm);
     let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
@@ -68,7 +68,7 @@ pub fn resolve_invoke_static<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, in
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);
-    let runtime_class = member_name.get_clazz(jvm).as_runtime_class(jvm);
+    let runtime_class = member_name.get_clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let method_descriptor = CMethodDescriptor { arg_types, return_type };
     let runtime_class_view = runtime_class.view();
     let res = runtime_class_view

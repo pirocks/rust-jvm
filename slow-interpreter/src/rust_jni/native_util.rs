@@ -5,11 +5,11 @@ use std::ptr::NonNull;
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
 use crate::java_values::{GcManagedObject, JavaValue, Object};
-use crate::new_java_values::AllocatedObject;
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -29,7 +29,7 @@ pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_li
     &(*((**env).reserved0 as *const JVMState))
 }
 
-pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l,'interpreter_guard> {
+pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l, 'interpreter_guard> {
     let jvm = get_state(env);
     jvm.get_int_state()
 }
@@ -63,7 +63,14 @@ pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobj
     //     dbg!(jvm.gc.all_allocated_object.read().unwrap());
     //     panic!()
     // }
-    Some(GcManagedObject::from_native(option, jvm))
+    todo!()
+    // Some(GcManagedObject::from_native(option, jvm))
+}
+
+pub unsafe fn from_object_new<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<AllocatedObjectHandle> {
+    let ptr = NonNull::new(obj as *mut c_void)?;
+    let handle = jvm.gc.register_root_reentrant(jvm, ptr);
+    Some(handle)
 }
 
 pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life, 'gc_life> {//all jclasses have life of 'gc_life
@@ -72,7 +79,9 @@ pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jcla
 }
 
 pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life, 'gc_life>> { //all jclasses have life of 'gc_life
-    let possibly_null = from_object(jvm, obj);
-    possibly_null.as_ref()?;
-    JavaValue::Object(possibly_null).to_new().cast_class().into()
+    let possibly_null = from_object_new(jvm, obj);
+    let not_null = possibly_null?;
+    let new_jv = jvm.gc.handle_lives_for_gc_life(not_null);//todo this currently leaks b/c of constant push to add only vec but should be doable in non-leaky way
+
+    NewJavaValue::AllocObject(new_jv).cast_class().into()
 }

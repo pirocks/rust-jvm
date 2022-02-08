@@ -29,7 +29,7 @@ pub fn MHN_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
         match case {
             InitAssertionCase::CHECK_EXACT_TYPE => {
                 assert_eq!(mname.get_flags(jvm), 100728840);
-                assert_eq!(mname.get_clazz(jvm).as_type(jvm).unwrap_class_type(), CClassName::invokers());
+                assert_eq!(mname.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type(), CClassName::invokers());
             }
         }
     }
@@ -104,7 +104,7 @@ pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSta
 /// the method view param here and elsewhere is only passed when resolving
 fn method_init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, mname: MemberName<'gc_life>, method: Method<'gc_life>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
     let flags = method.get_modifiers(jvm);
-    let clazz = method.get_clazz(jvm);
+    let clazz = method.get_clazz(jvm).gc_lifeify();
     mname.set_clazz(clazz.clone());
     //static v. invoke_virtual v. interface
     //see MethodHandles::init_method_MemberName
