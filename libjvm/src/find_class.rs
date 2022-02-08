@@ -88,7 +88,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         Some(view) => {
             // todo what if name is long/int etc.
             let res = get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Class(class_name)), int_state).unwrap(); //todo handle exception
-            new_local_ref_public(res.into(), int_state)
+            new_local_ref_public(res.to_gc_managed().into(), int_state)
         }
     }
 }
@@ -140,5 +140,5 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let res = get_or_create_class_object(jvm, ptype, int_state).unwrap(); //todo what if not using bootstap loader, todo handle exception
-    new_local_ref_public(res.into(), int_state)
+    new_local_ref_public(res.to_gc_managed().into(), int_state)
 }

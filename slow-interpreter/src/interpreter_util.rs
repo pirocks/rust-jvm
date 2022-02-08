@@ -52,7 +52,7 @@ pub fn run_constructor<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_stat
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), full_args)?;
+    let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), todo!()/*full_args*/)?;
     assert!(res.is_none());
     Ok(())
 }

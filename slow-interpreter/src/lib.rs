@@ -13,6 +13,7 @@
 #![feature(unboxed_closures)]
 #![feature(exclusive_range_pattern)]
 #![feature(step_trait)]
+#![feature(generic_associated_types)]
 extern crate errno;
 extern crate libc;
 extern crate libloading;
@@ -44,7 +45,7 @@ use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValue;
-use crate::stack_entry::StackEntry;
+use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
 
@@ -101,7 +102,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntry::new_java_frame(jvm, main.clone(), main_i as u16, vec![JavaValue::Top; num_vars as usize]);
+    let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, vec![todo!()/*JavaValue::Top*/; num_vars as usize]);
     let mut main_frame_guard = int_state.push_frame(stack_entry);
 
     setup_program_args(&jvm, int_state, args);
@@ -133,7 +134,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntry::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![],"properties setting frame"));
+    let frame_for_properties = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![],"properties setting frame"));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

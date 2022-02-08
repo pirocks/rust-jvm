@@ -8,7 +8,7 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
@@ -19,9 +19,10 @@ use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
+use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let view = &class.view();
     // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -91,7 +92,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     } else {
         panic!();
     }*/
-    let native_call_frame = int_state.push_frame(StackEntry::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
+    let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
     assert!(int_state.current_frame().is_native_method());
     let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
     if let Some(m) = monitor.as_ref() {
@@ -140,7 +141,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     }
 }
 
-fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
@@ -149,13 +150,13 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
         MHN_getConstant()?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-        MHN_resolve(jvm, int_state, args)?.into()
+        MHN_resolve(jvm, int_state, todo!()/*args*/)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
-        MHN_init(jvm, int_state, args)?;
+        MHN_init(jvm, int_state, todo!()/*args*/)?;
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, int_state, args)?.into()
+        shouldBeInitialized(jvm, int_state, todo!()/*args*/)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
@@ -168,9 +169,9 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, todo!()/*args*/)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, todo!()/*args*/)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {

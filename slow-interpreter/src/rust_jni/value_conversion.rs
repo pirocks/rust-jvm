@@ -8,9 +8,10 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, 
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::JavaValue;
+use crate::NewJavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref;
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::native_util::{to_object, to_object_new};
 
 pub fn runtime_class_to_native<'gc_life>(runtime_class: Arc<RuntimeClass<'gc_life>>) -> Arg {
     let boxed_arc = Box::new(runtime_class);
@@ -39,16 +40,16 @@ pub fn to_native_type(t: &CPDType) -> Type {
     }
 }
 
-pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &CPDType) -> Arg {
+pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: NewJavaValue<'gc_life, '_>, t: &CPDType) -> Arg {
     match t {
         CPDType::ByteType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte),
         CPDType::CharType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar),
-        CPDType::DoubleType => Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble),
-        CPDType::FloatType => Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat),
+        CPDType::DoubleType => Arg::new(Box::into_raw(Box::new(j.unwrap_double_strict())).as_ref().unwrap() as &jdouble),
+        CPDType::FloatType => Arg::new(Box::into_raw(Box::new(j.unwrap_float_strict())).as_ref().unwrap() as &jfloat),
         CPDType::IntType => Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint),
-        CPDType::LongType => Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong),
+        CPDType::LongType => Arg::new(Box::into_raw(Box::new(j.unwrap_long_strict())).as_ref().unwrap() as &jlong),
         CPDType::Ref(_) => {
-            let object_ptr = new_local_ref(env, to_object(j.unwrap_object()));
+            let object_ptr = new_local_ref(env, to_object_new(j.unwrap_object_alloc()));
             drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }

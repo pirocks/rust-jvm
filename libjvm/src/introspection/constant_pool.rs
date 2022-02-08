@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, CPDType::Ref(c.class_ref_type()), int_state) {
-            Ok(class_obj) => to_object(class_obj.into()),
+            Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
             Err(_) => null_mut(),
         },
         _ => {
@@ -110,7 +110,7 @@ fn get_class_from_type_maybe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ m
     } else {
         match jvm.classes.read().unwrap().get_class_obj(ptype, None /*todo should this be something*/) {
             None => return Ok(None),
-            Some(rc) => Some(JavaValue::Object(todo!() /*rc.into()*/).cast_class().unwrap().as_runtime_class(jvm)),
+            Some(rc) => Some(JavaValue::Object(todo!() /*rc.into()*/).to_new().cast_class().unwrap().as_runtime_class(jvm)),
         }
     })
 }

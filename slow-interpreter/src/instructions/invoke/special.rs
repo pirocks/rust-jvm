@@ -4,7 +4,7 @@ use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
@@ -13,6 +13,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
+use crate::stack_entry::StackEntryPush;
 
 pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
     let target_class = match check_initing_or_inited_class(jvm, int_state, method_class_name.into()) {
@@ -23,7 +24,7 @@ pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), todo!());
 }
 
-pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed_descriptor: &CMethodDescriptor, target_m_i: u16, final_target_class: Arc<RuntimeClass<'gc_life>>, input_args: Vec<JavaValue<'gc_life>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn invoke_special_impl<'k, 'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed_descriptor: &CMethodDescriptor, target_m_i: u16, final_target_class: Arc<RuntimeClass<'gc_life>>, input_args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
     if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {
@@ -42,7 +43,7 @@ pub fn invoke_special_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         assert!(args[0].unwrap_object().is_some());
         let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
         jvm.java_vm_state.add_method(jvm, &MethodResolver{ jvm, loader: int_state.current_loader(jvm) }, method_id);
-        let next_entry = StackEntry::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
+        let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, todo!()/*args*/);
         let mut function_call_frame = int_state.push_frame(next_entry);
         match run_function(jvm, int_state, &mut function_call_frame) {
             Ok(res) => {

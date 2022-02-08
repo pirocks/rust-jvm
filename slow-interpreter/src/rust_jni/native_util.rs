@@ -9,6 +9,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
 use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::new_java_values::AllocatedObject;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
@@ -21,7 +22,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     }
         .unwrap(); //todo pass the error up
 
-    new_local_ref_public(class_object.into(), int_state) as jclass
+    new_local_ref_public(class_object.to_gc_managed().into(), int_state) as jclass
 }
 
 pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_life> {
@@ -44,6 +45,17 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     }
 }
 
+pub unsafe fn to_object_new<'gc_life>(obj: Option<AllocatedObject<'gc_life, '_>>) -> jobject {
+    match obj {
+        None => std::ptr::null_mut(),
+        Some(o) => {
+            // o.self_check();
+            let res = o.raw_ptr_usize() as *mut _jobject;
+            res
+        }
+    }
+}
+
 pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
     let option = NonNull::new(obj as *mut c_void)?;
     // if !jvm.gc.all_allocated_object.read().unwrap().contains(&option) {
@@ -54,13 +66,13 @@ pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobj
     Some(GcManagedObject::from_native(option, jvm))
 }
 
-pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
+pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life, 'gc_life> {//all jclasses have life of 'gc_life
     try_from_jclass(jvm, obj).unwrap()
     //todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> {
+pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life, 'gc_life>> { //all jclasses have life of 'gc_life
     let possibly_null = from_object(jvm, obj);
     possibly_null.as_ref()?;
-    JavaValue::Object(possibly_null).cast_class().into()
+    JavaValue::Object(possibly_null).to_new().cast_class().into()
 }

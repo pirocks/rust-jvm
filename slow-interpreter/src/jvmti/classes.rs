@@ -44,7 +44,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(env: *mut jvmtiEnv, klass: j
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
         let interface_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state);
-        let interface_class = new_local_ref_public(interface_obj.unwrap().into(), int_state);
+        let interface_class = new_local_ref_public(interface_obj.unwrap().to_gc_managed().into(), int_state);
         interfaces_ptr.read().add(i).write(interface_class)
     }
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassStatus");
     let class = from_object(jvm, klass as jobject).unwrap(); //todo handle null
     let res = {
-        let type_ = &JavaValue::Object(class.into()).cast_class().unwrap().as_type(jvm);
+        let type_ = &JavaValue::Object(class.into()).to_new().cast_class().unwrap().as_type(jvm);
         let mut status = 0;
         status |= JVMTI_CLASS_STATUS_PREPARED as i32;
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
@@ -130,7 +130,7 @@ pub unsafe extern "C" fn get_loaded_classes<'gc_life, 'l>(env: *mut jvmtiEnv, cl
     let collected = classes.get_loaded_classes();
     for (_loader, ptype) in collected {
         let class_object = get_or_create_class_object(jvm, ptype.clone(), int_state);
-        res_vec.push(new_local_ref_public(class_object.unwrap().into(), int_state))
+        res_vec.push(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), int_state))
     }
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
@@ -141,7 +141,7 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let jvm = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetClassSignature");
     let notnull_class = from_object(jvm, klass as jobject).unwrap(); //todo handle npe
-    let class_object_ptype = JavaValue::Object(todo!() /*notnull_class.into()*/).cast_class().unwrap().as_type(jvm);
+    let class_object_ptype = JavaValue::Object(todo!() /*notnull_class.into()*/).to_new().cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
         let jvm_repr = CString::new(PTypeView::from_compressed(&type_, &jvm.string_pool).jvm_representation()).unwrap();

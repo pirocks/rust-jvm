@@ -711,7 +711,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().into()))
+    Ok(JavaValue::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().to_gc_managed().into()))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {

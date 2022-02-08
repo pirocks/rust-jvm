@@ -54,7 +54,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
         .view()
         .interfaces()
         .map(|interface| {
-            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
+            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?.to_gc_managed();
             Ok(JavaValue::Object(Some(class_obj)))
         })
         .collect::<Result<Vec<_>, WasException>>()
@@ -93,7 +93,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let object = from_object(jvm, cls);
-    let temp = JavaValue::Object(object).cast_class().unwrap().as_type(jvm);
+    let temp = JavaValue::Object(object).to_new().cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public(
         match JClass::from_type(jvm, int_state, object_class.unwrap_array().clone()) {
@@ -185,7 +185,7 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer()?.cpdtype())).map(|ptype| get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.into()))).collect::<Result<Vec<_>, WasException>>() {
+    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer()?.cpdtype())).map(|ptype| get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.to_gc_managed().into()))).collect::<Result<Vec<_>, WasException>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
@@ -237,7 +237,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap().unwrap_object();
-    new_local_ref_public(jclass, int_state)
+    new_local_ref_public(todo!()/*jclass*/, int_state)
 }
 
 #[no_mangle]
@@ -267,7 +267,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
                     return null_mut();
                 };
             }
-            new_local_ref_public(Some(class_object), int_state)
+            new_local_ref_public(Some(class_object.to_gc_managed()), int_state)
         }
         Err(WasException {}) => null_mut(),
     }

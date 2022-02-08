@@ -17,7 +17,7 @@ use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::stack_entry::StackEntry;
+use crate::stack_entry::{StackEntry, StackEntryPush};
 
 #[derive(Debug)]
 pub enum RuntimeClass<'gc_life> {
@@ -123,7 +123,7 @@ impl<'gc_life, 'l> StaticVarGuard<'gc_life, 'l> {
 
     pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc_life>) {
         let cpd_type = self.types.get(&name).unwrap();
-        self.data_guard.insert(name, elem.to_jv().to_native());
+        self.data_guard.insert(name, elem.as_njv().to_native());
     }
 }
 
@@ -250,7 +250,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
     let mut locals = vec![];
     let locals_n = clinit.code_attribute().unwrap().max_locals;
     for _ in 0..locals_n {
-        locals.push(JavaValue::Top);
+        locals.push(NewJavaValue::Top);
     }
 
     let method_i = clinit.method_i() as u16;
@@ -258,7 +258,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
     jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);
 
 
-    let new_stack = StackEntry::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
+    let new_stack = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
 
     //todo these java frames may have to be converted to native?
     let mut new_function_frame = int_state.push_frame(new_stack);

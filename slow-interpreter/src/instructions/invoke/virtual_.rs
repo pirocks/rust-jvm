@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry, StackEntryPush};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
@@ -57,7 +57,7 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         return Ok(());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, todo!()/*args*/) {
             Ok(_) => todo!(),
             Err(_) => todo!(),
         }
@@ -65,7 +65,7 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
-        let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
+        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, todo!()/*args*/);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut frame_for_function) {
             Ok(res) => {
@@ -145,13 +145,14 @@ pub fn setup_virtual_args<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuard
     args[0] = current_frame.pop(Some(CClassName::object().into()));
 }
 
-pub fn setup_virtual_args2<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<JavaValue<'gc_life>>) {
+pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc_life,'k>>) {
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
     }
     let mut i = 1;
     for input_arg in input_args[1..].iter().rev() {
-        let value = input_arg.clone();
+        todo!()
+        /*let value = input_arg.clone();
         match value.clone() {
             JavaValue::Long(_) | JavaValue::Double(_) => {
                 args[i] = JavaValue::Top;
@@ -162,12 +163,13 @@ pub fn setup_virtual_args2<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuar
                 args[i] = value;
                 i += 1
             }
-        };
+        };*/
     }
     if !expected_descriptor.arg_types.is_empty() {
         args[1..i].reverse();
     }
-    args[0] = input_args[0].clone();
+    /*args[0] = input_args[0].clone();*/
+    todo!()
 }
 
 /*

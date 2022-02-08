@@ -36,7 +36,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc_life>(env: *mut JNIEnv, me
         .cast_method();
     let clazz = method.get_clazz(jvm).as_runtime_class(jvm);
     let name = MethodName(jvm.string_pool.add_name(method.get_name(jvm).to_rust_string(jvm), true));
-    let return_type_jclass: JClass<'gc_life> = method.get_return_type(jvm);
+    let return_type_jclass: JClass<'gc_life,'_> = method.get_return_type(jvm);
     let return_type = return_type_jclass.as_type(jvm);
     let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm)).collect::<Vec<_>>();
     let view = clazz.view();

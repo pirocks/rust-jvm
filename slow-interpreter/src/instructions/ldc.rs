@@ -5,7 +5,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
@@ -13,16 +13,17 @@ use crate::interpreter::{run_function, WasException};
 use crate::interpreter_util::new_object;
 use crate::java::lang::string::JString;
 use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
-use crate::stack_entry::StackEntryMut;
+use crate::stack_entry::{StackEntryMut, StackEntryPush};
 
-fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, type_: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
+fn load_class_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, type_: &CPDType) -> Result<NewJavaValue<'gc_life,'gc_life>, WasException> {
     load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, res_class_type: &CPDType) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, res_class_type: &CPDType) -> Result<NewJavaValue<'gc_life,'gc_life>, WasException> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
-    Ok(JavaValue::Object(object.into()))
+    Ok(NewJavaValue::AllocObject(object))
 }
 
 fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, s: &StringView) {
@@ -44,7 +45,7 @@ pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_sta
     let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
-    let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
+    let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
     let mut function_call_frame = interpreter_state.push_frame(next_entry);
     match run_function(jvm, interpreter_state, &mut function_call_frame) {
         Ok(_) => {}

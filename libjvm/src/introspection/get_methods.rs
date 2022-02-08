@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let loader = int_state.current_loader(jvm);
-    let of_class_obj = JavaValue::Object(from_object(jvm, ofClass)).cast_class().expect("todo");
+    let of_class_obj = JavaValue::Object(from_object(jvm, ofClass)).to_new().cast_class().expect("todo");
     let int_state = get_interpreter_state(env);
     match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
         Ok(res) => res,
@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc_life>) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc_life,'_>) -> Result<jobjectArray, WasException> {
     let class_ptype = &of_class_obj.as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -72,7 +72,7 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
     let temp1 = from_object(jvm, ofClass);
-    let class_obj = JavaValue::Object(temp1).cast_class().expect("todo");
+    let class_obj = JavaValue::Object(temp1).to_new().cast_class().expect("todo");
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);

@@ -26,17 +26,15 @@ pub enum NewJavaValueHandle<'gc_life> {
     Top,
 }
 
-impl <'gc_life> NewJavaValueHandle<'gc_life> {
-
-
-    pub fn to_jv(&self) -> JavaValue<'gc_life>{
+impl<'gc_life> NewJavaValueHandle<'gc_life> {
+    pub fn to_jv(&self) -> JavaValue<'gc_life> {
         todo!()
     }
 
-    pub fn as_njv(&self) -> NewJavaValue<'gc_life,'_>{
+    pub fn as_njv(&self) -> NewJavaValue<'gc_life, '_> {
         match self {
-            NewJavaValueHandle::Long(_) => {
-                todo!()
+            NewJavaValueHandle::Long(long) => {
+                NewJavaValue::Long(*long)
             }
             NewJavaValueHandle::Int(int) => {
                 NewJavaValue::Int(*int)
@@ -47,8 +45,8 @@ impl <'gc_life> NewJavaValueHandle<'gc_life> {
             NewJavaValueHandle::Byte(_) => {
                 todo!()
             }
-            NewJavaValueHandle::Boolean(_) => {
-                todo!()
+            NewJavaValueHandle::Boolean(bool) => {
+                NewJavaValue::Boolean(*bool)
             }
             NewJavaValueHandle::Char(_) => {
                 todo!()
@@ -72,6 +70,7 @@ impl <'gc_life> NewJavaValueHandle<'gc_life> {
     }
 }
 
+#[derive(Clone)]
 pub enum NewJavaValue<'gc_life, 'l> {
     Long(i64),
     Int(i32),
@@ -91,7 +90,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     pub fn to_jv(&self) -> JavaValue<'gc_life> {
         todo!()
     }
+
     pub fn unwrap_object(&self) -> Option<NewJVObject<'gc_life, 'l>> {
+        todo!()
+    }
+
+    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc_life, 'l>> {
         todo!()
     }
 
@@ -137,8 +141,8 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
 
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
         match self {
-            NewJavaValue::Long(_) => {
-                todo!()
+            NewJavaValue::Long(long) => {
+                NativeJavaValue { long: *long }
             }
             NewJavaValue::Int(int) => {
                 NativeJavaValue { int: *int }
@@ -149,8 +153,8 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::Byte(_) => {
                 todo!()
             }
-            NewJavaValue::Boolean(_) => {
-                todo!()
+            NewJavaValue::Boolean(bool) => {
+                NativeJavaValue { boolean: *bool }
             }
             NewJavaValue::Char(_) => {
                 todo!()
@@ -182,6 +186,22 @@ pub enum NewJVObject<'gc_life, 'l> {
     AllocObject(AllocatedObject<'gc_life, 'l>),
 }
 
+impl <'gc_life,'l> NewJVObject<'gc_life,'l> {
+    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc_life,'l>{
+        match self{
+            NewJVObject::UnAllocObject(_) => panic!(),
+            NewJVObject::AllocObject(alloc_obj) => {
+                alloc_obj.clone()
+            }
+        }
+    }
+
+    pub fn to_jv(&self) -> JavaValue<'gc_life>{
+        todo!()
+    }
+}
+
+#[derive(Clone)]
 pub enum UnAllocatedObject<'gc_life, 'l> {
     Object(UnAllocatedObjectObject<'gc_life, 'l>),
     Array(UnAllocatedObjectArray<'gc_life, 'l>),
@@ -193,21 +213,23 @@ impl<'gc_life, 'l> UnAllocatedObject<'gc_life, 'l> {
     }
 }
 
+#[derive(Clone)]
 pub struct UnAllocatedObjectObject<'gc_life, 'l> {
     pub(crate) object_rc: Arc<RuntimeClass<'gc_life>>,
     pub(crate) fields: HashMap<FieldNumber, NewJavaValue<'gc_life, 'l>>,
 }
 
+#[derive(Clone)]
 pub struct UnAllocatedObjectArray<'gc_life, 'l> {
     pub(crate) whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
     pub(crate) elems: Vec<NewJavaValue<'gc_life, 'l>>,
 }
 
 pub struct AllocatedObject<'gc_life, 'l> {
-    pub(crate) handle: &'l AllocatedObjectHandle<'gc_life>//todo put in same module as gc
+    pub(crate) handle: &'l AllocatedObjectHandle<'gc_life>,//todo put in same module as gc
 }
 
-impl<'gc_life> AllocatedObject<'gc_life, '_> {
+impl<'gc_life,'any> AllocatedObject<'gc_life, 'any> {
     pub fn to_gc_managed(&self) -> GcManagedObject<'gc_life> {
         todo!()
     }
@@ -219,7 +241,7 @@ impl<'gc_life> AllocatedObject<'gc_life, '_> {
 
 impl<'gc_life> Clone for AllocatedObject<'gc_life, '_> {
     fn clone(&self) -> Self {
-        Self{
+        Self {
             handle: self.handle
         }
     }
@@ -237,20 +259,20 @@ impl<'gc_life, 'l> From<AllocatedObject<'gc_life, 'l>> for NewJVObject<'gc_life,
 }
 
 
-
-pub struct AllocatedObjectHandle<'gc_life>{
+pub struct AllocatedObjectHandle<'gc_life> {
     /*pub(in crate::java_values)*/
-    pub(crate) jvm: &'gc_life JVMState<'gc_life>,//todo move gc to same crate
+    pub(crate) jvm: &'gc_life JVMState<'gc_life>,
+    //todo move gc to same crate
     /*pub(in crate::java_values)*/
     pub(crate) ptr: NonNull<c_void>,
 }
 
 impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-    pub fn new_java_value(&self) -> NewJavaValue<'gc_life,'_>{
-        NewJavaValue::AllocObject(AllocatedObject{ handle: self })
+    pub fn new_java_value(&self) -> NewJavaValue<'gc_life, '_> {
+        NewJavaValue::AllocObject(AllocatedObject { handle: self })
     }
 
-    pub fn to_jv(&self) -> JavaValue<'gc_life>{
+    pub fn to_jv(&self) -> JavaValue<'gc_life> {
         todo!()
     }
 }
@@ -262,7 +284,7 @@ impl Debug for AllocatedObjectHandle<'_> {
 }
 
 
-impl Drop for AllocatedObjectHandle<'_>{
+impl Drop for AllocatedObjectHandle<'_> {
     fn drop(&mut self) {
         todo!()
     }

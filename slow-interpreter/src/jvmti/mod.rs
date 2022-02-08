@@ -306,7 +306,7 @@ unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclas
     let int_state = get_interpreter_state(env);
     let res_object = new_local_ref_public(
         match get_or_create_class_object(jvm, type_, int_state) {
-            Ok(res) => res,
+            Ok(res) => res.to_gc_managed(),
             Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL,
         }
             .into(),

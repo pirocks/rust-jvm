@@ -13,6 +13,7 @@ use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
 use crate::runtime_class::RuntimeClass;
+use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
@@ -66,7 +67,7 @@ pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: 
             i += 1;
         }
         args[0..i].reverse();
-        let next_entry = StackEntry::new_java_frame(jvm, target_class, target_method_i as u16, args);
+        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, todo!()/*args*/);
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut function_call_frame) {
             Ok(_) => {

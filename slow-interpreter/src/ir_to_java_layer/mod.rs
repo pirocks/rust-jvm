@@ -145,7 +145,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                 }
                 assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-                let res = run_native_method(jvm, int_state, rc, method_i, args_jv).unwrap();
+                let res = run_native_method(jvm, int_state, rc, method_i, todo!()/*args_jv*/).unwrap();
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
                 };

@@ -325,7 +325,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         match self.operand_stack_length(jvm) {
             Ok(_) => {}
             Err(_) => {
-                return StackEntry::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "as_stack_entry_partially_correct");
+                return todo!()/*StackEntry::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "as_stack_entry_partially_correct")*/;
             }
         }
 
@@ -500,6 +500,75 @@ pub struct NonNativeFrameData {
     pub pc_offset: i32,
 }
 
+#[derive(Clone)]
+pub enum StackEntryPush<'gc_life, 'k> {
+    Java {
+        method_id: MethodId,
+        local_vars: Vec<NewJavaValue<'gc_life, 'k>>,
+        operand_stack: Vec<NewJavaValue<'gc_life, 'k>>,
+    },
+    Native {
+        // a native function call frame
+        method_id: MethodId,
+        native_local_refs: Vec<HashSet<jobject>>,
+        local_vars: Vec<NewJavaValue<'gc_life, 'k>>,
+        operand_stack: Vec<NewJavaValue<'gc_life, 'k>>,
+    },
+    Opaque {
+        opaque_id: OpaqueID,
+        native_local_refs: Vec<HashSet<jobject>>,
+    },
+}
+
+impl<'gc_life, 'k> StackEntryPush<'gc_life, 'k> {
+    pub fn new_native_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life, 'k>>) -> Self {
+        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
+        Self::Native {
+            method_id,
+            native_local_refs: vec![HashSet::new()],
+            local_vars: args,
+            operand_stack: vec![],
+        }
+    }
+
+    pub fn new_java_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life, 'k>>) -> Self {
+        let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
+        assert!(args.len() >= max_locals as usize);
+        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
+        assert!(jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_some());
+        let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
+        let mut guard = jvm.method_table.write().unwrap();
+        let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
+        let class_view = class_pointer.view();
+        let method_view = class_view.method_view_i(method_i);
+        let code = method_view.code_attribute().unwrap();
+        let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
+        Self::Java {
+            method_id,
+            local_vars: args,
+            operand_stack: todo!(),
+        }
+    }
+
+    pub fn new_completely_opaque_frame(jvm: &'gc_life JVMState<'gc_life>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc_life>>, debug_str: &'static str) -> Self {
+        //need a better name here
+        /*Self {
+            loader,
+            opaque_frame_id: Some(0),
+            opaque_frame_optional: None,
+            non_native_data: None,
+            local_vars: vec![],
+            operand_stack,
+            native_local_refs: vec![HashSet::new()],
+        }*/
+        assert!(operand_stack.is_empty());
+        assert_eq!(loader, LoaderName::BootstrapLoader);
+        let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
+        Self::Opaque { opaque_id, native_local_refs: vec![] }
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub enum StackEntry<'gc_life> {
     Java {
@@ -654,7 +723,7 @@ pub enum LocalVarsMut<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life, 'l, 'k> LocalVarsMut<'gc_life, 'l, 'k> {
-    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life,'irrelevant>) {
+    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life, 'irrelevant>) {
         match self {
             /*LocalVarsMut::LegacyInterpreter { .. } => todo!(),*/
             LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to.to_jv()),
@@ -962,51 +1031,6 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
 }
 
 impl<'gc_life> StackEntry<'gc_life> {
-    pub fn new_completely_opaque_frame(jvm: &'gc_life JVMState<'gc_life>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc_life>>, debug_str: &'static str) -> Self {
-        //need a better name here
-        /*Self {
-            loader,
-            opaque_frame_id: Some(0),
-            opaque_frame_optional: None,
-            non_native_data: None,
-            local_vars: vec![],
-            operand_stack,
-            native_local_refs: vec![HashSet::new()],
-        }*/
-        assert!(operand_stack.is_empty());
-        assert_eq!(loader, LoaderName::BootstrapLoader);
-        let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
-        Self::Opaque { opaque_id, native_local_refs: vec![] }
-    }
-
-    pub fn new_java_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
-        let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
-        assert!(args.len() >= max_locals as usize);
-        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
-        assert!(jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_some());
-        let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);
-        let mut guard = jvm.method_table.write().unwrap();
-        let _method_id = guard.get_method_id(class_pointer.clone(), method_i);
-        let class_view = class_pointer.view();
-        let method_view = class_view.method_view_i(method_i);
-        let code = method_view.code_attribute().unwrap();
-        let operand_stack = (0..code.max_stack).map(|_| JavaValue::Top).collect_vec();
-        Self::Java {
-            method_id,
-            local_vars: args,
-            operand_stack,
-        }
-    }
-
-    pub fn new_native_frame(jvm: &'gc_life JVMState<'gc_life>, class_pointer: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<JavaValue<'gc_life>>) -> Self {
-        let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-        Self::Native {
-            method_id,
-            native_local_refs: vec![HashSet::new()],
-            local_vars: args,
-            operand_stack: vec![],
-        }
-    }
 
     pub fn pop(&mut self) -> JavaValue<'gc_life> {
         todo!()
@@ -1137,14 +1161,14 @@ impl<'gc_life> StackEntry<'gc_life> {
     }
 }
 
-impl<'gc_life> AsRef<StackEntry<'gc_life>> for StackEntry<'gc_life> {
-    fn as_ref(&self) -> &StackEntry<'gc_life> {
-        self
-    }
-}
-
-impl<'gc_life> AsMut<StackEntry<'gc_life>> for StackEntry<'gc_life> {
-    fn as_mut(&mut self) -> &mut StackEntry<'gc_life> {
-        self
-    }
-}
+// impl<'gc_life> AsRef<StackEntry<'gc_life>> for StackEntry<'gc_life> {
+//     fn as_ref(&self) -> &StackEntry<'gc_life> {
+//         self
+//     }
+// }
+//
+// impl<'gc_life> AsMut<StackEntry<'gc_life>> for StackEntry<'gc_life> {
+//     fn as_mut(&mut self) -> &mut StackEntry<'gc_life> {
+//         self
+//     }
+// }

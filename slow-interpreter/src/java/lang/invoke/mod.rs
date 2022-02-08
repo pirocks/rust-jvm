@@ -49,24 +49,23 @@ pub mod method_type {
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
-        pub fn set_rtype(&self, rtype: JClass<'gc_life>) {
+        pub fn set_rtype(&self, rtype: JClass<'gc_life,'k>) {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_rtype(), rtype.java_value());
         }
 
-        //noinspection DuplicatedCode
-        pub fn get_rtype_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+        pub fn get_rtype_or_null<'k>(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life,'k>> {
             let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_rtype());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
-                    maybe_null.cast_class().into()
+                    maybe_null.to_new().cast_class().into()
                 } else {
                     None
                 }
             } else {
-                maybe_null.cast_class().into()
+                maybe_null.to_new().cast_class().into()
             }
         }
-        pub fn get_rtype(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
+        pub fn get_rtype<'k>(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life,'k> {
             self.get_rtype_or_null(jvm).unwrap()
         }
 
@@ -95,7 +94,7 @@ pub mod method_type {
         }
 
         pub fn get_ptypes_as_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<CPDType> {
-            self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter().map(|x| JavaValue::Object(x.clone()).cast_class().unwrap().as_type(jvm)).collect()
+            self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter().map(|x| JavaValue::Object(x.clone()).to_new().cast_class().unwrap().as_type(jvm)).collect()
         }
 
         pub fn set_form(&self, jvm: &'gc_life JVMState<'gc_life>, form: MethodTypeForm<'gc_life>) {
@@ -118,15 +117,15 @@ pub mod method_type {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_methodDescriptor(), method_descriptor);
         }
 
-        pub fn parameter_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, int: jint) -> Result<JClass<'gc_life>, WasException> {
+        pub fn parameter_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, int: jint) -> Result<JClass<'gc_life,'_>, WasException> {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(JavaValue::Int(int));
             run_static_or_virtual(jvm, int_state, &method_type, MethodName::method_parameterType(), &CMethodDescriptor { arg_types: vec![CPDType::IntType], return_type: CClassName::class().into() }, todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).cast_class().unwrap())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap())
         }
 
-        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, rtype: JClass<'gc_life>, ptypes: Vec<JClass<'gc_life>>, form: MethodTypeForm<'gc_life>, wrap_alt: JavaValue<'gc_life>, invokers: JavaValue<'gc_life>, method_descriptor: JavaValue<'gc_life>) -> MethodType<'gc_life> {
+        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, rtype: JClass<'gc_life, 'k>, ptypes: Vec<JClass<'gc_life,'g>>, form: MethodTypeForm<'gc_life>, wrap_alt: JavaValue<'gc_life>, invokers: JavaValue<'gc_life>, method_descriptor: JavaValue<'gc_life>) -> MethodType<'gc_life> {
             let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             let res_handle: AllocatedObjectHandle<'gc_life> = new_object(jvm, int_state, &method_type);
             let res = res_handle.new_java_value().to_jv().cast_method_type();
@@ -347,7 +346,7 @@ pub mod method_handles {
             }
 
             //noinspection DuplicatedCode
-            pub fn find_virtual(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
+            pub fn find_virtual(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life,'_>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
@@ -362,7 +361,7 @@ pub mod method_handles {
             }
 
             //noinspection DuplicatedCode
-            pub fn find_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
+            pub fn find_static(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life,'_>, name: JString<'gc_life>, mt: MethodType<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
@@ -376,7 +375,7 @@ pub mod method_handles {
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
             }
 
-            pub fn find_special(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life>, name: JString<'gc_life>, mt: MethodType<'gc_life>, special_caller: JClass<'gc_life>) -> Result<MethodHandle<'gc_life>, WasException> {
+            pub fn find_special(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JClass<'gc_life,'_>, name: JString<'gc_life>, mt: MethodType<'gc_life>, special_caller: JClass<'gc_life,'_>) -> Result<MethodHandle<'gc_life>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
                 int_state.push_current_operand_stack(obj.java_value());
@@ -592,19 +591,19 @@ pub mod lambda_form {
             }
 
             //noinspection DuplicatedCode
-            pub fn get_bt_class_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
+            pub fn get_bt_class_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life,'_>> {
                 let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btClass());
                 if maybe_null.try_unwrap_object().is_some() {
                     if maybe_null.unwrap_object().is_some() {
-                        maybe_null.cast_class().into()
+                        maybe_null.to_new().cast_class().into()
                     } else {
                         None
                     }
                 } else {
-                    maybe_null.cast_class().into()
+                    maybe_null.to_new().cast_class().into()
                 }
             }
-            pub fn get_bt_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
+            pub fn get_bt_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life,'_> {
                 self.get_bt_class_or_null(jvm).unwrap()
             }
             pub fn get_name_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JString<'gc_life>> {

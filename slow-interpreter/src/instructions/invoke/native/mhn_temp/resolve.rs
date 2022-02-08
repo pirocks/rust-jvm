@@ -119,7 +119,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 
             let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false));
 
-            let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type(jvm).cast_class())?;
+            let typejclass = unwrap_or_npe(jvm, int_state, member_name.get_type(jvm).to_new().cast_class())?;
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields
                 .iter()

@@ -61,7 +61,7 @@ pub mod init;
 ///
 pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, mut args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
     //class member is defined on
-    let defc = unwrap_or_npe(jvm, int_state, args[0].cast_class())?;
+    let defc = unwrap_or_npe(jvm, int_state, args[0].to_new().cast_class())?;
     //name to lookup on
     let match_name = args[1].cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //signature to lookup on
@@ -69,7 +69,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm: &'gc_life JVMSt
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks
-    let _caller = args[4].cast_class(); //todo access check
+    let _caller = args[4].to_new().cast_class(); //todo access check
     //seems to be where to start putting in array
     let skip = args[5].unwrap_int();
     //results arr

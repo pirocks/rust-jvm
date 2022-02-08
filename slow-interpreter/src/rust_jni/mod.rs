@@ -20,7 +20,7 @@ use jvmti_jni_bindings::{jchar, jobject, jshort};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
@@ -43,7 +43,7 @@ impl<'gc_life> NativeLibraries<'gc_life> {
     }
 }
 
-pub fn call<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
+pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<NewJavaValue<'gc_life,'k>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -63,7 +63,7 @@ pub fn call<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
     Ok(if method_view.is_static() { Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?) } else { Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?) })
 }
 
-pub fn call_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<JavaValue<'gc_life>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<NewJavaValue<'gc_life,'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
     assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
     assert!(int_state.current_frame().is_native_method());
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
@@ -112,7 +112,7 @@ pub fn call_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_
         for (i, (j, t)) in args_and_type.iter().enumerate() {
             let offset = if suppress_runtime_class { 1 } else { 2 };
             let to_free = &mut c_args[i + offset];
-            free_native((*j).clone(), t, to_free)
+            free_native(todo!()/*(*j).clone()*/, t, to_free)
         }
     }
     if int_state.throw().is_some() {

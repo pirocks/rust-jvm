@@ -26,13 +26,13 @@ use threads::signal::__pthread_cond_s__bindgen_ty_2;
 use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
 use crate::ir_to_java_layer::dump_frame_contents_impl;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{GcManagedObject, JavaValue};
+use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObject, NewJVObject};
 use crate::rust_jni::native_util::{from_object, to_object};
-use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryRef, StackIter};
+use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryPush, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
 
 pub struct InterpreterState<'gc_life> {
@@ -326,7 +326,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }*/
     }
 
-    pub fn push_frame(&mut self, frame: StackEntry<'gc_life>) -> FramePushGuard {
+    pub fn push_frame(&mut self, frame: StackEntryPush<'gc_life,'k>) -> FramePushGuard {
         let frame_push_guard = match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
@@ -336,7 +336,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
                 let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
                 let ir_frame_push_guard = match frame {
-                    StackEntry::Java { operand_stack, local_vars, method_id } => {
+                    StackEntryPush::Java { operand_stack, local_vars, method_id } => {
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
                         for local_var in local_vars {
@@ -348,22 +348,22 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                         int_state.push_frame(top_level_exit_ptr, Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
-                    StackEntry::Native { method_id, native_local_refs, local_vars, operand_stack } => {
+                    StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
                         let native_frame_info = NativeFrameInfo {
                             method_id,
                             loader,
                             native_local_refs,
-                            local_vars,
-                            operand_stack,
+                            local_vars: todo!(),
+                            operand_stack: todo!(),
                         };
                         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
                         int_state.push_frame(top_level_exit_ptr, None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
-                    StackEntry::Opaque { opaque_id, native_local_refs } => {
+                    StackEntryPush::Opaque { opaque_id, native_local_refs } => {
                         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
                         let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
                         let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
@@ -611,8 +611,8 @@ pub struct NativeFrameInfo<'gc_life> {
     pub method_id: usize,
     pub loader: LoaderName,
     pub native_local_refs: Vec<HashSet<jobject>>,
-    pub local_vars: Vec<JavaValue<'gc_life>>,
-    pub operand_stack: Vec<JavaValue<'gc_life>>,
+    pub local_vars: Vec<NativeJavaValue<'gc_life>>,
+    pub operand_stack: Vec<NativeJavaValue<'gc_life>>,
 }
 
 // fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
