@@ -18,8 +18,8 @@ use iced_x86::OpCodeOperandKind::al;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 use num_traits::one;
-use add_only_static_vec::AddOnlyVec;
 
+use add_only_static_vec::AddOnlyVec;
 use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
@@ -35,7 +35,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
-use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
+use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
 
@@ -46,7 +46,7 @@ pub struct GC<'gc_life> {
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     //todo deprecated/ not in use
     phantom: PhantomData<&'gc_life ()>,
-    pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedObjectHandle<'gc_life>>
+    pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedObjectHandle<'gc_life>>,
 }
 
 impl<'gc_life> GC<'gc_life> {
@@ -70,11 +70,11 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    pub fn handle_lives_for_gc_life(&'gc_life self, handle: AllocatedObjectHandle<'gc_life>) -> AllocatedObject<'gc_life,'gc_life>{
+    pub fn handle_lives_for_gc_life(&'gc_life self, handle: AllocatedObjectHandle<'gc_life>) -> AllocatedObject<'gc_life, 'gc_life> {
         let index = self.objects_that_live_for_gc_life.len();
         self.objects_that_live_for_gc_life.push(handle);
         let handle_ref: &'gc_life AllocatedObjectHandle<'gc_life> = &self.objects_that_live_for_gc_life[index];
-        AllocatedObject{
+        AllocatedObject {
             handle: handle_ref
         }
     }
@@ -271,7 +271,7 @@ impl<'gc_life> GC<'gc_life> {
             vm_temp_owned_roots: RwLock::new(Default::default()),
             all_allocated_object: Default::default(),
             phantom: PhantomData::default(),
-            objects_that_live_for_gc_life: AddOnlyVec::new()
+            objects_that_live_for_gc_life: AddOnlyVec::new(),
         }
     }
 }
@@ -303,7 +303,7 @@ pub struct GcManagedObject<'gc_life> {
 
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc_life JVMState<'gc_life>) -> Self {
-        let handle  = jvm.gc.register_root_reentrant(jvm, raw_ptr);
+        let handle = jvm.gc.register_root_reentrant(jvm, raw_ptr);
         dbg!(&handle);
         todo!();
         let guard = jvm.gc.memory_region.lock().unwrap();
@@ -750,14 +750,14 @@ impl<'gc_life> JavaValue<'gc_life> {
         assert!(!runtime_class.view().is_abstract());
 
         let class_class = runtime_class.unwrap_class_class();
-        let mut fields = (0..class_class.recursive_num_fields).map(|_| NativeJavaValue { object: null_mut() }).collect_vec();
 
-        todo!()
-        /*jvm.allocate_object(todo!()/*Object::Object(NormalObject {
-            objinfo: ObjectFieldsAndClass { fields: RwLock::new(&mut fields), class_pointer: runtime_class },
-            obj_ptr: None,
-        })*/)
-            .into()*/
+        let mut fields = class_class.field_numbers_reverse.iter().map(|(i, (_, cpd_type))| (*i, default_value_njv(cpd_type))).collect::<HashMap<_, _>>();
+
+        jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
+            object_rc: runtime_class,
+            fields,
+        }))
+            .into()
     }
 
     pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
@@ -1231,8 +1231,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                                                }.unwrap() = jv.to_native();*/
+                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                        }.unwrap() = jv.to_native();*/
         todo!()
     }
 
@@ -1377,7 +1377,7 @@ impl<'gc_life> Debug for NormalObject<'gc_life, '_> {
     }
 }
 
-pub fn default_value(type_: CPDType) -> NewJavaValueHandle<'gc_life> {
+pub fn default_value(type_: &CPDType) -> NewJavaValueHandle<'gc_life> {
     match type_ {
         CPDType::ByteType => NewJavaValueHandle::Byte(0),
         CPDType::CharType => NewJavaValueHandle::Char('\u{000000}' as u16),
@@ -1388,6 +1388,21 @@ pub fn default_value(type_: CPDType) -> NewJavaValueHandle<'gc_life> {
         CPDType::Ref(_) => NewJavaValueHandle::Null,
         CPDType::ShortType => NewJavaValueHandle::Short(0),
         CPDType::BooleanType => NewJavaValueHandle::Boolean(0),
+        CPDType::VoidType => panic!(),
+    }
+}
+
+pub fn default_value_njv(type_: &CPDType) -> NewJavaValue<'gc_life, 'any> {
+    match type_ {
+        CPDType::ByteType => NewJavaValue::Byte(0),
+        CPDType::CharType => NewJavaValue::Char('\u{000000}' as u16),
+        CPDType::DoubleType => NewJavaValue::Double(0.0),
+        CPDType::FloatType => NewJavaValue::Float(0.0),
+        CPDType::IntType => NewJavaValue::Int(0),
+        CPDType::LongType => NewJavaValue::Long(0),
+        CPDType::Ref(_) => NewJavaValue::Null,
+        CPDType::ShortType => NewJavaValue::Short(0),
+        CPDType::BooleanType => NewJavaValue::Boolean(0),
         CPDType::VoidType => panic!(),
     }
 }

@@ -336,7 +336,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let mut fields_map_owned = (0..recursive_num_fields).map(|i| {
             let field_number = FieldNumber(i);
             let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
-            let default_jv = default_value(cpd_type.clone());
+            let default_jv = default_value(&cpd_type);
             (field_number, default_jv)
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();

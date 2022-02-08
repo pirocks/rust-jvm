@@ -7,9 +7,11 @@ use std::sync::Arc;
 use libc::c_void;
 
 use jvmti_jni_bindings::{jbyte, jchar, jdouble, jfloat, jint, jlong};
+use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::{JavaValue, JVMState};
 use crate::java_values::{GcManagedObject, NativeJavaValue};
+use crate::jvm_state::Native;
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 
 pub enum NewJavaValueHandle<'gc_life> {
@@ -111,7 +113,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::Null => None,
             NewJavaValue::AllocObject(alloc) => {
                 Some(alloc.clone())
-            },
+            }
             _ => panic!(),
         }
     }
@@ -203,9 +205,9 @@ pub enum NewJVObject<'gc_life, 'l> {
     AllocObject(AllocatedObject<'gc_life, 'l>),
 }
 
-impl <'gc_life,'l> NewJVObject<'gc_life,'l> {
-    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc_life,'l>{
-        match self{
+impl<'gc_life, 'l> NewJVObject<'gc_life, 'l> {
+    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc_life, 'l> {
+        match self {
             NewJVObject::UnAllocObject(_) => panic!(),
             NewJVObject::AllocObject(alloc_obj) => {
                 alloc_obj.clone()
@@ -213,7 +215,7 @@ impl <'gc_life,'l> NewJVObject<'gc_life,'l> {
         }
     }
 
-    pub fn to_jv(&self) -> JavaValue<'gc_life>{
+    pub fn to_jv(&self) -> JavaValue<'gc_life> {
         todo!()
     }
 }
@@ -246,13 +248,20 @@ pub struct AllocatedObject<'gc_life, 'l> {
     pub(crate) handle: &'l AllocatedObjectHandle<'gc_life>,//todo put in same module as gc
 }
 
-impl<'gc_life,'any> AllocatedObject<'gc_life, 'any> {
+impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
     pub fn to_gc_managed(&self) -> GcManagedObject<'gc_life> {
         todo!()
     }
 
     pub fn raw_ptr_usize(&self) -> usize {
         self.handle.ptr.as_ptr() as usize
+    }
+
+    pub fn set_var(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName, val: NewJavaValueHandle<'gc_life>) {
+        let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
+        unsafe {
+            self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).write(val.as_njv().to_native());
+        }
     }
 }
 
@@ -289,8 +298,8 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         NewJavaValue::AllocObject(self.as_allocated_obj())
     }
 
-    pub fn as_allocated_obj(&self) -> AllocatedObject<'gc_life,'_>{
-        AllocatedObject{ handle:self }
+    pub fn as_allocated_obj(&self) -> AllocatedObject<'gc_life, '_> {
+        AllocatedObject { handle: self }
     }
 
     pub fn to_jv(&self) -> JavaValue<'gc_life> {

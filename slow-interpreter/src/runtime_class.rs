@@ -205,7 +205,7 @@ pub fn prepare_class<'vm_life, 'l, 'k>(jvm: &'vm_life JVMState<'vm_life>, int_st
 
     for field in classfile.fields() {
         if field.is_static() {
-            let val = default_value(field.field_type());
+            let val = default_value(&field.field_type());
             res.set(field.field_name(), val);
         }
     }

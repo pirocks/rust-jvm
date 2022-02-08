@@ -62,7 +62,7 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
     let int_state = get_interpreter_state(env);
     let mut the_vec = vec![];
     for _ in 0..len {
-        the_vec.push(default_value(elem_type.clone()))
+        the_vec.push(default_value(&elem_type))
     }
     new_local_ref_public(
         Some(todo!()/*jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, the_vec, elem_type, jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())) {
