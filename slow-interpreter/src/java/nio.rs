@@ -29,7 +29,7 @@ pub mod heap_byte_buffer {
             let elems = buf.into_iter().map(|byte| JavaValue::Byte(byte)).collect();
             let array_object = ArrayObject::new_array(jvm, int_state, elems, CPDType::ByteType, jvm.thread_state.new_monitor("heap bytebuffer array monitor".to_string()))?;
             let array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(array_object)*/)*/).to_jv();
-            run_constructor(jvm, int_state, heap_byte_buffer_class, vec![object.clone(), array, JavaValue::Int(off), JavaValue::Int(len)], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
+            run_constructor(jvm, int_state, heap_byte_buffer_class, todo!()/*vec![object.clone(), array, JavaValue::Int(off), JavaValue::Int(len)]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
             Ok(object.cast_heap_byte_buffer())
         }
 

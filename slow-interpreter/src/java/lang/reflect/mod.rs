@@ -183,7 +183,7 @@ pub mod method {
                 CPDType::array(CPDType::ByteType),
                 CPDType::array(CPDType::ByteType),
             ]);
-            run_constructor(jvm, int_state, method_class, full_args, &c_method_descriptor)?;
+            run_constructor(jvm, int_state, method_class, todo!()/*full_args*/, &c_method_descriptor)?;
             Ok(method_object.cast_method())
         }
 
@@ -295,7 +295,7 @@ pub mod constructor {
             let empty_byte_array = JavaValue::empty_byte_array(jvm, int_state)?;
             let full_args = vec![constructor_object.clone(), clazz.java_value(), parameter_types, exception_types, JavaValue::Int(modifiers), JavaValue::Int(slot), signature.java_value(), empty_byte_array.to_jv().clone(), empty_byte_array.to_jv()];
             let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
-            run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
+            run_constructor(jvm, int_state, constructor_class, todo!()/*full_args*/, &c_method_descriptor)?;
             Ok(constructor_object.cast_constructor())
         }
 
@@ -390,7 +390,7 @@ pub mod field {
                 jvm,
                 int_state,
                 field_classfile,
-                vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations],
+                todo!()/*vec![field_object.clone(), clazz.java_value(), name.java_value(), type_.java_value(), modifiers, slot, signature.java_value(), annotations]*/,
                 &CMethodDescriptor::void_return(vec![CClassName::class().into(), CClassName::string().into(), CClassName::class().into(), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType)]),
             )?;
             Ok(field_object.cast_field())

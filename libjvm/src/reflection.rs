@@ -187,6 +187,6 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let mut full_args = vec![obj.to_jv().clone()];
     full_args.extend(args.iter().cloned());
     // dbg!(&full_args);
-    run_constructor(jvm, int_state, clazz, full_args, &signature);
+    run_constructor(jvm, int_state, clazz, todo!()/*full_args*/, &signature);
     new_local_ref_public(todo!()/*obj.unwrap_object()*/, int_state)
 }

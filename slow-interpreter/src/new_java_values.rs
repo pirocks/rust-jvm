@@ -319,3 +319,22 @@ impl Drop for AllocatedObjectHandle<'_> {
         self.jvm.gc.deregister_root_reentrant(self.ptr)
     }
 }
+
+
+pub enum AllocatedObjectCOW<'gc_life, 'k> {
+    Handle(AllocatedObjectHandle<'gc_life>),
+    Ref(AllocatedObject<'gc_life, 'k>),
+}
+
+impl <'gc_life, 'k> AllocatedObjectCOW<'gc_life, 'k> {
+    pub fn as_allocated_object(&'k self) -> AllocatedObject<'gc_life,'k>{
+        match self {
+            AllocatedObjectCOW::Handle(handle) => {
+                handle.as_allocated_obj()
+            }
+            AllocatedObjectCOW::Ref(allocated_object) => {
+                allocated_object.clone()
+            }
+        }
+    }
+}

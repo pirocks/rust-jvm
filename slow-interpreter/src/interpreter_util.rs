@@ -47,7 +47,7 @@ fn default_init_fields<'gc_life, 'k>(jvm: &'gc_life JVMState<'gc_life>, current_
     }
 }
 
-pub fn run_constructor<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, target_classfile: Arc<RuntimeClass<'gc_life>>, full_args: Vec<JavaValue<'gc_life>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_constructor<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, target_classfile: Arc<RuntimeClass<'gc_life>>, full_args: Vec<NewJavaValue<'gc_life,'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
