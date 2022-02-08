@@ -417,7 +417,7 @@ pub mod string {
                 // monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
             };
             //todo what about check_inited_class for this array type
-            let array = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(array_object)*/));
+            let array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(array_object)*/)*/);
             run_constructor(jvm, int_state, string_class, vec![string_object.clone(), array.to_jv().clone()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(string_object.cast_string().expect("error creating string"))
         }
@@ -550,7 +550,7 @@ pub mod thread {
         pub fn invalid_thread(jvm: &'gc_life JVMState<'gc_life>) -> JThread<'gc_life> {
             const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
             JThread {
-                normal_object: NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Object(NormalObject {
+                normal_object: NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Object(NormalObject {
                     /*monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
 
                     objinfo: ObjectFieldsAndClass {
@@ -559,7 +559,7 @@ pub mod thread {
                     },*/
                     objinfo: todo!(),
                     obj_ptr: todo!(),
-                })*/)).to_jv().unwrap_object_nonnull(),
+                })*/)*/).to_jv().unwrap_object_nonnull(),
             }
         }
 

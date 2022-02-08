@@ -88,7 +88,7 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     for ptype in types_iter {
         exception_table.push(JClass::from_type(jvm, int_state, ptype)?.java_value())
     }
-    Ok(NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, exception_table, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)).to_jv())
+    Ok(NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, exception_table, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)*/).to_jv())
 }
 
 fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView) -> Result<JavaValue<'gc_life>, WasException> {
@@ -99,7 +99,7 @@ fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         res.push(JClass::from_type(jvm, int_state, param_type.clone())?.java_value());
     }
 
-    Ok(NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, res, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)).to_jv())
+    Ok(NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, res, class_type, jvm.thread_state.new_monitor("".to_string()))?)*/)*/).to_jv())
 }
 
 pub mod method {
@@ -384,7 +384,7 @@ pub mod field {
             let slot = JavaValue::Int(slot);
 
             //todo impl annotations.
-            let annotations = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, annotations, CPDType::ByteType, jvm.thread_state.new_monitor("monitor for annotations array".to_string()))?)*/)).to_jv();
+            let annotations = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, annotations, CPDType::ByteType, jvm.thread_state.new_monitor("monitor for annotations array".to_string()))?)*/)*/).to_jv();
 
             run_constructor(
                 jvm,

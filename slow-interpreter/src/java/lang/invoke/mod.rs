@@ -15,6 +15,7 @@ pub mod method_type {
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java::lang::string::JString;
     use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
+    use crate::new_java_values::AllocatedObjectHandle;
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -73,7 +74,7 @@ pub mod method_type {
             self.get_rtype(jvm).as_type(jvm)
         }
 
-        pub fn set_ptypes(&self, ptypes: NewJavaValue<'gc_life>) {
+        pub fn set_ptypes(&self, ptypes: NewJavaValue<'gc_life,'irrelevant>) {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_ptypes(), ptypes.to_jv());
         }
 
@@ -126,9 +127,10 @@ pub mod method_type {
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, rtype: JClass<'gc_life>, ptypes: Vec<JClass<'gc_life>>, form: MethodTypeForm<'gc_life>, wrap_alt: JavaValue<'gc_life>, invokers: JavaValue<'gc_life>, method_descriptor: JavaValue<'gc_life>) -> MethodType<'gc_life> {
-            let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            let res = new_object(jvm, int_state, &method_type).to_jv().cast_method_type();
-            let ptypes_arr = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
+            let method_type: Arc<RuntimeClass<'gc_life>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
+            let res_handle: AllocatedObjectHandle<'gc_life> = new_object(jvm, int_state, &method_type);
+            let res = res_handle.new_java_value().to_jv().cast_method_type();
+            let ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                 // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
                 whole_array_runtime_class: todo!(),
                 loader: todo!(),
@@ -137,7 +139,8 @@ pub mod method_type {
                 phantom_data: Default::default(),
                 elem_type: CClassName::class().into(),
                 // monitor: jvm.thread_state.new_monitor("".to_string()),
-            })*/));
+            })*/);
+            let ptypes_arr = ptypes_arr_handle.new_java_value();
             res.set_ptypes(ptypes_arr);
             res.set_rtype(rtype);
             res.set_form(jvm, form);
@@ -161,6 +164,8 @@ pub mod method_type_form {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::AllocatedObjectHandle;
+    use crate::NewJavaValue;
 
     #[derive(Clone)]
     pub struct MethodTypeForm<'gc_life> {
@@ -208,7 +213,8 @@ pub mod method_type_form {
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, arg_to_slot_table: JavaValue<'gc_life>, slot_to_arg_table: JavaValue<'gc_life>, arg_counts: jlong, prim_counts: jlong, erased_type: Option<MethodType<'gc_life>>, basic_type: Option<MethodType<'gc_life>>, method_handles: JavaValue<'gc_life>, lambda_forms: JavaValue<'gc_life>) -> MethodTypeForm<'gc_life> {
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res = new_object(jvm, int_state, &method_type_form).to_jv().cast_method_type_form();
+            let res_handle: AllocatedObjectHandle<'gc_life> = new_object(jvm, int_state, &method_type_form);
+            let res = res_handle.new_java_value().to_jv().cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
             res.set_slot_to_arg_table(slot_to_arg_table);
             res.set_arg_counts(arg_counts);
@@ -336,8 +342,8 @@ pub mod method_handles {
         impl<'gc_life> Lookup<'gc_life> {
             pub fn trusted_lookup(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Self {
                 let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
-                let static_vars = lookup.static_vars();
-                static_vars.get(&FieldName::field_IMPL_LOOKUP()).unwrap().cast_lookup()
+                let static_vars = lookup.static_vars(jvm);
+                static_vars.get(FieldName::field_IMPL_LOOKUP()).to_jv().cast_lookup()
             }
 
             //noinspection DuplicatedCode

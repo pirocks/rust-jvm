@@ -137,8 +137,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = rc.static_vars();
-            static_vars.get(&field_name).unwrap().unwrap_int()
+            let static_vars = rc.static_vars(jvm);
+            static_vars.get(field_name).to_jv().unwrap_int()
         }
     }
 }
@@ -193,8 +193,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = rc.static_vars();
-            static_vars.get(&field_name).unwrap().unwrap_long()
+            let static_vars = rc.static_vars(jvm);
+            static_vars.get(field_name).to_jv().unwrap_long()
         }
     }
 }
@@ -215,8 +215,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let res = runtime_class.static_vars().get(&name).unwrap().clone();
-            to_object(res.unwrap_object())
+            let res = runtime_class.static_vars(jvm).get(name);
+            to_object(todo!()/*res.unwrap_object()*/)
         }
         Some(object_to_read) => match object_to_read.deref() {
             Object::Array(arr) => {
@@ -240,9 +240,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let mut static_vars_guard = runtime_class.static_vars();
-            let res = static_vars_guard.get_mut(&name).unwrap();
-            *res = JavaValue::Object(from_object(jvm, to_put)); //todo dup with get function
+            let mut static_vars_guard = runtime_class.static_vars(jvm);
+            let mut res = static_vars_guard.get(name);
+            res = todo!()/*JavaValue::Object(from_object(jvm, to_put))*/; //todo dup with get function
+            static_vars_guard.set(name,res)
         }
         Some(object_to_read) => match object_to_read.deref() {
             Object::Array(arr) => {

@@ -25,7 +25,7 @@ use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
 
-pub fn main_() {
+pub fn main_<'l>() {
     let mut verbose = false;
     let mut debug = false;
     let mut main_class_name = "".to_string();
@@ -63,9 +63,10 @@ pub fn main_() {
     let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
-    let gc = GC::new(get_regions());
-    crossbeam::scope(|scope| {
-        within_thread_scope(scope, jvm_options, &gc);
+    let gc: GC<'l> = GC::new(get_regions());
+    crossbeam::scope(|scope: Scope<'l>| {
+        let gc_ref: &'l GC = unsafe { transmute(&gc) };//todo why do I need this?
+        within_thread_scope(scope, jvm_options, gc_ref);
     })
         .expect("idk why this would happen")
 }

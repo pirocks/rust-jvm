@@ -1179,6 +1179,7 @@ dependencies = [
 name = "slow-interpreter"
 version = "0.1.0"
 dependencies = [
+ "add-only-static-vec",
  "another-jit-vm",
  "another-jit-vm-ir",
  "bimap",

@@ -24,7 +24,7 @@ impl<T> AddOnlyVec<T> {
         self.inner.write().unwrap().push(box elem);
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.inner.read().unwrap().len()
     }
 

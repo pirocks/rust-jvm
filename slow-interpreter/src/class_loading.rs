@@ -28,7 +28,7 @@ use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
-use crate::new_java_values::AllocatedObject;
+use crate::new_java_values::{AllocatedObject, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::NewJavaValue;
 use crate::runtime_class::{FieldNumber, initialize_class, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -79,7 +79,7 @@ pub fn check_initing_or_inited_class(jvm: &'gc_life JVMState<'gc_life>, int_stat
     }
     match class.status() {
         ClassStatus::UNPREPARED => {
-            prepare_class(jvm, int_state, class.view(), &mut *class.static_vars());
+            prepare_class(jvm, int_state, class.view(), &mut class.static_vars(jvm));
             class.set_status(ClassStatus::PREPARED);
             check_initing_or_inited_class(jvm, int_state, ptype)
         }
@@ -218,10 +218,10 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     Ok(x) => x,
                     Err(_) => {
                         let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
-                        let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
+                        let class_name_string = todo!()/*JString::from_rust(jvm, int_state, class_name_wtf8)?*/;
 
-                        let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
-                        int_state.set_throw(Some(exception.into()));
+                        let exception = todo!()/*ClassNotFoundException::new(jvm, int_state, class_name_string)?.object()*/;
+                        int_state.set_throw(Some(todo!()/*exception.into()*/));
                         return Err(WasException);
                     }
                 };
@@ -256,8 +256,9 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
+                let static_var_types = get_static_var_types(class_view.deref());
                 let res = Arc::new(RuntimeClass::Object(
-                    RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into()))
+                    RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
                 );
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
@@ -290,21 +291,22 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
     (start_field_number + field_numbers.len(), field_numbers)
 }
 
-pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life>, WasException> {
+pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, CPDType> {
+    class_view.fields().filter(|field|field.is_static()).map(|field|(field.field_name(),field.field_type())).collect()
+}
+
+//signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
+pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life,'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().to_gc_managed().into()),
         LoaderName::BootstrapLoader => JavaValue::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
-        let mut fields = JVMState::get_class_field_numbers().into_values().map(|(_, type_)| default_value(type_)).collect_vec();
-        return Ok(jvm.allocate_object(todo!()/*Object::Object(NormalObject {
-            // monitor: jvm.thread_state.new_monitor("object class object monitor".to_string()),
-            objinfo: ObjectFieldsAndClass {
-                fields: RwLock::new(fields.as_mut_slice()),
-                class_pointer: jvm.classes.read().unwrap().class_class.clone(),
-            },
-            obj_ptr: None,
-        })*/));
+        let fields_handles = JVMState::get_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(type_))).collect::<Vec<_>>();
+        let fields = fields_handles.iter().map(|(field_number, handle)|(*field_number, handle.as_njv())).collect();
+        let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: jvm.classes.read().unwrap().class_class.clone(), fields }));
+        let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle);
+        return Ok(allocated_object);
     }
     let class_object = match loader {
         LoaderName::UserDefinedLoader(_idx) => JClass::new(jvm, int_state, loader_object.cast_class_loader()),

@@ -229,7 +229,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
 
 fn throw_linkage_error(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
-    let object = new_object(jvm, int_state, &linkage_error).unwrap_object();
-    int_state.set_throw(object);
+    let object = todo!()/*new_object(jvm, int_state, &linkage_error).unwrap_object()*/;
+    int_state.set_throw(todo!()/*object*/);
     return Err(WasException);
 }

@@ -13,7 +13,7 @@ pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
     let field_value = stack.pop(Some(field_descriptor.0.to_runtime_type().unwrap())).unwrap();
-    target_classfile.static_vars().insert(field_name, field_value);
+    target_classfile.static_vars(jvm).set(field_name, todo!()/*field_value.to_new()*/);
 }
 
 pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
@@ -64,8 +64,8 @@ fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
             return Ok(interface_lookup_res);
         }
     }
-    let temp = target_classfile.static_vars();
-    let attempted_get = temp.get(&field_name);
+    let temp = target_classfile.static_vars(jvm);
+    let attempted_get = temp.try_get(field_name);
     let field_value = match attempted_get {
         None => {
             let possible_super = target_classfile.view().super_name();
@@ -76,7 +76,7 @@ fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpr
                 }
             }
         }
-        Some(val) => val.clone().into(),
+        Some(val) => val.to_jv().into(),
     };
     Ok(field_value)
 }

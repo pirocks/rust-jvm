@@ -654,7 +654,7 @@ pub enum LocalVarsMut<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life, 'l, 'k> LocalVarsMut<'gc_life, 'l, 'k> {
-    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life>) {
+    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life,'irrelevant>) {
         match self {
             /*LocalVarsMut::LegacyInterpreter { .. } => todo!(),*/
             LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to.to_jv()),

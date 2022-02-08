@@ -672,7 +672,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new(class_view.clone(),field_numbers,recursive_num_fields,Default::default(),super_class,interfaces,RwLock::new(ClassStatus::UNPREPARED))
+        RuntimeClassClass::new(class_view.clone(),field_numbers,recursive_num_fields,Default::default(),super_class,interfaces,RwLock::new(ClassStatus::UNPREPARED), todo!())
     ));
     let mut class_view_cache = HashMap::new();
     class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);
@@ -688,8 +688,8 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     match verify(&mut vf, class_name, LoaderName::BootstrapLoader /*todo*/) {
         Ok(_) => {}
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
-            let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?;
-            let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().into();
+            let class = todo!()/*JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?*/;
+            let to_throw = todo!()/*ClassNotFoundException::new(jvm, int_state, class)?.object().into()*/;
             int_state.set_throw(Some(to_throw));
             return Err(WasException {});
         }
@@ -706,7 +706,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     classes.class_object_pool.insert(ByAddressAllocatedObject(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
     jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
-    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut *runtime_class.static_vars());
+    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut runtime_class.static_vars(jvm));
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;

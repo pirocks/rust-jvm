@@ -3,7 +3,7 @@ macro_rules! as_object_or_java_value {
         // use crate::java_values::{Object, JavaValue, NormalObject};
         //
         //
-        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life> {
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life,'todo> {
             /*self.normal_object*/
             todo!()
         }

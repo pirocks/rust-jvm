@@ -166,8 +166,8 @@ unsafe fn get_static_field<'gc_life>(env: *mut JNIEnv, klass: jclass, field_id_r
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
     check_initing_or_inited_class(jvm, int_state, rc.cpdtype())?;
-    let guard = rc.static_vars();
-    Ok(guard.borrow().get(&name).unwrap().clone())
+    let guard = rc.static_vars(jvm);
+    Ok(guard.borrow().get(name).to_jv())
 }
 
 pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jobject {

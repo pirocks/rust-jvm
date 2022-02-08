@@ -18,6 +18,7 @@ use iced_x86::OpCodeOperandKind::al;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 use num_traits::one;
+use add_only_static_vec::AddOnlyVec;
 
 use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
@@ -33,7 +34,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, NewJavaValue, UnAllocatedObject};
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
@@ -45,13 +46,19 @@ pub struct GC<'gc_life> {
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     //todo deprecated/ not in use
     phantom: PhantomData<&'gc_life ()>,
+    pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedObjectHandle<'gc_life>>
 }
 
 impl<'gc_life> GC<'gc_life> {
-    pub fn register_root_reentrant(&'gc_life self, ptr: NonNull<c_void>) {
+    #[must_use]
+    pub fn register_root_reentrant(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, ptr: NonNull<c_void>) -> AllocatedObjectHandle<'gc_life> {
         let mut guard = self.vm_temp_owned_roots.write().unwrap();
         let count = guard.entry(ptr).or_insert(AtomicUsize::new(0));
         count.fetch_add(1, Ordering::SeqCst);
+        AllocatedObjectHandle {
+            jvm,
+            ptr,
+        }
     }
 
     pub fn deregister_root_reentrant(&'gc_life self, ptr: NonNull<c_void>) {
@@ -63,7 +70,16 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: UnAllocatedObject<'gc_life>) -> AllocatedObject<'gc_life> {
+    pub fn handle_lives_for_gc_life(&'gc_life self, handle: AllocatedObjectHandle<'gc_life>) -> AllocatedObject<'gc_life,'gc_life>{
+        let index = self.objects_that_live_for_gc_life.len();
+        self.objects_that_live_for_gc_life.push(handle);
+        let handle_ref: &'gc_life AllocatedObjectHandle<'gc_life> = &self.objects_that_live_for_gc_life[index];
+        AllocatedObject{
+            handle: handle_ref
+        }
+    }
+
+    pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: UnAllocatedObject<'gc_life, 'l>) -> AllocatedObjectHandle<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
@@ -74,9 +90,23 @@ impl<'gc_life> GC<'gc_life> {
         let allocated = memory_region.get_allocation();
         let allocated_size = memory_region.region_elem_size;
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
+        let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
         self.all_allocated_object.write().unwrap().insert(allocated);
-        self.register_root_reentrant(allocated);
-        todo!()
+        match object {
+            UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
+                for (i, field) in fields.iter() {
+                    unsafe {
+                        let field_ptr = allocated.as_ptr().offset(i.0 as isize) as *mut NativeJavaValue<'gc_life>;
+                        field_ptr.write(field.to_native());
+                    }
+                }
+            }
+            UnAllocatedObject::Array(_) => {
+                todo!()
+            }
+        }
+
+        handle
         // GcManagedObject {
         //     obj: match object {
         //         Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems_base, phantom_data, elem_type }) => {
@@ -94,11 +124,7 @@ impl<'gc_life> GC<'gc_life> {
         //             }
         //         }
         //         Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields, class_pointer }, obj_ptr }) => {
-        //             let new_fields = unsafe { slice::from_raw_parts_mut(allocated.cast::<NativeJavaValue<'gc_life>>().as_ptr(), fields.read().unwrap().len()) };
-        //             for (i, field) in fields.read().unwrap().iter().enumerate() {
-        //                 new_fields[i] = *field;
-        //             }
-        //             Arc::new(Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields: RwLock::new(new_fields), class_pointer }, obj_ptr }))
+        //
         //         }
         //     },
         //     raw_ptr: allocated,
@@ -245,21 +271,22 @@ impl<'gc_life> GC<'gc_life> {
             vm_temp_owned_roots: RwLock::new(Default::default()),
             all_allocated_object: Default::default(),
             phantom: PhantomData::default(),
+            objects_that_live_for_gc_life: AddOnlyVec::new()
         }
     }
 }
 
-pub struct ByAddressAllocatedObject<'gc_life>(pub AllocatedObject<'gc_life>);
+pub struct ByAddressAllocatedObject<'gc_life, 'l>(pub AllocatedObject<'gc_life, 'l>);
 
-impl Hash for ByAddressAllocatedObject<'_> {
+impl Hash for ByAddressAllocatedObject<'_, '_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_usize(self.0.raw_ptr_usize())
     }
 }
 
-impl Eq for ByAddressAllocatedObject<'_> {}
+impl Eq for ByAddressAllocatedObject<'_, '_> {}
 
-impl PartialEq for ByAddressAllocatedObject<'_> {
+impl PartialEq for ByAddressAllocatedObject<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.raw_ptr_usize() == other.0.raw_ptr_usize()
     }
@@ -276,7 +303,9 @@ pub struct GcManagedObject<'gc_life> {
 
 impl<'gc_life> GcManagedObject<'gc_life> {
     pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc_life JVMState<'gc_life>) -> Self {
-        jvm.gc.register_root_reentrant(raw_ptr);
+        let handle  = jvm.gc.register_root_reentrant(jvm, raw_ptr);
+        dbg!(&handle);
+        todo!();
         let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
@@ -345,7 +374,11 @@ impl<'gc_life> GcManagedObject<'gc_life> {
         self.gc.vm_temp_owned_roots.read().unwrap().get(&(self.raw_ptr)).unwrap().load(Ordering::SeqCst)
     }
 
-    pub fn to_allocated_object(&self) -> AllocatedObject<'gc_life> {
+    pub fn to_allocated_object(&self) -> AllocatedObject<'gc_life, 'static> {
+        todo!()
+    }
+
+    pub fn to_allocated_object_not_static(&self) -> AllocatedObject<'gc_life, 'gc_life> {
         todo!()
     }
 }
@@ -370,7 +403,8 @@ impl<'gc_life> DerefMut for GcManagedObject<'gc_life> {
 impl<'gc_life> Clone for GcManagedObject<'gc_life> {
     fn clone(&self) -> Self {
         //this doesn't leak b/c if we ever try to create a cycle we put into a field and deregister as a root.
-        self.gc.register_root_reentrant(self.raw_ptr);
+        todo!();
+        // self.gc.register_root_reentrant(self.raw_ptr);
         Self { obj: self.obj.clone(), raw_ptr: self.raw_ptr, gc: self.gc, jvm: self.jvm }
     }
 }
@@ -446,7 +480,7 @@ impl<'gc_life> JavaValue<'gc_life> {
         }
     }
 
-    pub fn to_new(&self) -> NewJavaValue<'gc_life> {
+    pub fn to_new<'anything>(&self) -> NewJavaValue<'gc_life, 'anything> {
         todo!()
     }
 }
@@ -702,9 +736,9 @@ impl<'gc_life> JavaValue<'gc_life> {
             jv => (*jv).clone(),
         }*/
     }
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<NewJavaValue<'gc_life>, WasException> {
+    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
-        Ok(NewJavaValue::AllocObject(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![]))))
+        Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
     fn new_object_impl(runtime_class: &Arc<RuntimeClass<'gc_life>>) -> ObjectFieldsAndClass<'gc_life, 'gc_life> {
@@ -712,36 +746,37 @@ impl<'gc_life> JavaValue<'gc_life> {
         ObjectFieldsAndClass { fields: todo!(), class_pointer: runtime_class.clone() }
     }
 
-    pub fn new_object(jvm: &'gc_life JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>) -> AllocatedObject<'gc_life> {
+    pub fn new_object(jvm: &'gc_life JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>) -> AllocatedObjectHandle<'gc_life> {
         assert!(!runtime_class.view().is_abstract());
 
         let class_class = runtime_class.unwrap_class_class();
         let mut fields = (0..class_class.recursive_num_fields).map(|_| NativeJavaValue { object: null_mut() }).collect_vec();
 
-        jvm.allocate_object(todo!()/*Object::Object(NormalObject {
+        todo!()
+        /*jvm.allocate_object(todo!()/*Object::Object(NormalObject {
             objinfo: ObjectFieldsAndClass { fields: RwLock::new(&mut fields), class_pointer: runtime_class },
             obj_ptr: None,
         })*/)
-            .into()
+            .into()*/
     }
 
-    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<Option<AllocatedObject<'gc_life>>, WasException> {
+    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Ok(Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/)))
+        Ok(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> NewJavaValue<'gc_life> {
-        NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
+    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
+        jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
             len: todo!(),
             elems_base: todo!(),
             phantom_data: Default::default(),
             elem_type,
-        })*/))
+        })*/)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life, 'gc_life> {
@@ -1081,7 +1116,7 @@ pub union NativeJavaValue<'gc_life/*, 'l*/> {
     boolean: u8,
     short: i16,
     char: u16,
-    int: i32,
+    pub(crate) int: i32,
     long: i64,
     float: f32,
     double: f64,
@@ -1118,18 +1153,18 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
         }
     }
 
-    pub fn to_new_java_value(&self, ptype: &CPDType, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValue<'gc_life> {
+    pub fn to_new_java_value(&self, ptype: &CPDType, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
         unsafe {
             match ptype {
-                CPDType::ByteType => NewJavaValue::Byte(self.byte),
-                CPDType::CharType => NewJavaValue::Char(self.char),
-                CPDType::DoubleType => NewJavaValue::Double(self.double),
-                CPDType::FloatType => NewJavaValue::Float(self.float),
-                CPDType::IntType => NewJavaValue::Int(self.int),
-                CPDType::LongType => NewJavaValue::Long(self.long),
+                CPDType::ByteType => NewJavaValueHandle::Byte(self.byte),
+                CPDType::CharType => NewJavaValueHandle::Char(self.char),
+                CPDType::DoubleType => NewJavaValueHandle::Double(self.double),
+                CPDType::FloatType => NewJavaValueHandle::Float(self.float),
+                CPDType::IntType => NewJavaValueHandle::Int(self.int),
+                CPDType::LongType => NewJavaValueHandle::Long(self.long),
                 CPDType::Ref(_) => todo!(),
-                CPDType::ShortType => NewJavaValue::Short(self.short),
-                CPDType::BooleanType => NewJavaValue::Boolean(self.boolean),
+                CPDType::ShortType => NewJavaValueHandle::Short(self.short),
+                CPDType::BooleanType => NewJavaValueHandle::Boolean(self.boolean),
                 CPDType::VoidType => panic!(),
             }
         }
@@ -1196,8 +1231,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                        }.unwrap() = jv.to_native();*/
+                                                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                }.unwrap() = jv.to_native();*/
         todo!()
     }
 
@@ -1342,17 +1377,17 @@ impl<'gc_life> Debug for NormalObject<'gc_life, '_> {
     }
 }
 
-pub fn default_value<'gc_life>(type_: CPDType) -> NewJavaValue<'gc_life> {
+pub fn default_value(type_: CPDType) -> NewJavaValueHandle<'gc_life> {
     match type_ {
-        CPDType::ByteType => NewJavaValue::Byte(0),
-        CPDType::CharType => NewJavaValue::Char('\u{000000}' as u16),
-        CPDType::DoubleType => NewJavaValue::Double(0.0),
-        CPDType::FloatType => NewJavaValue::Float(0.0),
-        CPDType::IntType => NewJavaValue::Int(0),
-        CPDType::LongType => NewJavaValue::Long(0),
-        CPDType::Ref(_) => NewJavaValue::Null,
-        CPDType::ShortType => NewJavaValue::Short(0),
-        CPDType::BooleanType => NewJavaValue::Boolean(0),
+        CPDType::ByteType => NewJavaValueHandle::Byte(0),
+        CPDType::CharType => NewJavaValueHandle::Char('\u{000000}' as u16),
+        CPDType::DoubleType => NewJavaValueHandle::Double(0.0),
+        CPDType::FloatType => NewJavaValueHandle::Float(0.0),
+        CPDType::IntType => NewJavaValueHandle::Int(0),
+        CPDType::LongType => NewJavaValueHandle::Long(0),
+        CPDType::Ref(_) => NewJavaValueHandle::Null,
+        CPDType::ShortType => NewJavaValueHandle::Short(0),
+        CPDType::BooleanType => NewJavaValueHandle::Boolean(0),
         CPDType::VoidType => panic!(),
     }
 }

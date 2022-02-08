@@ -126,7 +126,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").java_value());
     }
-    let arg_array = NewJavaValue::AllocObject(jvm.allocate_object(todo!()/*Array(ArrayObject::new_array(jvm, int_state, arg_strings, CPDType::Ref(CPRefType::Class(CClassName::string())), jvm.thread_state.new_monitor("arg array monitor".to_string())).expect("todo"))*/));
+    let arg_array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Array(ArrayObject::new_array(jvm, int_state, arg_strings, CPDType::Ref(CPRefType::Class(CClassName::string())), jvm.thread_state.new_monitor("arg array monitor".to_string())).expect("todo"))*/)*/);
     let mut current_frame_mut = int_state.current_frame_mut();
     let mut local_vars = current_frame_mut.local_vars_mut();
     local_vars.set(0, arg_array);

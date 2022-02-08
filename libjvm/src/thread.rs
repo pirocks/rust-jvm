@@ -160,7 +160,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
             JavaValue::Object(todo!() /*java_thread.try_thread_object().map(|jthread| jthread.object())*/)
         })
         .collect::<Vec<_>>();
-    let object_array = JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object();
+    let object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
     new_local_ref_public(todo!()/*object_array*/, int_state)
 }
 
@@ -240,7 +240,7 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
         .into_iter()
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
-    let res = JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object();
+    let res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
     Ok(new_local_ref_public(todo!()/*res*/, int_state))
 }
 

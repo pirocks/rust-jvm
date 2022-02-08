@@ -172,10 +172,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
                 let view = rc.view();
                 let field_view = view.field(field_i as usize);
-                let mut static_vars_guard = rc.static_vars();
-                let static_var = static_vars_guard.get_mut(&field_view.field_name()).unwrap();
+                let mut static_vars_guard = rc.static_vars(jvm);
+                let field_name = field_view.field_name();
+                let static_var = static_vars_guard.get(field_name);
                 let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
-                *static_var = jv;
+                static_vars_guard.set(field_name,todo!()/*jv*/);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {

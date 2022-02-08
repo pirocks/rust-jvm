@@ -23,8 +23,8 @@ pub mod unsafe_ {
     impl<'gc_life> Unsafe<'gc_life> {
         pub fn the_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Unsafe<'gc_life> {
             let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
-            let static_vars = unsafe_class.static_vars();
-            static_vars.get(&FieldName::field_theUnsafe()).unwrap().clone().cast_unsafe()
+            let static_vars = unsafe_class.static_vars(jvm);
+            static_vars.get(FieldName::field_theUnsafe()).to_jv().cast_unsafe()
         }
 
         pub fn object_field_offset(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field: Field<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {

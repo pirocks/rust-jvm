@@ -60,7 +60,8 @@ pub fn throw_npe_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_
 }
 
 pub fn throw_npe<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> T {
-    let npe_object = match NullPointerException::new(jvm, int_state) {
+    todo!()
+    /*let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating NPE");
@@ -70,7 +71,7 @@ pub fn throw_npe<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_stat
         .object()
         .into();
     int_state.set_throw(Some(npe_object));
-    T::invalid_default()
+    T::invalid_default()*/
 }
 
 pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, index: jint) -> Result<T, WasException> {
@@ -79,7 +80,7 @@ pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &'gc_life JVMState
 }
 
 pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, index: jint) -> T {
-    let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
+    /*let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating Array out of bounds");
@@ -89,7 +90,8 @@ pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc
         .object()
         .into();
     int_state.set_throw(Some(bounds_object));
-    T::invalid_default()
+    T::invalid_default()*/
+    todo!()
 }
 
 pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<T, WasException> {
@@ -98,7 +100,7 @@ pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_lif
 }
 
 pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> T {
-    let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
+    /*let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating illegal arg exception");
@@ -108,10 +110,11 @@ pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, 
         .object()
         .into();
     int_state.set_throw(Some(bounds_object));
-    T::invalid_default()
+    T::invalid_default()*/
+    todo!()
 }
 
-pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life>>, WasException> {
+pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life,'static>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),

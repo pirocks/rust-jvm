@@ -13,6 +13,6 @@ pub fn get_or_create_class_object(jvm: &'gc_life JVMState<'gc_life>, type_: CPDT
 }
 
 pub fn get_or_create_class_object_force_loader(jvm: &'gc_life JVMState<'gc_life>, type_: CPDType, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, loader: LoaderName) -> Result<GcManagedObject<'gc_life>, WasException> {
-    let arc = check_loaded_class_force_loader(jvm, int_state, &type_, loader)?;
-    Ok(jvm.classes.read().unwrap().get_class_obj_from_runtime_class(arc.clone()).to_gc_managed())
+    let arc = todo!()/*check_loaded_class_force_loader(jvm, int_state, &type_, loader)?*/;
+    Ok(jvm.classes.read().unwrap().get_class_obj_from_runtime_class(todo!()/*arc.clone()*/).to_gc_managed())
 }
