@@ -276,11 +276,36 @@ impl<'gc_life> GC<'gc_life> {
     }
 }
 
-pub struct ByAddressAllocatedObject<'gc_life, 'l>(pub AllocatedObject<'gc_life, 'l>);
+#[derive(Clone)]
+pub enum ByAddressAllocatedObject<'gc_life, 'l>{
+    Owned(AllocatedObject<'gc_life, 'l>),
+    LookupOnly(usize)
+}
+
+impl  <'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
+    pub fn raw_ptr_usize(&self) -> usize{
+        match self {
+            ByAddressAllocatedObject::Owned(owned) => {
+                owned.raw_ptr_usize()
+            }
+            ByAddressAllocatedObject::LookupOnly(lookup) => {
+                *lookup
+            }
+        }
+    }
+
+    pub fn owned_inner(self) -> AllocatedObject<'gc_life, 'l>{
+        match self {
+            ByAddressAllocatedObject::Owned(owned) => owned,
+            ByAddressAllocatedObject::LookupOnly(_) => panic!()
+        }
+    }
+}
 
 impl Hash for ByAddressAllocatedObject<'_, '_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_usize(self.0.raw_ptr_usize())
+        state.write_usize(self.raw_ptr_usize())
+
     }
 }
 
@@ -288,7 +313,7 @@ impl Eq for ByAddressAllocatedObject<'_, '_> {}
 
 impl PartialEq for ByAddressAllocatedObject<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.raw_ptr_usize() == other.0.raw_ptr_usize()
+        self.raw_ptr_usize() == other.raw_ptr_usize()
     }
 }
 

@@ -43,7 +43,7 @@ pub fn invoke_special_impl<'k, 'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, 
         assert!(args[0].unwrap_object().is_some());
         let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
         jvm.java_vm_state.add_method(jvm, &MethodResolver{ jvm, loader: int_state.current_loader(jvm) }, method_id);
-        let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, todo!()/*args*/);
+        let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         let mut function_call_frame = int_state.push_frame(next_entry);
         match run_function(jvm, int_state, &mut function_call_frame) {
             Ok(res) => {

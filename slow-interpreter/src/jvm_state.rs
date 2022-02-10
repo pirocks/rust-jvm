@@ -144,12 +144,12 @@ impl<'gc_life> Classes<'gc_life> {
             todo!()
         }
         let runtime_class = self.initiating_loaders.get(&ptypeview)?.1.clone();
-        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().0.clone();
+        let obj = self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner();
         Some(obj)
     }
 
     pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc_life>>) -> AllocatedObject<'gc_life, 'gc_life> {
-        self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().0.clone()
+        self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner()
     }
 
     pub fn convert_runtime_class_class_id(&self, id: RuntimeClassClassId) -> &RuntimeClassClass {
@@ -159,10 +159,10 @@ impl<'gc_life> Classes<'gc_life> {
     pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=AllocatedObject<'gc_life, 'specific_gc_life>> + 'specific_gc_life {
         self.class_object_pool
             .left_values()
-            .map(|by_address| by_address.0.clone())
+            .map(|by_address| by_address.clone().owned_inner())
             .chain(self.anon_class_live_object_ldc_pool.iter().cloned())
-            .chain(self.class_loaders.right_values().map(|by_address| by_address.0.clone()))
-            .chain(self.protection_domains.right_values().map(|by_address| by_address.0.clone()))
+            .chain(self.class_loaders.right_values().map(|by_address| by_address.clone().owned_inner()))
+            .chain(self.protection_domains.right_values().map(|by_address| by_address.clone().owned_inner()))
             .chain(self.initiating_loaders.values()
                 .flat_map(|(_loader, class): &(_, Arc<RuntimeClass<'gc_life>>)| class.try_unwrap_class_class())
                 .flat_map(|class: &RuntimeClassClass<'gc_life>| {
@@ -179,23 +179,23 @@ impl<'gc_life> Classes<'gc_life> {
         self.loaded_classes_by_type.get(loader).unwrap().get(type_).unwrap()
     }
 
-    pub fn object_to_runtime_class(&self, object: AllocatedObject<'gc_life, 'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-        self.class_object_pool.get_by_left(&ByAddressAllocatedObject(object)).unwrap().0.clone()
+    pub fn object_to_runtime_class(&self, object: AllocatedObject<'gc_life, 'any>) -> Arc<RuntimeClass<'gc_life>> {
+        self.class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(object.raw_ptr_usize())).unwrap().0.clone()
     }
 
-    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> &AllocatedObject<'gc_life, 'gc_life> {
-        &self.class_loaders.get_by_left(&loader_name).unwrap().0
+    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> AllocatedObject<'gc_life, 'gc_life> {
+        self.class_loaders.get_by_left(&loader_name).unwrap().clone().owned_inner()
     }
 
     pub fn lookup_or_add_classloader(&mut self, obj: AllocatedObject<'gc_life, 'gc_life>) -> LoaderName {
         let mut loaders_guard = &mut self.class_loaders;
-        let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject(obj.clone()));
+        let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject::Owned(obj.clone()));
         LoaderName::UserDefinedLoader(match loader_index_lookup {
             Some(x) => *x,
             None => {
                 let new_loader_id = LoaderIndex(loaders_guard.len());
                 assert!(!loaders_guard.contains_left(&new_loader_id));
-                loaders_guard.insert(new_loader_id, ByAddressAllocatedObject(obj));
+                loaders_guard.insert(new_loader_id, ByAddressAllocatedObject::Owned(obj));
                 //todo this whole mess needs a register class loader function which addes to approprate classes data structure
                 new_loader_id
             }
@@ -344,7 +344,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: classes.class_class.clone(), fields }));
         let class_object = self.gc.handle_lives_for_gc_life(class_object_handle);
         let runtime_class = ByAddress(classes.class_class.clone());
-        classes.class_object_pool.insert(ByAddressAllocatedObject(class_object), runtime_class);
+        classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), runtime_class);
         let runtime_class = classes.class_class.clone();
         self.inheritance_ids.write().unwrap().register(self, &runtime_class);
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
@@ -410,7 +410,7 @@ impl<'gc_life> JVMState<'gc_life> {
         match loader {
             LoaderName::UserDefinedLoader(loader_idx) => {
                 let classes_guard = self.classes.read().unwrap();
-                let jvalue = JavaValue::Object(classes_guard.class_loaders.get_by_left(&loader_idx).unwrap().clone().0.to_gc_managed().into());
+                let jvalue = JavaValue::Object(classes_guard.class_loaders.get_by_left(&loader_idx).unwrap().clone().owned_inner().to_gc_managed().into());
                 Some(jvalue.cast_class_loader())
             }
             LoaderName::BootstrapLoader => None,

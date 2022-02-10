@@ -139,7 +139,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                 let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                 let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
                                 let obj = create_class_object(jvm, int_state, None, loader)?;
-                                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(obj), ByAddress(res.clone()));
+                                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj), ByAddress(res.clone()));
                                 res
                             }
                         },
@@ -271,7 +271,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 // }
                 jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
                 let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
-                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(class_object.clone()), ByAddress(res.clone()));
+                jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
             CPRefType::Array(sub_type) => {
@@ -281,7 +281,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
             }
         },
     };
-    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject(class_object), ByAddress(runtime_class.clone()));
+    jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), ByAddress(runtime_class.clone()));
     Ok(runtime_class)
 }
 

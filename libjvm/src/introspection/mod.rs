@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
     let class = from_jclass(jvm, cls).as_runtime_class(jvm);
     match jvm.classes.read().unwrap().protection_domains.get_by_left(&ByAddress(class)) {
         None => null_mut(),
-        Some(pd_obj) => new_local_ref_public(pd_obj.clone().0.to_gc_managed().into(), int_state),
+        Some(pd_obj) => new_local_ref_public(pd_obj.clone().owned_inner().to_gc_managed().into(), int_state),
     }
 }
 

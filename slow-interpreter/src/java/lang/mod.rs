@@ -272,7 +272,7 @@ pub mod class {
 
     impl<'gc_life> JClass<'gc_life, 'gc_life> {
         pub fn as_runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-            jvm.classes.read().unwrap().object_to_runtime_class(todo!()/*self.normal_object.as_allocated_object()*/)
+            jvm.classes.read().unwrap().object_to_runtime_class(self.normal_object.as_allocated_object())
             //todo I can get rid of this clone since technically only a ref is needed for lookup
         }
         pub fn as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {

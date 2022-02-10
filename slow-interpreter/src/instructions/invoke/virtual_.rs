@@ -105,7 +105,7 @@ pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     if invoke_virtual {
         unimplemented!()
     } else if invoke_static {
-        let by_address = ByAddressAllocatedObject(vmentry.clone().object());
+        let by_address = ByAddressAllocatedObject::Owned(vmentry.clone().object());
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
@@ -145,17 +145,16 @@ pub fn setup_virtual_args<'gc_life, 'l>(int_state: &'_ mut InterpreterStateGuard
     args[0] = current_frame.pop(Some(CClassName::object().into()));
 }
 
-pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc_life>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc_life,'k>>) {
+pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<NewJavaValue<'gc_life,'k>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc_life,'k>>) {
     for _ in 0..max_locals {
-        args.push(JavaValue::Top);
+        args.push(NewJavaValue::Top);
     }
     let mut i = 1;
     for input_arg in input_args[1..].iter().rev() {
-        todo!()
-        /*let value = input_arg.clone();
+        let value = input_arg.clone();
         match value.clone() {
-            JavaValue::Long(_) | JavaValue::Double(_) => {
-                args[i] = JavaValue::Top;
+            NewJavaValue::Long(_) | NewJavaValue::Double(_) => {
+                args[i] = NewJavaValue::Top;
                 args[i + 1] = value;
                 i += 2
             }
@@ -163,13 +162,12 @@ pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterState
                 args[i] = value;
                 i += 1
             }
-        };*/
+        };
     }
     if !expected_descriptor.arg_types.is_empty() {
         args[1..i].reverse();
     }
-    /*args[0] = input_args[0].clone();*/
-    todo!()
+    args[0] = input_args[0].clone();
 }
 
 /*

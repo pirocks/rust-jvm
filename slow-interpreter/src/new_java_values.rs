@@ -190,11 +190,11 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::UnAllocObject(_) => {
                 todo!()
             }
-            NewJavaValue::AllocObject(_) => {
-                todo!()
+            NewJavaValue::AllocObject(obj) => {
+                NativeJavaValue { object: obj.handle.ptr.as_ptr() }
             }
             NewJavaValue::Top => {
-                todo!()
+                NativeJavaValue { as_u64: 0xdddd_dddd_dddd_dddd }
             }
         }
     }
@@ -326,8 +326,8 @@ pub enum AllocatedObjectCOW<'gc_life, 'k> {
     Ref(AllocatedObject<'gc_life, 'k>),
 }
 
-impl <'gc_life, 'k> AllocatedObjectCOW<'gc_life, 'k> {
-    pub fn as_allocated_object(&'k self) -> AllocatedObject<'gc_life,'k>{
+impl<'gc_life, 'k> AllocatedObjectCOW<'gc_life, 'k> {
+    pub fn as_allocated_object(&'k self) -> AllocatedObject<'gc_life, 'k> {
         match self {
             AllocatedObjectCOW::Handle(handle) => {
                 handle.as_allocated_obj()
