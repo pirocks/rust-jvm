@@ -250,7 +250,7 @@ pub mod class {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java_values::{ByAddressAllocatedObject, GcManagedObject, JavaValue};
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectCOW, AllocatedObjectHandle};
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectCOW, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -295,7 +295,8 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             let res = new_object(jvm, int_state, &class_class);
             run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
-            Ok(todo!()/*res.new_java_value().cast_class().unwrap()*/)
+            let res = jvm.gc.handle_lives_for_gc_life(res);
+            Ok(NewJavaValue::AllocObject(res).cast_class().unwrap())
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, loader: ClassLoader<'gc_life>) -> Result<Self, WasException> {

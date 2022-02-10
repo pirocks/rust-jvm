@@ -19,6 +19,7 @@ use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -30,6 +31,7 @@ use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue, Object, St
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
 use crate::runtime_class::RuntimeClass;
 
@@ -744,7 +746,7 @@ pub enum LocalVarsRef<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
-    pub fn get(&self, i: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+    pub fn get(&self, i: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc_life> {
         match self {
             LocalVarsRef::Jit { frame_view, jvm, pc } => {
                 let method_id = frame_view.ir_ref.method_id().expect("local vars should have method id probably");
@@ -758,8 +760,8 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
                     assert_eq!(verification_data_expected_frame_data, expected_type);
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
-                let native_jv = StackNativeJavaValue { as_u64: data };
-                native_jv.to_java_value(expected_type, jvm)
+                let native_jv = NativeJavaValue { as_u64: data };
+                native_jv.to_new_java_value_rtype(&expected_type, jvm)
             }
         }
     }
@@ -815,7 +817,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         todo!()
     }
 
-    pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+    pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc_life> {
         match self {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
                 let num_locals = LocalVarsRef::Jit {
@@ -825,8 +827,8 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
                 }.num_vars();
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types().iter().nth(from_start as usize).unwrap(), &expected_type);
-                let native_jv = StackNativeJavaValue { as_u64: data };
-                native_jv.to_java_value(expected_type, jvm)
+                let native_jv = NativeJavaValue { as_u64: data };
+                native_jv.to_new_java_value_rtype(&expected_type, jvm)
             }
         }
     }

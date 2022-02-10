@@ -42,7 +42,7 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
 
         let op_stack = current_frame.operand_stack(jvm);
         let temp_value = op_stack.get((op_stack.len() - (expected_descriptor.arg_types.len() as u16 + 1)) as u16, CClassName::method_handle().into());
-        let method_handle = temp_value.cast_method_handle();
+        let method_handle = temp_value.to_jv().cast_method_handle();
         let form: LambdaForm = method_handle.get_form(jvm)?;
         let vmentry: MemberName = form.get_vmentry(jvm);
         if target_method.name() == MethodName::method_invoke() || target_method.name() == MethodName::method_invokeBasic() || target_method.name() == MethodName::method_invokeExact() {
@@ -189,7 +189,7 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
         let operand_stack = &current_frame.operand_stack(jvm);
         &operand_stack.get((operand_stack.len() as usize - md.arg_types.len() - 1) as u16, RuntimeType::object())
     };
-    let c = match match this_pointer.unwrap_object() {
+    let c = match match this_pointer.to_jv().unwrap_object() {
         Some(x) => x,
         None => {
             let method_i = int_state.current_frame().method_i(jvm);

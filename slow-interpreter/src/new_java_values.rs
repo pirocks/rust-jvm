@@ -62,8 +62,8 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
             NewJavaValueHandle::Null => {
                 NewJavaValue::Null
             }
-            NewJavaValueHandle::Object(_) => {
-                todo!()
+            NewJavaValueHandle::Object(obj) => {
+                NewJavaValue::AllocObject(AllocatedObject { handle: obj })
             }
             NewJavaValueHandle::Top => {
                 todo!()
@@ -86,6 +86,49 @@ pub enum NewJavaValue<'gc_life, 'l> {
     UnAllocObject(UnAllocatedObject<'gc_life, 'l>),
     AllocObject(AllocatedObject<'gc_life, 'l>),
     Top,
+}
+
+impl<'gc_life, 'l> Debug for NewJavaValue<'gc_life, 'l> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NewJavaValue::Long(elem) => {
+                write!(f, "Long:{}", elem)
+            }
+            NewJavaValue::Int(elem) => {
+                write!(f, "Int:{}", elem)
+            }
+            NewJavaValue::Short(elem) => {
+                write!(f, "Short:{}", elem)
+            }
+            NewJavaValue::Byte(elem) => {
+                write!(f, "Byte:{}", elem)
+            }
+            NewJavaValue::Boolean(elem) => {
+                write!(f, "Boolean:{}", elem)
+            }
+            NewJavaValue::Char(elem) => {
+                write!(f, "Char:{}", elem)
+            }
+            NewJavaValue::Float(elem) => {
+                write!(f, "Float:{}", elem)
+            }
+            NewJavaValue::Double(elem) => {
+                write!(f, "Double:{}", elem)
+            }
+            NewJavaValue::AllocObject(obj) => {
+                write!(f, "obj:{:?}", obj.handle.ptr)
+            }
+            NewJavaValue::Top => {
+                write!(f, "top")
+            }
+            NewJavaValue::Null => {
+                write!(f, "obj:{:?}", null_mut::<c_void>())
+            }
+            NewJavaValue::UnAllocObject(_) => {
+                todo!()
+            }
+        }
+    }
 }
 
 impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {

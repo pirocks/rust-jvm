@@ -277,13 +277,13 @@ impl<'gc_life> GC<'gc_life> {
 }
 
 #[derive(Clone)]
-pub enum ByAddressAllocatedObject<'gc_life, 'l>{
+pub enum ByAddressAllocatedObject<'gc_life, 'l> {
     Owned(AllocatedObject<'gc_life, 'l>),
-    LookupOnly(usize)
+    LookupOnly(usize),
 }
 
-impl  <'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
-    pub fn raw_ptr_usize(&self) -> usize{
+impl<'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
+    pub fn raw_ptr_usize(&self) -> usize {
         match self {
             ByAddressAllocatedObject::Owned(owned) => {
                 owned.raw_ptr_usize()
@@ -294,7 +294,7 @@ impl  <'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
         }
     }
 
-    pub fn owned_inner(self) -> AllocatedObject<'gc_life, 'l>{
+    pub fn owned_inner(self) -> AllocatedObject<'gc_life, 'l> {
         match self {
             ByAddressAllocatedObject::Owned(owned) => owned,
             ByAddressAllocatedObject::LookupOnly(_) => panic!()
@@ -305,7 +305,6 @@ impl  <'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
 impl Hash for ByAddressAllocatedObject<'_, '_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_usize(self.raw_ptr_usize())
-
     }
 }
 
@@ -1194,6 +1193,38 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
             }
         }
     }
+
+
+    pub fn to_new_java_value_rtype(&self, rtype: &RuntimeType, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+        unsafe {
+            match rtype {
+                RuntimeType::DoubleType => NewJavaValueHandle::Double(self.double),
+                RuntimeType::FloatType => NewJavaValueHandle::Float(self.float),
+                RuntimeType::IntType => NewJavaValueHandle::Int(self.int),
+                RuntimeType::LongType => NewJavaValueHandle::Long(self.long),
+                RuntimeType::Ref(ref_) => {
+                    match ref_ {
+                        RuntimeRefType::Array(_) => todo!(),
+                        RuntimeRefType::Class(class_name) => {
+                            match NonNull::new(self.object) {
+                                Some(ptr) => {
+                                    NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+                                }
+                                None => {
+                                    NewJavaValueHandle::Null
+                                }
+                            }
+                        }
+                        RuntimeRefType::NullType => {
+                            assert_eq!(self.as_u64, 0);
+                            NewJavaValueHandle::Null
+                        }
+                    }
+                }
+                RuntimeType::TopType => panic!(),
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -1256,8 +1287,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                                                        }.unwrap() = jv.to_native();*/
+                                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                                        }.unwrap() = jv.to_native();*/
         todo!()
     }
 

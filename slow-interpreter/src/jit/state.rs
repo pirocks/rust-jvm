@@ -57,6 +57,7 @@ use crate::jit_common::{JitCodeContext, RuntimeTypeInfo};
 use crate::jit_common::java_stack::JavaStack;
 use crate::jit_common::SavedRegisters;
 use crate::jvm_state::JVMState;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 
 thread_local! {
@@ -792,7 +793,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 }
 
-pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<JavaValue<'gc_life>> {
+pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc_life>> {
     if is_virtual {
         todo!()
     }
