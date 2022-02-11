@@ -368,6 +368,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jne(*code_label).unwrap();
         }
+        IRInstr::BranchAGreaterEqualB { a, b, label } => {
+            let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
+            assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+            assembler.jge(*code_label).unwrap();
+        }
         IRInstr::BranchAGreaterB { a, b, label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();

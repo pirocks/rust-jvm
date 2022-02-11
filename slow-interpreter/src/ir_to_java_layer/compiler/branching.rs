@@ -50,6 +50,7 @@ pub fn if_icmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
         IntEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label },
         IntEqualityType::GT => IRInstr::BranchAGreaterB { a: value1, b: value2, label: target_label },
         IntEqualityType::LT => IRInstr::BranchAGreaterB { a: value2, b: value1, label: target_label },
+        IntEqualityType::LE => IRInstr::BranchAGreaterEqualB { a: value2, b: value1, label: target_label },
         _ => todo!()
     };
     array_into_iter([

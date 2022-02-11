@@ -24,13 +24,14 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
+use crate::ir_to_java_layer::compiler::arithmetic::ladd;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
-use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_string};
+use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
@@ -321,15 +322,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::ldc2_w(ldc2) => {
                 match ldc2 {
-                    CompressedLdc2W::Long(_) => { todo!() }
+                    CompressedLdc2W::Long(long) => {
+                        this_function_ir.extend(ldc_long(method_frame_data, &current_instr_data, *long))
+                    }
                     CompressedLdc2W::Double(double) => {
                         this_function_ir.extend(ldc_double(method_frame_data, &current_instr_data, *double))
                     }
                 }
             }
             CompressedInstructionInfo::sipush(val) => {
-                this_function_ir.extend(array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
-                    IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }]))
+                this_function_ir.extend(sipush(method_frame_data, &current_instr_data, val))
             }
             CompressedInstructionInfo::iload_0 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 0))
@@ -338,10 +340,19 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
             }
             CompressedInstructionInfo::getstatic { name, desc, target_class } => {
-                this_function_ir.extend(getstatic(resolver,method_frame_data,&current_instr_data, &mut restart_point_generator, *target_class,*name));
+                this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name));
             }
             CompressedInstructionInfo::if_icmplt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32));
+            }
+            CompressedInstructionInfo::if_icmple(offset) => {
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LE, *offset as i32));
+            }
+            CompressedInstructionInfo::ladd => {
+                this_function_ir.extend(ladd(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::bipush(val_) => {
+                this_function_ir.extend(bipush(method_frame_data, current_instr_data, val_))
             }
             other => {
                 dbg!(other);
@@ -362,6 +373,16 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
+fn sipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, val: &u16) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}
+
+fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, val_: &u8) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([IRInstr::Const32bit { to: Register(1), const_: *val_ as i8 as i32 as u32 },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}
+
 pub mod throw;
 pub mod monitors;
 pub mod arrays;
@@ -376,6 +397,7 @@ pub mod branching;
 pub mod local_var_loads;
 pub mod local_var_stores;
 pub mod ldc;
+pub mod arithmetic;
 
 pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {
     <[T; N]>::into_iter(array)

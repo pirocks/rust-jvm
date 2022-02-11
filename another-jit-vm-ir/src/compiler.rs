@@ -31,6 +31,7 @@ pub enum IRInstr {
     BranchEqual { a: Register, b: Register, label: LabelName },
     BranchNotEqual { a: Register, b: Register, label: LabelName },
     BranchAGreaterB { a: Register, b: Register, label: LabelName },
+    BranchAGreaterEqualB { a: Register, b: Register, label: LabelName },
     BranchALessB { a: Register, b: Register, label: LabelName },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
@@ -203,6 +204,9 @@ impl IRInstr {
             }
             IRInstr::BranchALessB { .. } => {
                 "BranchALessB".to_string()
+            }
+            IRInstr::BranchAGreaterEqualB { .. } => {
+                "BranchAGreaterEqualB".to_string()
             }
         }
     }

@@ -92,3 +92,11 @@ pub fn ldc_double(method_frame_data: &JavaCompilerMethodAndFrameData,
         IRInstr::Const64bit { to: Register(1), const_: float.to_bits() },
         IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
 }
+
+pub fn ldc_long(method_frame_data: &JavaCompilerMethodAndFrameData,
+                  current_instr_data: &CurrentInstructionCompilerData,
+                  long: i64) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([
+        IRInstr::Const64bit { to: Register(1), const_: long as u64 },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}
