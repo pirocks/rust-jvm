@@ -115,7 +115,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
             }
         }
     } else {
-        /*assert!(int_state.current_frame().is_native_method());
+        assert!(int_state.current_frame().is_native_method());
         match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed.clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
@@ -128,8 +128,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
                 Ok(res) => res,
                 Err(_) => None,
             },
-        }*/
-        todo!()
+        }
     };
     if let Some(m) = monitor.as_ref() {
         m.unlock(jvm, int_state).unwrap();
@@ -143,22 +142,25 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     }
 }
 
-fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
         //todo
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
-        MHN_getConstant()?.into()
+        todo!()
+        /*MHN_getConstant()?.into()*/
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-        MHN_resolve(jvm, int_state, todo!()/*args*/)?.into()
+        todo!()
+        /*MHN_resolve(jvm, int_state, todo!()/*args*/)?.into()*/
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
         MHN_init(jvm, int_state, todo!()/*args*/)?;
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, int_state, todo!()/*args*/)?.into()
+        /*shouldBeInitialized(jvm, int_state, todo!()/*args*/)?.into()*/
+        todo!()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
@@ -171,19 +173,22 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, todo!()/*args*/)?.into()
+        /*Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, todo!()/*args*/)?.into()*/
+        todo!()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, todo!()/*args*/)?.into()
+        /*Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, todo!()/*args*/)?.into()*/
+        todo!()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {
         //todo not really sure what to do here, for now nothing
         None
     } else if &mangled == "Java_sun_misc_Perf_createLong" {
-        Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.java_value())
+        /*Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.java_value())*/
+        todo!()
         //todo this is incorrect and should be implemented properly.
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
-        Some(JavaValue::Int(4096)) //todo actually get page size
+        Some(NewJavaValueHandle::Int(4096)) //todo actually get page size
     } else {
         int_state.debug_print_stack_trace(jvm,false);
         dbg!(mangled);
