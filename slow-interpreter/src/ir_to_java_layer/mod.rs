@@ -370,6 +370,9 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     // current_frame.ir_stack_entry_debug_print();
     eprint!("Operand Stack:");
     for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+        if let RuntimeType::TopType = operand_stack_type {
+            continue//todo why is this needed
+        }
         let jv = operand_stack.get(i as u16, operand_stack_type);
         eprint!("#{}: {:?}\t", i, jv.as_njv())
     }

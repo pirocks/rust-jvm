@@ -239,7 +239,14 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_double_strict(&self) -> jdouble {
-        todo!()
+        match self {
+            NewJavaValue::Double(double) => {
+                *double
+            }
+            _ => {
+                panic!()
+            }
+        }
     }
 
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
