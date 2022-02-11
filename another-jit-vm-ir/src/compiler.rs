@@ -51,7 +51,7 @@ pub enum IRInstr {
         arg_from_to_offsets: Vec<(FramePointerOffset, FramePointerOffset)>,
         return_value: Option<FramePointerOffset>,
         target_address: IRCallTarget,
-        current_frame_size: usize
+        current_frame_size: usize,
     },
     NOP,
     DebuggerBreakpoint,
@@ -165,6 +165,7 @@ impl IRInstr {
                     IRVMExitType::MonitorEnter { .. } => { "MonitorEnter" }
                     IRVMExitType::MonitorExit { .. } => { "MonitorExit" }
                     IRVMExitType::Throw { .. } => { "Throw" }
+                    IRVMExitType::GetStatic { .. } => { "GetStatic" }
                 })
             }
             IRInstr::NPECheck { .. } => {

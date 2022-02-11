@@ -25,7 +25,7 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::const_64;
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
@@ -35,7 +35,7 @@ use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, ireturn, return_void};
-use crate::ir_to_java_layer::compiler::static_fields::putstatic;
+use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::jit::MethodResolver;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -335,7 +335,13 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 0))
             }
             CompressedInstructionInfo::if_icmpgt(offset) => {
-                this_function_ir.extend(if_acmp(method_frame_data, current_instr_data, ReferenceComparisonType::GT, *offset as i32));
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
+            }
+            CompressedInstructionInfo::getstatic { name, desc, target_class } => {
+                this_function_ir.extend(getstatic(resolver,method_frame_data,&current_instr_data, &mut restart_point_generator, *target_class,*name));
+            }
+            CompressedInstructionInfo::if_icmplt(offset) => {
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32));
             }
             other => {
                 dbg!(other);

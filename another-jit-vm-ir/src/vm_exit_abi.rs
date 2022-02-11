@@ -92,6 +92,15 @@ impl PutStatic {
     pub const RESTART_IP: Register = Register(4);
 }
 
+
+pub struct GetStatic;
+
+impl GetStatic {
+    pub const FIELD_ID: Register = Register(2);
+    pub const RES_VALUE_PTR: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+}
+
 pub struct InitClassAndRecompile;
 
 impl InitClassAndRecompile {
@@ -248,6 +257,10 @@ pub enum IRVMExitType {
     PutStatic {
         field_id: FieldId,
         value: FramePointerOffset,
+    },
+    GetStatic {
+        field_id: FieldId,
+        res_value: FramePointerOffset,
     },
     LogFramePointerOffsetValue {
         value_string: &'static str,
@@ -408,6 +421,12 @@ impl IRVMExitType {
             IRVMExitType::Throw { .. } => {
                 assembler.mov(rax, RawVMExitType::Throw as u64).unwrap();
             }
+            IRVMExitType::GetStatic { res_value, field_id } => {
+                assembler.mov(rax, RawVMExitType::GetStatic as u64).unwrap();
+                assembler.lea(GetStatic::RES_VALUE_PTR.to_native_64(), rbp - res_value.0).unwrap();
+                assembler.mov(GetStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
+                assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -431,6 +450,7 @@ pub enum RawVMExitType {
     CompileFunctionAndRecompileCurrent,
     NPE,
     PutStatic,
+    GetStatic,
     LogFramePointerOffsetValue,
     LogWholeFrame,
     TraceInstructionBefore,
@@ -493,6 +513,11 @@ pub enum RuntimeVMExitInput {
     },
     PutStatic {
         value_ptr: *mut c_void,
+        field_id: FieldId,
+        return_to_ptr: *const c_void,
+    },
+    GetStatic {
+        res_value_ptr: *mut c_void,
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
@@ -671,6 +696,13 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::Throw => {
                 todo!()
+            }
+            RawVMExitType::GetStatic => {
+                RuntimeVMExitInput::GetStatic {
+                    res_value_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RES_VALUE_PTR) as *mut c_void,
+                    field_id: register_state.saved_registers_without_ip.get_register(GetStatic::FIELD_ID) as FieldId,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RESTART_IP) as *const c_void,
+                }
             }
         }
     }

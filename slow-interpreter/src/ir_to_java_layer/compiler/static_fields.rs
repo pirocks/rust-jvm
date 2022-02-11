@@ -42,3 +42,38 @@ pub fn putstatic(
         }
     }
 }
+
+
+pub fn getstatic(
+    resolver: &MethodResolver<'vm_life>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: &CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
+    target_class: CClassName,
+    name: FieldName,
+) -> impl Iterator<Item=IRInstr> {
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    match resolver.lookup_type_loaded(&target_class.into()) {
+        None => {
+            array_into_iter([restart_point,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::InitClassAndRecompile {
+                        class: todo!(),
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id
+                    },
+                }])
+        }
+        Some((rc, loader)) => {
+            let field_id = resolver.get_field_id(rc, name);
+            array_into_iter([restart_point,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::GetStatic {
+                        field_id,
+                        res_value: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                    }
+                }])
+        }
+    }
+}

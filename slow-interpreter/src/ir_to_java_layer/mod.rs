@@ -337,6 +337,17 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 monitor.unlock(jvm, int_state).unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
+            RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_id, return_to_ptr } => {
+                eprintln!("GetStatic");
+                let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
+                let view = rc.view();
+                let field_view = view.field(field_i as usize);
+                let mut static_vars_guard = rc.static_vars(jvm);
+                let field_name = field_view.field_name();
+                let static_var = static_vars_guard.get(field_name);
+                unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
         }
     }
 }
@@ -371,7 +382,7 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     eprint!("Operand Stack:");
     for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
         if let RuntimeType::TopType = operand_stack_type {
-            continue//todo why is this needed
+            continue//needed b/c random top types show up in stack b/c of java spec people's poor life choices
         }
         let jv = operand_stack.get(i as u16, operand_stack_type);
         eprint!("#{}: {:?}\t", i, jv.as_njv())
