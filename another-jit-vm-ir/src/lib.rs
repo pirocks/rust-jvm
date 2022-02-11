@@ -12,7 +12,7 @@ use std::iter::Step;
 use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
-use iced_x86::{BlockEncoder, BlockEncoderOptions, Formatter, InstructionBlock, IntelFormatter};
+use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, Formatter, InstructionBlock, IntelFormatter};
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
 use itertools::Itertools;
 
@@ -343,11 +343,13 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Div { .. } => todo!(),
         IRInstr::Mod { .. } => todo!(),
         IRInstr::Mul { .. } => todo!(),
-        IRInstr::BinaryBitAnd { .. } => todo!(),
+        IRInstr::BinaryBitAnd { res, a } => {
+            assembler.and(res.to_native_64(),a.to_native_64()).unwrap()
+        },
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_).unwrap();
-        },
+        }
         IRInstr::Const64bit { const_, to } => {
             assembler.mov(to.to_native_64(), *const_).unwrap();
         }
@@ -370,17 +372,17 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::BranchAGreaterEqualB { a, b, label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jge(*code_label).unwrap();
         }
         IRInstr::BranchAGreaterB { a, b, label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jg(*code_label).unwrap();
         }
         IRInstr::BranchALessB { a, b, label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jl(*code_label).unwrap();
         }
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
@@ -521,6 +523,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::Const16bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_ as u32).unwrap()
+        }
+        IRInstr::LogicalShiftLeft { res, a, cl_aka_register_2: cl_aka_register_3 } => {
+            assert_eq!(cl_aka_register_3.to_native_8(), code_asm::cl);
+            assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
+            assembler.shl(res.to_native_64(), code_asm::cl).unwrap();
         }
     }
 }

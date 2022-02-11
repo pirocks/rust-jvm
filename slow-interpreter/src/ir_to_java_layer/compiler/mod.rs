@@ -24,10 +24,11 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::ladd;
+use crate::ir_to_java_layer::compiler::arithmetic::{ladd};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
+use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
-use crate::ir_to_java_layer::compiler::consts::const_64;
+use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, sipush};
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
@@ -35,7 +36,7 @@ use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, l
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
-use crate::ir_to_java_layer::compiler::returns::{areturn, ireturn, return_void};
+use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::jit::MethodResolver;
@@ -311,6 +312,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::areturn => {
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
             }
+            CompressedInstructionInfo::dreturn => {
+                this_function_ir.extend(dreturn(method_frame_data, current_instr_data));
+            }
             CompressedInstructionInfo::iload_1 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 1))
             }
@@ -354,6 +358,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::bipush(val_) => {
                 this_function_ir.extend(bipush(method_frame_data, current_instr_data, val_))
             }
+            CompressedInstructionInfo::lshl => {
+                this_function_ir.extend(lshl(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::land => {
+                this_function_ir.extend(land(method_frame_data, current_instr_data))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -373,16 +383,6 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
-fn sipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, val: &u16) -> impl Iterator<Item=IRInstr> {
-    array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
-}
-
-fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, val_: &u8) -> impl Iterator<Item=IRInstr> {
-    array_into_iter([IRInstr::Const32bit { to: Register(1), const_: *val_ as i8 as i32 as u32 },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
-}
-
 pub mod throw;
 pub mod monitors;
 pub mod arrays;
@@ -398,6 +398,7 @@ pub mod local_var_loads;
 pub mod local_var_stores;
 pub mod ldc;
 pub mod arithmetic;
+pub mod bitmanip;
 
 pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {
     <[T; N]>::into_iter(array)

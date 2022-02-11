@@ -13,3 +13,4 @@ pub fn ladd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::StoreFPRelative { from: b, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
+

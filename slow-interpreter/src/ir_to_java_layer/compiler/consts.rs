@@ -12,3 +12,13 @@ pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_inst
         IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) },
     ])
 }
+
+pub fn sipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, val: &u16) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}
+
+pub fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, val_: &u8) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([IRInstr::Const32bit { to: Register(1), const_: *val_ as i8 as i32 as u32 },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}

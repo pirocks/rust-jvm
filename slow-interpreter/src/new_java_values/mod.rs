@@ -224,7 +224,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_long_strict(&self) -> jlong {
-        todo!()
+        match self {
+            NewJavaValue::Long(long) => {
+                *long
+            }
+            _ => panic!()
+        }
     }
 
     pub fn unwrap_float_strict(&self) -> jfloat {
