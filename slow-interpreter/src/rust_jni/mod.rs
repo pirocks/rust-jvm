@@ -25,9 +25,10 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::jvm_state::NativeLibraries;
+use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state};
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 
 pub mod mangling;
@@ -43,7 +44,7 @@ impl<'gc_life> NativeLibraries<'gc_life> {
     }
 }
 
-pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<NewJavaValue<'gc_life,'k>>, md: CMethodDescriptor) -> Result<Option<Option<JavaValue<'gc_life>>>, WasException> {
+pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<NewJavaValue<'gc_life, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc_life>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -63,7 +64,7 @@ pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     Ok(if method_view.is_static() { Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?) } else { Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?) })
 }
 
-pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<NewJavaValue<'gc_life,'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<NewJavaValue<'gc_life, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
     assert!(int_state.current_frame().is_native_method());
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
@@ -94,15 +95,27 @@ pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state:
     let cif_res: *mut c_void = unsafe { cif.call(fn_ptr, c_args.as_slice()) };
     let res = match &md.return_type {
         CPDType::VoidType => None,
-        CPDType::ByteType => Some(JavaValue::Byte(cif_res as i8)),
-        CPDType::FloatType => Some(JavaValue::Float(unsafe { transmute(cif_res as usize as u32) })),
-        CPDType::DoubleType => Some(JavaValue::Double(unsafe { transmute(cif_res as u64) })),
-        CPDType::ShortType => Some(JavaValue::Short(cif_res as jshort)),
-        CPDType::CharType => Some(JavaValue::Char(cif_res as jchar)),
-        CPDType::IntType => Some(JavaValue::Int(cif_res as i32)),
-        CPDType::LongType => Some(JavaValue::Long(cif_res as i64)),
-        CPDType::BooleanType => Some(JavaValue::Boolean(cif_res as u8)),
-        CPDType::Ref(_) => unsafe { Some(JavaValue::Object(from_object(jvm, cif_res as jobject))) },
+        CPDType::ByteType => Some(NewJavaValueHandle::Byte(cif_res as i8)),
+        CPDType::FloatType => Some(NewJavaValueHandle::Float(unsafe { transmute(cif_res as usize as u32) })),
+        CPDType::DoubleType => Some(NewJavaValueHandle::Double(unsafe { transmute(cif_res as u64) })),
+        CPDType::ShortType => Some(NewJavaValueHandle::Short(cif_res as jshort)),
+        CPDType::CharType => Some(NewJavaValueHandle::Char(cif_res as jchar)),
+        CPDType::IntType => Some(NewJavaValueHandle::Int(cif_res as i32)),
+        CPDType::LongType => Some(NewJavaValueHandle::Long(cif_res as i64)),
+        CPDType::BooleanType => Some(NewJavaValueHandle::Boolean(cif_res as u8)),
+        CPDType::Ref(_) => {
+            Some(unsafe {
+                match from_object_new(jvm, cif_res as jobject) {
+                    None => {
+                        NewJavaValueHandle::Null
+                    }
+                    Some(obj) => {
+                        NewJavaValueHandle::Object(obj)
+                    }
+                }
+            })
+        }
+
         _ => {
             dbg!(md.return_type); //todo
             panic!()
@@ -112,7 +125,7 @@ pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state:
         for (i, (j, t)) in args_and_type.iter().enumerate() {
             let offset = if suppress_runtime_class { 1 } else { 2 };
             let to_free = &mut c_args[i + offset];
-            free_native(todo!()/*(*j).clone()*/, t, to_free)
+            free_native((*j).clone(), t, to_free)
         }
     }
     if int_state.throw().is_some() {

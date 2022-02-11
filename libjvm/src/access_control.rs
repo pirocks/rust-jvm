@@ -85,7 +85,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
         return null_mut();
     } else {
         match AccessControlContext::new(jvm, int_state, protection_domains) {
-            Ok(access_control_ctx) => new_local_ref_public(access_control_ctx.object().to_gc_managed().into(), int_state),
+            Ok(access_control_ctx) => new_local_ref_public(todo!()/*access_control_ctx.object().to_gc_managed().into()*/, int_state),
             Err(WasException {}) => return null_mut(),
         }
     }

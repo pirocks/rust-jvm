@@ -102,12 +102,12 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
         }
     }
     return new_local_ref_public(
-        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+todo!()/*        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
             Ok(res) => res,
             Err(_) => todo!(),
         }
             .object().to_gc_managed()
-            .into(),
+            .into()*/,
         int_state,
     );
 }

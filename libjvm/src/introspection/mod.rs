@@ -29,6 +29,7 @@ use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::runtime_class::RuntimeClass;

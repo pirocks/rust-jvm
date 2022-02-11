@@ -40,6 +40,7 @@ pub mod dynamic {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java::lang::string::JString;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
 
     pub fn invoke_dynamic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) {

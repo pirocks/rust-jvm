@@ -233,7 +233,7 @@ pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_li
                 };
                 let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
                 let name = field.field_name();
-                runtime_class.static_vars(jvm).set(name, todo!()/*constant_value.to_new()*/);
+                runtime_class.static_vars(jvm).set(name, constant_value);
             }
         }
     }

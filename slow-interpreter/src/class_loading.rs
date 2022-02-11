@@ -317,7 +317,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
             class_object.set_name_(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.replace("/", ".").to_string()))?)
         }
     }
-    Ok(class_object.object())
+    Ok(class_object.object_gc_life(jvm))
 }
 
 pub fn check_resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {

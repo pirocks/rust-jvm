@@ -42,7 +42,7 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
         Ok(constant_pool) => constant_pool,
         Err(WasException {}) => return null_mut(),
     };
-    to_object(constant_pool.object().to_gc_managed().into())
+    to_object(todo!()/*constant_pool.object().to_gc_managed().into()*/)
 }
 
 #[no_mangle]
@@ -152,7 +152,7 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
         }
     };
 
-    Ok(new_local_ref_public(method_obj.object().to_gc_managed().into(), int_state))
+    Ok(new_local_ref_public(todo!()/*method_obj.object().to_gc_managed().into()*/, int_state))
 }
 
 #[no_mangle]
@@ -340,7 +340,7 @@ unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::String(string) => Ok(to_object(JString::from_rust(jvm, int_state, string.string())?.object().to_gc_managed().into())),
+        ConstantInfoView::String(string) => Ok(to_object(todo!()/*JString::from_rust(jvm, int_state, string.string())?.object().to_gc_managed().into()*/)),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }
@@ -364,7 +364,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Utf8(utf8) => Ok(to_object(JString::from_rust(jvm, int_state, utf8.str.clone())?.object().to_gc_managed().into())),
+        ConstantInfoView::Utf8(utf8) => Ok(to_object(todo!()/*JString::from_rust(jvm, int_state, utf8.str.clone())?.object().to_gc_managed().into()*/)),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }

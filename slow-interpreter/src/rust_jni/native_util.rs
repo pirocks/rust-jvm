@@ -73,15 +73,13 @@ pub unsafe fn from_object_new<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: 
     Some(handle)
 }
 
-pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life, 'gc_life> {//all jclasses have life of 'gc_life
+pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {//all jclasses have life of 'gc_life
     try_from_jclass(jvm, obj).unwrap()
     //todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life, 'gc_life>> { //all jclasses have life of 'gc_life
+pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> { //all jclasses have life of 'gc_life
     let possibly_null = from_object_new(jvm, obj);
     let not_null = possibly_null?;
-    let new_jv = jvm.gc.handle_lives_for_gc_life(not_null);//todo this currently leaks b/c of constant push to add only vec but should be doable in non-leaky way
-
-    NewJavaValue::AllocObject(new_jv).cast_class().into()
+    NewJavaValueHandle::Object(not_null).cast_class()
 }

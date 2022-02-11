@@ -9,7 +9,7 @@ use crate::runtime_class::RuntimeClass;
 
 //todo move util stuff like varargs into here
 
-pub fn class_object_to_runtime_class(obj: &JClass<'gc_life,'gc_life>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Option<Arc<RuntimeClass<'gc_life>>> {
+pub fn class_object_to_runtime_class(obj: &JClass<'gc_life>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Option<Arc<RuntimeClass<'gc_life>>> {
     if obj.as_type(jvm).is_primitive() {
         return None;
     }

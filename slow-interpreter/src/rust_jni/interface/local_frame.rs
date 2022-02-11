@@ -72,6 +72,16 @@ pub unsafe fn new_local_ref_public<'gc_life, 'l>(rust_obj: Option<GcManagedObjec
     //todo use match
 }
 
+pub unsafe fn new_local_ref_public_new<'gc_life, 'l>(rust_obj: Option<AllocatedObject<'gc_life,'_>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jobject {
+
+    if rust_obj.is_none() {
+        return null_mut();
+    }
+    new_local_ref_internal_new(rust_obj.unwrap(), interpreter_state)
+    //todo use match
+}
+
+
 unsafe fn new_local_ref_internal_new<'gc_life, 'l>(rust_obj: AllocatedObject<'gc_life,'_>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> jobject {
     let c_obj = to_object_new(rust_obj.clone().into());
     let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();

@@ -105,7 +105,7 @@ pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     if invoke_virtual {
         unimplemented!()
     } else if invoke_static {
-        let by_address = ByAddressAllocatedObject::Owned(vmentry.clone().object());
+        let by_address = ByAddressAllocatedObject::Owned(todo!()/*vmentry.clone().object()*/);
         let method_id = *jvm.resolved_method_handles.read().unwrap().get(&by_address).unwrap();
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();

@@ -59,7 +59,7 @@ pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: NewJavaValue<'gc_life, '_
     }
 }
 
-pub unsafe fn free_native<'gc_life>(_j: JavaValue<'gc_life>, t: &CPDType, to_free: &mut Arg) {
+pub unsafe fn free_native<'gc_life, 'l>(j: NewJavaValue<'gc_life,'l>, t: &CPDType, to_free: &mut Arg) {
     match t {
         CPDType::ByteType => {
             Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);

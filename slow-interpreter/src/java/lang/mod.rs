@@ -87,6 +87,7 @@ pub mod member_name {
     use crate::java::lang::reflect::field::Field;
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
 
@@ -137,7 +138,7 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_name(), new_val.java_value());
         }
 
-        pub fn get_clazz_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life, '_>> {
+        pub fn get_clazz_or_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
             let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).clone();
             if possibly_null.unwrap_object().is_none() {
                 None
@@ -146,11 +147,11 @@ pub mod member_name {
             }
         }
 
-        pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life, '_> {
+        pub fn get_clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
             self.get_clazz_or_null(jvm).unwrap()
         }
 
-        pub fn set_clazz(&self, new_val: JClass<'gc_life, '_>) {
+        pub fn set_clazz(&self, new_val: JClass<'gc_life>) {
             self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_clazz(), new_val.java_value());
         }
 
@@ -190,7 +191,7 @@ pub mod member_name {
             self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_resolution()).clone()
         }
 
-        pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life, '_>> {
+        pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JClass<'gc_life>> {
             self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).to_new().cast_class()
         }
 
@@ -201,7 +202,7 @@ pub mod member_name {
             Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
         }
 
-        pub fn get_field_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JClass<'gc_life, '_>>, WasException> {
+        pub fn get_field_type(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<JClass<'gc_life>>, WasException> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()), todo!())?;
@@ -249,30 +250,37 @@ pub mod class {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{ByAddressAllocatedObject, GcManagedObject, JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectCOW, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
-    pub struct JClass<'gc_life, 'l> {
-        normal_object: AllocatedObjectCOW<'gc_life, 'l>,
+    pub struct JClass<'gc_life> {
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
-    impl<'gc_life, 'l> Clone for JClass<'gc_life,'l>{
+    impl<'gc_life> Clone for JClass<'gc_life> {
         fn clone(&self) -> Self {
             todo!()
         }
     }
 
-    impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
-        pub fn cast_class(&self) -> Option<JClass<'gc_life, 'l>> {
-            Some(JClass { normal_object: AllocatedObjectCOW::Ref(self.unwrap_object()?.unwrap_alloc()) })
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_class(self) -> Option<JClass<'gc_life>> {
+            Some(JClass { normal_object: self.unwrap_object()? })
         }
     }
 
-    impl<'gc_life> JClass<'gc_life, 'gc_life> {
+    impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
+        pub fn cast_class(&self) -> Option<JClass<'gc_life>> {
+            Some(JClass { normal_object: todo!()/*AllocatedObjectCOW::Ref(self.unwrap_object()?.unwrap_alloc())*/ })
+        }
+    }
+
+    impl<'gc_life> JClass<'gc_life> {
         pub fn as_runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-            jvm.classes.read().unwrap().object_to_runtime_class(self.normal_object.as_allocated_object())
+            jvm.classes.read().unwrap().object_to_runtime_class(self.normal_object.as_allocated_obj())
             //todo I can get rid of this clone since technically only a ref is needed for lookup
         }
         pub fn as_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {
@@ -280,14 +288,14 @@ pub mod class {
         }
     }
 
-    impl<'gc_life, 'l> JClass<'gc_life, 'l> {
-        pub fn gc_lifeify(&self) -> JClass<'gc_life,'gc_life>{
+    impl<'gc_life> JClass<'gc_life> {
+        pub fn gc_lifeify(&self) -> JClass<'gc_life> {
             todo!()
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.as_allocated_object().to_gc_managed().clone().into()));
-            run_static_or_virtual(jvm, int_state, &self.normal_object.as_allocated_object().to_gc_managed().unwrap_normal_object().objinfo.class_pointer, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
+            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.as_allocated_obj().to_gc_managed().clone().into()));
+            run_static_or_virtual(jvm, int_state, &self.normal_object.as_allocated_obj().to_gc_managed().unwrap_normal_object().objinfo.class_pointer, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object().map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))
         }
 
@@ -295,8 +303,7 @@ pub mod class {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             let res = new_object(jvm, int_state, &class_class);
             run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
-            let res = jvm.gc.handle_lives_for_gc_life(res);
-            Ok(NewJavaValue::AllocObject(res).cast_class().unwrap())
+            Ok(NewJavaValueHandle::Object(res).cast_class().unwrap())
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, loader: ClassLoader<'gc_life>) -> Result<Self, WasException> {
@@ -306,14 +313,14 @@ pub mod class {
             Ok(res.to_new().cast_class().unwrap())
         }
 
-        pub fn from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: CClassName) -> JClass<'gc_life, 'l> {
+        pub fn from_name(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: CClassName) -> JClass<'gc_life> {
             let type_ = CPDType::Ref(CPRefType::Class(name));
             JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().to_gc_managed().into()).to_new().cast_class().unwrap()
         }
 
-        pub fn from_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<JClass<'gc_life, 'l>, WasException> {
+        pub fn from_type(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<JClass<'gc_life>, WasException> {
             let res = load_class_constant_by_type(jvm, int_state, &ptype)?;
-            Ok(res.cast_class().unwrap())
+            Ok(res.to_handle_discouraged().cast_class().unwrap())//todo we should be able to safely turn handles that live for gc life without reentrant register
         }
 
         pub fn get_name(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<JString<'gc_life>, WasException> {
@@ -325,12 +332,20 @@ pub mod class {
         }
 
         pub fn set_name_(&self, name: JString<'gc_life>) {
-            let temp = self.normal_object.as_allocated_object().to_gc_managed();
+            let temp = self.normal_object.as_allocated_obj().to_gc_managed();
             let normal_object = temp.unwrap_normal_object();
             normal_object.set_var_top_level(FieldName::field_name(), name.java_value());
         }
 
-        as_object_or_java_value!();
+        pub fn object_gc_life(self, jvm: &JVMState<'gc_life>) -> AllocatedObject<'gc_life, 'gc_life> {
+            jvm.gc.handle_lives_for_gc_life(self.normal_object)
+        }
+    }
+
+    impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for JClass<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
     }
 }
 
@@ -367,13 +382,17 @@ pub mod class_loader {
             classes_guard.lookup_or_add_classloader(todo!()/*self.normal_object.clone()*/)
         }
 
-        pub fn load_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: JString<'gc_life>) -> Result<JClass<'gc_life, 'l>, WasException> {
+        pub fn load_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: JString<'gc_life>) -> Result<JClass<'gc_life>, WasException> {
             int_state.push_current_operand_stack(self.clone().java_value());
             int_state.push_current_operand_stack(name.java_value());
             let class_loader = assert_inited_or_initing_class(jvm, CClassName::classloader().into());
             run_static_or_virtual(jvm, int_state, &class_loader, MethodName::method_loadClass(), &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() }, todo!())?;
             assert!(int_state.throw().is_none());
             Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap())
+        }
+
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
+            todo!()
         }
 
         as_object_or_java_value!();
@@ -392,47 +411,56 @@ pub mod string {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
-    use crate::class_loading::check_initing_or_inited_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
+    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
 
-    #[derive(Clone)]
     pub struct JString<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
+    }
+
+    impl Clone for JString<'_> {
+        fn clone(&self) -> Self {
+            todo!()
+        }
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_string(&self) -> Option<JString<'gc_life>> {
+            todo!()
+            /*Some(JString { normal_object: self.unwrap_object()? })*/
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_string(self) -> Option<JString<'gc_life>> {
             Some(JString { normal_object: self.unwrap_object()? })
         }
     }
 
     impl<'gc_life> JString<'gc_life> {
         pub fn to_rust_string(&self, jvm: &'gc_life JVMState<'gc_life>) -> String {
-            string_obj_to_string(jvm, self.normal_object.clone().into())
+            string_obj_to_string(jvm, self.normal_object.as_allocated_obj())
         }
 
         pub fn from_rust(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, rust_str: Wtf8Buf) -> Result<JString<'gc_life>, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into()).unwrap(); //todo replace these unwraps
-            let string_object = new_object(jvm, int_state, &string_class).to_jv();
+            let string_object = new_object(jvm, int_state, &string_class);
 
-            let mut vec1 = rust_str.to_ill_formed_utf16().map(|c| JavaValue::Char(c as u16).to_native()).collect_vec();
-            let array_object = ArrayObject {
+            let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
+            let array_object = UnAllocatedObjectArray {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
-                loader: int_state.current_loader(jvm),
-                len: vec1.len() as i32,
-                elems_base: vec1.as_mut_ptr(),//todo major unsafe here need to switch to new java value
-                phantom_data: Default::default(),
-                elem_type: CPDType::CharType,
-                // monitor: jvm.thread_state.new_monitor("monitor for a string".to_string()),
+                elems,
             };
             //todo what about check_inited_class for this array type
-            let array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Array(array_object)*/)*/);
-            run_constructor(jvm, int_state, string_class, todo!()/*vec![string_object.clone(), array.to_jv().clone()]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
-            Ok(string_object.cast_string().expect("error creating string"))
+            let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
+            run_constructor(jvm, int_state, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
+            Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }
 
         pub fn intern(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<JString<'gc_life>, WasException> {
@@ -443,9 +471,10 @@ pub mod string {
         }
 
         pub fn value(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<jchar> {
+            let string_class = assert_inited_or_initing_class(jvm, CClassName::string().into());
             let mut res = vec![];
-            for elem in self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_array().array_iterator(jvm) {
-                res.push(elem.unwrap_char())
+            for elem in self.normal_object.as_allocated_obj().lookup_field(&string_class, FieldName::field_value()).unwrap_array(jvm).array_iterator() {
+                res.push(elem.as_njv().unwrap_char_strict())
             }
             res
         }
@@ -458,6 +487,12 @@ pub mod string {
         }
 
         as_object_or_java_value!();
+    }
+
+    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for JString<'gc_life>{
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
     }
 }
 
@@ -656,6 +691,10 @@ pub mod thread {
             self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()
         }
 
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
+            todo!()
+        }
+
         as_object_or_java_value!();
     }
 }
@@ -737,6 +776,9 @@ pub mod thread_group {
             self.normal_object.lookup_field(jvm, FieldName::field_parent()).try_cast_thread_group()
         }
 
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
+            todo!()
+        }
         as_object_or_java_value!();
     }
 }
@@ -876,6 +918,11 @@ pub mod illegal_argument_exception {
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone()]*/, &CMethodDescriptor::void_return(vec![]))?;
             Ok(this.cast_illegal_argument_exception())
         }
+
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
+        }
     }
 }
 
@@ -913,6 +960,10 @@ pub mod long {
 
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jlong {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_long()
+        }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
         }
     }
 }
@@ -952,6 +1003,10 @@ pub mod int {
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_int()
         }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
+        }
     }
 }
 
@@ -989,6 +1044,10 @@ pub mod short {
 
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jshort {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_short()
+        }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
         }
     }
 }
@@ -1028,6 +1087,10 @@ pub mod byte {
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jbyte {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_byte()
         }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
+        }
     }
 }
 
@@ -1065,6 +1128,10 @@ pub mod boolean {
 
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jboolean {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_boolean()
+        }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
         }
     }
 }
@@ -1104,6 +1171,10 @@ pub mod char {
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jchar {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_char()
         }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
+        }
     }
 }
 
@@ -1142,6 +1213,10 @@ pub mod float {
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jfloat {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_float()
         }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
+        }
     }
 }
 
@@ -1179,6 +1254,10 @@ pub mod double {
 
         pub fn inner_value(&self, jvm: &'gc_life JVMState<'gc_life>) -> jdouble {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_double()
+        }
+        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'todo> {
+            /*self.normal_object*/
+            todo!()
         }
     }
 }

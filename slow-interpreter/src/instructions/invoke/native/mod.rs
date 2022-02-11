@@ -17,12 +17,13 @@ use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::{monitor_for_function, WasException};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::java_values::JavaValue;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let view = &class.view();
     // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -114,7 +115,7 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
             }
         }
     } else {
-        assert!(int_state.current_frame().is_native_method());
+        /*assert!(int_state.current_frame().is_native_method());
         match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed.clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
@@ -127,7 +128,8 @@ pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
                 Ok(res) => res,
                 Err(_) => None,
             },
-        }
+        }*/
+        todo!()
     };
     if let Some(m) = monitor.as_ref() {
         m.unlock(jvm, int_state).unwrap();

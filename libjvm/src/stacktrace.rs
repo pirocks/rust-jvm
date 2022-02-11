@@ -108,6 +108,6 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
         None => {
             return throw_array_out_of_bounds(jvm, int_state, index);
         }
-        Some(element) => to_object(element.clone().object().to_gc_managed().into()),
+        Some(element) => to_object(todo!()/*element.clone().object().to_gc_managed().into()*/),
     }
 }

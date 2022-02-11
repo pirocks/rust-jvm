@@ -24,7 +24,7 @@ unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) 
         Ok(jstring) => jstring,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public(jstring.object().to_gc_managed().into(), int_state)
+    new_local_ref_public(todo!()/*jstring.object().to_gc_managed().into()*/, int_state)
 }
 
 #[no_mangle]

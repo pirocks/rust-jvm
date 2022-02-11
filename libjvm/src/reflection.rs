@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         jvm,
         match method_obj.lookup_field(jvm, FieldName::field_name()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
-            Some(method_name) => method_name,
+            Some(method_name) => todo!()/*method_name*/,
         },
     );
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
@@ -72,7 +72,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         jvm,
         match method_obj.lookup_field(jvm, FieldName::field_signature()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
-            Some(method_name) => method_name,
+            Some(method_name) => todo!()/*method_name*/,
         },
     );
     let clazz_java_val = method_obj.lookup_field(jvm, FieldName::field_clazz());
@@ -144,7 +144,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         jvm,
         match signature_str_obj.unwrap_object() {
             None => return throw_npe(jvm, int_state),
-            Some(signature) => signature,
+            Some(signature) => todo!()/*signature*/,
         },
     );
     dbg!(&signature_str);

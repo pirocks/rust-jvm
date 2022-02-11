@@ -30,7 +30,7 @@ fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
-    let string = intern_safe(jvm, before_intern.object().to_gc_managed().into());
+    let string = intern_safe(jvm, todo!()/*before_intern.object().to_gc_managed().into()*/);
     int_state.push_current_operand_stack(string.java_value());
 }
 
@@ -82,7 +82,7 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
         Either::Left(ldcw) => {
             match &ldcw {
                 CompressedLdcW::String { str } => {
-                    let string_value = intern_safe(jvm, JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().to_gc_managed().into()).java_value();
+                    let string_value = intern_safe(jvm, todo!()/*JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().to_gc_managed().into()*/).java_value();
                     int_state.push_current_operand_stack(string_value)
                 }
                 CompressedLdcW::Class { type_ } => {
@@ -117,16 +117,17 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
     }
 }
 
-pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> JavaValue<'gc_life> {
+pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> NewJavaValueHandle<'gc_life> {
     match &c {
-        ConstantInfoView::Integer(i) => JavaValue::Int(i.int),
-        ConstantInfoView::Float(f) => JavaValue::Float(f.float),
-        ConstantInfoView::Long(l) => JavaValue::Long(l.long),
-        ConstantInfoView::Double(d) => JavaValue::Double(d.double),
+        ConstantInfoView::Integer(i) => NewJavaValueHandle::Int(i.int),
+        ConstantInfoView::Float(f) => NewJavaValueHandle::Float(f.float),
+        ConstantInfoView::Long(l) => NewJavaValueHandle::Long(l.long),
+        ConstantInfoView::Double(d) => NewJavaValueHandle::Double(d.double),
         ConstantInfoView::String(s) => {
             load_string_constant(jvm, int_state, s);
             let string_value = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
-            intern_safe(jvm, string_value.cast_string().unwrap().object().to_gc_managed().into()).java_value()
+            /*intern_safe(jvm, todo!()/*string_value.cast_string().unwrap().object().to_gc_managed().into()*/).java_value()*/
+            todo!()
         }
         _ => panic!(),
     }

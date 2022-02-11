@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
+use crate::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
@@ -12,7 +13,7 @@ use crate::threading::JavaThread;
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "SetEventNotificationMode");
-    let thread_obj = if event_thread.is_null() { None } else { JavaValue::Object(from_jclass(jvm, event_thread).object().to_gc_managed().into()).cast_thread().into() };
+    let thread_obj = if event_thread.is_null() { None } else { JavaValue::Object(from_jclass(jvm, event_thread).object().as_allocated_obj().to_gc_managed().into()).cast_thread().into() };
     let tid: Option<Arc<JavaThread>> = thread_obj.map(|it| it.get_java_thread(jvm));
     let jdwp_copy = jvm.jvmti_state().unwrap().built_in_jdwp.clone();
     // does not support per thread notification

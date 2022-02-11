@@ -139,7 +139,7 @@ impl SharedLibJVMTI {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"vm_inited"));
                 let main_thread_object = main_thread.thread_object();
-                let event = VMInitEvent { thread: new_local_ref_public(main_thread_object.object().to_gc_managed().into(), int_state) };
+                let event = VMInitEvent { thread: new_local_ref_public(todo!()/*main_thread_object.object().to_gc_managed().into()*/, int_state) };
                 self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
                 int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway
@@ -153,7 +153,7 @@ impl SharedLibJVMTI {
             while !jvm.vm_live() {} //todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {
-                let thread = new_local_ref_public(jthread.object().to_gc_managed().into(), int_state);
+                let thread = new_local_ref_public(todo!()/*jthread.object().to_gc_managed().into()*/, int_state);
                 let event = ThreadStartEvent { thread };
                 self.ThreadStart(jvm, int_state, event);
             }

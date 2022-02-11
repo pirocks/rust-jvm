@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -23,7 +24,7 @@ use crate::java::lang::null_pointer_exception::NullPointerException;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::JVMState;
-use crate::new_java_values::AllocatedObject;
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 use crate::runtime_class::RuntimeClass;
 
 pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
@@ -46,11 +47,12 @@ pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &
     }
 }
 
-pub fn string_obj_to_string<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> String {
-    let temp = str_obj.lookup_field(jvm, FieldName::field_value());
-    let chars = temp.unwrap_array();
-    let borrowed_elems = chars.array_iterator(jvm);
-    char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char())).collect::<Result<String, _>>().expect("really weird string encountered")
+pub fn string_obj_to_string<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: AllocatedObject<'gc_life,'_>) -> String {
+    let str_class_pointer = assert_inited_or_initing_class(jvm, CClassName::string().into());
+    let temp = str_obj.lookup_field(&str_class_pointer,FieldName::field_value());
+    let chars = temp.unwrap_array(jvm);
+    let borrowed_elems = chars.array_iterator();
+    char::decode_utf16(borrowed_elems.map(|jv| jv.as_njv().unwrap_char_strict())).collect::<Result<String, _>>().expect("really weird string encountered")
     //todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 

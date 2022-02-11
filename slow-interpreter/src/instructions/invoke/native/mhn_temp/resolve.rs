@@ -160,7 +160,7 @@ fn resolve_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
                     },
                 };
                 let method_id = jvm.method_table.write().unwrap().get_method_id(class.clone(), method_i);
-                jvm.resolved_method_handles.write().unwrap().insert(ByAddressAllocatedObject::Owned(member_name.clone().object()), method_id);
+                jvm.resolved_method_handles.write().unwrap().insert(ByAddressAllocatedObject::Owned(todo!()/*member_name.clone().object()*/), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
                 let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {

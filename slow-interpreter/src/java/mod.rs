@@ -1,12 +1,28 @@
+use crate::JavaValue;
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
+
+pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
+    fn object(self) -> AllocatedObjectHandle<'gc_life>;
+
+
+    fn java_value(self) -> JavaValue<'gc_life> {
+        todo!()
+    }
+
+    fn new_java_value_handle(self) -> NewJavaValueHandle<'gc_life> {
+        NewJavaValueHandle::Object(self.object())
+    }
+}
+
 macro_rules! as_object_or_java_value {
     () => {
         // use crate::java_values::{Object, JavaValue, NormalObject};
         //
         //
-        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life,'todo> {
+        /*pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life,'todo> {
             /*self.normal_object*/
             todo!()
-        }
+        }*/
 
         pub fn java_value(self) -> JavaValue<'gc_life> {
             /*JavaValue::Object(self.object().into())*/
@@ -23,7 +39,7 @@ macro_rules! as_object_or_java_value {
             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::string().into())).cast_string())
         }
 
-        pub fn get_class(&self, jvm: &'gc_life crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'l>) -> Result<crate::java::lang::class::JClass<'gc_life,'gc_life>, crate::WasException> {
+        pub fn get_class(&self, jvm: &'gc_life crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'l>) -> Result<crate::java::lang::class::JClass<'gc_life>, crate::WasException> {
             todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
             let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
                 arg_types: vec![],

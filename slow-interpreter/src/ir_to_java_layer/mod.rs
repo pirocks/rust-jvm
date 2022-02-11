@@ -45,6 +45,7 @@ use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompil
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::class::JClass;
 use crate::java::lang::int::Int;
+use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
@@ -148,7 +149,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let args_new_jv = args_jv_handle.iter().map(|handle|handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
-                    unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
+                    unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -176,8 +177,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut static_vars_guard = rc.static_vars(jvm);
                 let field_name = field_view.field_name();
                 let static_var = static_vars_guard.get(field_name);
-                let jv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_java_value(&field_view.field_type(), jvm);
-                static_vars_guard.set(field_name,todo!()/*jv*/);
+                let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
+                static_vars_guard.set(field_name, njv);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
@@ -270,9 +271,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 int_state.debug_print_stack_trace(jvm, false);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
                 dbg!(jstring.value(jvm));
-                let jv = jstring.java_value();
+                let jv = jstring.new_java_value_handle();
                 unsafe {
-                    let raw_64 = jv.to_native().as_u64;
+                    let raw_64 = jv.as_njv().to_native().as_u64;
                     (*res as *mut u64).write(raw_64);
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -281,9 +282,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("NewClass");
                 let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(*type_).clone();
                 let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
-                let jv = jclass.java_value();
+                let jv_new_handle = jclass.new_java_value_handle();
                 unsafe {
-                    let raw_64 = jv.to_native().as_u64;
+                    let raw_64 = jv_new_handle.as_njv().to_native().as_u64;
                     (*res as *mut u64).write(raw_64);
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }

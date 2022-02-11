@@ -15,8 +15,9 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
@@ -43,12 +44,12 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
     new_local_ref_public(
-        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
+        todo!()/*        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
             Err(WasException {}) => return null_mut(),
         }
             .object().to_gc_managed()
-            .into(),
+            .into()*/,
         int_state,
     )
 }
@@ -72,12 +73,12 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jst
     new_local_ref_public(string, int_state)
 }
 
-pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
-    Ok(to_object(intern_safe(jvm, str_obj).object().to_gc_managed().into()))
+    Ok(to_object(todo!()/*intern_safe(jvm, str_obj).object().to_gc_managed().into()*/))
 }
 
 pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: GcManagedObject<'gc_life>) -> JString<'gc_life> {
@@ -136,13 +137,13 @@ pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, st
 unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_then: impl Fn(String) -> T) -> T {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let str_obj = match from_object(jvm, str) {
+    let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let rust_str = JavaValue::Object(str_obj.into()).cast_string().unwrap().to_rust_string(jvm);
+    let rust_str = NewJavaValueHandle::Object(str_obj).cast_string().unwrap().to_rust_string(jvm);
     and_then(rust_str)
 }
 

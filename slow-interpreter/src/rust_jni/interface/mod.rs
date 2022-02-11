@@ -473,7 +473,7 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
         Ok(method_obj) => method_obj,
         Err(_) => todo!(),
     };
-    to_object(method_obj.object().to_gc_managed().into())
+    to_object(todo!()/*method_obj.object().to_gc_managed().into()*/)
 }
 
 ///ExceptionDescribe
@@ -583,7 +583,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Ok(java_string) => java_string,
             Err(WasException {}) => return -4,
         };
-        (constructor_method_id, to_object(java_string.object().to_gc_managed().into()))
+        (constructor_method_id, to_object(todo!()/*java_string.object().to_gc_managed().into()*/))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
     let jvalue_ = jvalue { l: java_string_object };

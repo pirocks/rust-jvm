@@ -19,8 +19,9 @@ use slow_interpreter::java::lang::long::Long;
 use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]
@@ -113,31 +114,29 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let src_o = from_object(jvm, src);
-    let src = match src_o.as_ref() {
-        Some(x) => x,
+    let src_o = from_object_new(jvm, src);
+    let src = match src_o {
+        Some(x) => NewJavaValueHandle::Object(x),
         None => return throw_npe(jvm, int_state),
-    }
-        .unwrap_array();
-    let mut dest_o = from_object(jvm, dst);
-    let gc_managed_object = match dest_o.as_mut() {
-        Some(x) => x,
+    };
+    let src = src.unwrap_array(jvm);
+    let mut dest_o = from_object_new(jvm, dst);
+    let new_jv_handle = match dest_o {
+        Some(x) => NewJavaValueHandle::Object(x),
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let dest = gc_managed_object.unwrap_array_mut();
+    let dest = new_jv_handle.unwrap_array(jvm);
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }
     let mut to_copy = vec![];
     for i in 0..(length) {
-        let borrowed = src;
-        let temp = borrowed.get_i(jvm, (src_pos + i));
+        let temp = src.get_i( ((src_pos + i) as usize));
         to_copy.push(temp);
     }
     for i in 0..(length) {
-        let borrowed = &mut *dest;
-        borrowed.set_i(jvm, dst_pos + i, to_copy[i as usize].clone());
+        dest.set_i((dst_pos + i) as usize, to_copy[i as usize].as_njv());
     }
 }

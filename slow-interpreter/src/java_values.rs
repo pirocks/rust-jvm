@@ -13,11 +13,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::LocalKey;
 
 use iced_x86::CC_be::na;
+use iced_x86::CC_e::e;
 use iced_x86::CC_le::le;
 use iced_x86::OpCodeOperandKind::al;
 use itertools::{Itertools, repeat_n};
 use lazy_static::lazy_static;
 use num_traits::one;
+use parking_lot::OnceState::New;
 
 use add_only_static_vec::AddOnlyVec;
 use early_startup::Regions;
@@ -34,7 +36,7 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::safepoints::Monitor2;
@@ -101,8 +103,15 @@ impl<'gc_life> GC<'gc_life> {
                     }
                 }
             }
-            UnAllocatedObject::Array(_) => {
-                todo!()
+            UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems }) => {
+                unsafe {
+                    (allocated.as_ptr() as *mut i32).write(elems.len() as i32);
+                    let array_base = allocated.as_ptr().offset(size_of::<jlong>() as isize);
+                    assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
+                    for (i, elem) in elems.into_iter().enumerate(){
+                        array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native())
+                    }
+                }
             }
         }
 
@@ -1136,14 +1145,14 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
 
 #[derive(Copy, Clone)]
 pub union NativeJavaValue<'gc_life/*, 'l*/> {
-    byte: i8,
+    pub(crate) byte: i8,
     pub(crate) boolean: u8,
     short: i16,
-    char: u16,
+    pub(crate) char: u16,
     pub(crate) int: i32,
     pub(crate) long: i64,
-    float: f32,
-    double: f64,
+    pub(crate) float: f32,
+    pub(crate) double: f64,
     pub(crate) object: *mut c_void,
     phantom_data: PhantomData<&'gc_life ()>,
     // phantom_data2: PhantomData<&'l ()>,//the owned java value needs to still be alive for ref to stay alive
@@ -1186,7 +1195,16 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
                 CPDType::FloatType => NewJavaValueHandle::Float(self.float),
                 CPDType::IntType => NewJavaValueHandle::Int(self.int),
                 CPDType::LongType => NewJavaValueHandle::Long(self.long),
-                CPDType::Ref(_) => todo!(),
+                CPDType::Ref(_) => {
+                    match NonNull::new(self.object){
+                        None => {
+                            NewJavaValueHandle::Null
+                        }
+                        Some(ptr) => {
+                            NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm,ptr))
+                        }
+                    }
+                },
                 CPDType::ShortType => NewJavaValueHandle::Short(self.short),
                 CPDType::BooleanType => NewJavaValueHandle::Boolean(self.boolean),
                 CPDType::VoidType => panic!(),
@@ -1204,8 +1222,8 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
                 RuntimeType::LongType => NewJavaValueHandle::Long(self.long),
                 RuntimeType::Ref(ref_) => {
                     match ref_ {
-                        RuntimeRefType::Array(_) => todo!(),
-                        RuntimeRefType::Class(class_name) => {
+                        RuntimeRefType::Array(_) |
+                        RuntimeRefType::Class(_) => {
                             match NonNull::new(self.object) {
                                 Some(ptr) => {
                                     NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
@@ -1287,8 +1305,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                                                                        }.unwrap() = jv.to_native();*/
+                                                                                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                                                }.unwrap() = jv.to_native();*/
         todo!()
     }
 

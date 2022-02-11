@@ -1,18 +1,27 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
+use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
+use iced_x86::CC_b::c;
+use iced_x86::ConditionCode::p;
+use iced_x86::OpCodeOperandKind::al;
 use libc::c_void;
 
+use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jbyte, jchar, jdouble, jfloat, jint, jlong};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::{JavaValue, JVMState};
 use crate::java_values::{GcManagedObject, NativeJavaValue};
 use crate::jvm_state::Native;
+use crate::new_java_values::array_wrapper::ArrayWrapper;
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
+
+pub mod array_wrapper;
 
 pub enum NewJavaValueHandle<'gc_life> {
     Long(i64),
@@ -44,20 +53,20 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
             NewJavaValueHandle::Short(_) => {
                 todo!()
             }
-            NewJavaValueHandle::Byte(_) => {
-                todo!()
+            NewJavaValueHandle::Byte(byte) => {
+                NewJavaValue::Byte(*byte)
             }
             NewJavaValueHandle::Boolean(bool) => {
                 NewJavaValue::Boolean(*bool)
             }
-            NewJavaValueHandle::Char(_) => {
-                todo!()
+            NewJavaValueHandle::Char(char) => {
+                NewJavaValue::Char(*char)
             }
-            NewJavaValueHandle::Float(_) => {
-                todo!()
+            NewJavaValueHandle::Float(float) => {
+                NewJavaValue::Float(*float)
             }
-            NewJavaValueHandle::Double(_) => {
-                todo!()
+            NewJavaValueHandle::Double(double) => {
+                NewJavaValue::Double(*double)
             }
             NewJavaValueHandle::Null => {
                 NewJavaValue::Null
@@ -70,7 +79,20 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
             }
         }
     }
+
+    pub fn unwrap_object(self) -> Option<AllocatedObjectHandle<'gc_life>> {
+        match self {
+            NewJavaValueHandle::Object(obj) => { Some(obj) }
+            NewJavaValueHandle::Null => { None }
+            _ => { panic!() }
+        }
+    }
+
+    pub fn unwrap_object_nonnull(self) -> AllocatedObjectHandle<'gc_life> {
+        self.unwrap_object().unwrap()
+    }
 }
+
 
 #[derive(Clone)]
 pub enum NewJavaValue<'gc_life, 'l> {
@@ -174,7 +196,14 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_char_strict(&self) -> jchar {
-        todo!()
+        match self {
+            NewJavaValue::Char(char) => {
+                *char
+            }
+            _ => {
+                panic!()
+            }
+        }
     }
 
     pub fn unwrap_short_strict(&self) -> jchar {
@@ -186,7 +215,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_int(&self) -> jint {
-        todo!()
+        match self {
+            NewJavaValue::Int(int) => {
+                *int
+            }
+            _ => panic!()
+        }
     }
 
     pub fn unwrap_long_strict(&self) -> jlong {
@@ -212,20 +246,20 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::Short(_) => {
                 todo!()
             }
-            NewJavaValue::Byte(_) => {
-                todo!()
+            NewJavaValue::Byte(byte) => {
+                NativeJavaValue { byte: *byte }
             }
             NewJavaValue::Boolean(bool) => {
                 NativeJavaValue { boolean: *bool }
             }
-            NewJavaValue::Char(_) => {
-                todo!()
+            NewJavaValue::Char(char) => {
+                NativeJavaValue { char: *char }
             }
-            NewJavaValue::Float(_) => {
-                todo!()
+            NewJavaValue::Float(float) => {
+                NativeJavaValue { float: *float }
             }
-            NewJavaValue::Double(_) => {
-                todo!()
+            NewJavaValue::Double(double) => {
+                NativeJavaValue { double: *double }
             }
             NewJavaValue::Null => {
                 NativeJavaValue { object: null_mut() }
@@ -238,6 +272,47 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             }
             NewJavaValue::Top => {
                 NativeJavaValue { as_u64: 0xdddd_dddd_dddd_dddd }
+            }
+        }
+    }
+
+    pub fn to_handle_discouraged(&self) -> NewJavaValueHandle<'gc_life> {
+        match self {
+            NewJavaValue::Long(_) => {
+                todo!()
+            }
+            NewJavaValue::Int(_) => {
+                todo!()
+            }
+            NewJavaValue::Short(_) => {
+                todo!()
+            }
+            NewJavaValue::Byte(_) => {
+                todo!()
+            }
+            NewJavaValue::Boolean(_) => {
+                todo!()
+            }
+            NewJavaValue::Char(_) => {
+                todo!()
+            }
+            NewJavaValue::Float(_) => {
+                todo!()
+            }
+            NewJavaValue::Double(_) => {
+                todo!()
+            }
+            NewJavaValue::Null => {
+                todo!()
+            }
+            NewJavaValue::UnAllocObject(_) => {
+                todo!("wtf do I do here")
+            }
+            NewJavaValue::AllocObject(obj) => {
+                NewJavaValueHandle::Object(obj.handle.duplicate_discouraged())
+            }
+            NewJavaValue::Top => {
+                todo!()
             }
         }
     }
@@ -306,6 +381,14 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
             self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).write(val.as_njv().to_native());
         }
     }
+
+    pub fn lookup_field(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+        let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
+        let cpdtype = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().1;
+        let jvm = self.handle.jvm;
+        let native_jv = unsafe { self.handle.ptr.cast::<NativeJavaValue>().as_ptr().offset(field_number.0 as isize).read() };
+        native_jv.to_new_java_value(cpdtype, jvm)
+    }
 }
 
 impl<'gc_life> Clone for AllocatedObject<'gc_life, '_> {
@@ -347,6 +430,16 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
 
     pub fn to_jv(&self) -> JavaValue<'gc_life> {
         todo!()
+    }
+
+    pub fn duplicate_discouraged(&self) -> Self {
+        self.jvm.gc.register_root_reentrant(self.jvm, self.ptr)
+    }
+
+    pub fn unwrap_array(&self) -> ArrayWrapper<'gc_life, '_> {
+        ArrayWrapper {
+            allocated_object: self.as_allocated_obj()
+        }
     }
 }
 
