@@ -339,7 +339,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Add { a, res } => {
             assembler.add(res.to_native_64(), a.to_native_64()).unwrap()
         }
-        IRInstr::Sub { .. } => todo!(),
+        IRInstr::Sub { res, to_subtract } => {
+            assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap()
+        },
         IRInstr::Div { .. } => todo!(),
         IRInstr::Mod { .. } => todo!(),
         IRInstr::Mul { .. } => todo!(),

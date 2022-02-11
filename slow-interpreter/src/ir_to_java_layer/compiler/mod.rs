@@ -24,7 +24,7 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{ladd};
+use crate::ir_to_java_layer::compiler::arithmetic::{isub, ladd};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
@@ -34,7 +34,7 @@ use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
-use crate::ir_to_java_layer::compiler::local_var_stores::astore_n;
+use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
@@ -205,6 +205,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifne(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::NE, *offset as i32))
             }
+            CompressedInstructionInfo::ifeq(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::EQ, *offset as i32))
+            }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
@@ -352,6 +355,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::if_icmple(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LE, *offset as i32));
             }
+            CompressedInstructionInfo::if_icmpne(offset) => {
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::NE, *offset as i32));
+            }
+            CompressedInstructionInfo::if_icmpeq(offset) => {
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::EQ, *offset as i32));
+            }
             CompressedInstructionInfo::ladd => {
                 this_function_ir.extend(ladd(method_frame_data, current_instr_data));
             }
@@ -363,6 +372,21 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::land => {
                 this_function_ir.extend(land(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::istore_2 => {
+                this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, 2))
+            }
+            CompressedInstructionInfo::istore_3 => {
+                this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, 3))
+            }
+            CompressedInstructionInfo::iload_2 => {
+                this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 2))
+            }
+            CompressedInstructionInfo::iload_3 => {
+                this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 3))
+            }
+            CompressedInstructionInfo::isub => {
+                this_function_ir.extend(isub(method_frame_data, current_instr_data))
             }
             other => {
                 dbg!(other);
