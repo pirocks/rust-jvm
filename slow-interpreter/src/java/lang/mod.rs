@@ -489,7 +489,7 @@ pub mod string {
         as_object_or_java_value!();
     }
 
-    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for JString<'gc_life>{
+    impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for JString<'gc_life> {
         fn object(self) -> AllocatedObjectHandle<'gc_life> {
             self.normal_object
         }
@@ -565,39 +565,43 @@ pub mod thread {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
+    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
     use crate::threading::JavaThread;
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Clone)]
     pub struct JThread<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_thread(&self) -> JThread<'gc_life> {
-            JThread { normal_object: self.unwrap_object_nonnull() }
+            todo!()
         }
 
         pub fn try_cast_thread(&self) -> Option<JThread<'gc_life>> {
-            match self.try_unwrap_normal_object() {
-                Some(_normal_object) => {
-                    // if normal_object.class_pointer.view().name() == ClassName::thread() { //todo add this kind of check back at some point
-                    JThread { normal_object: self.unwrap_object_nonnull() }.into()
-                    // }
-                    // None
-                }
-                None => None,
-            }
+            todo!()
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_thread(self) -> JThread<'gc_life> {
+            JThread { normal_object: self.unwrap_object_nonnull() }
+        }
+
+        pub fn try_cast_thread(self) -> Option<JThread<'gc_life>> {
+            Some(JThread { normal_object: self.unwrap_object()? }.into())
         }
     }
 
     impl<'gc_life> JThread<'gc_life> {
         pub fn invalid_thread(jvm: &'gc_life JVMState<'gc_life>) -> JThread<'gc_life> {
             const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
-            JThread {
+            todo!()
+            /*            JThread {
                 normal_object: NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Object(NormalObject {
                     /*monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
 
@@ -609,54 +613,66 @@ pub mod thread {
                     obj_ptr: todo!(),
                 })*/)*/).to_jv().unwrap_object_nonnull(),
             }
+*/
         }
 
         pub fn tid(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid()).unwrap_long()
+            todo!()
+            /*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid()).unwrap_long()*/
         }
 
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-            let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            let thread_class = todo!()/*self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone()*/;
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), todo!())
         }
 
         pub fn exit(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
-            let thread_class = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            let thread_class = todo!()/*self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone()*/;
+            int_state.push_current_operand_stack(todo!()/*JavaValue::Object(self.normal_object.clone().into())*/);
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_exit(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), todo!())
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_name()).cast_string().expect("threads are known to have nonnull names")
+            /*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_name()).cast_string().expect("threads are known to have nonnull names")*/
+            todo!()
         }
 
         pub fn priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> i32 {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority()).unwrap_int()
+            todo!()/*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority()).unwrap_int()*/
+        }
+
+        fn top_level_rc(&self) -> Arc<RuntimeClass<'gc_life>> {
+            assert_inited_or_initing_class(&self.normal_object.jvm, CClassName::thread().into())
+        }
+
+        fn thread_class(&self) -> Arc<RuntimeClass<'gc_life>> {
+            self.top_level_rc()
         }
 
         pub fn set_priority(&self, priority: i32) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_priority(), JavaValue::Int(priority));
+            let thread_class = self.thread_class();
+            self.normal_object.as_allocated_obj().set_var(&thread_class, FieldName::field_priority(), NewJavaValue::Int(priority));
         }
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon()).unwrap_int() != 0
+            todo!()/*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon()).unwrap_int() != 0*/
         }
 
         pub fn set_thread_status(&self, jvm: &'gc_life JVMState<'gc_life>, thread_status: jint) {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status));
+            todo!()/*self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status));*/
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, thread_group: JThreadGroup<'gc_life>, thread_name: String) -> Result<JThread<'gc_life>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            let thread_object = new_object(jvm, int_state, &thread_class).to_jv();
+            let thread_object = NewJavaValueHandle::Object(new_object(jvm, int_state, &thread_class));
             let thread_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(thread_name))?;
-            run_constructor(jvm, int_state, thread_class, todo!()/*vec![thread_object.clone(), thread_group.java_value(), thread_name.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
+            run_constructor(jvm, int_state, thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
         }
 
@@ -671,14 +687,14 @@ pub mod thread {
 
         pub fn is_alive(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<jboolean, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(todo!()/*self.clone().java_value()*/);
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_isAlive(), &CompressedMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean())
         }
 
         pub fn get_context_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
+            int_state.push_current_operand_stack(todo!()/*self.clone().java_value()*/);
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_getContextClassLoader(), &CompressedMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
             let res = int_state.pop_current_operand_stack(Some(CClassName::classloader().into()));
             if res.unwrap_object().is_none() {
@@ -688,7 +704,7 @@ pub mod thread {
         }
 
         pub fn get_inherited_access_control_context(&self, jvm: &'gc_life JVMState<'gc_life>) -> JThread<'gc_life> {
-            self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()
+            todo!()/*self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()*/
         }
 
         pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
@@ -711,21 +727,32 @@ pub mod thread_group {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
 
-    #[derive(Clone)]
     pub struct JThreadGroup<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_thread_group(&self) -> JThreadGroup<'gc_life> {
-            JThreadGroup { normal_object: self.unwrap_object_nonnull() }
+            todo!()
         }
 
         pub fn try_cast_thread_group(&self) -> Option<JThreadGroup<'gc_life>> {
-            match self.try_unwrap_normal_object() {
+            todo!()
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_thread_group(self) -> JThreadGroup<'gc_life> {
+            JThreadGroup { normal_object: self.unwrap_object_nonnull() }
+        }
+
+        pub fn try_cast_thread_group(self) -> Option<JThreadGroup<'gc_life>> {
+            /*match self.try_unwrap_normal_object() {
                 Some(normal_object) => {
                     if normal_object.objinfo.class_pointer.view().name() == CClassName::thread_group().into() {
                         return JThreadGroup { normal_object: self.unwrap_object_nonnull() }.into();
@@ -733,19 +760,26 @@ pub mod thread_group {
                     None
                 }
                 None => None,
-            }
+            }*/
+            todo!()
+        }
+    }
+
+    impl Clone for JThreadGroup<'_> {
+        fn clone(&self) -> Self {
+            JThreadGroup { normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 
     impl<'gc_life> JThreadGroup<'gc_life> {
         pub fn init(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, thread_group_class: Arc<RuntimeClass<'gc_life>>) -> Result<JThreadGroup<'gc_life>, WasException> {
-            let thread_group_object = new_object(jvm, int_state, &thread_group_class).to_jv();
-            run_constructor(jvm, int_state, thread_group_class, todo!()/*vec![thread_group_object.clone()]*/, &CMethodDescriptor::void_return(vec![]))?;
+            let thread_group_object = NewJavaValueHandle::Object(new_object(jvm, int_state, &thread_group_class));
+            run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.as_njv()], &CMethodDescriptor::void_return(vec![]))?;
             Ok(thread_group_object.cast_thread_group())
         }
 
         pub fn threads(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<Option<JThread<'gc_life>>> {
-            let threads_field = self.normal_object.lookup_field(jvm, FieldName::field_threads());
+            /*let threads_field = self.normal_object.lookup_field(jvm, FieldName::field_threads());
             let array = threads_field.unwrap_array();
             array
                 .array_iterator(jvm)
@@ -753,7 +787,8 @@ pub mod thread_group {
                     None => None,
                     Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
                 })
-                .collect()
+                .collect()*/
+            todo!()
         }
 
         pub fn threads_non_null(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<JThread<'gc_life>> {
@@ -761,25 +796,35 @@ pub mod thread_group {
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("thread group null name")
+            /*self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("thread group null name")*/
+            todo!()
         }
 
         pub fn daemon(&self, jvm: &'gc_life JVMState<'gc_life>) -> jboolean {
-            self.normal_object.lookup_field(jvm, FieldName::field_daemon()).unwrap_boolean()
+            /*self.normal_object.lookup_field(jvm, FieldName::field_daemon()).unwrap_boolean()*/
+            todo!()
         }
 
         pub fn max_priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
-            self.normal_object.lookup_field(jvm, FieldName::field_maxPriority()).unwrap_int()
+            /*self.normal_object.lookup_field(jvm, FieldName::field_maxPriority()).unwrap_int()*/
+            todo!()
         }
 
         pub fn parent(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<JThreadGroup<'gc_life>> {
-            self.normal_object.lookup_field(jvm, FieldName::field_parent()).try_cast_thread_group()
+            /*self.normal_object.lookup_field(jvm, FieldName::field_parent()).try_cast_thread_group()*/
+            todo!()
         }
 
         pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
             todo!()
         }
-        as_object_or_java_value!();
+        // as_object_or_java_value!();
+    }
+
+    impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for JThreadGroup<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
     }
 }
 

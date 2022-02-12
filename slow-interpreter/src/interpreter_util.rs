@@ -39,7 +39,7 @@ fn default_init_fields<'gc_life, 'k>(jvm: &'gc_life JVMState<'gc_life>, current_
             let type_ = field.field_type();
             let val = default_value(&type_);
 
-            object_pointer.set_var(current_class_pointer, field.field_name(), val);
+            object_pointer.set_var(current_class_pointer, field.field_name(), val.as_njv());
             // unsafe {
             // *object_pointer.fields.get(&name).unwrap().get().as_mut().unwrap() = val;
             // }

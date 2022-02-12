@@ -395,10 +395,10 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         self.handle.ptr.as_ptr() as usize
     }
 
-    pub fn set_var(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName, val: NewJavaValueHandle<'gc_life>) {
+    pub fn set_var(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName, val: NewJavaValue<'gc_life, 'any>) {
         let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
         unsafe {
-            self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).write(val.as_njv().to_native());
+            self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
         }
     }
 

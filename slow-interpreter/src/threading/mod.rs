@@ -35,6 +35,7 @@ use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
 use crate::jit_common::java_stack::JavaStatus;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
@@ -199,7 +200,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 
-        let thread_object = new_object(jvm, &mut new_int_state, &thread_classfile).to_jv().cast_thread();
+        let thread_object = NewJavaValueHandle::Object(new_object(jvm, &mut new_int_state, &thread_classfile)).cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread_group().into()).expect("couldn't load thread group class");
@@ -263,8 +264,8 @@ impl<'gc_life> ThreadState<'gc_life> {
         let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
 
         let (send, recv) = channel();
-        let java_thread: Arc<JavaThread<'gc_life>> = JavaThread::new(jvm, obj.clone(), underlying, invisible_to_java);
-        let loader_name = obj.get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+        let java_thread: Arc<JavaThread<'gc_life>> = JavaThread::new(jvm, obj, underlying, invisible_to_java);
+        let loader_name = java_thread.thread_object.read().unwrap().as_ref().unwrap().get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(
             box move |_data| {
                 send.send(java_thread.clone()).unwrap();
@@ -322,7 +323,8 @@ impl<'gc_life> ThreadState<'gc_life> {
     }
 
     pub fn get_system_thread_group(&self) -> JThreadGroup<'gc_life> {
-        self.system_thread_group.read().unwrap().as_ref().unwrap().clone()
+        todo!()
+        /*self.system_thread_group.read().unwrap().as_ref().unwrap().clone()*/
     }
 }
 
@@ -381,7 +383,8 @@ impl<'gc_life> JavaThread<'gc_life> {
     }
 
     pub fn try_thread_object(&self) -> Option<JThread<'gc_life>> {
-        self.thread_object.read().unwrap().clone()
+        todo!()
+        /*self.thread_object.read().unwrap().clone()*/
     }
 
     pub fn notify_alive(&self, jvm: &'gc_life JVMState<'gc_life>) {
