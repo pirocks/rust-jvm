@@ -173,6 +173,7 @@ impl IRInstr {
                     IRVMExitType::Todo => { "Todo" }
                     IRVMExitType::InstanceOf { .. } => { "InstanceOf" }
                     IRVMExitType::CheckCast { .. } => { "CheckCast" }
+                    IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
                 })
             }
             IRInstr::NPECheck { .. } => {

@@ -8,6 +8,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::get_thread_or_error;
 use crate::interpreter_state::AddFrameNotifyError;
+use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
 use crate::jvmti::allocate::*;
@@ -476,7 +477,7 @@ unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jth
     let int_state = get_interpreter_state(env);
     null_check!(thread_ptr);
     let current_thread = jvm.thread_state.get_current_thread();
-    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().to_gc_managed().into(), int_state));
+    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().as_allocated_obj().to_gc_managed().into(), int_state));
     jvmtiError_JVMTI_ERROR_NONE
 }
 

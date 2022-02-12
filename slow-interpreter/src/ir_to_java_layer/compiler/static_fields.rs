@@ -59,7 +59,7 @@ pub fn getstatic(
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: todo!(),
+                        class: resolver.get_cpdtype_id(&target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id
                     },

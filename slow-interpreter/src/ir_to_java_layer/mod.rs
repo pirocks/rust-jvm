@@ -154,6 +154,33 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
+            RuntimeVMExitInput::RunNativeVirtual { res_ptr, arg_start, method_id, return_to_ptr } => {
+                //todo duplicated
+                eprintln!("RunNativeVirtual");
+                int_state.debug_print_stack_trace(jvm, false);
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                let mut args_jv_handle = vec![];
+                let class_view = rc.view();
+                let method_view = class_view.method_view_i(method_i);
+                let arg_types = &method_view.desc().arg_types;
+                let mut arg_start = arg_start.unwrap();
+                let obj_ref = unsafe { arg_start.cast::<NativeJavaValue>().read() }.to_new_java_value(&CClassName::object().into(), jvm);
+                args_jv_handle.push(obj_ref);
+                unsafe {
+                    arg_start = arg_start.offset(size_of::<NativeJavaValue>() as isize);
+                    for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
+                        let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;
+                        let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
+                        args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
+                    }
+                }
+                let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
+                let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
+                if let Some(res) = res {
+                    unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
+                };
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 eprintln!("TopLevelReturn");
                 IRVMExitAction::ExitVMCompletely { return_data: *return_value }
@@ -352,6 +379,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
+
             RuntimeVMExitInput::InstanceOf { res, value, cpdtype_id, return_to_ptr } => {
                 eprintln!("InstanceOf");
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
@@ -363,8 +391,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
-
-            RuntimeVMExitInput::CheckCast {  value, cpdtype_id, return_to_ptr } => {
+            RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr } => {
                 eprintln!("CheckCast");
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
                 let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
@@ -372,7 +399,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
                 let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
-                if res_int == 0{
+                if res_int == 0 {
                     todo!()
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -412,8 +439,9 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     unsafe {
         for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
             if let RuntimeType::TopType = operand_stack_type {
-                let jv = operand_stack.raw_get(i as u16);
-                eprint!("#{}: Top: {:?}\t", i, jv.object)
+                panic!()
+                /*let jv = operand_stack.raw_get(i as u16);
+                eprint!("#{}: Top: {:?}\t", i, jv.object)*/
             } else {
                 let jv = operand_stack.get(i as u16, operand_stack_type);
                 eprint!("#{}: {:?}\t", i, jv.as_njv())

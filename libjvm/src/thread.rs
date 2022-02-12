@@ -24,9 +24,10 @@ use slow_interpreter::invoke_interface::get_env;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::lang::thread::JThread;
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public};
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::{JavaThread, SuspendError};
@@ -112,7 +113,8 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
-    let res = new_local_ref_public(current_thread.thread_object().object().to_gc_managed().into(), int_state);
+    let current_thread_allocated_object_handle = current_thread.thread_object().object();
+    let res = new_local_ref_public_new(current_thread_allocated_object_handle.as_allocated_obj().into(), int_state);
     assert_ne!(res, null_mut());
     res
 }

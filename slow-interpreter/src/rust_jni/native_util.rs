@@ -10,19 +10,21 @@ use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
 use crate::java_values::{GcManagedObject, JavaValue, Object};
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let unwrapped = from_object(jvm, obj).unwrap(); //todo handle npe
-    let class_object = match unwrapped.deref() {
+    let unwrapped = from_object_new(jvm, obj).unwrap(); //todo handle npe
+    let rc = unwrapped.as_allocated_obj().runtime_class(jvm);
+    let class_object = get_or_create_class_object(jvm,rc.cpdtype(),int_state);
+    /*let class_object = match unwrapped.deref() {
         Object::Array(a) => get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Array(Box::new(a.elem_type.clone()))), int_state),
         Object::Object(o) => get_or_create_class_object(jvm, o.objinfo.class_pointer.view().type_(), int_state),
     }
-        .unwrap(); //todo pass the error up
+        .unwrap(); //todo pass the error up*/
 
-    new_local_ref_public(class_object.to_gc_managed().into(), int_state) as jclass
+    new_local_ref_public_new(class_object.unwrap().into(), int_state) as jclass
 }
 
 pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_life> {

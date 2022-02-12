@@ -1,4 +1,5 @@
-use crate::JavaValue;
+use crate::java::lang::class::JClass;
+use crate::{InterpreterStateGuard, JavaValue, JVMState, WasException};
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
 
 pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
@@ -11,6 +12,16 @@ pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
 
     fn new_java_value_handle(self) -> NewJavaValueHandle<'gc_life> {
         NewJavaValueHandle::Object(self.object())
+    }
+
+    fn get_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<JClass<'gc_life>, WasException> {
+        todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
+        /*let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
+            arg_types: vec![],
+            return_type: rust_jvm_common::compressed_classfile::CPDType::Ref(rust_jvm_common::compressed_classfile::CPRefType::Class(rust_jvm_common::compressed_classfile::names::CClassName::class())),
+        };
+        crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_getClass(), &desc)?;
+        Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::class().into())).to_new().cast_class().expect("object can never not have a class"))*/
     }
 }
 

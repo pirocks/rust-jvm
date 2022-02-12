@@ -16,9 +16,10 @@ use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::thread::JThread;
+use crate::java::NewAsObjectOrJavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::to_object;
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::tracing::TracingSettings;
@@ -166,8 +167,8 @@ impl SharedLibJVMTI {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"class_prepare"));
                 //give the other events this long thing
-                let current_thread_from_rust = jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().to_gc_managed().into());
-                let thread = new_local_ref_public(current_thread_from_rust, int_state);
+                let current_thread_from_rust = jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into());
+                let thread = new_local_ref_public_new(todo!()/*current_thread_from_rust*/, int_state);
                 let klass_obj = get_or_create_class_object(jvm, class.clone().into(), int_state).unwrap();
                 let klass = to_object(klass_obj.to_gc_managed().into());
                 let event = ClassPrepareEvent { thread, klass };
@@ -181,7 +182,7 @@ impl SharedLibJVMTI {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"breakpoint"));
-                let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().to_gc_managed().into(), int_state);
+                let thread = new_local_ref_public(todo!()/*jvm.thread_state.get_current_thread().thread_object().object().into()*/, int_state);
                 let method = transmute(method);
                 self.Breakpoint(jvm, int_state, BreakpointEvent { thread, method, location });
                 int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway
@@ -193,7 +194,7 @@ impl SharedLibJVMTI {
         if jvm.thread_state.get_current_thread().jvmti_event_status().breakpoint_enabled {
             unsafe {
                 let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"frame_pop"));
-                let thread = new_local_ref_public(jvm.thread_state.get_current_thread().thread_object().object().to_gc_managed().into(), int_state);
+                let thread = new_local_ref_public(todo!()/*jvm.thread_state.get_current_thread().thread_object().object().into()*/, int_state);
                 let method = transmute(method);
                 self.FramePop(jvm, int_state, FramePopEvent { thread, method, was_popped_by_exception });
                 int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway

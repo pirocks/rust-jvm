@@ -597,6 +597,12 @@ pub mod thread {
         }
     }
 
+    impl Clone for JThread<'_> {
+        fn clone(&self) -> Self {
+            JThread { normal_object: self.normal_object.duplicate_discouraged() }
+        }
+    }
+
     impl<'gc_life> JThread<'gc_life> {
         pub fn invalid_thread(jvm: &'gc_life JVMState<'gc_life>) -> JThread<'gc_life> {
             const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
@@ -707,11 +713,17 @@ pub mod thread {
             todo!()/*self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()*/
         }
 
-        pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
-            todo!()
-        }
+        // pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
+        //     todo!()
+        // }
+        //
+        // as_object_or_java_value!();
+    }
 
-        as_object_or_java_value!();
+    impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for JThread<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
     }
 }
 

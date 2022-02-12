@@ -61,7 +61,7 @@ pub struct JavaCompilerMethodAndFrameData {
 
 impl JavaCompilerMethodAndFrameData {
     pub fn new(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
-        let function_frame_type_guard = jvm.function_frame_type_data_no_stack_tops.read().unwrap();
+        let function_frame_type_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
         let frames = function_frame_type_guard.get(&method_id).unwrap();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();

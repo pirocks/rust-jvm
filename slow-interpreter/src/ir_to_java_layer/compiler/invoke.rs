@@ -151,7 +151,7 @@ pub fn invokestatic(
                         Either::Left(array_into_iter([class_init_restart_point, restart_point_function_address, exit_instr]))
                     }
                     Some((ir_method_id, address)) => {
-                        Either::Right(array_into_iter([class_init_restart_point,restart_point_function_address,
+                        Either::Right(array_into_iter([class_init_restart_point, restart_point_function_address,
                             IRInstr::IRCall {
                                 temp_register_1: Register(1),
                                 temp_register_2: Register(2),
@@ -198,13 +198,24 @@ pub fn invokevirtual(
                 }]))
         }
         Some((method_id, is_native)) => {
+            let num_args = descriptor.arg_types.len();
             Either::Right(if is_native {
-                todo!()
+                let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
+                let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType { Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0)) } else {
+                    None
+                };
+                Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::RunNativeVirtual {
+                        method_id,
+                        arg_start_frame_offset: Some(arg_start_frame_offset),
+                        res_pointer_offset,
+                        num_args: num_args as u16,
+                    }
+                }]))
             } else {
                 // todo investigate size of table for invokevirtual without tagging.
-                let num_args = descriptor.arg_types.len();
                 let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
-                array_into_iter([restart_point,
+                Either::Right(array_into_iter([restart_point,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeVirtualResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
@@ -224,7 +235,7 @@ pub fn invokevirtual(
                             new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
-                    }])
+                    }]))
             })
         }
     }

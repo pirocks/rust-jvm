@@ -1,6 +1,7 @@
 use std::ffi::CString;
 
 use jvmti_jni_bindings::*;
+use crate::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
@@ -67,7 +68,7 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         .into_iter()
         .map(|thread| {
             let object = thread.thread_object().object();
-            new_local_ref_public(object.to_gc_managed().into(), int_state)
+            new_local_ref_public(object.as_allocated_obj().to_gc_managed().into(), int_state)
         })
         .collect::<Vec<jobject>>();
     jvm.native.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);

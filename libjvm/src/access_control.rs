@@ -12,6 +12,7 @@ use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::interpreter::WasException;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
@@ -50,7 +51,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
 unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().to_gc_managed().into(), int_state)
+    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().as_allocated_obj().to_gc_managed().into(), int_state)
 }
 
 ///  /**

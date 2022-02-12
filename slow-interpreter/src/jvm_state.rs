@@ -6,6 +6,7 @@ use std::iter::{FromIterator, once};
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::LocalKey;
@@ -100,7 +101,7 @@ pub struct JVMState<'gc_life> {
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
-    pub function_frame_type_data_no_stack_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
+    pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub vtables: RwLock<VTables>,
     pub inheritance_ids: RwLock<InheritanceMethodIDs>,
@@ -287,7 +288,7 @@ impl<'gc_life> JVMState<'gc_life> {
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
-            function_frame_type_data_no_stack_tops: Default::default(),
+            function_frame_type_data_no_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             vtables: RwLock::new(VTables::new()),
@@ -304,13 +305,14 @@ impl<'gc_life> JVMState<'gc_life> {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
             let verification_types_without_top = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
                 let stack_without_top = stack_map.data.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
+                let locals_without_top = locals.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
                 (*offset, Frame {
-                    locals: locals.clone(),
+                    locals: Rc::new(locals_without_top),
                     stack_map: OperandStack { data: stack_without_top },
                     flag_this_uninit: *flag_this_uninit,
                 })
             });
-            self.function_frame_type_data_no_stack_tops.write().unwrap().insert(method_id, verification_types_without_top.collect());
+            self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top.collect());
         }
     }
 

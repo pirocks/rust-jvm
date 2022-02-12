@@ -383,8 +383,7 @@ impl<'gc_life> JavaThread<'gc_life> {
     }
 
     pub fn try_thread_object(&self) -> Option<JThread<'gc_life>> {
-        todo!()
-        /*self.thread_object.read().unwrap().clone()*/
+        self.thread_object.read().unwrap().clone()
     }
 
     pub fn notify_alive(&self, jvm: &'gc_life JVMState<'gc_life>) {
