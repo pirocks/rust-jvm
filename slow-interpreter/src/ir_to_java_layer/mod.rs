@@ -39,6 +39,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::special::{instance_of_exit_impl, instance_of_impl, invoke_instanceof};
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
@@ -146,7 +147,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                 }
                 assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-                let args_new_jv = args_jv_handle.iter().map(|handle|handle.as_njv()).collect();
+                let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
@@ -219,7 +220,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("Before:{:?} {}", instr.info, bytecode_offset.0);
-                if jvm.static_breakpoints.should_break(view.name().unwrap_name(),method_view.name(),method_view.desc().clone(),*bytecode_offset){
+                if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -325,6 +326,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
             }
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr } => {
+                eprintln!("MonitorEnter");
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
                 let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
@@ -332,6 +334,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr } => {
+                eprintln!("MonitorExit");
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
                 let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
@@ -347,6 +350,31 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let field_name = field_view.field_name();
                 let static_var = static_vars_guard.get(field_name);
                 unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::InstanceOf { res, value, cpdtype_id, return_to_ptr } => {
+                eprintln!("InstanceOf");
+                let type_table_guard = jvm.cpdtype_table.read().unwrap();
+                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
+                let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
+                let value = value.to_new_java_value(&CClassName::object().into(), jvm);
+                let value = value.unwrap_object();
+                let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
+                unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+
+            RuntimeVMExitInput::CheckCast {  value, cpdtype_id, return_to_ptr } => {
+                eprintln!("CheckCast");
+                let type_table_guard = jvm.cpdtype_table.read().unwrap();
+                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
+                let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
+                let value = value.to_new_java_value(&CClassName::object().into(), jvm);
+                let value = value.unwrap_object();
+                let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
+                if res_int == 0{
+                    todo!()
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
@@ -383,7 +411,7 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     eprint!("Operand Stack:");
     for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
         if let RuntimeType::TopType = operand_stack_type {
-            continue//needed b/c random top types show up in stack b/c of java spec people's poor life choices
+            continue;//needed b/c random top types show up in stack b/c of java spec people's poor life choices
         }
         let jv = operand_stack.get(i as u16, operand_stack_type);
         eprint!("#{}: {:?}\t", i, jv.as_njv())

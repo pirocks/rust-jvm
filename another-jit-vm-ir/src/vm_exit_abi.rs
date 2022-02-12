@@ -183,6 +183,23 @@ impl NewClass {
     pub const RESTART_IP: Register = Register(4);
 }
 
+pub struct InstanceOf;
+
+impl InstanceOf {
+    pub const VALUE_PTR: Register = Register(2);
+    pub const RES_VALUE_PTR: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+    pub const CPDTYPE_ID: Register = Register(5);
+}
+
+pub struct CheckCast;
+
+impl CheckCast {
+    pub const VALUE_PTR: Register = Register(2);
+    pub const RESTART_IP: Register = Register(4);
+    pub const CPDTYPE_ID: Register = Register(5);
+}
+
 
 pub struct InvokeVirtualResolve;
 
@@ -254,6 +271,17 @@ pub enum IRVMExitType {
         restart_point_id: RestartPointID,
     },
     TopLevelReturn,
+    Todo,
+    InstanceOf {
+        value: FramePointerOffset,
+        res: FramePointerOffset,
+        cpdtype: CPDTypeID,
+    },
+    CheckCast {
+        value: FramePointerOffset,
+        res: FramePointerOffset,
+        cpdtype: CPDTypeID,
+    },
     PutStatic {
         field_id: FieldId,
         value: FramePointerOffset,
@@ -289,7 +317,7 @@ pub enum IRVMExitType {
     MonitorExit {
         obj: FramePointerOffset
     },
-    Throw{}
+    Throw {},
 }
 
 impl IRVMExitType {
@@ -427,6 +455,22 @@ impl IRVMExitType {
                 assembler.mov(GetStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
                 assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::Todo => {
+                todo!()
+            }
+            IRVMExitType::InstanceOf { value, res, cpdtype } => {
+                assembler.mov(rax, RawVMExitType::InstanceOf as u64).unwrap();
+                assembler.lea(InstanceOf::RES_VALUE_PTR.to_native_64(), rbp - res.0).unwrap();
+                assembler.lea(InstanceOf::VALUE_PTR.to_native_64(), rbp - value.0).unwrap();
+                assembler.mov(InstanceOf::CPDTYPE_ID.to_native_64(), cpdtype.0 as u64).unwrap();
+                assembler.lea(InstanceOf::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
+            IRVMExitType::CheckCast { value, res, cpdtype } => {
+                assembler.mov(rax, RawVMExitType::CheckCast as u64).unwrap();
+                assembler.lea(CheckCast::VALUE_PTR.to_native_64(), rbp - value.0).unwrap();
+                assembler.mov(CheckCast::CPDTYPE_ID.to_native_64(), cpdtype.0 as u64).unwrap();
+                assembler.lea(CheckCast::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -461,7 +505,9 @@ pub enum RawVMExitType {
     InvokeVirtualResolve,
     MonitorEnter,
     MonitorExit,
-    Throw
+    Throw,
+    InstanceOf,
+    CheckCast,
 }
 
 
@@ -565,6 +611,17 @@ pub enum RuntimeVMExitInput {
     },
     MonitorExit {
         obj_ptr: *const c_void,
+        return_to_ptr: *const c_void,
+    },
+    InstanceOf {
+        res: *mut c_void,
+        value: *const c_void,
+        cpdtype_id: CPDTypeID,
+        return_to_ptr: *const c_void,
+    },
+    CheckCast {
+        value: *const c_void,
+        cpdtype_id: CPDTypeID,
         return_to_ptr: *const c_void,
     },
 }
@@ -702,6 +759,21 @@ impl RuntimeVMExitInput {
                     res_value_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RES_VALUE_PTR) as *mut c_void,
                     field_id: register_state.saved_registers_without_ip.get_register(GetStatic::FIELD_ID) as FieldId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RESTART_IP) as *const c_void,
+                }
+            }
+            RawVMExitType::InstanceOf => {
+                RuntimeVMExitInput::InstanceOf {
+                    res: register_state.saved_registers_without_ip.get_register(InstanceOf::RES_VALUE_PTR) as *mut c_void,
+                    value: register_state.saved_registers_without_ip.get_register(InstanceOf::VALUE_PTR) as *const c_void,
+                    cpdtype_id: CPDTypeID(register_state.saved_registers_without_ip.get_register(InstanceOf::CPDTYPE_ID) as u32),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(InstanceOf::RESTART_IP) as *const c_void
+                }
+            }
+            RawVMExitType::CheckCast => {
+                RuntimeVMExitInput::CheckCast {
+                    value: register_state.saved_registers_without_ip.get_register(CheckCast::VALUE_PTR) as *const c_void,
+                    cpdtype_id: CPDTypeID(register_state.saved_registers_without_ip.get_register(CheckCast::CPDTYPE_ID) as u32),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(CheckCast::RESTART_IP) as *const c_void
                 }
             }
         }

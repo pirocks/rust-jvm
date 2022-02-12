@@ -16,6 +16,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 
 use crate::{JavaValue, JVMState};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::{GcManagedObject, NativeJavaValue};
 use crate::jvm_state::Native;
 use crate::new_java_values::array_wrapper::ArrayWrapper;
@@ -407,6 +408,13 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         let jvm = self.handle.jvm;
         let native_jv = unsafe { self.handle.ptr.cast::<NativeJavaValue>().as_ptr().offset(field_number.0 as isize).read() };
         native_jv.to_new_java_value(cpdtype, jvm)
+    }
+
+    pub fn runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
+        let guard = jvm.gc.memory_region.lock().unwrap();
+        let allocated_obj_type = guard.find_object_allocated_type(self.handle.ptr).clone();
+        drop(guard);
+        assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
     }
 }
 

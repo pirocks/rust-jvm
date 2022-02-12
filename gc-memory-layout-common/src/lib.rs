@@ -17,7 +17,7 @@ use num_integer::Integer;
 
 use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jint, jlong, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
@@ -68,6 +68,20 @@ impl AllocatedObjectType {
                         CPDType::Ref(_) => panic!(),
                     } + size_of::<jint>()*/
                 }
+            }
+        }
+    }
+
+    pub fn as_cpdtype(&self) -> CPDType{
+        match self {
+            AllocatedObjectType::Class { name, .. } => {
+                (*name).into()
+            }
+            AllocatedObjectType::ObjectArray { sub_type, .. } => {
+                CPDType::Ref(CompressedParsedRefType::Array(box CPDType::Ref(sub_type.clone())))
+            }
+            AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
+                CPDType::Ref(CompressedParsedRefType::Array(box primitive_type.clone()))
             }
         }
     }

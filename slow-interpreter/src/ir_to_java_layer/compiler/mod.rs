@@ -14,7 +14,7 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::{Atype, Code};
+use rust_jvm_common::classfile::{Atype, Code, IInc};
 use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -24,7 +24,7 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{isub, ladd};
+use crate::ir_to_java_layer::compiler::arithmetic::{iinc, isub, ladd};
 use crate::ir_to_java_layer::compiler::array_load::caload;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
@@ -32,6 +32,7 @@ use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp,
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, sipush};
 use crate::ir_to_java_layer::compiler::dup::dup;
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
+use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
@@ -314,6 +315,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::astore_3 => {
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 3))
             }
+            CompressedInstructionInfo::astore(index) => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, *index as u16))
+            }
             CompressedInstructionInfo::athrow => {
                 this_function_ir.extend(athrow());
             }
@@ -384,17 +388,32 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::istore_3 => {
                 this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, 3))
             }
+            CompressedInstructionInfo::istore(index) => {
+                this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, *index as u16))
+            }
             CompressedInstructionInfo::iload_2 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 2))
             }
             CompressedInstructionInfo::iload_3 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 3))
             }
+            CompressedInstructionInfo::iload(index) => {
+                this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, *index as u16))
+            }
             CompressedInstructionInfo::isub => {
                 this_function_ir.extend(isub(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::caload => {
                 this_function_ir.extend(caload(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::instanceof(cpdtype) => {
+                this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, cpdtype))
+            }
+            CompressedInstructionInfo::checkcast(cpdtype) => {
+                this_function_ir.extend(checkcast(resolver, method_frame_data, &current_instr_data, cpdtype))
+            }
+            CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
+                this_function_ir.extend(iinc(method_frame_data, current_instr_data, index, const_))
             }
             other => {
                 dbg!(other);
@@ -415,7 +434,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
-
+pub mod instance_of_and_casting;
 pub mod throw;
 pub mod monitors;
 pub mod arrays;
