@@ -123,7 +123,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
-        let function_frame_type = self.jvm.function_frame_type_data.read().unwrap();
+        let function_frame_type = self.jvm.function_frame_type_data_no_stack_tops.read().unwrap();
         let frames = function_frame_type.get(&methodid).unwrap();
         let code = method_view.code_attribute().unwrap();
         YetAnotherLayoutImpl::new(frames,code)

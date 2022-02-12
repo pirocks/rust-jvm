@@ -19,6 +19,7 @@ use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::vtype::VType;
 use verification::verifier::codecorrectness::method_is_type_safe;
 use verification::verifier::Frame;
 
@@ -35,7 +36,7 @@ use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
-use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n};
+use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, return_void};
@@ -60,7 +61,7 @@ pub struct JavaCompilerMethodAndFrameData {
 
 impl JavaCompilerMethodAndFrameData {
     pub fn new(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
-        let function_frame_type_guard = jvm.function_frame_type_data.read().unwrap();
+        let function_frame_type_guard = jvm.function_frame_type_data_no_stack_tops.read().unwrap();
         let frames = function_frame_type_guard.get(&method_id).unwrap();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
@@ -94,8 +95,11 @@ pub struct YetAnotherLayoutImpl {
 }
 
 impl YetAnotherLayoutImpl {
-    pub fn new(frames: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
-        let stack_depth = frames.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| frame.stack_map.len() as u16).collect();
+    pub fn new(frames_no_top: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
+        let stack_depth = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
+            assert!(frame.stack_map.iter().all(|types|!matches!(types, VType::TopType)));
+            frame.stack_map.len() as u16
+        }).collect();
         Self {
             max_locals: code.max_locals,
             max_stack: code.max_stack,
@@ -414,6 +418,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
                 this_function_ir.extend(iinc(method_frame_data, current_instr_data, index, const_))
+            }
+            CompressedInstructionInfo::lconst_0 => {
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
+            }
+            CompressedInstructionInfo::lload(index) => {
+                this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
             }
             other => {
                 dbg!(other);

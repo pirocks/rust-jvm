@@ -19,7 +19,7 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject, stat};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
@@ -29,9 +29,10 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassNa
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
+use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
-use verification::{ClassFileGetter, VerifierContext, verify};
+use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
 use verification::verifier::{Frame, TypeSafetyError};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter, get_static_var_types};
@@ -99,7 +100,7 @@ pub struct JVMState<'gc_life> {
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
-    pub function_frame_type_data: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
+    pub function_frame_type_data_no_stack_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub vtables: RwLock<VTables>,
     pub inheritance_ids: RwLock<InheritanceMethodIDs>,
@@ -286,7 +287,7 @@ impl<'gc_life> JVMState<'gc_life> {
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
-            function_frame_type_data: Default::default(),
+            function_frame_type_data_no_stack_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             vtables: RwLock::new(VTables::new()),
@@ -301,7 +302,15 @@ impl<'gc_life> JVMState<'gc_life> {
         let mut method_table = self.method_table.write().unwrap();
         for (method_i, verification_types) in verification_types {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
-            self.function_frame_type_data.write().unwrap().insert(method_id, verification_types.clone());
+            let verification_types_without_top = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
+                let stack_without_top = stack_map.data.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
+                (*offset, Frame {
+                    locals: locals.clone(),
+                    stack_map: OperandStack { data: stack_without_top },
+                    flag_this_uninit: *flag_this_uninit,
+                })
+            });
+            self.function_frame_type_data_no_stack_tops.write().unwrap().insert(method_id, verification_types_without_top.collect());
         }
     }
 
@@ -362,7 +371,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let object_class_static_var_types = get_static_var_types(object_class_view.deref());
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(object_class_view, HashMap::new(), 0, RwLock::new(HashMap::new()), None, vec![], RwLock::new(ClassStatus::INITIALIZED), object_class_static_var_types)));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, Some(temp_object_class), interfaces, status,class_class_static_var_types)));
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, Some(temp_object_class), interfaces, status, class_class_static_var_types)));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();

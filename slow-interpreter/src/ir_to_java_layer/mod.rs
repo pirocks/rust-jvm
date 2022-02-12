@@ -409,12 +409,16 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     let operand_stack = current_frame.operand_stack(jvm);
     // current_frame.ir_stack_entry_debug_print();
     eprint!("Operand Stack:");
-    for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-        if let RuntimeType::TopType = operand_stack_type {
-            continue;//needed b/c random top types show up in stack b/c of java spec people's poor life choices
+    unsafe {
+        for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+            if let RuntimeType::TopType = operand_stack_type {
+                let jv = operand_stack.raw_get(i as u16);
+                eprint!("#{}: Top: {:?}\t", i, jv.object)
+            } else {
+                let jv = operand_stack.get(i as u16, operand_stack_type);
+                eprint!("#{}: {:?}\t", i, jv.as_njv())
+            }
         }
-        let jv = operand_stack.get(i as u16, operand_stack_type);
-        eprint!("#{}: {:?}\t", i, jv.as_njv())
     }
     eprintln!()
 }
