@@ -19,6 +19,7 @@ pub enum IRInstr {
     Div { res: Register, divisor: Register },
     Mod { res: Register, divisor: Register },
     Mul { res: Register, a: Register },
+    MulConst { res: Register, a: i32 },
     LogicalShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
     BinaryBitAnd { res: Register, a: Register },
     ForwardBitScan { to_scan: Register, res: Register },
@@ -34,6 +35,7 @@ pub enum IRInstr {
     BranchAGreaterB { a: Register, b: Register, label: LabelName },
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName },
     BranchALessB { a: Register, b: Register, label: LabelName },
+    BoundsCheck{ length: Register, index: Register },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
     RestartPoint(RestartPointID),
@@ -211,6 +213,12 @@ impl IRInstr {
             }
             IRInstr::LogicalShiftLeft { .. } => {
                 "LogicalShiftLeft".to_string()
+            }
+            IRInstr::BoundsCheck { .. } => {
+                "BoundsCheck".to_string()
+            }
+            IRInstr::MulConst { .. } => {
+                "MulConst".to_string()
             }
         }
     }

@@ -336,18 +336,20 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap()
         }
         IRInstr::CopyRegister { .. } => todo!(),
-        IRInstr::Add { a, res } => {
+        IRInstr::Add { res , a } => {
             assembler.add(res.to_native_64(), a.to_native_64()).unwrap()
         }
         IRInstr::Sub { res, to_subtract } => {
             assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap()
-        },
+        }
         IRInstr::Div { .. } => todo!(),
         IRInstr::Mod { .. } => todo!(),
-        IRInstr::Mul { .. } => todo!(),
-        IRInstr::BinaryBitAnd { res, a } => {
-            assembler.and(res.to_native_64(),a.to_native_64()).unwrap()
+        IRInstr::Mul { .. } => {
+            todo!()
         },
+        IRInstr::BinaryBitAnd { res, a } => {
+            assembler.and(res.to_native_64(), a.to_native_64()).unwrap()
+        }
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_).unwrap();
@@ -530,6 +532,17 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assert_eq!(cl_aka_register_3.to_native_8(), code_asm::cl);
             assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
             assembler.shl(res.to_native_64(), code_asm::cl).unwrap();
+        }
+        IRInstr::BoundsCheck { length, index } => {
+            let mut not_out_of_bounds = assembler.create_label();
+            assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap();
+            assembler.jl(not_out_of_bounds.clone()).unwrap();
+            assembler.int3().unwrap();//todo
+            assembler.set_label(&mut not_out_of_bounds).unwrap();
+            assembler.nop().unwrap();
+        }
+        IRInstr::MulConst { res, a } => {
+            assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()
         }
     }
 }

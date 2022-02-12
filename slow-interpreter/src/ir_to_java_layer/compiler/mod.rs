@@ -12,7 +12,7 @@ use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
-use jvmti_jni_bindings::jvalue;
+use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{Atype, Code};
 use rust_jvm_common::classfile::InstructionInfo::getfield;
@@ -25,6 +25,7 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{isub, ladd};
+use crate::ir_to_java_layer::compiler::array_load::caload;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
@@ -39,6 +40,7 @@ use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
+use crate::java_values::NativeJavaValue;
 use crate::jit::MethodResolver;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
@@ -207,6 +209,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::ifeq(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::EQ, *offset as i32))
+            }
+            CompressedInstructionInfo::iflt(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32))
             }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
@@ -388,6 +393,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::isub => {
                 this_function_ir.extend(isub(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::caload => {
+                this_function_ir.extend(caload(method_frame_data, current_instr_data))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -407,6 +415,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
+
 pub mod throw;
 pub mod monitors;
 pub mod arrays;
@@ -420,6 +429,7 @@ pub mod consts;
 pub mod branching;
 pub mod local_var_loads;
 pub mod local_var_stores;
+pub mod array_load;
 pub mod ldc;
 pub mod arithmetic;
 pub mod bitmanip;

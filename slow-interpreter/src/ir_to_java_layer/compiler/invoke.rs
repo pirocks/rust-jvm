@@ -236,7 +236,7 @@ fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_f
     let mut arg_from_to_offsets = vec![];
     for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
         let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16);
+        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16 + 1);
         arg_from_to_offsets.push((from, to))
     }
     let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);

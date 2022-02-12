@@ -291,8 +291,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, inheritance_id, target_method_id: debug_method_id } => {
                 eprintln!("InvokeVirtualResolve");
+                let object_ref = *object_ref;
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-                let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
+                let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
                 drop(memory_region_guard);
                 let lookup_res = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);

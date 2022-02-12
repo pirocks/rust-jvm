@@ -1,8 +1,8 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::IRInstr;
 use rust_jvm_common::ByteCodeOffset;
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReferenceComparisonType {
@@ -35,8 +35,13 @@ pub fn goto_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_d
 }
 
 
-pub enum IntEqualityType{
-    NE, EQ, LT, GE, GT, LE
+pub enum IntEqualityType {
+    NE,
+    EQ,
+    LT,
+    GE,
+    GT,
+    LE,
 }
 
 pub fn if_icmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, ref_equality: IntEqualityType, bytecode_offset: i32) -> impl Iterator<Item=IRInstr> {
@@ -69,6 +74,7 @@ pub fn if_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
     let compare_instr = match ref_equality {
         IntEqualityType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
         IntEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label },
+        IntEqualityType::LT => IRInstr::BranchAGreaterB { a: value2, b: value1, label: target_label },
         _ => panic!()
     };
     array_into_iter([
@@ -91,7 +97,7 @@ pub fn if_nonnull(method_frame_data: &JavaCompilerMethodAndFrameData, current_in
         IRInstr::BranchNotEqual {
             a: value1,
             b: null,
-            label: target_label
+            label: target_label,
         }
     ])
 }
@@ -110,7 +116,7 @@ pub fn if_null(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
         IRInstr::BranchEqual {
             a: value1,
             b: null,
-            label: target_label
+            label: target_label,
         }
     ])
 }
