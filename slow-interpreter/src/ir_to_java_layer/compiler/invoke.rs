@@ -42,27 +42,41 @@ pub fn invokespecial(
         Some((rc, loader)) => {
             let view = rc.view();
             let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
-            let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
-            let restart_point_id_function_address = restart_point_generator.new_restart_point();
-            let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
-            Either::Right(match maybe_address {
-                None => {
-                    let exit_instr = IRInstr::VMExit2 {
-                        exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
-                            current_method_id: method_frame_data.current_method_id,
-                            target_method_id: method_id,
-                            restart_point_id: restart_point_id_function_address,
+            let num_args = descriptor.arg_types.len();
+            Either::Right(if is_native {
+                Either::Left(array_into_iter([
+                    restart_point_class_load,
+                    IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::RunNativeSpecial {
+                            method_id,
+                            arg_start_frame_offset: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
+                            res_pointer_offset: if CompressedParsedDescriptorType::VoidType == descriptor.return_type {
+                                None
+                            } else {
+                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                            },
+                            num_args: num_args as u16,
                         }
-                    };
-                    //todo have restart point ids for matching same restart points
-                    Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
-                }
-                Some((ir_method_id, address)) => {
-                    if is_native {
-                        todo!()
-                    } else {
+                    }
+                ]))
+            } else {
+                let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
+                let restart_point_id_function_address = restart_point_generator.new_restart_point();
+                let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
+                Either::Right(match maybe_address {
+                    None => {
+                        let exit_instr = IRInstr::VMExit2 {
+                            exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
+                                current_method_id: method_frame_data.current_method_id,
+                                target_method_id: method_id,
+                                restart_point_id: restart_point_id_function_address,
+                            }
+                        };
+                        //todo have restart point ids for matching same restart points
+                        Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
+                    }
+                    Some((ir_method_id, address)) => {
                         let target_method_layout = resolver.lookup_method_layout(method_id);
-                        let num_args = descriptor.arg_types.len();
                         let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
@@ -82,7 +96,7 @@ pub fn invokespecial(
                             current_frame_size: method_frame_data.full_frame_size(),
                         }]))
                     }
-                }
+                })
             })
         }
     }
@@ -201,13 +215,15 @@ pub fn invokevirtual(
             let num_args = descriptor.arg_types.len();
             Either::Right(if is_native {
                 let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
-                let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType { Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0)) } else {
+                let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType {
+                    Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                } else {
                     None
                 };
                 Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                     exit_type: IRVMExitType::RunNativeVirtual {
                         method_id,
-                        arg_start_frame_offset: Some(arg_start_frame_offset),
+                        arg_start_frame_offset,
                         res_pointer_offset,
                         num_args: num_args as u16,
                     }

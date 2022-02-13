@@ -256,44 +256,46 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
+        let mut all_zero = NativeJavaValue { as_u64: 0 };
         match self {
             NewJavaValue::Long(long) => {
-                NativeJavaValue { long: *long }
+                all_zero.long = *long;
             }
             NewJavaValue::Int(int) => {
-                NativeJavaValue { int: *int }
+                all_zero.int = *int;
             }
             NewJavaValue::Short(_) => {
                 todo!()
             }
             NewJavaValue::Byte(byte) => {
-                NativeJavaValue { byte: *byte }
+                all_zero.byte = *byte;
             }
             NewJavaValue::Boolean(bool) => {
-                NativeJavaValue { boolean: *bool }
+                all_zero.boolean = *bool;
             }
             NewJavaValue::Char(char) => {
-                NativeJavaValue { char: *char }
+                all_zero.char = *char;
             }
             NewJavaValue::Float(float) => {
-                NativeJavaValue { float: *float }
+                all_zero.float = *float;
             }
             NewJavaValue::Double(double) => {
-                NativeJavaValue { double: *double }
+                all_zero.double = *double;
             }
             NewJavaValue::Null => {
-                NativeJavaValue { object: null_mut() }
+                all_zero.object = null_mut();
             }
             NewJavaValue::UnAllocObject(_) => {
                 todo!()
             }
             NewJavaValue::AllocObject(obj) => {
-                NativeJavaValue { object: obj.handle.ptr.as_ptr() }
+                all_zero.object = obj.handle.ptr.as_ptr();
             }
             NewJavaValue::Top => {
-                NativeJavaValue { as_u64: 0xdddd_dddd_dddd_dddd }
+                all_zero.as_u64 = 0xdddd_dddd_dddd_dddd;
             }
         }
+        all_zero
     }
 
     pub fn to_handle_discouraged(&self) -> NewJavaValueHandle<'gc_life> {

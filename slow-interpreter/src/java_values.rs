@@ -98,6 +98,7 @@ impl<'gc_life> GC<'gc_life> {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
                 for (i, field) in fields.iter() {
                     unsafe {
+                        assert_eq!(size_of::<NativeJavaValue>(),size_of::<jlong>());
                         let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(i.0 as isize);
                         field_ptr.write(field.to_native());
                     }
@@ -490,7 +491,7 @@ impl<'gc_life> JavaValue<'gc_life> {
     }
 
     pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
-        match self.clone() {
+        /*match self.clone() {
             JavaValue::Long(val_) => NativeJavaValue { long: val_ },
             JavaValue::Int(val_) => NativeJavaValue { int: val_ },
             JavaValue::Short(val_) => NativeJavaValue { int: val_ as i32 },
@@ -510,7 +511,8 @@ impl<'gc_life> JavaValue<'gc_life> {
                 }
             }
             JavaValue::Top => unsafe { transmute(0xDEADDEADDEADDEADusize) },
-        }
+        }*/
+        todo!()
     }
 
     pub fn to_new<'anything>(&self) -> NewJavaValue<'gc_life, 'anything> {

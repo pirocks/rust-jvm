@@ -174,6 +174,7 @@ impl IRInstr {
                     IRVMExitType::InstanceOf { .. } => { "InstanceOf" }
                     IRVMExitType::CheckCast { .. } => { "CheckCast" }
                     IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
+                    IRVMExitType::RunNativeSpecial { .. } => { "RunNativeSpecial" }
                 })
             }
             IRInstr::NPECheck { .. } => {

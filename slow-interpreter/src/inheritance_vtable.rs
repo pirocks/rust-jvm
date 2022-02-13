@@ -50,8 +50,6 @@ impl VTables {
                 Ok(resolved.clone())
             },
             None => {
-                // dbg!(self.table.get(&runtime_type).unwrap());
-                // dbg!(inheritance_method_id);
                 Err(NotCompiledYet{})
             },
         }

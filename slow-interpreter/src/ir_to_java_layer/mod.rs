@@ -28,7 +28,7 @@ use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -51,6 +51,7 @@ use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue}
 use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::threading::safepoints::Monitor2;
@@ -159,21 +160,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("RunNativeVirtual");
                 int_state.debug_print_stack_trace(jvm, false);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
-                let mut args_jv_handle = vec![];
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
                 let arg_types = &method_view.desc().arg_types;
-                let mut arg_start = arg_start.unwrap();
-                let obj_ref = unsafe { arg_start.cast::<NativeJavaValue>().read() }.to_new_java_value(&CClassName::object().into(), jvm);
-                args_jv_handle.push(obj_ref);
-                unsafe {
-                    arg_start = arg_start.offset(size_of::<NativeJavaValue>() as isize);
-                    for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
-                        let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;
-                        let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-                        args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
-                    }
-                }
+                let mut arg_start: *const c_void = *arg_start;
+                let args_jv_handle = Self::virtual_args_extract(jvm, arg_types, arg_start);
                 let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
@@ -336,7 +327,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                     Err(NotCompiledYet {}) => {
                         jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *debug_method_id);
-                        int_state.debug_print_stack_trace(jvm,false);
                         jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
                     }
                 };
@@ -405,7 +395,38 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
+            RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr } => {
+                eprintln!("RunNativeSpecial");
+                int_state.debug_print_stack_trace(jvm, false);
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                let class_view = rc.view();
+                let method_view = class_view.method_view_i(method_i);
+                let arg_types = &method_view.desc().arg_types;
+                let mut arg_start: *const c_void = *arg_start;
+                let args_jv_handle = Self::virtual_args_extract(jvm, arg_types, arg_start);
+                let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
+                let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
+                if let Some(res) = res {
+                    unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
+                };
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
         }
+    }
+
+    fn virtual_args_extract(jvm: &'gc_life JVMState<'gc_life>, arg_types: &Vec<CompressedParsedDescriptorType>, mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc_life>> {
+        let obj_ref = unsafe { arg_start.cast::<NativeJavaValue>().read() }.to_new_java_value(&CClassName::object().into(), jvm);
+        let mut args_jv_handle = vec![];
+        args_jv_handle.push(obj_ref);
+        unsafe {
+            arg_start = arg_start.offset(size_of::<NativeJavaValue>() as isize);
+            for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
+                let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;
+                let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
+                args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
+            }
+        }
+        args_jv_handle
     }
 }
 

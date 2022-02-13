@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use std::ptr::{NonNull, null};
+use std::ptr::{NonNull};
 use std::sync::RwLock;
 
 use bimap::BiHashMap;
@@ -75,7 +75,7 @@ impl RunStaticNative {
     //num args
     pub const METHODID: Register = Register(4);
     //methodid
-    pub const RESTART_IP: Register = Register(5); //methodid
+    pub const RESTART_IP: Register = Register(5);
 }
 
 
@@ -85,7 +85,17 @@ impl RunNativeVirtual {
     pub const RES_PTR: Register = Register(2);
     pub const ARG_START: Register = Register(3);
     pub const METHODID: Register = Register(4);
-    pub const RESTART_IP: Register = Register(5); //methodid
+    pub const RESTART_IP: Register = Register(5);
+}
+
+
+pub struct RunNativeSpecial;
+
+impl RunNativeSpecial {
+    pub const RES_PTR: Register = Register(2);
+    pub const ARG_START: Register = Register(3);
+    pub const METHODID: Register = Register(4);
+    pub const RESTART_IP: Register = Register(5);
 }
 
 pub struct TopLevelReturn;
@@ -277,7 +287,13 @@ pub enum IRVMExitType {
     },
     RunNativeVirtual {
         method_id: MethodId,
-        arg_start_frame_offset: Option<FramePointerOffset>,
+        arg_start_frame_offset: FramePointerOffset,
+        res_pointer_offset: Option<FramePointerOffset>,
+        num_args: u16,
+    },
+    RunNativeSpecial {
+        method_id: MethodId,
+        arg_start_frame_offset: FramePointerOffset,
         res_pointer_offset: Option<FramePointerOffset>,
         num_args: u16,
     },
@@ -488,14 +504,7 @@ impl IRVMExitType {
             }
             IRVMExitType::RunNativeVirtual { method_id, arg_start_frame_offset, res_pointer_offset, num_args: _ } => {
                 assembler.mov(rax, RawVMExitType::RunNativeVirtual as u64).unwrap();
-                match arg_start_frame_offset {
-                    None => {
-                        assembler.xor(RunNativeVirtual::ARG_START.to_native_64(), RunNativeVirtual::ARG_START.to_native_64()).unwrap();
-                    }
-                    Some(arg_start_frame_offset) => {
-                        assembler.lea(RunNativeVirtual::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
-                    }
-                }
+                assembler.lea(RunNativeVirtual::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
                 match res_pointer_offset {
                     None => {
                         assembler.xor(RunNativeVirtual::RES_PTR.to_native_64(), RunNativeVirtual::RES_PTR.to_native_64()).unwrap();
@@ -506,6 +515,20 @@ impl IRVMExitType {
                 }
                 assembler.mov(RunNativeVirtual::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunNativeVirtual::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
+            IRVMExitType::RunNativeSpecial { method_id, arg_start_frame_offset, res_pointer_offset, num_args } => {
+                assembler.mov(rax, RawVMExitType::RunNativeSpecial as u64).unwrap();
+                assembler.lea(RunNativeSpecial::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
+                match res_pointer_offset {
+                    None => {
+                        assembler.xor(RunNativeSpecial::RES_PTR.to_native_64(), RunNativeSpecial::RES_PTR.to_native_64()).unwrap();
+                    }
+                    Some(res_pointer_offset) => {
+                        assembler.lea(RunNativeSpecial::RES_PTR.to_native_64(), rbp - res_pointer_offset.0).unwrap();
+                    }
+                }
+                assembler.mov(RunNativeSpecial::METHODID.to_native_64(), *method_id as u64).unwrap();
+                assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
         }
     }
@@ -545,6 +568,7 @@ pub enum RawVMExitType {
     InstanceOf,
     CheckCast,
     RunNativeVirtual,
+    RunNativeSpecial,
     Todo,
 }
 
@@ -664,7 +688,13 @@ pub enum RuntimeVMExitInput {
     },
     RunNativeVirtual {
         res_ptr: *mut c_void,
-        arg_start: Option<*const c_void>,
+        arg_start: *const c_void,
+        method_id: MethodId,
+        return_to_ptr: *const c_void,
+    },
+    RunNativeSpecial {
+        res_ptr: *mut c_void,
+        arg_start: *const c_void,
         method_id: MethodId,
         return_to_ptr: *const c_void,
     },
@@ -824,13 +854,18 @@ impl RuntimeVMExitInput {
                 let arg_start = register_state.saved_registers_without_ip.get_register(RunNativeVirtual::ARG_START) as *const c_void;
                 RuntimeVMExitInput::RunNativeVirtual {
                     res_ptr: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::RES_PTR) as *mut c_void,
-                    arg_start: if arg_start == null() {
-                        None
-                    } else {
-                        Some(arg_start)
-                    },
+                    arg_start,
                     method_id: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::METHODID) as MethodId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::RESTART_IP) as *const c_void,
+                }
+            }
+            RawVMExitType::RunNativeSpecial => {
+                let arg_start = register_state.saved_registers_without_ip.get_register(RunNativeSpecial::ARG_START) as *const c_void;
+                RuntimeVMExitInput::RunNativeSpecial {
+                    res_ptr: register_state.saved_registers_without_ip.get_register(RunNativeSpecial::RES_PTR) as *mut c_void,
+                    arg_start,
+                    method_id: register_state.saved_registers_without_ip.get_register(RunNativeSpecial::METHODID) as MethodId,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(RunNativeSpecial::RESTART_IP) as *const c_void,
                 }
             }
             RawVMExitType::Todo => {

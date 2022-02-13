@@ -32,7 +32,7 @@ use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, sipush};
-use crate::ir_to_java_layer::compiler::dup::dup;
+use crate::ir_to_java_layer::compiler::dup::{dup, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
@@ -378,6 +378,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::if_icmpeq(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::EQ, *offset as i32));
             }
+            CompressedInstructionInfo::if_icmpge(offset) => {
+                this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GE, *offset as i32));
+            }
             CompressedInstructionInfo::ladd => {
                 this_function_ir.extend(ladd(method_frame_data, current_instr_data));
             }
@@ -389,6 +392,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::land => {
                 this_function_ir.extend(land(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::istore_1 => {
+                this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, 1))
             }
             CompressedInstructionInfo::istore_2 => {
                 this_function_ir.extend(istore_n(method_frame_data, &current_instr_data, 2))
@@ -438,6 +444,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::iadd => {
                 this_function_ir.extend(iadd(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::dup_x1 => {
+                this_function_ir.extend(dup_x1(method_frame_data, current_instr_data))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -456,6 +465,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     }
     final_ir
 }
+
 
 pub mod instance_of_and_casting;
 pub mod throw;
