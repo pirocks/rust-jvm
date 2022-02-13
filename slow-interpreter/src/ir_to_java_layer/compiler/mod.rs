@@ -8,6 +8,7 @@ use itertools::{Either, Itertools};
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm_ir::compiler::IRInstr::VMExit2;
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::HasAccessFlags;
@@ -25,7 +26,7 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iinc, isub, ladd};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd};
 use crate::ir_to_java_layer::compiler::array_load::caload;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
@@ -97,7 +98,7 @@ pub struct YetAnotherLayoutImpl {
 impl YetAnotherLayoutImpl {
     pub fn new(frames_no_top: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
         let stack_depth = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
-            assert!(frame.stack_map.iter().all(|types|!matches!(types, VType::TopType)));
+            assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
             frame.stack_map.len() as u16
         }).collect();
         Self {
@@ -217,6 +218,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::iflt(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32))
+            }
+            CompressedInstructionInfo::ifle(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::LE, *offset as i32))
             }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
@@ -424,6 +428,15 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::lload(index) => {
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
+            }
+            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
+                this_function_ir.extend(array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }]))
+            }
+            CompressedInstructionInfo::pop => {
+                this_function_ir.extend(array_into_iter([]))
+            }
+            CompressedInstructionInfo::iadd => {
+                this_function_ir.extend(iadd(method_frame_data, current_instr_data))
             }
             other => {
                 dbg!(other);

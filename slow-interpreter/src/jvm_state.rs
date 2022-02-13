@@ -553,5 +553,5 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
 }
 
 pub struct StringInternment<'gc_life> {
-    pub strings: HashMap<Vec<u16>, GcManagedObject<'gc_life>>,
+    pub strings: HashMap<Vec<u16>, AllocatedObjectHandle<'gc_life>>,
 }

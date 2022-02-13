@@ -41,6 +41,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
+use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
@@ -125,7 +126,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
 fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) {
     let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").java_value());
+        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle().to_jv());
     }
     let arg_array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Array(ArrayObject::new_array(jvm, int_state, arg_strings, CPDType::Ref(CPRefType::Class(CClassName::string())), jvm.thread_state.new_monitor("arg array monitor".to_string())).expect("todo"))*/)*/);
     let mut current_frame_mut = int_state.current_frame_mut();

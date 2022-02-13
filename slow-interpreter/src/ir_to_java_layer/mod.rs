@@ -336,6 +336,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                     Err(NotCompiledYet {}) => {
                         jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *debug_method_id);
+                        int_state.debug_print_stack_trace(jvm,false);
                         jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
                     }
                 };

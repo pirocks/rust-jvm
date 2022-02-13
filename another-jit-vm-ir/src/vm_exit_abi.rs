@@ -471,7 +471,7 @@ impl IRVMExitType {
                 assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::Todo => {
-                todo!()
+                assembler.mov(rax, RawVMExitType::Todo as u64).unwrap()
             }
             IRVMExitType::InstanceOf { value, res, cpdtype } => {
                 assembler.mov(rax, RawVMExitType::InstanceOf as u64).unwrap();
@@ -545,6 +545,7 @@ pub enum RawVMExitType {
     InstanceOf,
     CheckCast,
     RunNativeVirtual,
+    Todo,
 }
 
 
@@ -831,6 +832,9 @@ impl RuntimeVMExitInput {
                     method_id: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::METHODID) as MethodId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::RESTART_IP) as *const c_void,
                 }
+            }
+            RawVMExitType::Todo => {
+                todo!()
             }
         }
     }

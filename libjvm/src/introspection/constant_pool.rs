@@ -24,6 +24,7 @@ use slow_interpreter::java::lang::reflect::constant_pool::ConstantPool;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::runtime_class::RuntimeClass;

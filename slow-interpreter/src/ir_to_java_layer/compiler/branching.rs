@@ -75,6 +75,7 @@ pub fn if_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IntEqualityType::NE => IRInstr::BranchNotEqual { a: value1, b: value2, label: target_label },
         IntEqualityType::EQ => IRInstr::BranchEqual { a: value1, b: value2, label: target_label },
         IntEqualityType::LT => IRInstr::BranchAGreaterB { a: value2, b: value1, label: target_label },
+        IntEqualityType::LE => IRInstr::BranchAGreaterEqualB { a: value2, b: value1, label: target_label },
         _ => panic!()
     };
     array_into_iter([

@@ -12,6 +12,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_util::new_object;
 use crate::java::lang::string::JString;
+use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::{ArrayObject, JavaValue, Object};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
@@ -26,12 +27,12 @@ pub fn load_class_constant_by_type(jvm: &'gc_life JVMState<'gc_life>, int_state:
     Ok(NewJavaValue::AllocObject(object))
 }
 
-fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, s: &StringView) {
+fn load_string_constant(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, s: &StringView) -> NewJavaValueHandle<'gc_life>{
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
-    let string = intern_safe(jvm, todo!()/*before_intern.object().to_gc_managed().into()*/);
-    int_state.push_current_operand_stack(string.java_value());
+    let string = intern_safe(jvm, before_intern.object().into());
+    string.new_java_value_handle()
 }
 
 pub fn create_string_on_stack(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, res_string: String) -> Result<(), WasException> {
@@ -124,10 +125,8 @@ pub fn from_constant_pool_entry(c: &ConstantInfoView, jvm: &'gc_life JVMState<'g
         ConstantInfoView::Long(l) => NewJavaValueHandle::Long(l.long),
         ConstantInfoView::Double(d) => NewJavaValueHandle::Double(d.double),
         ConstantInfoView::String(s) => {
-            load_string_constant(jvm, int_state, s);
-            let string_value = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
-            /*intern_safe(jvm, todo!()/*string_value.cast_string().unwrap().object().to_gc_managed().into()*/).java_value()*/
-            todo!()
+            let string_value = load_string_constant(jvm, int_state, s);;
+            intern_safe(jvm, string_value.unwrap_object_nonnull()).new_java_value_handle()
         }
         _ => panic!(),
     }

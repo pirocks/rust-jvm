@@ -43,6 +43,7 @@ pub mod stack_trace_element {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
 
@@ -61,7 +62,7 @@ pub mod stack_trace_element {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, declaring_class: JString<'gc_life>, method_name: JString<'gc_life>, file_name: JString<'gc_life>, line_number: jint) -> Result<StackTraceElement<'gc_life>, WasException> {
             let class_ = check_initing_or_inited_class(jvm, int_state, CClassName::stack_trace_element().into())?;
             let res = new_object(jvm, int_state, &class_).to_jv();
-            let full_args = vec![res.clone(), declaring_class.java_value(), method_name.java_value(), file_name.java_value(), JavaValue::Int(line_number)];
+            let full_args = vec![res.clone(), declaring_class.new_java_value_handle().to_jv(), method_name.new_java_value_handle().to_jv(), file_name.new_java_value_handle().to_jv(), JavaValue::Int(line_number)];
             let desc = CMethodDescriptor::void_return(vec![CClassName::string().into(), CClassName::string().into(), CClassName::string().into(), CPDType::IntType]);
             run_constructor(jvm, int_state, class_, todo!()/*full_args*/, &desc)?;
             Ok(res.cast_stack_trace_element())
@@ -361,6 +362,7 @@ pub mod class_loader {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
+    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::utils::run_static_or_virtual;
@@ -486,7 +488,7 @@ pub mod string {
             Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_int())
         }
 
-        as_object_or_java_value!();
+        // as_object_or_java_value!();
     }
 
     impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for JString<'gc_life> {

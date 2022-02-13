@@ -98,7 +98,7 @@ impl<'gc_life> GC<'gc_life> {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
                 for (i, field) in fields.iter() {
                     unsafe {
-                        let field_ptr = allocated.as_ptr().offset(i.0 as isize) as *mut NativeJavaValue<'gc_life>;
+                        let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(i.0 as isize);
                         field_ptr.write(field.to_native());
                     }
                 }
