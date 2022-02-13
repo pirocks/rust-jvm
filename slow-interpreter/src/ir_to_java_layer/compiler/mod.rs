@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use iced_x86::CC_be::na;
 use itertools::{Either, Itertools};
+use libc::input_absinfo;
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
@@ -28,11 +29,12 @@ use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd};
 use crate::ir_to_java_layer::compiler::array_load::caload;
+use crate::ir_to_java_layer::compiler::array_store::castore;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, sipush};
-use crate::ir_to_java_layer::compiler::dup::{dup, dup_x1};
+use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
@@ -40,7 +42,7 @@ use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, l
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
-use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, return_void};
+use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, lreturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::java_values::NativeJavaValue;
@@ -79,6 +81,10 @@ impl JavaCompilerMethodAndFrameData {
         self.layout.operand_stack_entry(index, from_end)
     }
 
+    pub fn is_category_2(&self, index: ByteCodeIndex, from_end: u16) -> bool {
+        self.layout.is_category_2(index, from_end)
+    }
+
     pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
         self.layout.local_var_entry(index, local_var_index)
     }
@@ -92,6 +98,7 @@ pub struct YetAnotherLayoutImpl {
     max_locals: u16,
     max_stack: u16,
     stack_depth_by_index: Vec<u16>,
+    is_type_2_computational_type: Vec<Vec<bool>>,
     code_by_index: Vec<CompressedInstruction>,
 }
 
@@ -101,16 +108,47 @@ impl YetAnotherLayoutImpl {
             assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
             frame.stack_map.len() as u16
         }).collect();
+        let computational_type = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
+            assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
+            frame.stack_map.iter().map(|vtype| Self::is_type_2_computational_type(vtype)).collect()
+        }).collect();
         Self {
             max_locals: code.max_locals,
             max_stack: code.max_stack,
             stack_depth_by_index: stack_depth,
+            is_type_2_computational_type: computational_type,
             code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
+        }
+    }
+
+    fn is_type_2_computational_type(vtype: &VType) -> bool {
+        match vtype {
+            VType::DoubleType => true,
+            VType::FloatType => false,
+            VType::IntType => false,
+            VType::LongType => true,
+            VType::Class(_) => false,
+            VType::ArrayReferenceType(_) => false,
+            VType::VoidType => false,
+            VType::TopType => false,
+            VType::NullType => false,
+            VType::Uninitialized(_) => false,
+            VType::UninitializedThis => false,
+            VType::UninitializedThisOrClass(_) => false,
+            VType::TwoWord => true,
+            VType::OneWord => false,
+            VType::Reference => false,
+            VType::UninitializedEmpty => false
         }
     }
 
     pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
         FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals + self.stack_depth_by_index[index.0 as usize] - from_end - 1) as usize * size_of::<u64>())//-1 b/c stack depth is a len
+    }
+
+    pub fn is_category_2(&self, index: ByteCodeIndex, from_end: u16) -> bool {
+        let category_2_array = &self.is_type_2_computational_type[index.0 as usize];
+        *category_2_array.iter().rev().nth(from_end as usize).unwrap()
     }
 
     pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
@@ -222,6 +260,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifle(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::LE, *offset as i32))
             }
+            CompressedInstructionInfo::ifge(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::GE, *offset as i32))
+            }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
@@ -320,6 +361,15 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifnull(offset) => {
                 this_function_ir.extend(if_null(method_frame_data, current_instr_data, *offset as i32))
             }
+            CompressedInstructionInfo::astore_0 => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 0))
+            }
+            CompressedInstructionInfo::astore_1 => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 0))
+            }
+            CompressedInstructionInfo::astore_2 => {
+                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 2))
+            }
             CompressedInstructionInfo::astore_3 => {
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 3))
             }
@@ -331,6 +381,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::areturn => {
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::lreturn => {
+                this_function_ir.extend(lreturn(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::dreturn => {
                 this_function_ir.extend(dreturn(method_frame_data, current_instr_data));
@@ -420,6 +473,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::caload => {
                 this_function_ir.extend(caload(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::castore => {
+                this_function_ir.extend(castore(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::instanceof(cpdtype) => {
                 this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, cpdtype))
             }
@@ -431,6 +487,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::lconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
+            }
+            CompressedInstructionInfo::lconst_1 => {
+                this_function_ir.extend(const_64(method_frame_data, current_instr_data, 1))
             }
             CompressedInstructionInfo::lload(index) => {
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
@@ -446,6 +505,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::dup_x1 => {
                 this_function_ir.extend(dup_x1(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::dup2 => {
+                this_function_ir.extend(dup2(method_frame_data, current_instr_data))
             }
             other => {
                 dbg!(other);
@@ -482,6 +544,7 @@ pub mod branching;
 pub mod local_var_loads;
 pub mod local_var_stores;
 pub mod array_load;
+pub mod array_store;
 pub mod ldc;
 pub mod arithmetic;
 pub mod bitmanip;

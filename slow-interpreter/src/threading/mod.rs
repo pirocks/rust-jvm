@@ -22,7 +22,7 @@ use rust_jvm_common::{ByteCodeOffset, JavaThreadId};
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, run_main, set_properties};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState};
@@ -33,6 +33,7 @@ use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
+use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::JavaStatus;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
@@ -79,7 +80,14 @@ impl<'gc_life> ThreadState<'gc_life> {
                 //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
                 //     InterpreterState::Jit { .. } => {}//todo!()
                 // });
-                let mut int_state = InterpreterStateGuard::new(jvm, main_thread.clone(), todo!()/*main_thread.interpreter_state.write().unwrap().into()*/);
+                let mut guard = main_thread.interpreter_state.lock().unwrap();
+                let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+                    int_state: IRStackMut::from_stack_start(&mut guard.call_stack.inner),
+                    thread: main_thread.clone(),
+                    registered: false,
+                    jvm,
+                    current_exited_pc: None
+                }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
                 main_thread.notify_alive(jvm); //is this too early?
                 int_state.register_interpreter_state_guard(jvm);
                 jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
@@ -115,15 +123,18 @@ impl<'gc_life> ThreadState<'gc_life> {
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
 
+
         let system = &system_class;
         let system_view = system.view();
         let method_views = system_view.lookup_method_name(MethodName::method_initializeSystemClass());
         let init_method_view = method_views.first().unwrap().clone();
+        let method_id = jvm.method_table.write().unwrap().get_method_id(system_class.clone(), init_method_view.method_i());
+        jvm.java_vm_state.add_method(jvm, &MethodResolver{ jvm, loader: LoaderName::BootstrapLoader }, method_id);
         let mut locals = vec![];
         for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
-            locals.push(JavaValue::Top);
+            locals.push(NewJavaValue::Top);
         }
-        let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, todo!()/*locals*/);
+        let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
         let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         match run_function(&jvm, int_state, &mut init_frame_guard) {

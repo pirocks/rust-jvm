@@ -1,3 +1,4 @@
+use itertools::Either;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::IRInstr;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
@@ -23,3 +24,25 @@ pub fn dup_x1(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     ])
 }
 
+pub fn dup2(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr>{
+    let value1 = Register(1);
+    let value2 = Register(2);
+    let is_category_2 = method_frame_data.is_category_2(current_instr_data.current_index, 0);
+    if is_category_2 {
+        Either::Left(array_into_iter([
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1 },
+            IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) },
+            IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1) },
+        ]))
+    } else {
+        assert!(!method_frame_data.is_category_2(current_instr_data.current_index, 1));
+        Either::Right(array_into_iter([
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1 },
+            IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value2 },
+            IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) },
+            IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1) },
+            IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 2) },
+            IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 3) }
+        ]))
+    }
+}

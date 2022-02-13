@@ -626,8 +626,7 @@ pub mod thread {
 
         pub fn tid(&self, jvm: &'gc_life JVMState<'gc_life>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            todo!()
-            /*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_tid()).unwrap_long()*/
+            self.normal_object.as_allocated_obj().lookup_field(&thread_class, FieldName::field_tid()).as_njv().unwrap_long_strict()
         }
 
         pub fn run(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
@@ -673,7 +672,7 @@ pub mod thread {
 
         pub fn set_thread_status(&self, jvm: &'gc_life JVMState<'gc_life>, thread_status: jint) {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            todo!()/*self.normal_object.unwrap_normal_object().set_var(thread_class, FieldName::field_threadStatus(), JavaValue::Int(thread_status));*/
+            self.normal_object.as_allocated_obj().set_var(&thread_class, FieldName::field_threadStatus(), NewJavaValue::Int(thread_status));
         }
 
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, thread_group: JThreadGroup<'gc_life>, thread_name: String) -> Result<JThread<'gc_life>, WasException> {
