@@ -19,12 +19,12 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, ebx, ecx, edx, qword_ptr, r10, r10d, r10w, r11, r11d, r11w, r12, r12d, r12w, r13, r13d, r13w, r14, r14d, r14w, r15, r8, r8d, r8w, r9, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp};
+use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10d, r10w, r11, r11d, r11w, r12, r12d, r12w, r13, r13d, r13w, r14, r14d, r14w, r15, r8, r8d, r8w, r9, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
-use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 
+use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use crate::stack::OwnedNativeStack;
 
 pub mod stack;
@@ -112,6 +112,44 @@ impl Register {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct FloatRegister(pub u8);
+
+impl FloatRegister {
+    pub fn to_xmm(&self) -> AsmRegisterXmm {
+        match self.0 {
+            0 => xmm0,
+            1 => xmm1,
+            2 => xmm2,
+            3 => xmm3,
+            4 => xmm4,
+            5 => xmm5,
+            6 => xmm6,
+            7 => xmm7,
+            _ => todo!()
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct MMRegister(pub u8);
+
+impl MMRegister {
+    pub fn to_mm(&self) -> AsmRegisterMm {
+        match self.0 {
+            0 => mm0,
+            1 => mm1,
+            2 => mm2,
+            3 => mm3,
+            4 => mm4,
+            5 => mm5,
+            6 => mm6,
+            7 => mm7,
+            _ => todo!()
+        }
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct MethodImplementationID(usize);
 
@@ -139,7 +177,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
     }
 
-    pub fn lookup_ip(&self, ip: *const c_void) -> MethodImplementationID{
+    pub fn lookup_ip(&self, ip: *const c_void) -> MethodImplementationID {
         *self.inner.read().unwrap().code_regions_to_method.get(&ip).unwrap()
     }
 }
@@ -158,19 +196,19 @@ pub struct VMExitEvent {
     pub method: MethodImplementationID,
     pub method_base_address: *const c_void,
     pub saved_guest_registers: SavedRegistersWithIP,
-    correctly_exited: bool
+    correctly_exited: bool,
 }
 
-impl Drop for VMExitEvent{
+impl Drop for VMExitEvent {
     fn drop(&mut self) {
-        if !self.correctly_exited{
+        if !self.correctly_exited {
             panic!("Did not handle the vm exit")
         }
     }
 }
 
-impl VMExitEvent{
-    pub fn indicate_okay_to_drop(&mut self){
+impl VMExitEvent {
+    pub fn indicate_okay_to_drop(&mut self) {
         self.correctly_exited = true;
     }
 }
@@ -192,9 +230,9 @@ pub struct LaunchedVM<'vm_life, 'extra_data_life, 'l, T, ExtraData: 'vm_life> {
     vm_state: &'l VMState<'vm_life, T, ExtraData>,
     jit_context: JITContext,
     stack_top: *const c_void,
-    stack_bottom:*const c_void,
+    stack_bottom: *const c_void,
     pub extra: &'extra_data_life mut ExtraData,
-    pending_exit: bool
+    pending_exit: bool,
 }
 
 impl<'vm_life, 'extra_data_life, T, ExtraData: 'vm_life> Iterator for LaunchedVM<'vm_life, 'extra_data_life, '_, T, ExtraData> {
@@ -213,14 +251,14 @@ impl<'vm_life, 'extra_data_life, T, ExtraData: 'vm_life> Iterator for LaunchedVM
 }
 
 impl<'vm_life, 'extra_data_life, T, ExtraData: 'vm_life> LaunchedVM<'vm_life, 'extra_data_life, '_, T, ExtraData> {
-    pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff){
+    pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff) {
         assert!(self.pending_exit);
         self.pending_exit = false;
         event.correctly_exited = true;
         self.jit_context.guest_registers.apply_diff(return_register_state);
     }
 
-    fn validate_stack_ptr(&self, ptr: *const c_void){
+    fn validate_stack_ptr(&self, ptr: *const c_void) {
         assert!((self.stack_top >= ptr && self.stack_bottom <= ptr));
     }
 }
@@ -239,7 +277,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     max_ptr: mmaped_code_region_base,
                     phantom_nightly_compiler_bug_workaround: Default::default(),
                     phantom_2: Default::default(),
-                    phantom_3: Default::default()
+                    phantom_3: Default::default(),
                 }),
                 mmaped_code_region_base,
                 mmaped_code_size: DEFAULT_CODE_SIZE,
@@ -489,7 +527,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
                     method: method_implementation,
                     method_base_address: inner_read_guard.code_regions.get(&method_implementation).unwrap().start,
                     saved_guest_registers: guest_registers,
-                    correctly_exited: false
+                    correctly_exited: false,
                 };
                 vm_exit_event
             }

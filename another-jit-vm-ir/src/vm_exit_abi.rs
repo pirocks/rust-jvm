@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use std::ptr::{NonNull};
+use std::ptr::NonNull;
 use std::sync::RwLock;
 
 use bimap::BiHashMap;
@@ -516,7 +516,7 @@ impl IRVMExitType {
                 assembler.mov(RunNativeVirtual::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunNativeVirtual::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::RunNativeSpecial { method_id, arg_start_frame_offset, res_pointer_offset, num_args } => {
+            IRVMExitType::RunNativeSpecial { method_id, arg_start_frame_offset, res_pointer_offset, num_args: _ } => {
                 assembler.mov(rax, RawVMExitType::RunNativeSpecial as u64).unwrap();
                 assembler.lea(RunNativeSpecial::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
                 match res_pointer_offset {

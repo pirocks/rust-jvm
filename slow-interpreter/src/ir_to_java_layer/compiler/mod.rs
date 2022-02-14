@@ -7,8 +7,8 @@ use iced_x86::CC_be::na;
 use itertools::{Either, Itertools};
 use libc::input_absinfo;
 
-use another_jit_vm::Register;
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm::{FloatRegister, MMRegister, Register};
+use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
 use another_jit_vm_ir::compiler::IRInstr::VMExit2;
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
@@ -33,13 +33,15 @@ use crate::ir_to_java_layer::compiler::array_store::castore;
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
-use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, sipush};
+use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
+use crate::ir_to_java_layer::compiler::float_arithmetic::{fcmpg, fcmpl};
+use crate::ir_to_java_layer::compiler::float_convert::{f2i, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
-use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, iload_n, lload_n};
+use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, lreturn, return_void};
@@ -238,6 +240,15 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::aload(n) => {
                 this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, *n as u16));
+            }
+            CompressedInstructionInfo::fload_0 => {
+                this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, 0));
+            }
+            CompressedInstructionInfo::fload_1 => {
+                this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, 1));
+            }
+            CompressedInstructionInfo::fload_2 => {
+                this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, 2));
             }
             CompressedInstructionInfo::aconst_null => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
@@ -485,6 +496,18 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
                 this_function_ir.extend(iinc(method_frame_data, current_instr_data, index, const_))
             }
+            CompressedInstructionInfo::fconst_0 => {
+                this_function_ir.extend(fconst(method_frame_data, current_instr_data, 0.0))
+            }
+            CompressedInstructionInfo::fconst_1 => {
+                this_function_ir.extend(fconst(method_frame_data, current_instr_data, 1.0))
+            }
+            CompressedInstructionInfo::fconst_2 => {
+                this_function_ir.extend(fconst(method_frame_data, current_instr_data, 2.0))
+            }
+            CompressedInstructionInfo::dconst_0 => {
+                this_function_ir.extend(dconst(method_frame_data, current_instr_data, 0.0))
+            }
             CompressedInstructionInfo::lconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }
@@ -509,6 +532,21 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::dup2 => {
                 this_function_ir.extend(dup2(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::fcmpg => {
+                this_function_ir.extend(fcmpg(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::fcmpl => {
+                this_function_ir.extend(fcmpl(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::i2f => {
+                this_function_ir.extend(i2f(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::fmul => {
+                this_function_ir.extend(array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }]))
+            }
+            CompressedInstructionInfo::f2i => {
+                this_function_ir.extend(f2i(method_frame_data, current_instr_data))
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -528,7 +566,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     final_ir
 }
 
-
+pub mod float_convert;
+pub mod float_arithmetic;
 pub mod instance_of_and_casting;
 pub mod throw;
 pub mod monitors;

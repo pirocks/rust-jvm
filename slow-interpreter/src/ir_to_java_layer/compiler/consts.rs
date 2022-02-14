@@ -2,6 +2,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::IRInstr;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::java_values::NativeJavaValue;
 
 
 pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, n: u64) -> impl Iterator<Item=IRInstr> {
@@ -21,4 +22,16 @@ pub fn sipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
 pub fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, val_: &u8) -> impl Iterator<Item=IRInstr> {
     array_into_iter([IRInstr::Const32bit { to: Register(1), const_: *val_ as i8 as i32 as u32 },
         IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+}
+
+pub fn fconst(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, float_const: f32) -> impl Iterator<Item=IRInstr> {
+    let mut zeroed_native = NativeJavaValue { as_u64: 0 };
+    zeroed_native.float = float_const;
+    const_64(method_frame_data, current_instr_data, unsafe { zeroed_native.as_u64 })
+}
+
+pub fn dconst(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, double_const: f64) -> impl Iterator<Item=IRInstr> {
+    let mut zeroed_native = NativeJavaValue { as_u64: 0 };
+    zeroed_native.double = double_const;
+    const_64(method_frame_data, current_instr_data, unsafe { zeroed_native.as_u64 })
 }

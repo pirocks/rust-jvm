@@ -23,7 +23,7 @@ use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
-use crate::compiler::IRCallTarget;
+use crate::compiler::{FloatCompareMode, IRCallTarget};
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
@@ -336,7 +336,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap()
         }
         IRInstr::CopyRegister { .. } => todo!(),
-        IRInstr::Add { res , a } => {
+        IRInstr::Add { res, a } => {
             assembler.add(res.to_native_64(), a.to_native_64()).unwrap()
         }
         IRInstr::Sub { res, to_subtract } => {
@@ -346,7 +346,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Mod { .. } => todo!(),
         IRInstr::Mul { .. } => {
             todo!()
-        },
+        }
         IRInstr::BinaryBitAnd { res, a } => {
             assembler.and(res.to_native_64(), a.to_native_64()).unwrap()
         }
@@ -543,6 +543,67 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::MulConst { res, a } => {
             assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()
+        }
+        IRInstr::LoadFPRelativeFloat { from, to } => {
+            assembler.movq(to.to_xmm(), rbp - from.0).unwrap();
+        }
+        IRInstr::StoreFPRelativeFloat { from, to } => {
+            assembler.movq(rbp - to.0, from.to_xmm()).unwrap();
+        }
+        IRInstr::FloatToIntegerConvert { from, temp, to } => {
+            assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
+            assembler.movd(to.to_native_32(),temp.to_mm()).unwrap();
+        }
+        IRInstr::IntegerToFloatConvert { to, temp, from } => {
+            assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
+            assembler.cvtpi2ps(to.to_xmm(), temp.to_mm()).unwrap()
+        }
+        IRInstr::FloatCompare { value1, value2, res, temp1, temp2, temp3, compare_mode } => {
+            /*
+Result = OrderedCompare(Source1[0..31], Source2[0..31]);
+switch(Result) {
+	case ResultUnordered:
+		ZF = 1;
+		PF = 1;
+		CF = 1;
+		break;
+	case ResultGreaterThan:
+		ZF = 0;
+		PF = 0;
+		CF = 0;
+		break;
+	case ResultLessThan:
+		ZF = 0;
+		PF = 0;
+		CF = 1;
+		break;
+	case ResultEqual:
+		ZF = 1;
+		PF = 0;
+		CF = 0;
+		break;
+}
+OF = 0;
+AF = 0;
+SF = 0;
+            */
+
+            assembler.comiss(value1.to_xmm(), value2.to_xmm()).unwrap();
+            assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
+            assembler.mov(temp1.to_native_64(), 1u64).unwrap();
+            assembler.mov(temp2.to_native_64(), 0u64).unwrap();
+            assembler.mov(temp3.to_native_64(), -1i64).unwrap();
+            assembler.cmovg(res.to_native_64(), temp1.to_native_64()).unwrap();
+            assembler.cmove(res.to_native_64(), temp2.to_native_64()).unwrap();
+            assembler.cmovl(res.to_native_64(), temp3.to_native_64()).unwrap();
+            match compare_mode {
+                FloatCompareMode::G => {
+                    assembler.cmovpe(res.to_native_64(), temp1.to_native_64()).unwrap();
+                }
+                FloatCompareMode::L => {
+                    assembler.cmovpe(res.to_native_64(), temp3.to_native_64()).unwrap();
+                }
+            }
         }
     }
 }

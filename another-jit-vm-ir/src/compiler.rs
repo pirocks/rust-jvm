@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use another_jit_vm::Register;
+use another_jit_vm::{FloatRegister, MMRegister, Register};
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::MethodId;
 
@@ -9,7 +9,11 @@ use crate::{IRMethodID, IRVMExitType};
 #[derive(Debug, Clone)]
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register },
+    LoadFPRelativeFloat { from: FramePointerOffset, to: FloatRegister },
     StoreFPRelative { from: Register, to: FramePointerOffset },
+    StoreFPRelativeFloat { from: FloatRegister, to: FramePointerOffset },
+    FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
+    IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
     Load { to: Register, from_address: Register },
     Load32 { to: Register, from_address: Register },
     Store { to_address: Register, from: Register },
@@ -33,6 +37,7 @@ pub enum IRInstr {
     BranchEqual { a: Register, b: Register, label: LabelName },
     BranchNotEqual { a: Register, b: Register, label: LabelName },
     BranchAGreaterB { a: Register, b: Register, label: LabelName },
+    FloatCompare { value1: FloatRegister, value2: FloatRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName },
     BranchALessB { a: Register, b: Register, label: LabelName },
     BoundsCheck { length: Register, index: Register },
@@ -60,6 +65,12 @@ pub enum IRInstr {
     NOP,
     DebuggerBreakpoint,
     Label(IRLabel),
+}
+
+#[derive(Debug, Clone)]
+pub enum FloatCompareMode {
+    G,
+    L,
 }
 
 #[derive(Debug, Clone)]
@@ -224,6 +235,21 @@ impl IRInstr {
             }
             IRInstr::MulConst { .. } => {
                 "MulConst".to_string()
+            }
+            IRInstr::LoadFPRelativeFloat { .. } => {
+                "LoadFPRelativeFloat".to_string()
+            }
+            IRInstr::StoreFPRelativeFloat { .. } => {
+                "StoreFPRelativeFloat".to_string()
+            }
+            IRInstr::FloatToIntegerConvert { .. } => {
+                "FloatToIntegerConvert".to_string()
+            }
+            IRInstr::IntegerToFloatConvert { .. } => {
+                "IntegerToFloatConvert".to_string()
+            }
+            IRInstr::FloatCompare { .. } => {
+                "FloatCompare".to_string()
             }
         }
     }
