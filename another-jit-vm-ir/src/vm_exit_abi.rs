@@ -342,6 +342,10 @@ pub enum IRVMExitType {
         inheritance_method_id: InheritanceMethodID,
         target_method_id: MethodId,
     },
+    InvokeInterfaceResolve {
+        object_ref: FramePointerOffset,
+        target_method_id: MethodId,
+    },
     MonitorEnter {
         obj: FramePointerOffset
     },

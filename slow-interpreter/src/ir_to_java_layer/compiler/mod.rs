@@ -29,18 +29,18 @@ use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd};
 use crate::ir_to_java_layer::compiler::array_load::caload;
-use crate::ir_to_java_layer::compiler::array_store::castore;
+use crate::ir_to_java_layer::compiler::array_store::{aastore, castore, iastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
-use crate::ir_to_java_layer::compiler::float_arithmetic::{fcmpg, fcmpl};
+use crate::ir_to_java_layer::compiler::float_arithmetic::{fcmpg, fcmpl, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{f2i, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
-use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_long, ldc_string};
+use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
@@ -333,7 +333,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                             CompressedLdcW::Float { float } => {
                                 this_function_ir.extend(ldc_float(method_frame_data, &current_instr_data, *float))
                             }
-                            CompressedLdcW::Integer { .. } => todo!(),
+                            CompressedLdcW::Integer { integer } => {
+                                this_function_ir.extend(ldc_integer(method_frame_data, &current_instr_data, *integer))
+                            }
                             CompressedLdcW::MethodType { .. } => todo!(),
                             CompressedLdcW::MethodHandle { .. } => todo!(),
                             CompressedLdcW::LiveObject(_) => todo!(),
@@ -406,6 +408,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(newarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, atype))
             }
             CompressedInstructionInfo::i2l => {
+                //TODO bug there are places where we don't sign extend properly
                 //for now does nothing but should really store ints as  actual 32 bit ints so in future todo
             }
             CompressedInstructionInfo::ldc2_w(ldc2) => {
@@ -487,6 +490,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::castore => {
                 this_function_ir.extend(castore(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::iastore => {
+                this_function_ir.extend(iastore(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::aastore => {
+                this_function_ir.extend(aastore(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::instanceof(cpdtype) => {
                 this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, cpdtype))
             }
@@ -518,7 +527,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                this_function_ir.extend(array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }]))
+                this_function_ir.extend(array_into_iter([
+                    IRInstr::VMExit2 { exit_type: IRVMExitType::InvokeInterfaceResolve { object_ref: todo!(), target_method_id: todo!() } },
+                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }
+                ]))
             }
             CompressedInstructionInfo::pop => {
                 this_function_ir.extend(array_into_iter([]))
@@ -542,7 +554,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(i2f(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::fmul => {
-                this_function_ir.extend(array_into_iter([IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }]))
+                this_function_ir.extend(fmul(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::f2i => {
                 this_function_ir.extend(f2i(method_frame_data, current_instr_data))

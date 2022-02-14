@@ -19,6 +19,7 @@ pub enum IRInstr {
     Store { to_address: Register, from: Register },
     CopyRegister { from: Register, to: Register },
     Add { res: Register, a: Register },
+    MulFloat { res: FloatRegister, a: FloatRegister },
     Sub { res: Register, to_subtract: Register },
     Div { res: Register, divisor: Register },
     Mod { res: Register, divisor: Register },
@@ -250,6 +251,9 @@ impl IRInstr {
             }
             IRInstr::FloatCompare { .. } => {
                 "FloatCompare".to_string()
+            }
+            IRInstr::MulFloat { .. } => {
+                "MulFloat".to_string()
             }
         }
     }

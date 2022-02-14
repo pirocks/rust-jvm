@@ -31,3 +31,16 @@ fn fcmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: 
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
+
+
+pub fn fmul(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = FloatRegister(0);
+    let value1 = FloatRegister(1);
+    let iter = array_into_iter([
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::MulFloat { res: value1, a: value2 },
+        IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ]);
+    iter
+}

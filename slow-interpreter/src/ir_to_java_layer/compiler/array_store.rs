@@ -7,6 +7,18 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 use crate::java_values::NativeJavaValue;
 
 pub fn castore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data)
+}
+
+pub fn iastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data)
+}
+
+pub fn aastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data)
+}
+
+fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let index = Register(1);
     let array_ref = Register(2);
     assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());

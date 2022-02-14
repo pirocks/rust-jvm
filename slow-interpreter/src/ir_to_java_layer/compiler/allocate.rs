@@ -90,13 +90,13 @@ pub fn newarray(
     elem_type: &Atype,
 ) -> impl Iterator<Item=IRInstr> {
     anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, &match elem_type {
-        Atype::TBoolean => todo!(),
+        Atype::TBoolean => CPDType::BooleanType,
         Atype::TChar => CPDType::CharType,
-        Atype::TFloat => todo!(),
-        Atype::TDouble => todo!(),
-        Atype::TByte => todo!(),
-        Atype::TShort => todo!(),
-        Atype::TInt => todo!(),
-        Atype::TLong => todo!(),
+        Atype::TFloat => CPDType::FloatType,
+        Atype::TDouble => CPDType::DoubleType,
+        Atype::TByte => CPDType::ByteType,
+        Atype::TShort => CPDType::ShortType,
+        Atype::TInt => CPDType::IntType,
+        Atype::TLong => CPDType::LongType,
     })
 }
