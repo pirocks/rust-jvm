@@ -22,3 +22,14 @@ pub fn istore_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_inst
     ])
 }
 
+
+pub fn fstore_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, n: u16) -> impl Iterator<Item=IRInstr> {
+    //todo have register allocator
+    let to_offset = method_frame_data.local_var_entry(current_instr_data.current_index, n);
+    let from_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: from_offset, to: Register(1) },
+        IRInstr::StoreFPRelative { from: Register(1), to: to_offset },
+    ])
+}
+

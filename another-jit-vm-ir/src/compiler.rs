@@ -25,8 +25,10 @@ pub enum IRInstr {
     Mod { res: Register, divisor: Register },
     Mul { res: Register, a: Register },
     MulConst { res: Register, a: i32 },
-    LogicalShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
+    ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
+    LogicalShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
     BinaryBitAnd { res: Register, a: Register },
+    BinaryBitXor { res: Register, a: Register },
     ForwardBitScan { to_scan: Register, res: Register },
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
@@ -229,7 +231,7 @@ impl IRInstr {
             IRInstr::BranchAGreaterEqualB { .. } => {
                 "BranchAGreaterEqualB".to_string()
             }
-            IRInstr::LogicalShiftLeft { .. } => {
+            IRInstr::ArithmeticShiftLeft { .. } => {
                 "LogicalShiftLeft".to_string()
             }
             IRInstr::BoundsCheck { .. } => {
@@ -255,6 +257,12 @@ impl IRInstr {
             }
             IRInstr::MulFloat { .. } => {
                 "MulFloat".to_string()
+            }
+            IRInstr::LogicalShiftRight { .. } => {
+                "LogicalShiftRight".to_string()
+            }
+            IRInstr::BinaryBitXor { .. } => {
+                "BinaryBitXor".to_string()
             }
         }
     }

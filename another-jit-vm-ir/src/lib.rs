@@ -350,6 +350,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::BinaryBitAnd { res, a } => {
             assembler.and(res.to_native_64(), a.to_native_64()).unwrap()
         }
+        IRInstr::BinaryBitXor { res, a } => {
+            assembler.xor(res.to_native_64(), a.to_native_64()).unwrap()
+        }
         IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_).unwrap();
@@ -528,10 +531,15 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Const16bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_ as u32).unwrap()
         }
-        IRInstr::LogicalShiftLeft { res, a, cl_aka_register_2: cl_aka_register_3 } => {
-            assert_eq!(cl_aka_register_3.to_native_8(), code_asm::cl);
+        IRInstr::ArithmeticShiftLeft { res, a, cl_aka_register_2 } => {
+            assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
             assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
-            assembler.shl(res.to_native_64(), code_asm::cl).unwrap();
+            assembler.sal(res.to_native_64(), code_asm::cl).unwrap();
+        }
+        IRInstr::LogicalShiftRight { res, a, cl_aka_register_2 } => {
+            assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
+            assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
+            assembler.shr(res.to_native_64(), code_asm::cl).unwrap();
         }
         IRInstr::BoundsCheck { length, index } => {
             let mut not_out_of_bounds = assembler.create_label();
