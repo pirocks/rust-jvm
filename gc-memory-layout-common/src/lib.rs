@@ -103,9 +103,6 @@ impl RegionData {
         let current_index = self.num_current_elements.fetch_add(1, Ordering::SeqCst);
         let res = unsafe { region_base.offset((current_index * self.region_elem_size) as isize) };
         unsafe { libc::memset(res, 0, self.region_elem_size); }
-        if res as usize == 0x180000025000{
-            eprintln!("ygi")
-        }
         NonNull::new(res).unwrap()
     }
 }

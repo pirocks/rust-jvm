@@ -64,7 +64,7 @@ pub fn iand(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::BinaryBitXor { res: value2, a: value1 },
+        IRInstr::BinaryBitAnd { res: value2, a: value1 },
         IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index,0) }
     ])
 }
