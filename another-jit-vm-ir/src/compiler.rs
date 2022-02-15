@@ -19,11 +19,13 @@ pub enum IRInstr {
     Store { to_address: Register, from: Register },
     CopyRegister { from: Register, to: Register },
     Add { res: Register, a: Register },
-    MulFloat { res: FloatRegister, a: FloatRegister },
+    AddFloat { res: FloatRegister, a: FloatRegister },
     Sub { res: Register, to_subtract: Register },
     Div { res: Register, divisor: Register },
+    DivFloat { res: FloatRegister, divisor: FloatRegister },
     Mod { res: Register, divisor: Register },
     Mul { res: Register, a: Register },
+    MulFloat { res: FloatRegister, a: FloatRegister },
     MulConst { res: Register, a: i32 },
     ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
     LogicalShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
@@ -263,6 +265,12 @@ impl IRInstr {
             }
             IRInstr::BinaryBitXor { .. } => {
                 "BinaryBitXor".to_string()
+            }
+            IRInstr::DivFloat { .. } => {
+                "DivFloat".to_string()
+            }
+            IRInstr::AddFloat { .. } => {
+                "AddFloat".to_string()
             }
         }
     }

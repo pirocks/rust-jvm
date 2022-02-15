@@ -616,6 +616,12 @@ SF = 0;
         IRInstr::MulFloat { res, a } => {
             assembler.mulps(res.to_xmm(), a.to_xmm()).unwrap();
         }
+        IRInstr::DivFloat { res, divisor } => {
+            assembler.divss(res.to_xmm(), divisor.to_xmm()).unwrap();
+        }
+        IRInstr::AddFloat { res, a } => {
+            assembler.addss(res.to_xmm(),a.to_xmm()).unwrap();
+        }
     }
 }
 

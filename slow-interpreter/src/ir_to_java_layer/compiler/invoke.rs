@@ -173,7 +173,11 @@ pub fn invokestatic(
                                 temp_register_1: Register(1),
                                 temp_register_2: Register(2),
                                 arg_from_to_offsets,
-                                return_value: Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0)),
+                                return_value: if descriptor.return_type.is_void() {
+                                    None
+                                } else {
+                                    Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                                },
                                 target_address: IRCallTarget::Constant {
                                     address,
                                     ir_method_id,
@@ -308,7 +312,7 @@ fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_f
     let mut arg_from_to_offsets = vec![];
     for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
         let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-        let to = FramePointerOffset(FRAME_HEADER_END_OFFSET + (i as u16 + 1) as usize *size_of::<jlong>());
+        let to = FramePointerOffset(FRAME_HEADER_END_OFFSET + (i as u16 + 1) as usize * size_of::<jlong>());
         arg_from_to_offsets.push((from, to))
     }
     let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);

@@ -37,7 +37,7 @@ use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp,
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
-use crate::ir_to_java_layer::compiler::float_arithmetic::{fcmpg, fcmpl, fmul};
+use crate::ir_to_java_layer::compiler::float_arithmetic::{fadd, fcmpg, fcmpl, fdiv, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{f2i, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
@@ -568,6 +568,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::fmul => {
                 this_function_ir.extend(fmul(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::fadd => {
+                this_function_ir.extend(fadd(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::fdiv => {
+                this_function_ir.extend(fdiv(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::f2i => {
                 this_function_ir.extend(f2i(method_frame_data, current_instr_data))
