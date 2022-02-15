@@ -221,5 +221,5 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
 }
 
 pub fn find_target_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_method_name: MethodName, parsed_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>) -> (u16, Arc<RuntimeClass<'gc_life>>) {
-    lookup_method_parsed(jvm, int_state, target_class, expected_method_name, parsed_descriptor).unwrap()
+    lookup_method_parsed(jvm, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

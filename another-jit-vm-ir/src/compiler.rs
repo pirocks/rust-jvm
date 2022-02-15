@@ -187,6 +187,7 @@ impl IRInstr {
                     IRVMExitType::CheckCast { .. } => { "CheckCast" }
                     IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
                     IRVMExitType::RunNativeSpecial { .. } => { "RunNativeSpecial" }
+                    IRVMExitType::InvokeInterfaceResolve { .. } => { "InvokeInterfaceResolve" }
                 })
             }
             IRInstr::NPECheck { .. } => {

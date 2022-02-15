@@ -27,11 +27,11 @@ use crate::JVMState;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
-    lookup_method_parsed_impl(jvm, int_state, class, name, descriptor)
+pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+    lookup_method_parsed_impl(jvm, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| if m.is_signature_polymorphic() { true } else { m.desc() == descriptor }).collect::<Vec<_>>();
@@ -41,7 +41,7 @@ pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &
             let class_name = class.view().super_name().unwrap(); //todo is this unwrap safe?
             let lookup_type = CPDType::Ref(CPRefType::Class(class_name));
             let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
-            lookup_method_parsed_impl(jvm, int_state, super_class, name, descriptor)
+            lookup_method_parsed_impl(jvm, super_class, name, descriptor)
         }
         Some(method_view) => Some((method_view.method_i(), class.clone())),
     }

@@ -8,10 +8,10 @@ use itertools::{Either, Itertools};
 use libc::input_absinfo;
 
 use another_jit_vm::{FloatRegister, MMRegister, Register};
-use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
-use another_jit_vm_ir::compiler::IRInstr::VMExit2;
+use another_jit_vm_ir::compiler::{FloatCompareMode, IRCallTarget, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm_ir::compiler::IRInstr::{IRCall, VMExit2};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
-use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, IRVMExitType};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
@@ -19,7 +19,8 @@ use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{Atype, Code, IInc};
 use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::vtype::VType;
 use verification::verifier::codecorrectness::method_is_type_safe;
@@ -39,7 +40,7 @@ use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
 use crate::ir_to_java_layer::compiler::float_arithmetic::{fcmpg, fcmpl, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{f2i, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
-use crate::ir_to_java_layer::compiler::invoke::{invokespecial, invokestatic, invokevirtual};
+use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, istore_n};
@@ -527,10 +528,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                this_function_ir.extend(array_into_iter([
-                    IRInstr::VMExit2 { exit_type: IRVMExitType::InvokeInterfaceResolve { object_ref: todo!(), target_method_id: todo!() } },
-                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo }
-                ]))
+                this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::pop => {
                 this_function_ir.extend(array_into_iter([]))

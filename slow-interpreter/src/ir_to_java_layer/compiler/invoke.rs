@@ -1,12 +1,15 @@
 use std::ffi::c_void;
+use std::mem::size_of;
 
 use itertools::Either;
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
+use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::IRMethodID;
-use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType};
+use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, InvokeVirtualResolve, IRVMExitType};
 use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
+use jvmti_jni_bindings::jlong;
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -243,7 +246,11 @@ pub fn invokevirtual(
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
                         arg_from_to_offsets,
-                        return_value: Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0)),
+                        return_value: if descriptor.return_type.is_void() {
+                            None
+                        } else {
+                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                        },
                         target_address: IRCallTarget::Variable {
                             address: InvokeVirtualResolve::ADDRESS_RES,
                             ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
@@ -257,17 +264,55 @@ pub fn invokevirtual(
     }
 }
 
+pub fn invoke_interface(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, method_name: &MethodName, descriptor: &CMethodDescriptor, classname_ref_type: &CPRefType) -> impl Iterator<Item=IRInstr> {
+    let num_args = descriptor.arg_types.len() as u16;
+
+    let target_class_cpdtype = CPDType::Ref(classname_ref_type.clone());
+    dbg!(classname_ref_type.unwrap_name().0.to_str(&resolver.jvm.string_pool));
+    dbg!(method_name.0.to_str(&resolver.jvm.string_pool));
+    let (target_method_id, is_native) = resolver.lookup_virtual(target_class_cpdtype, *method_name, descriptor.clone()).unwrap();
+    if is_native {
+        todo!()
+    }
+    let iter = array_into_iter([
+        IRInstr::VMExit2 {
+            exit_type: IRVMExitType::InvokeInterfaceResolve {
+                object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
+                target_method_id,
+            }
+        },
+        IRInstr::IRCall {
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, target_method_id),
+            return_value: if descriptor.return_type.is_void() {
+                None
+            } else {
+                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+            },
+            target_address: IRCallTarget::Variable {
+                address: InvokeInterfaceResolve::ADDRESS_RES,
+                ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
+                method_id: InvokeInterfaceResolve::TARGET_METHOD_ID,
+                new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
+            },
+            current_frame_size: method_frame_data.full_frame_size(),
+        }
+    ]);
+    iter
+}
+
 fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
-    let target_method_layout = resolver.lookup_method_layout(target_method_id);
+    // let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
     for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
         let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16 + 1);
+        let to = FramePointerOffset(FRAME_HEADER_END_OFFSET + (i as u16 + 1) as usize *size_of::<jlong>());
         arg_from_to_offsets.push((from, to))
     }
     let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
-    let object_ref_to = target_method_layout.local_var_entry(ByteCodeIndex(0), 0);
+    let object_ref_to = FramePointerOffset(FRAME_HEADER_END_OFFSET);
     arg_from_to_offsets.push((object_ref_from, object_ref_to));
     arg_from_to_offsets
 }

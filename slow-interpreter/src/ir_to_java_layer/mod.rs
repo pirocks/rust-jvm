@@ -27,8 +27,8 @@ use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, Runtime
 use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -55,7 +55,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::threading::safepoints::Monitor2;
-use crate::utils::run_static_or_virtual;
+use crate::utils::{lookup_method_parsed, run_static_or_virtual};
 
 pub mod compiler;
 pub mod java_stack;
@@ -410,6 +410,33 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+            }
+            RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
+                let obj_jv_handle = NativeJavaValue { object: *object_ref as *mut c_void }.to_new_java_value(&CPDType::object(), jvm);
+                let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
+                let (target_rc,target_method_i) = jvm.method_table.read().unwrap().try_lookup(*target_method_id).unwrap();
+                let class_view = target_rc.view();
+                let method_view = class_view.method_view_i(target_method_i);
+                let method_name = method_view.name();
+                let method_desc = method_view.desc();
+                let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc, method_name, method_desc).unwrap();
+                let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, resolved_method_i);
+                let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                jvm.java_vm_state.add_method(jvm, &resolver, resolved_method_id);
+                let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
+                let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
+                let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
+                let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
+                start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, resolved_method_id as *mut c_void);
+                start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
+                IRVMExitAction::RestartWithRegisterState {
+                    diff: SavedRegistersWithIPDiff {
+                        rip: Some(*return_to_ptr),
+                        saved_registers_without_ip: Some(start_diff),
+                    }
+                }
             }
         }
     }

@@ -234,6 +234,18 @@ impl InvokeVirtualResolve {
     pub const DEBUG_METHOD_ID: Register = Register(9);
 }
 
+pub struct InvokeInterfaceResolve;
+
+impl InvokeInterfaceResolve {
+    pub const OBJECT_REF: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+    pub const ADDRESS_RES: Register = Register(4);
+    pub const IR_METHOD_ID_RES: Register = Register(5);
+    pub const METHOD_ID_RES: Register = Register(6);
+    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
+    pub const TARGET_METHOD_ID: Register = Register(8);
+}
+
 pub struct MonitorEnter;
 
 impl MonitorEnter {
@@ -534,6 +546,12 @@ impl IRVMExitType {
                 assembler.mov(RunNativeSpecial::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_id } => {
+                assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
+                assembler.lea(InvokeInterfaceResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
+                assembler.mov(InvokeInterfaceResolve::TARGET_METHOD_ID.to_native_64(), *target_method_id as u64).unwrap();
+                assembler.lea(InvokeInterfaceResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -566,6 +584,7 @@ pub enum RawVMExitType {
     NewString,
     NewClass,
     InvokeVirtualResolve,
+    InvokeInterfaceResolve,
     MonitorEnter,
     MonitorExit,
     Throw,
@@ -669,6 +688,11 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         object_ref: u64,
         inheritance_id: InheritanceMethodID,
+        target_method_id: MethodId,
+    },
+    InvokeInterfaceResolve {
+        return_to_ptr: *const c_void,
+        object_ref: *const c_void,
         target_method_id: MethodId,
     },
     MonitorEnter {
@@ -874,6 +898,13 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::Todo => {
                 todo!()
+            }
+            RawVMExitType::InvokeInterfaceResolve => {
+                RuntimeVMExitInput::InvokeInterfaceResolve {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::RESTART_IP) as *const c_void,
+                    object_ref: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::OBJECT_REF) as *const c_void,
+                    target_method_id: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::TARGET_METHOD_ID) as MethodId,
+                }
             }
         }
     }
