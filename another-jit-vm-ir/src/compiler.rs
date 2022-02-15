@@ -19,6 +19,7 @@ pub enum IRInstr {
     Store { to_address: Register, from: Register },
     CopyRegister { from: Register, to: Register },
     Add { res: Register, a: Register },
+    IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register },
     AddFloat { res: FloatRegister, a: FloatRegister },
     Sub { res: Register, to_subtract: Register },
     Div { res: Register, divisor: Register },
@@ -32,6 +33,7 @@ pub enum IRInstr {
     ArithmeticShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
     BinaryBitAnd { res: Register, a: Register },
     BinaryBitXor { res: Register, a: Register },
+    BinaryBitOr { res: Register, a: Register },
     ForwardBitScan { to_scan: Register, res: Register },
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
@@ -275,6 +277,12 @@ impl IRInstr {
             }
             IRInstr::ArithmeticShiftRight { .. } => {
                 "ArithmeticShiftRight".to_string()
+            }
+            IRInstr::IntCompare { .. } => {
+                "IntCompare".to_string()
+            }
+            IRInstr::BinaryBitOr { .. } => {
+                "BinaryBitOr".to_string()
             }
         }
     }

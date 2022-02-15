@@ -28,11 +28,11 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd, lcmp};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, caload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, castore, iastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::bitmanip::{iand, ishl, ishr, iushr, ixor, land, lshl};
+use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
@@ -452,6 +452,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ladd => {
                 this_function_ir.extend(ladd(method_frame_data, current_instr_data));
             }
+            CompressedInstructionInfo::lcmp => {
+                this_function_ir.extend(lcmp(method_frame_data, current_instr_data));
+            }
             CompressedInstructionInfo::bipush(val_) => {
                 this_function_ir.extend(bipush(method_frame_data, current_instr_data, val_))
             }
@@ -490,6 +493,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::ixor => {
                 this_function_ir.extend(ixor(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::ior => {
+                this_function_ir.extend(ior(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::iand => {
                 this_function_ir.extend(iand(method_frame_data, current_instr_data))

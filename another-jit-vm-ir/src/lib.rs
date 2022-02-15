@@ -565,7 +565,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
-            assembler.movd(to.to_native_32(),temp.to_mm()).unwrap();
+            assembler.movd(to.to_native_32(), temp.to_mm()).unwrap();
         }
         IRInstr::IntegerToFloatConvert { to, temp, from } => {
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
@@ -618,6 +618,16 @@ SF = 0;
                 }
             }
         }
+        IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3 } => {
+            assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap();
+            assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
+            assembler.mov(temp1.to_native_64(), 1u64).unwrap();
+            assembler.mov(temp2.to_native_64(), 0u64).unwrap();
+            assembler.mov(temp3.to_native_64(), -1i64).unwrap();
+            assembler.cmovg(res.to_native_64(), temp1.to_native_64()).unwrap();
+            assembler.cmove(res.to_native_64(), temp2.to_native_64()).unwrap();
+            assembler.cmovl(res.to_native_64(), temp3.to_native_64()).unwrap();
+        }
         IRInstr::MulFloat { res, a } => {
             assembler.mulps(res.to_xmm(), a.to_xmm()).unwrap();
         }
@@ -625,7 +635,10 @@ SF = 0;
             assembler.divss(res.to_xmm(), divisor.to_xmm()).unwrap();
         }
         IRInstr::AddFloat { res, a } => {
-            assembler.addss(res.to_xmm(),a.to_xmm()).unwrap();
+            assembler.addss(res.to_xmm(), a.to_xmm()).unwrap();
+        }
+        IRInstr::BinaryBitOr { res, a } => {
+            assembler.or(res.to_native_64(), a.to_native_64()).unwrap();
         }
     }
 }

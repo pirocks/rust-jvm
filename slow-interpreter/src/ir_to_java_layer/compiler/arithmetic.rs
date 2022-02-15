@@ -39,11 +39,22 @@ pub fn iadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
 pub fn iinc(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, index: &u16, const_: &i16) -> impl Iterator<Item=IRInstr> {
     let temp = Register(1);
     let const_register = Register(2);
-    let iter = array_into_iter([
+    array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.local_var_entry(current_instr_data.current_index, *index), to: temp },
         IRInstr::Const64bit { to: const_register, const_: *const_ as i64 as u64 },
         IRInstr::Add { res: temp, a: const_register },
         IRInstr::StoreFPRelative { from: temp, to: method_frame_data.local_var_entry(current_instr_data.current_index, *index) }
-    ]);
-    iter
+    ])
+}
+
+pub fn lcmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = Register(1);
+    let value1 = Register(2);
+    let res = Register(3);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::IntCompare { value1, value2, temp1: Register(4), temp2: Register(5), res, temp3: Register(6) },
+        IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
 }

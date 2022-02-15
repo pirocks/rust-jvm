@@ -35,7 +35,6 @@ pub fn ishl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
 pub fn land(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(1);
     let value2 = Register(2);
-    let mask = Register(3);
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
@@ -48,11 +47,21 @@ pub fn land(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
 pub fn ixor(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(1);
     let value2 = Register(2);
-    let mask = Register(3);
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
         IRInstr::BinaryBitXor { res: value2, a: value1 },
+        IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index,0) }
+    ])
+}
+
+pub fn ior(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value1 = Register(1);
+    let value2 = Register(2);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::BinaryBitOr { res: value2, a: value1 },
         IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index,0) }
     ])
 }
