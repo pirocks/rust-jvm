@@ -412,9 +412,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
-                let obj_jv_handle = NativeJavaValue { object: *object_ref as *mut c_void }.to_new_java_value(&CPDType::object(), jvm);
+                let obj_jv_handle = unsafe { (*object_ref).cast::<NativeJavaValue>().read() }.to_new_java_value(&CPDType::object(), jvm);
                 let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
-                let (target_rc,target_method_i) = jvm.method_table.read().unwrap().try_lookup(*target_method_id).unwrap();
+                let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(*target_method_id).unwrap();
                 let class_view = target_rc.view();
                 let method_view = class_view.method_view_i(target_method_i);
                 let method_name = method_view.name();

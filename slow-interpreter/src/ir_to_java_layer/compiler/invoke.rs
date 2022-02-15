@@ -293,7 +293,7 @@ pub fn invoke_interface(resolver: &MethodResolver, method_frame_data: &JavaCompi
             target_address: IRCallTarget::Variable {
                 address: InvokeInterfaceResolve::ADDRESS_RES,
                 ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
-                method_id: InvokeInterfaceResolve::TARGET_METHOD_ID,
+                method_id: InvokeInterfaceResolve::METHOD_ID_RES,
                 new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
             },
             current_frame_size: method_frame_data.full_frame_size(),
