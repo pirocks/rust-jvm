@@ -86,3 +86,21 @@ pub fn iushr(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_d
         IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
+
+pub fn ishr(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = Register(3);
+    let value1 = Register(4);
+    let const_ = Register(5);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::Const64bit { to: const_, const_: 0x3f },
+        IRInstr::BinaryBitAnd { res: value2, a: const_ },
+        IRInstr::ArithmeticShiftRight {
+            res: value1,
+            a: value2,
+            cl_aka_register_2: Register(2),
+        },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}

@@ -268,42 +268,65 @@ pub fn invokevirtual(
     }
 }
 
-pub fn invoke_interface(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, method_name: &MethodName, descriptor: &CMethodDescriptor, classname_ref_type: &CPRefType) -> impl Iterator<Item=IRInstr> {
+pub fn invoke_interface(
+    resolver: &MethodResolver,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: &CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
+    method_name: &MethodName,
+    descriptor: &CMethodDescriptor,
+    classname_ref_type: &CPRefType
+) -> impl Iterator<Item=IRInstr> {
     let num_args = descriptor.arg_types.len() as u16;
 
     let target_class_cpdtype = CPDType::Ref(classname_ref_type.clone());
-    dbg!(classname_ref_type.unwrap_name().0.to_str(&resolver.jvm.string_pool));
-    dbg!(method_name.0.to_str(&resolver.jvm.string_pool));
-    let (target_method_id, is_native) = resolver.lookup_virtual(target_class_cpdtype, *method_name, descriptor.clone()).unwrap();
-    if is_native {
-        todo!()
-    }
-    let iter = array_into_iter([
-        IRInstr::VMExit2 {
-            exit_type: IRVMExitType::InvokeInterfaceResolve {
-                object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
-                target_method_id,
-            }
-        },
-        IRInstr::IRCall {
-            temp_register_1: Register(1),
-            temp_register_2: Register(2),
-            arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, target_method_id),
-            return_value: if descriptor.return_type.is_void() {
-                None
+    let cpdtype_id = resolver.get_cpdtype_id(&target_class_cpdtype);
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    match resolver.lookup_virtual(target_class_cpdtype, *method_name, descriptor.clone()) {
+        Some((target_method_id, is_native)) => {
+            if is_native {
+                todo!()
             } else {
-                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-            },
-            target_address: IRCallTarget::Variable {
-                address: InvokeInterfaceResolve::ADDRESS_RES,
-                ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
-                method_id: InvokeInterfaceResolve::METHOD_ID_RES,
-                new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
-            },
-            current_frame_size: method_frame_data.full_frame_size(),
+                Either::Left(array_into_iter([
+                    restart_point,
+                    IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::InvokeInterfaceResolve {
+                            object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
+                            target_method_id,
+                        }
+                    },
+                    IRInstr::IRCall {
+                        temp_register_1: Register(1),
+                        temp_register_2: Register(2),
+                        arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, target_method_id),
+                        return_value: if descriptor.return_type.is_void() {
+                            None
+                        } else {
+                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                        },
+                        target_address: IRCallTarget::Variable {
+                            address: InvokeInterfaceResolve::ADDRESS_RES,
+                            ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
+                            method_id: InvokeInterfaceResolve::METHOD_ID_RES,
+                            new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
+                        },
+                        current_frame_size: method_frame_data.full_frame_size(),
+                    }
+                ]))
+            }
         }
-    ]);
-    iter
+        None => {
+            Either::Right(array_into_iter([restart_point,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::InitClassAndRecompile {
+                        class: cpdtype_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id,
+                    },
+                }]))
+        }
+    }
 }
 
 fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {

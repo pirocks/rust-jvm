@@ -33,7 +33,7 @@ use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
@@ -216,17 +216,18 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut stack = int_state.cloned_stack_snapshot(jvm).into_iter().rev();
+    let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter().rev();
     stack.next();
     stack.next();
     let possibly_class_pointer = stack.find_map(|entry| {
-        let class_pointer = entry.try_class_pointer()?;
+        let class_pointer = entry.try_class_pointer(jvm)?;
         let view = class_pointer.view();
-        if entry.is_native() || entry.is_opaque_frame() {
+        let method_view = view.method_view_i(entry.method_i(jvm));
+        if method_view.is_native() || entry.is_opaque() {
             return None;
         }
         if let Some(name) = view.name().try_unwrap_name() {
-            if name == CClassName::method() && view.method_view_i(entry.method_i()).name() == MethodName::method_invoke() {
+            if name == CClassName::method() && view.method_view_i(entry.method_i(jvm)).name() == MethodName::method_invoke() {
                 return None;
             }
         }
@@ -237,8 +238,8 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap().unwrap_object();
-    new_local_ref_public(todo!()/*jclass*/, int_state)
+    let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap();
+    new_local_ref_public_new(jclass.unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]

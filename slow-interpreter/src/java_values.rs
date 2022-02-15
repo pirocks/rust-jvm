@@ -1149,7 +1149,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
 pub union NativeJavaValue<'gc_life/*, 'l*/> {
     pub(crate) byte: i8,
     pub(crate) boolean: u8,
-    short: i16,
+    pub(crate) short: i16,
     pub(crate) char: u16,
     pub(crate) int: i32,
     pub(crate) long: i64,

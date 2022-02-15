@@ -51,8 +51,8 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
             NewJavaValueHandle::Int(int) => {
                 NewJavaValue::Int(*int)
             }
-            NewJavaValueHandle::Short(_) => {
-                todo!()
+            NewJavaValueHandle::Short(short) => {
+                NewJavaValue::Short(*short)
             }
             NewJavaValueHandle::Byte(byte) => {
                 NewJavaValue::Byte(*byte)
@@ -264,8 +264,8 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::Int(int) => {
                 all_zero.int = *int;
             }
-            NewJavaValue::Short(_) => {
-                todo!()
+            NewJavaValue::Short(short) => {
+                all_zero.short = *short;
             }
             NewJavaValue::Byte(byte) => {
                 all_zero.byte = *byte;

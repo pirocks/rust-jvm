@@ -32,7 +32,7 @@ use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, caload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, castore, iastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::bitmanip::{iand, ishl, iushr, ixor, land, lshl};
+use crate::ir_to_java_layer::compiler::bitmanip::{iand, ishl, ishr, iushr, ixor, land, lshl};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
@@ -543,7 +543,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, method_name, descriptor, classname_ref_type))
+                this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::pop => {
                 this_function_ir.extend(array_into_iter([]))
@@ -580,6 +580,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::iushr => {
                 this_function_ir.extend(iushr(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::ishr => {
+                this_function_ir.extend(ishr(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::ishl => {
                 this_function_ir.extend(ishl(method_frame_data, current_instr_data))

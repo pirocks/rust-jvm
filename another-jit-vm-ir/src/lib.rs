@@ -541,6 +541,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
             assembler.shr(res.to_native_64(), code_asm::cl).unwrap();
         }
+        IRInstr::ArithmeticShiftRight { res, a, cl_aka_register_2 } => {
+            assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
+            assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
+            assembler.sar(res.to_native_64(), code_asm::cl).unwrap();
+        }
         IRInstr::BoundsCheck { length, index } => {
             let mut not_out_of_bounds = assembler.create_label();
             assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap();

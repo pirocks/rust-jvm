@@ -29,6 +29,7 @@ pub enum IRInstr {
     MulConst { res: Register, a: i32 },
     ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
     LogicalShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
+    ArithmeticShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
     BinaryBitAnd { res: Register, a: Register },
     BinaryBitXor { res: Register, a: Register },
     ForwardBitScan { to_scan: Register, res: Register },
@@ -271,6 +272,9 @@ impl IRInstr {
             }
             IRInstr::AddFloat { .. } => {
                 "AddFloat".to_string()
+            }
+            IRInstr::ArithmeticShiftRight { .. } => {
+                "ArithmeticShiftRight".to_string()
             }
         }
     }
