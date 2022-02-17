@@ -6,6 +6,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::utils::throw_npe;
 
 pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
@@ -52,33 +53,37 @@ pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
         }
         Some(val) => val,
     };
-    int_state.push_current_operand_stack(field_value);
+    int_state.push_current_operand_stack(field_value.to_jv());
 }
 
-fn get_static_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub(crate) fn get_static_impl(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    field_class_name: CClassName,
+    field_name: FieldName
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
+    let temp = target_classfile.static_vars(jvm);
+    let attempted_get = temp.try_get(field_name);
+    match attempted_get {
+        None => {
+            let possible_super = target_classfile.view().super_name();
+            if let Some(super_) = possible_super {
+                return get_static_impl(jvm, int_state, super_, field_name).into();
+            }
+        }
+        Some(val) => {
+            return Ok(val.into())
+        },
+    };
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone())?;
         if interface_lookup_res.is_some() {
             return Ok(interface_lookup_res);
         }
     }
-    let temp = target_classfile.static_vars(jvm);
-    let attempted_get = temp.try_get(field_name);
-    let field_value = match attempted_get {
-        None => {
-            let possible_super = target_classfile.view().super_name();
-            match possible_super {
-                None => None,
-                Some(super_) => {
-                    return get_static_impl(jvm, int_state, super_, field_name).into();
-                }
-            }
-        }
-        Some(val) => val.to_jv().into(),
-    };
-    Ok(field_value)
+    panic!()
 }
 
 pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {

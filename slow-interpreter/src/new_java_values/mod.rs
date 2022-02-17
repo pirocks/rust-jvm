@@ -14,6 +14,7 @@ use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jbyte, jchar, jdouble, jfloat, jint, jlong};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -332,6 +333,47 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             }
             NewJavaValue::AllocObject(obj) => {
                 NewJavaValueHandle::Object(obj.handle.duplicate_discouraged())
+            }
+            NewJavaValue::Top => {
+                todo!()
+            }
+        }
+    }
+
+    pub fn rtype(&self, jvm: &'gc_life JVMState<'gc_life>) -> RuntimeType{
+        match self {
+            NewJavaValue::Long(_) => {
+                RuntimeType::LongType
+            }
+            NewJavaValue::Int(_) => {
+                todo!()
+            }
+            NewJavaValue::Short(_) => {
+                todo!()
+            }
+            NewJavaValue::Byte(_) => {
+                todo!()
+            }
+            NewJavaValue::Boolean(_) => {
+                RuntimeType::IntType
+            }
+            NewJavaValue::Char(_) => {
+                todo!()
+            }
+            NewJavaValue::Float(_) => {
+                todo!()
+            }
+            NewJavaValue::Double(_) => {
+                todo!()
+            }
+            NewJavaValue::Null => {
+                RuntimeType::Ref(RuntimeRefType::NullType)
+            }
+            NewJavaValue::UnAllocObject(_) => {
+                todo!()
+            }
+            NewJavaValue::AllocObject(obj) => {
+                RuntimeType::Ref(obj.runtime_class(jvm).view().name().to_runtime_type())
             }
             NewJavaValue::Top => {
                 todo!()

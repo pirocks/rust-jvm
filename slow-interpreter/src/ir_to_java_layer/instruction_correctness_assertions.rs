@@ -3,30 +3,50 @@ use iced_x86::CC_be::be;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::MethodId;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_loaded_class;
+use crate::instructions::fields::{get_static, get_static_impl};
 use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::NoValidate;
+use crate::java_values::NativeJavaValue;
 
-pub enum BeforeState {
-    NoValidate
+#[derive(Debug, Clone)]
+pub enum BeforeState<'gc_life> {
+    NoValidate,
+    TopOfOperandStackIs{
+        native_jv: NativeJavaValue<'gc_life>,
+        rtype: RuntimeType
+    },
 }
 
-pub struct AssertionState {
-    pub(crate) current_before: Vec<Option<BeforeState>>,
+pub struct AssertionState<'gc_life> {
+    pub(crate) current_before: Vec<Option<BeforeState<'gc_life>>>,
 }
 
 
-impl AssertionState {
+impl<'gc_life> AssertionState<'gc_life> {
+    pub fn handle_trace_after(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>){
+        let current_assertion_check  = self.current_before.last_mut().unwrap().take().unwrap();
+        match current_assertion_check{
+            NoValidate => {}
+            BeforeState::TopOfOperandStackIs { native_jv, rtype } => {
+                let actual_value = int_state.current_frame().operand_stack(jvm).get_from_end(0, rtype);
+                unsafe {
+                    assert_eq!(actual_value.as_njv().to_native().as_u64, native_jv.as_u64);
+                }
+            }
+        }
+    }
+
     pub fn handle_trace_before(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
-
-        assert!(self.current_before.last().unwrap().is_none());
+        assert!(self.current_before.last().unwrap().is_none() || matches!(self.current_before.last().unwrap().as_ref().unwrap(), NoValidate));
         let before_state = match &code.info {
             CompressedInstructionInfo::aaload => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::aastore => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::aconst_null => {
                 NoValidate
@@ -274,8 +294,9 @@ impl AssertionState {
             CompressedInstructionInfo::getfield { .. } => {
                 NoValidate
             }
-            CompressedInstructionInfo::getstatic { .. } => {
-                NoValidate
+            CompressedInstructionInfo::getstatic { desc, target_class, name } => {
+                let res = get_static_impl(jvm, int_state, *target_class, *name).unwrap().unwrap();
+                BeforeState::TopOfOperandStackIs { native_jv: res.as_njv().to_native(), rtype: res.as_njv().rtype(jvm) }
             }
             CompressedInstructionInfo::goto_(_) => {
                 NoValidate
@@ -657,12 +678,4 @@ impl AssertionState {
         *self.current_before.last_mut().unwrap() = Some(before_state);
     }
 
-
-    pub fn handle_trace_after(&mut self, code: &CInstruction, int_state: &mut InterpreterStateGuard) {
-        let before_state = self.current_before.last_mut().unwrap().take().unwrap();
-        match before_state {
-            BeforeState::NoValidate => {}
-            _ => todo!()
-        }
-    }
 }

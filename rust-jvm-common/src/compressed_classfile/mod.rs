@@ -102,6 +102,16 @@ impl CompressedParsedRefType {
             CompressedParsedRefType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader }),
         }
     }
+    pub fn to_runtime_type(&self) -> RuntimeRefType {
+        match self {
+            CompressedParsedRefType::Array(sub_type) => {
+                RuntimeRefType::Array(sub_type.deref().clone())
+            }
+            CompressedParsedRefType::Class(class_name) => {
+                RuntimeRefType::Class(class_name.clone())
+            }
+        }
+    }
 
     pub fn try_unwrap_name(&self) -> Option<CClassName> {
         match self {

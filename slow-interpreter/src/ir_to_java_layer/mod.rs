@@ -122,7 +122,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let array_size = object_array.size();
                 let region_data = memory_region_guard.find_or_new_region_for(object_array);
-                dbg!(region_data.region_type);
                 let allocated_object = region_data.get_allocation();
                 unsafe { res_address.write(allocated_object) }
                 unsafe {
@@ -198,7 +197,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let field_view = view.field(field_i as usize);
                 let mut static_vars_guard = rc.static_vars(jvm);
                 let field_name = field_view.field_name();
-                let static_var = static_vars_guard.get(field_name);
                 let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
                 static_vars_guard.set(field_name, njv);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -255,7 +253,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info);
-                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(instr, int_state);
+                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -511,7 +509,7 @@ pub struct JavaVMStateWrapper<'vm_life> {
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,
-    pub(crate) assertion_state: Mutex<AssertionState>,
+    pub(crate) assertion_state: Mutex<AssertionState<'vm_life>>,
 }
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {

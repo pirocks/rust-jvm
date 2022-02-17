@@ -831,16 +831,38 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
         }
     }
 
-    pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc_life> {
+    fn num_locals(&self) -> u16 {
         match self {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
-                let num_locals = LocalVarsRef::Jit {
+                LocalVarsRef::Jit {
                     frame_view,
                     jvm,
                     pc: *pc,
-                }.num_vars();
+                }.num_vars()
+            }
+        }
+    }
+
+    pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc_life> {
+        match self {
+            OperandStackRef::Jit { frame_view, jvm, pc } => {
+                let num_locals = self.num_locals();
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types().iter().nth(from_start as usize).unwrap(), &expected_type);
+                let native_jv = NativeJavaValue { as_u64: data };
+                native_jv.to_new_java_value_rtype(&expected_type, jvm)
+            }
+        }
+    }
+
+    pub fn get_from_end(&self, from_end: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc_life> {
+        match self {
+            OperandStackRef::Jit { frame_view, jvm, pc } => {
+                let num_locals = self.num_locals();
+                let types_len = self.types().len();
+                let from_start = types_len - from_end as usize - 1;
+                let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
+                assert!(self.types().iter().rev().nth(from_end as usize).unwrap().compatible_with_dumb(&expected_type));
                 let native_jv = NativeJavaValue { as_u64: data };
                 native_jv.to_new_java_value_rtype(&expected_type, jvm)
             }
