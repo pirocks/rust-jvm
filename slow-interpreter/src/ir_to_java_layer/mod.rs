@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread::current;
 
 use bimap::BiHashMap;
@@ -43,6 +43,7 @@ use crate::instructions::special::{instance_of_exit_impl, instance_of_impl, invo
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::instruction_correctness_assertions::AssertionState;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::class::JClass;
 use crate::java::lang::int::Int;
@@ -153,6 +154,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
+                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::RunNativeVirtual { res_ptr, arg_start, method_id, return_to_ptr } => {
@@ -170,6 +172,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
+                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
@@ -241,6 +244,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
+                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
@@ -251,6 +255,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info);
+                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(instr, int_state);
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -409,6 +414,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
+                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
@@ -505,6 +511,7 @@ pub struct JavaVMStateWrapper<'vm_life> {
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,
+    pub(crate) assertion_state: Mutex<AssertionState>,
 }
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
@@ -519,6 +526,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
+            assertion_state: Mutex::new(AssertionState { current_before: vec![] })
         };
         res
     }
@@ -669,3 +677,5 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 }
 
+
+pub mod instruction_correctness_assertions;

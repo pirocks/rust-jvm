@@ -9,8 +9,8 @@ use num::Zero;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jvalue, JVM_ACC_SYNCHRONIZED};
-use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
@@ -64,13 +64,16 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         jvm.java_vm_state.add_method(jvm, &resolver, method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
         assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
+        jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
         let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id);
+        // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
+        // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
         //todo bug what if gc happens here
         let return_type = &method.desc().return_type;
         Ok(match return_type {
             CompressedParsedDescriptorType::VoidType => None,
             return_type => {
-                Some(NativeJavaValue{as_u64: function_res}.to_java_value(&return_type,jvm))
+                Some(NativeJavaValue { as_u64: function_res }.to_java_value(&return_type, jvm))
             }
         })
     } else {
