@@ -9,7 +9,7 @@ use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::assert_loaded_class;
 use crate::instructions::fields::{get_static, get_static_impl};
 use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::{NoValidate, TopOfOperandStackIs};
-use crate::ir_to_java_layer::instruction_correctness_assertions::interpreted_impls::fcmpl;
+use crate::ir_to_java_layer::instruction_correctness_assertions::interpreted_impls::{fcmpg, fcmpl};
 use crate::java_values::NativeJavaValue;
 
 #[derive(Debug, Clone)]
@@ -229,7 +229,10 @@ impl<'gc_life> AssertionState<'gc_life> {
                 NoValidate
             }
             CompressedInstructionInfo::fcmpg => {
-                NoValidate
+                let float2 = int_state.current_frame().operand_stack(jvm).get_from_end(0,RuntimeType::FloatType).as_njv().unwrap_float_strict();
+                let float1 = int_state.current_frame().operand_stack(jvm).get_from_end(1,RuntimeType::FloatType).as_njv().unwrap_float_strict();
+                let expected_res = fcmpg(float2,float1);
+                TopOfOperandStackIs { native_jv: NewJavaValue::Int(expected_res).to_native(), rtype: RuntimeType::IntType }
             }
             CompressedInstructionInfo::fcmpl => {
                 let float2 = int_state.current_frame().operand_stack(jvm).get_from_end(0,RuntimeType::FloatType).as_njv().unwrap_float_strict();

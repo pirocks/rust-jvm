@@ -13,7 +13,7 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp, rbx, rsp};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, fword_ptr, qword_ptr, rax, rbp, rbx, rsp};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
@@ -558,10 +558,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()
         }
         IRInstr::LoadFPRelativeFloat { from, to } => {
-            assembler.movq(to.to_xmm(), rbp - from.0).unwrap();
+            assembler.movss(to.to_xmm(), fword_ptr(rbp - from.0)).unwrap();
         }
         IRInstr::StoreFPRelativeFloat { from, to } => {
-            assembler.movq(rbp - to.0, from.to_xmm()).unwrap();
+            assembler.movss(fword_ptr(rbp - to.0), from.to_xmm()).unwrap();
         }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
@@ -571,7 +571,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
             assembler.cvtpi2ps(to.to_xmm(), temp.to_mm()).unwrap()
         }
-        IRInstr::FloatCompare { value1, value2, res, temp1, temp2, temp3, compare_mode } => {
+        IRInstr::FloatCompare { value1, value2, res, temp1: one, temp2: zero, temp3: m_one, compare_mode } => {
             /*
 Result = OrderedCompare(Source1[0..31], Source2[0..31]);
 switch(Result) {
@@ -601,27 +601,27 @@ AF = 0;
 SF = 0;
             */
 
-            assembler.comiss(value1.to_xmm(), value2.to_xmm()).unwrap();
             assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
-            assembler.mov(temp1.to_native_64(), 1u64).unwrap();
-            assembler.mov(temp2.to_native_64(), 0u64).unwrap();
-            assembler.mov(temp3.to_native_64(), -1i64).unwrap();
-            assembler.cmovg(res.to_native_64(), temp1.to_native_64()).unwrap();
-            assembler.cmove(res.to_native_64(), temp2.to_native_64()).unwrap();
-            assembler.cmovl(res.to_native_64(), temp3.to_native_64()).unwrap();
-            let mut not_nan = assembler.create_label();
-            assembler.jnz(not_nan).unwrap();
-            assembler.jnp(not_nan).unwrap();
-            assembler.jnc(not_nan).unwrap();
+            assembler.int3().unwrap();
+            assembler.comiss(value1.to_xmm(), value2.to_xmm()).unwrap();
+            assembler.mov(one.to_native_64(), 1u64).unwrap();
+            assembler.mov(zero.to_native_64(), 0u64).unwrap();
+            assembler.mov(m_one.to_native_64(), -1i64).unwrap();
+            assembler.cmovnc(res.to_native_64(), one.to_native_64()).unwrap();
+            assembler.cmovc(res.to_native_64(), m_one.to_native_64()).unwrap();
+            assembler.cmovz(res.to_native_64(), zero.to_native_64()).unwrap();
+            let saved = zero;
+            assembler.mov(saved.to_native_64(),res.to_native_64()).unwrap();
             match compare_mode {
                 FloatCompareMode::G => {
-                    assembler.mov(res.to_native_64(), temp1.to_native_64()).unwrap();
+                    assembler.cmovp(res.to_native_64(), one.to_native_64()).unwrap();
                 }
                 FloatCompareMode::L => {
-                    assembler.mov(res.to_native_64(), temp3.to_native_64()).unwrap();
+                    assembler.cmovp(res.to_native_64(), m_one.to_native_64()).unwrap();
                 }
             }
-            assembler.set_label(&mut not_nan).unwrap();
+            assembler.cmovnc(res.to_native_64(), saved.to_native_64()).unwrap();
+            assembler.cmovnz(res.to_native_64(), saved.to_native_64()).unwrap();
             assembler.nop().unwrap();
         }
         IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3 } => {

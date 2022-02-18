@@ -3,7 +3,7 @@ use std::sync::Arc;
 use iced_x86::CC_b::c;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm::Register;
+use another_jit_vm::{FloatRegister, Register};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -80,9 +80,12 @@ pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
 pub fn ldc_float(method_frame_data: &JavaCompilerMethodAndFrameData,
                  current_instr_data: &CurrentInstructionCompilerData,
                  float: f32) -> impl Iterator<Item=IRInstr> {
+    let target_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
     array_into_iter([
-        IRInstr::Const32bit { to: Register(1), const_: float.to_bits() },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::Const32bit { to: Register(1), const_: dbg!(float).to_bits() },
+        IRInstr::StoreFPRelative { from: Register(1), to: target_offset },
+        IRInstr::LoadFPRelativeFloat { from: target_offset, to: FloatRegister(1) }
+    ])
 }
 
 pub fn ldc_integer(method_frame_data: &JavaCompilerMethodAndFrameData,
