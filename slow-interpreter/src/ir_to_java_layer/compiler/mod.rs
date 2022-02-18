@@ -45,7 +45,7 @@ use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, l
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
 use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, fstore_n, istore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
-use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, ireturn, lreturn, return_void};
+use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::java_values::NativeJavaValue;
@@ -226,6 +226,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::ireturn => {
                 this_function_ir.extend(ireturn(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::freturn => {
+                this_function_ir.extend(freturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::aload_0 => {
                 this_function_ir.extend(aload_n(method_frame_data, &current_instr_data, 0));
