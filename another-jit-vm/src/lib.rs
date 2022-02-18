@@ -1,4 +1,3 @@
-#![feature(asm)]
 #![feature(asm_const)]
 #![feature(backtrace)]
 #![feature(trait_alias)]

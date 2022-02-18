@@ -36,6 +36,7 @@ use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jit::state::JITedCodeState;
 use crate::jvm_state::JVMState;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryMut;
 use crate::threading::safepoints::Monitor2;
 
@@ -52,7 +53,7 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
@@ -75,7 +76,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         Ok(match return_type {
             CompressedParsedDescriptorType::VoidType => None,
             return_type => {
-                Some(NativeJavaValue { as_u64: function_res }.to_java_value(&return_type, jvm))
+                Some(NativeJavaValue { as_u64: function_res }.to_new_java_value(&return_type, jvm))
             }
         })
     } else {

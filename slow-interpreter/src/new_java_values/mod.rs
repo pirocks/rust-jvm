@@ -11,7 +11,7 @@ use iced_x86::OpCodeOperandKind::al;
 use libc::c_void;
 
 use gc_memory_layout_common::AllocatedObjectType;
-use jvmti_jni_bindings::{jbyte, jchar, jdouble, jfloat, jint, jlong};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -25,6 +25,7 @@ use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 
 pub mod array_wrapper;
 
+#[derive(Debug)]
 pub enum NewJavaValueHandle<'gc_life> {
     Long(i64),
     Int(i32),
@@ -37,6 +38,16 @@ pub enum NewJavaValueHandle<'gc_life> {
     Null,
     Object(AllocatedObjectHandle<'gc_life>),
     Top,
+}
+
+impl Eq for NewJavaValueHandle<'_> {
+
+}
+
+impl PartialEq for NewJavaValueHandle<'_>{
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
 }
 
 impl<'gc_life> NewJavaValueHandle<'gc_life> {
@@ -186,21 +197,25 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc_life, 'l>> {
+    pub fn try_unwrap_object_alloc(&self) -> Option<Option<AllocatedObject<'gc_life, 'l>>> {
         match self {
-            NewJavaValue::Null => None,
+            NewJavaValue::Null => Some(None),
             NewJavaValue::AllocObject(alloc) => {
-                Some(alloc.clone())
+                Some(Some(alloc.clone()))
             }
-            _ => panic!(),
+            _ => None,
         }
+    }
+
+    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc_life, 'l>> {
+        self.try_unwrap_object_alloc().unwrap()
     }
 
     pub fn unwrap_object_nonnull(&self) -> NewJVObject<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn unwrap_bool_strict(&self) -> jbyte {
+    pub fn unwrap_bool_strict(&self) -> jboolean {
         todo!()
     }
 
@@ -219,7 +234,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn unwrap_short_strict(&self) -> jchar {
+    pub fn unwrap_short_strict(&self) -> jshort {
         todo!()
     }
 
@@ -499,6 +514,16 @@ pub struct AllocatedObjectHandle<'gc_life> {
     //todo move gc to same crate
     /*pub(in crate::java_values)*/
     pub(crate) ptr: NonNull<c_void>,
+}
+
+impl Eq for AllocatedObjectHandle<'_> {
+
+}
+
+impl <'gc_life> PartialEq for AllocatedObjectHandle<'gc_life> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr
+    }
 }
 
 impl<'gc_life> AllocatedObjectHandle<'gc_life> {

@@ -45,7 +45,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
-    new_local_ref_public_new(
+    let res = dbg!(new_local_ref_public_new(
         match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
             Err(WasException {}) => return null_mut(),
@@ -53,7 +53,9 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
             .object().as_allocated_obj()
             .into(),
         int_state,
-    )
+    ));
+    dbg!(str);
+    res
 }
 
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {

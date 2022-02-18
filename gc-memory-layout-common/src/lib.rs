@@ -13,7 +13,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
-use num_integer::Integer;
 
 use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jint, jlong, jobject};
@@ -186,7 +185,7 @@ impl MemoryRegions {
             None => current_region_to_use.region_base(&self.early_mmaped_regions),
         };
         unsafe {
-            let bitmap_length = ((current_region_to_use.region_size()) / (to_allocate_type.size())).div_ceil(&8);
+            let bitmap_length = ((current_region_to_use.region_size()) / (to_allocate_type.size())).div_ceil(8usize);
             assert_ne!(bitmap_length, 0);
             to_push_to.push(RegionData {
                 region_base: new_region_base,

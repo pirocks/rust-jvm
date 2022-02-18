@@ -19,6 +19,7 @@ use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue, Object};
 use crate::jit::MethodResolver;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -32,11 +33,25 @@ pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: 
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<NewJavaValue<'gc_life,'_>>) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i<'gc_life, 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    expected_descriptor: &CMethodDescriptor,
+    target_class: Arc<RuntimeClass<'gc_life>>,
+    target_method: &MethodView,
+    args: Vec<NewJavaValue<'gc_life,'_>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
-fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<NewJavaValue<'gc_life,'_>>) -> Result<(), WasException> {
+fn invoke_virtual_method_i_impl<'gc_life, 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    expected_descriptor: &CMethodDescriptor,
+    target_class: Arc<RuntimeClass<'gc_life>>,
+    target_method: &MethodView,
+    args: Vec<NewJavaValue<'gc_life,'_>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
@@ -55,7 +70,7 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         } else {
             unimplemented!()
         }
-        return Ok(());
+        return Ok(todo!());
     }
     if target_method.is_native() {
         match run_native_method(jvm, interpreter_state, target_class, target_method_i, todo!()/*args*/) {
@@ -73,16 +88,9 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut frame_for_function) {
             Ok(res) => {
-                todo!("handle res");
                 assert!(!interpreter_state.throw().is_some());
                 interpreter_state.pop_frame(jvm, frame_for_function, false);
-                if !jvm.config.compiled_mode_active {
-                }
-                if interpreter_state.function_return() {
-                    interpreter_state.set_function_return(false);
-                    return Ok(());
-                }
-                panic!()
+                return Ok(res);
             }
             Err(WasException {}) => {
                 assert!(interpreter_state.throw().is_some());
@@ -224,7 +232,8 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, todo!())
+    /*invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, todo!())*/
+    todo!()
 }
 
 pub fn virtual_method_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {

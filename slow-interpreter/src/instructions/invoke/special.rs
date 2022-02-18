@@ -12,6 +12,7 @@ use crate::instructions::invoke::virtual_::{setup_virtual_args, setup_virtual_ar
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
@@ -24,7 +25,14 @@ pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), todo!());
 }
 
-pub fn invoke_special_impl<'k, 'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed_descriptor: &CMethodDescriptor, target_m_i: u16, final_target_class: Arc<RuntimeClass<'gc_life>>, input_args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+pub fn invoke_special_impl<'k, 'gc_life, 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    parsed_descriptor: &CMethodDescriptor,
+    target_m_i: u16,
+    final_target_class: Arc<RuntimeClass<'gc_life>>,
+    input_args: Vec<NewJavaValue<'gc_life,'k>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
     if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {

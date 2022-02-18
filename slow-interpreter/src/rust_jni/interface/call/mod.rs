@@ -23,7 +23,7 @@ use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
-unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -40,13 +40,9 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
         args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
+    let res  = invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
     assert!(int_state.throw().is_none());
-    Ok(if method.desc().return_type == CPDType::VoidType {
-        None
-    } else {
-        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
-    })
+    return Ok(res);
 }
 
 pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {

@@ -353,6 +353,9 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
                         for local_var in local_vars {
+                            if let Some(Some(obj)) = local_var.try_unwrap_object_alloc(){
+                                jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.handle.ptr);
+                            }
                             data.push(unsafe { local_var.to_native().as_u64 });
                         }
                         for jv in operand_stack {

@@ -703,7 +703,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
-    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).entry(class_name.clone().into()).insert(runtime_class.clone());
+    classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).insert(class_name.clone().into(),runtime_class.clone());
     classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), ByAddress(runtime_class.clone()));
     drop(classes);
     jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());

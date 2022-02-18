@@ -155,7 +155,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(res.cpdtype()).insert((loader, res.clone()));
+            guard.initiating_loaders.insert(res.cpdtype(),(loader, res.clone()));
             guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.cpdtype(), res.clone());
             Ok(res)
         }
