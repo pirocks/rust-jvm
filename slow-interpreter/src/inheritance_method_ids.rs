@@ -90,13 +90,7 @@ impl InheritanceMethodIDs {
     }
 
     pub fn register(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: &Arc<RuntimeClass<'gc_life>>) {
-        let all_ids = self.register_impl(rc);
-        for ((method_name, c_method_descriptor), id) in all_ids.into_iter() {
-            let name = rc.view().name().unwrap_name().0.to_str(&jvm.string_pool);
-            // dbg!(name);
-            // dbg!(method_name.0.to_str(&jvm.string_pool));
-            // dbg!(id);
-        }
+        let _ = self.register_impl(rc);
     }
 
 

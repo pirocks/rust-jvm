@@ -35,7 +35,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 
 use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
 use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
@@ -319,6 +319,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
                 drop(memory_region_guard);
+                dbg!(&allocated_type);
+                match allocated_type {
+                    AllocatedObjectType::Class { thread, name, loader, size } => {
+                        dbg!(name.0.to_str(&jvm.string_pool));
+                    }
+                    AllocatedObjectType::ObjectArray { .. } => {}
+                    AllocatedObjectType::PrimitiveArray { .. } => {}
+                }
+                dbg!(inheritance_id);
                 let lookup_res = jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id);
                 let ResolvedInvokeVirtual {
                     address,
@@ -329,8 +338,13 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     Ok(resolved) => {
                         resolved
                     }
-                    Err(NotCompiledYet {}) => {
-                        jvm.java_vm_state.add_method(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, *debug_method_id);
+                    Err(NotCompiledYet { needs_compiling }) => {
+                        let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                        // let rc = assert_loaded_class(jvm, allocated_type.as_cpdtype());
+                        jvm.java_vm_state.add_method(jvm, &method_resolver, needs_compiling);
+                        jvm.java_vm_state.add_method(jvm, &method_resolver, *debug_method_id);
+                        jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
+                        dbg!(needs_compiling);
                         jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
                     }
                 };

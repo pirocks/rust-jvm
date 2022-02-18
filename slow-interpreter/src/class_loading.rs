@@ -10,6 +10,7 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use rust_jvm_common::classfile::InstructionInfo::drem;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -113,8 +114,8 @@ pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
 
 pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // todo cleanup how these guards work
-    let guard = jvm.classes.write().unwrap();
-    let res = match guard.is_loaded(ptype) {
+    let is_loaded = jvm.classes.write().unwrap().is_loaded(ptype);
+    let res = match is_loaded {
         None => {
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
@@ -129,13 +130,12 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                         CPDType::LongType => Arc::new(RuntimeClass::Long),
                         CPDType::Ref(ref_) => match ref_ {
                             CPRefType::Class(class_name) => {
-                                drop(guard);
                                 let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
                                 let res = todo!()/*class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)*/;
                                 res
                             }
                             CPRefType::Array(sub_type) => {
-                                drop(guard);
+                                drop(jvm.classes.write().unwrap());
                                 let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
                                 let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
                                 let obj = create_class_object(jvm, int_state, None, loader)?;
@@ -149,19 +149,20 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                     }
                 }
                 LoaderName::BootstrapLoader => {
-                    drop(guard);
                     let res = bootstrap_load(jvm, int_state, ptype.clone())?;
                     res
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.insert(res.cpdtype(),(loader, res.clone()));
+            guard.initiating_loaders.insert(res.cpdtype(), (loader, res.clone()));
             guard.loaded_classes_by_type.entry(loader).or_insert(HashMap::new()).insert(res.cpdtype(), res.clone());
             Ok(res)
         }
         Some(res) => Ok(res.clone()),
     }?;
     jvm.inheritance_ids.write().unwrap().register(jvm, &res);
+    jvm.vtables.write().unwrap().notify_load(jvm, res.clone());
+
     Ok(res)
 }
 
@@ -292,18 +293,18 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
 }
 
 pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, CPDType> {
-    class_view.fields().filter(|field|field.is_static()).map(|field|(field.field_name(),field.field_type())).collect()
+    class_view.fields().filter(|field| field.is_static()).map(|field| (field.field_name(), field.field_type())).collect()
 }
 
 //signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
-pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life,'gc_life>, WasException> {
+pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life, 'gc_life>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().to_gc_managed().into()),
         LoaderName::BootstrapLoader => JavaValue::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
         let fields_handles = JVMState::get_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(&type_))).collect::<Vec<_>>();
-        let fields = fields_handles.iter().map(|(field_number, handle)|(*field_number, handle.as_njv())).collect();
+        let fields = fields_handles.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
         let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: jvm.classes.read().unwrap().class_class.clone(), fields }));
         let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle);
         return Ok(allocated_object);
