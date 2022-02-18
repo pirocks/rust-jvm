@@ -37,6 +37,7 @@ use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jvm_state::ClassStatus;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
 use crate::rust_jni::interface::array::*;
 use crate::rust_jni::interface::array::array_region::*;
@@ -58,7 +59,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_object_class, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object};
 use crate::utils::throw_npe;
 
 //todo this should be in state impl
@@ -733,6 +734,50 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
             .unwrap_object(),
     )
 }
+
+pub(crate) unsafe fn push_type_to_operand_stack_new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType, l: &mut VarargProvider) -> NewJavaValueHandle<'gc_life> {
+    match type_ {
+        CPDType::ByteType => {
+            let byte_ = l.arg_byte();
+            NewJavaValueHandle::Byte(byte_)
+        }
+        CPDType::CharType => {
+            let char_ = l.arg_char();
+            NewJavaValueHandle::Char(char_)
+        }
+        CPDType::DoubleType => {
+            let double_ = l.arg_double();
+            NewJavaValueHandle::Double(double_)
+        }
+        CPDType::FloatType => {
+            let float_ = l.arg_float();
+            NewJavaValueHandle::Float(float_)
+        }
+        CPDType::IntType => {
+            let int: i32 = l.arg_int();
+            NewJavaValueHandle::Int(int)
+        }
+        CPDType::LongType => {
+            let long: i64 = l.arg_long();
+            NewJavaValueHandle::Long(long)
+        }
+        CPDType::Ref(_) => {
+            let native_object: jobject = l.arg_ptr();
+            let o = from_object_new(jvm, native_object);
+            NewJavaValueHandle::from_optional_object(o)
+        }
+        CPDType::ShortType => {
+            let short = l.arg_short();
+            NewJavaValueHandle::Short(short)
+        }
+        CPDType::BooleanType => {
+            let boolean_ = l.arg_bool();
+            NewJavaValueHandle::Boolean(boolean_)
+        }
+        _ => panic!(),
+    }
+}
+
 
 pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType, l: &mut VarargProvider) {
     match type_ {

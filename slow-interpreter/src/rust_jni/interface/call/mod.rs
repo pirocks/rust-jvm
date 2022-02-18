@@ -1,4 +1,6 @@
 use std::ffi::{VaList, VaListImpl};
+use itertools::Itertools;
+use libffi::high::arg;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
@@ -13,9 +15,10 @@ use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::method_table::{from_jmethod_id};
-use crate::rust_jni::interface::push_type_to_operand_stack;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+use crate::method_table::from_jmethod_id;
+use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
@@ -31,13 +34,19 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
         unimplemented!()
     }
     let parsed = method.desc();
-    int_state.push_current_operand_stack(JavaValue::Object(from_object(jvm, obj)));
+    let mut args = vec![];
+    args.push(NewJavaValueHandle::Object(from_object_new(jvm, obj).unwrap()));
     for type_ in &parsed.arg_types {
-        push_type_to_operand_stack(jvm, int_state, type_, &mut l)
+        args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
-    invoke_virtual_method_i(jvm, int_state, parsed, class, &method, todo!())?;
+    let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
+    invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
     assert!(int_state.throw().is_none());
-    Ok(if method.desc().return_type == CPDType::VoidType { None } else { int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into() })
+    Ok(if method.desc().return_type == CPDType::VoidType {
+        None
+    } else {
+        int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into()
+    })
 }
 
 pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<JavaValue<'gc_life>>, WasException> {
@@ -54,7 +63,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     Ok(if method.desc().return_type == CPDType::VoidType { None } else { int_state.pop_current_operand_stack(Some(method.desc().return_type.to_runtime_type().unwrap())).into() })
 }
 
-unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, parsed: &CMethodDescriptor) {
+unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: &CMethodDescriptor) {
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }

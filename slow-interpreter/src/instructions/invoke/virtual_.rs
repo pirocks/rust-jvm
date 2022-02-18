@@ -18,6 +18,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue, Object};
+use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -31,11 +32,11 @@ pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: 
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
 }
 
-pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+pub fn invoke_virtual_method_i<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<NewJavaValue<'gc_life,'_>>) -> Result<(), WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
-fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
+fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method: &MethodView, args: Vec<NewJavaValue<'gc_life,'_>>) -> Result<(), WasException> {
     let target_method_i = target_method.method_i();
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
@@ -62,10 +63,13 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>,
             Err(_) => todo!(),
         }
     } else if !target_method.is_abstract() {
-        let mut args = vec![];
-        let max_locals = target_method.code_attribute().unwrap().max_locals;
-        setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
-        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, todo!()/*args*/);
+        // let mut args = vec![];
+        // let max_locals = target_method.code_attribute().unwrap().max_locals;
+        // setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
+        let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(),target_method_i);
+        let method_resolver = MethodResolver { jvm, loader: interpreter_state.current_loader(jvm) };
+        jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
+        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut frame_for_function) {
             Ok(res) => {

@@ -93,6 +93,17 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
     pub fn unwrap_object_nonnull(self) -> AllocatedObjectHandle<'gc_life> {
         self.unwrap_object().unwrap()
     }
+
+    pub fn from_optional_object(obj: Option<AllocatedObjectHandle<'gc_life>>) -> Self{
+        match obj {
+            None => {
+                Self::Null
+            }
+            Some(obj) => {
+                Self::Object(obj)
+            }
+        }
+    }
 }
 
 
