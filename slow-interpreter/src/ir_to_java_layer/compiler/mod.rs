@@ -278,6 +278,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ifge(offset) => {
                 this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::GE, *offset as i32))
             }
+            CompressedInstructionInfo::ifgt(offset) => {
+                this_function_ir.extend(if_(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32))
+            }
             CompressedInstructionInfo::iconst_0 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 0))
             }

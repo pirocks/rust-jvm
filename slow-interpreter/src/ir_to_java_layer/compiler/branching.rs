@@ -77,7 +77,7 @@ pub fn if_(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IntEqualityType::LT => IRInstr::BranchAGreaterB { a: value2, b: value1, label: target_label },
         IntEqualityType::LE => IRInstr::BranchAGreaterEqualB { a: value2, b: value1, label: target_label },
         IntEqualityType::GE => IRInstr::BranchAGreaterEqualB { a: value1, b: value2, label: target_label },
-        _ => panic!()
+        IntEqualityType::GT => IRInstr::BranchAGreaterB { a: value1, b: value2, label: target_label },
     };
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1 },
