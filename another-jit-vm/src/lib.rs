@@ -403,6 +403,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         let jit_context_pointer = jit_context as *mut JITContext as *mut c_void;
         unsafe {
             asm!(
+            "push r15",
             //save all registers to avoid breaking stuff
             "mov r15, {0}",
             "mov [r15 + {__rust_jvm_rax_native_offset_const}], rax",
@@ -457,6 +458,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             "mov r12, [r15 + {__rust_jvm_r12_native_offset_const}]",
             "mov r13, [r15 + {__rust_jvm_r13_native_offset_const}]",
             "mov r14, [r15 + {__rust_jvm_r14_native_offset_const}]",
+            "pop r15",
             in(reg) jit_context_pointer,
             __rust_jvm_rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
             __rust_jvm_rax_guest_offset_const = const RAX_GUEST_OFFSET_CONST,
