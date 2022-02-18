@@ -28,7 +28,7 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, isub, ladd, lcmp};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, iinc, irem, isub, ladd, lcmp};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, caload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, castore, iastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
@@ -598,6 +598,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::ishl => {
                 this_function_ir.extend(ishl(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::irem => {
+                this_function_ir.extend(irem(method_frame_data, current_instr_data))
             }
             other => {
                 dbg!(other);

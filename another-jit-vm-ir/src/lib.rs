@@ -13,7 +13,7 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, fword_ptr, qword_ptr, rax, rbp, rbx, rsp};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, fword_ptr, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
@@ -343,7 +343,18 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap()
         }
         IRInstr::Div { .. } => todo!(),
-        IRInstr::Mod { .. } => todo!(),
+        IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
+            assert_eq!(must_be_rax.0,0);
+            assert_eq!(must_be_rdx.to_native_64(),rdx);
+            assert_eq!(must_be_rbx.to_native_64(),rbx);
+            assert_eq!(must_be_rcx.to_native_64(),rcx);
+            assembler.mov(rax, res.to_native_64()).unwrap();
+            assembler.mov(rbx,0u64).unwrap();
+            assembler.mov(rcx,0u64).unwrap();
+            assembler.mov(rdx,0u64).unwrap();
+            assembler.idiv( divisor.to_native_64()).unwrap();
+            assembler.mov( res.to_native_64(),rdx).unwrap();
+        },
         IRInstr::Mul { .. } => {
             todo!()
         }

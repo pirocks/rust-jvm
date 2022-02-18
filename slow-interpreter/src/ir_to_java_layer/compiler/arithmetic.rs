@@ -36,6 +36,17 @@ pub fn iadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     ])
 }
 
+pub fn irem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = Register(6);
+    let value1 = Register(5);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::Mod { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3) },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
 pub fn iinc(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, index: &u16, const_: &i16) -> impl Iterator<Item=IRInstr> {
     let temp = Register(1);
     let const_register = Register(2);
