@@ -44,6 +44,8 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv, clazz: jclass, name: *c
             cur_method_name == method_name && method_descriptor_str == cur_desc
         })
         .unwrap();
+    assert!(int_state.registered());
+    eprintln!("method id");
     let method_id = jvm.method_table.write().unwrap().get_method_id(c.clone(), *m as u16);
     transmute(method_id)
 }

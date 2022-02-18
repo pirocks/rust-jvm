@@ -143,11 +143,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     for (i, cpdtype) in (0..*num_args).zip(arg_types.iter()) {
                         let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
                         let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-                        dbg!(native_jv.as_u64);
                         args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
                     }
                 }
-                assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+                assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
                 let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
@@ -564,7 +563,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
-        assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+        assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
         let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
         eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
@@ -640,7 +639,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 jvm,
                 current_exited_pc: Some(exiting_pc),
             };
-            int_state.register_interpreter_state_guard(jvm);
+            let old_intstate = int_state.register_interpreter_state_guard(jvm);
             unsafe {
                 let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
                 let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
@@ -653,7 +652,9 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     assert_eq!(offset, expected_current_frame_size);
                 }
             }
-            JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc)
+            let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc);
+            int_state.deregister_int_state(jvm,old_intstate);
+            res
         });
         let mut ir_instructions = vec![];
         let mut ir_index_to_bytecode_pc = HashMap::new();

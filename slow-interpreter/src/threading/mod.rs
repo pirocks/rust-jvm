@@ -4,14 +4,17 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Sender};
-use std::thread::LocalKey;
+use std::thread::{LocalKey, ThreadId};
 use std::time::Duration;
 
 use crossbeam::thread::Scope;
+use libc::{gettid, pid_t};
 use libloading::Symbol;
+use nix::unistd::Pid;
 use num::Integer;
 use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IRStackMut;
@@ -40,6 +43,25 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
+pub struct FakeLocalKey<T: Default>{
+    inner: Mutex<HashMap<Pid,Rc<T>>>
+}
+
+impl <T: Clone + Default> FakeLocalKey<T> {
+    pub fn new() -> Self {
+        Self{
+            inner: Default::default()
+        }
+    }
+
+    pub fn get(&self) -> Rc<T>{
+        let thread_id = nix::unistd::gettid();
+        self.inner.lock().unwrap().entry(thread_id).or_default().clone()
+    }
+}
+
+
+
 pub struct ThreadState<'gc_life> {
     pub threads: Threads<'gc_life>,
     main_thread: RwLock<Option<Arc<JavaThread<'gc_life>>>>,
@@ -47,8 +69,8 @@ pub struct ThreadState<'gc_life> {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc_life>>>,
     monitors: RwLock<Vec<Arc<Monitor2>>>,
-    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static,'static>>>>,
-    pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
+    pub(crate) int_state_guard: FakeLocalKey<RefCell<Option<*mut InterpreterStateGuard<'static,'static>>>>,
+    pub(crate) int_state_guard_valid: FakeLocalKey<RefCell<bool>>,
 }
 
 pub struct MainThreadStartInfo {
@@ -64,8 +86,8 @@ impl<'gc_life> ThreadState<'gc_life> {
             current_java_thread: &CURRENT_JAVA_THREAD,
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
-            int_state_guard: &CURRENT_INT_STATE_GUARD,
-            int_state_guard_valid: &CURRENT_INT_STATE_GUARD_VALID,
+            int_state_guard: FakeLocalKey::new(),
+            int_state_guard_valid: FakeLocalKey::new(),
         }
     }
 
@@ -137,6 +159,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
         let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
+        int_state.register_interpreter_state_guard(jvm);
         match run_function(&jvm, int_state, &mut init_frame_guard) {
             Ok(_) => {}
             Err(_) => todo!(),

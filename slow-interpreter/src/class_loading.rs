@@ -107,7 +107,7 @@ pub fn assert_loaded_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) ->
 
 pub fn check_loaded_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     let loader = int_state.current_loader(jvm);
-    assert!(jvm.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
+    assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 

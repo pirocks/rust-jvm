@@ -8,8 +8,8 @@ use wtf8::Wtf8Buf;
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
-use crate::class_loading::assert_loaded_class;
 
+use crate::class_loading::assert_loaded_class;
 use crate::instructions::ldc::create_string_on_stack;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -17,7 +17,8 @@ use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::NewAsObjectOrJavaValue;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use crate::utils::{throw_npe, throw_npe_res};
 
@@ -44,13 +45,13 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
-    new_local_ref_public(
-        todo!()/*        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
+    new_local_ref_public_new(
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
             Err(WasException {}) => return null_mut(),
         }
-            .object().to_gc_managed()
-            .into()*/,
+            .object().as_allocated_obj()
+            .into(),
         int_state,
     )
 }

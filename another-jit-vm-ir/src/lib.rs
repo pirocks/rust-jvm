@@ -602,7 +602,6 @@ SF = 0;
             */
 
             assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
-            assembler.int3().unwrap();
             assembler.comiss(value1.to_xmm(), value2.to_xmm()).unwrap();
             assembler.mov(one.to_native_64(), 1u64).unwrap();
             assembler.mov(zero.to_native_64(), 0u64).unwrap();

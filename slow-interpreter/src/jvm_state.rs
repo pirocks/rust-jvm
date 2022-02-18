@@ -18,6 +18,7 @@ use crossbeam::thread::Scope;
 use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
+use another_jit_vm_ir::ir_stack::IRStackMut;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject, stat};
@@ -410,10 +411,11 @@ impl<'gc_life> JVMState<'gc_life> {
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
-        assert!(self.thread_state.int_state_guard_valid.with(|refcell| { *refcell.borrow() }));
-        let ptr = self.thread_state.int_state_guard.with(|refcell| *refcell.borrow().as_ref().unwrap());
+        assert!(self.thread_state.int_state_guard_valid.get().borrow().clone());
+        let ptr = *self.thread_state.int_state_guard.get().borrow().as_ref().unwrap();
         let res = transmute::<&mut InterpreterStateGuard<'static, 'static>, &mut InterpreterStateGuard<'l, 'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
         assert!(res.registered());
+        assert!(res.thread().thread_status.read().unwrap().alive);
         res
     }
 

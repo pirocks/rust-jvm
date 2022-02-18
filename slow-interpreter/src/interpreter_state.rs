@@ -76,6 +76,11 @@ thread_local! {
 pub static CURRENT_INT_STATE_GUARD :RefCell<Option<*mut InterpreterStateGuard<'static,'static>>> = RefCell::new(None);
 }
 
+#[must_use]
+pub struct OldInterpreterState{
+    old: Option<*mut InterpreterStateGuard<'static,'static>>
+}
+
 impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_guard> {
     /*pub fn copy_with_new_stack_position(&self, new_stack_position: JavaStackPosition) -> Self {
         let InterpreterStateGuard {
@@ -121,10 +126,11 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }*/
     }
 
-    pub fn register_interpreter_state_guard(&mut self, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn register_interpreter_state_guard(&mut self, jvm: &'gc_life JVMState<'gc_life>) -> OldInterpreterState {
         let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc_life, '_>) };
-        jvm.thread_state.int_state_guard.with(|refcell| refcell.replace(ptr.into()));
-        jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(true));
+        let old = jvm.thread_state.int_state_guard.get().deref().borrow().clone();
+        jvm.thread_state.int_state_guard.get().replace(ptr.into());
+        jvm.thread_state.int_state_guard_valid.get().replace(true);
         match self {
             InterpreterStateGuard::RemoteInterpreterState { registered, .. } => {
                 *registered = true;
@@ -134,10 +140,17 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
             }
         }
         assert!(self.thread().is_alive());
+        OldInterpreterState{
+            old
+        }
+    }
+
+    pub fn deregister_int_state(&mut self, jvm: &'gc_life JVMState<'gc_life>, old: OldInterpreterState) {
+        jvm.thread_state.int_state_guard.get().replace(old.old);
     }
 
     pub fn new(jvm: &'gc_life JVMState<'gc_life>, thread: Arc<JavaThread<'gc_life>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc_life>>) -> InterpreterStateGuard<'gc_life, 'interpreter_guard> {
-        jvm.thread_state.int_state_guard_valid.with(|refcell| refcell.replace(false));
+        jvm.thread_state.int_state_guard_valid.get().replace(false);
         Self::RemoteInterpreterState { int_state: Some(int_state), thread: thread.clone(), registered: true, jvm }
     }
 
