@@ -13,7 +13,7 @@ pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStat
     let target_classfile = match check_initing_or_inited_class(jvm, int_state, classname.into()) {
         Ok(x) => x,
         Err(WasException {}) => {
-            int_state.debug_print_stack_trace(jvm,false);
+            int_state.debug_print_stack_trace(jvm);
             // int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
             return;
         }

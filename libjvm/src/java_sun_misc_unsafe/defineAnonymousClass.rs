@@ -45,7 +45,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     args.push(JavaValue::Object(from_object(jvm, byte_array)));
     args.push(JavaValue::Object(from_object(jvm, patches)));
 
-    int_state.debug_print_stack_trace(jvm,false);
+    int_state.debug_print_stack_trace(jvm);
 
     to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())
     //todo local ref

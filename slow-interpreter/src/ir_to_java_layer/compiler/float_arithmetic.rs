@@ -26,7 +26,7 @@ fn fcmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: 
             temp1: Register(2),
             temp2: Register(3),
             temp3: Register(4),
-            compare_mode: compare_mode,
+            compare_mode,
         },
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])

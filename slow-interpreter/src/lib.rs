@@ -115,7 +115,7 @@ pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state:
             sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
         }
         Err(WasException {}) => {
-            int_state.debug_print_stack_trace(jvm,false);
+            int_state.debug_print_stack_trace(jvm);
             todo!()
         }
     }

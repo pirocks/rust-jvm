@@ -609,14 +609,20 @@ SF = 0;
             assembler.cmovg(res.to_native_64(), temp1.to_native_64()).unwrap();
             assembler.cmove(res.to_native_64(), temp2.to_native_64()).unwrap();
             assembler.cmovl(res.to_native_64(), temp3.to_native_64()).unwrap();
+            let mut not_nan = assembler.create_label();
+            assembler.jnz(not_nan).unwrap();
+            assembler.jnp(not_nan).unwrap();
+            assembler.jnc(not_nan).unwrap();
             match compare_mode {
                 FloatCompareMode::G => {
-                    assembler.cmovpe(res.to_native_64(), temp1.to_native_64()).unwrap();
+                    assembler.mov(res.to_native_64(), temp1.to_native_64()).unwrap();
                 }
                 FloatCompareMode::L => {
-                    assembler.cmovpe(res.to_native_64(), temp3.to_native_64()).unwrap();
+                    assembler.mov(res.to_native_64(), temp3.to_native_64()).unwrap();
                 }
             }
+            assembler.set_label(&mut not_nan).unwrap();
+            assembler.nop().unwrap();
         }
         IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3 } => {
             assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap();

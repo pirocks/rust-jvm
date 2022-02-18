@@ -5,10 +5,11 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::assert_loaded_class;
 use crate::instructions::fields::{get_static, get_static_impl};
-use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::NoValidate;
+use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::{NoValidate, TopOfOperandStackIs};
+use crate::ir_to_java_layer::instruction_correctness_assertions::interpreted_impls::fcmpl;
 use crate::java_values::NativeJavaValue;
 
 #[derive(Debug, Clone)]
@@ -33,7 +34,7 @@ impl<'gc_life> AssertionState<'gc_life> {
             BeforeState::TopOfOperandStackIs { native_jv, rtype } => {
                 let actual_value = int_state.current_frame().operand_stack(jvm).get_from_end(0, rtype);
                 unsafe {
-                    assert_eq!(actual_value.as_njv().to_native().as_u64, native_jv.as_u64);
+                    assert_eq!(actual_value.as_njv().to_native().object, native_jv.object);
                 }
             }
         }
@@ -231,7 +232,10 @@ impl<'gc_life> AssertionState<'gc_life> {
                 NoValidate
             }
             CompressedInstructionInfo::fcmpl => {
-                NoValidate
+                let float2 = int_state.current_frame().operand_stack(jvm).get_from_end(0,RuntimeType::FloatType).as_njv().unwrap_float_strict();
+                let float1 = int_state.current_frame().operand_stack(jvm).get_from_end(1,RuntimeType::FloatType).as_njv().unwrap_float_strict();
+                let expected_res = fcmpl(float2,float1);
+                TopOfOperandStackIs { native_jv: NewJavaValue::Int(expected_res).to_native(), rtype: RuntimeType::IntType }
             }
             CompressedInstructionInfo::fconst_0 => {
                 NoValidate
@@ -679,3 +683,5 @@ impl<'gc_life> AssertionState<'gc_life> {
     }
 
 }
+
+pub mod interpreted_impls;

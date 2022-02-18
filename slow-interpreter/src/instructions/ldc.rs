@@ -106,7 +106,7 @@ pub fn ldc_w(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterSt
                 }
                 _ => {
                     // dbg!(cp);
-                    int_state.debug_print_stack_trace(jvm,false);
+                    int_state.debug_print_stack_trace(jvm);
                     // dbg!(&pool_entry);
                     unimplemented!()
                 }

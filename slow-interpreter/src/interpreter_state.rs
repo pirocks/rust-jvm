@@ -445,7 +445,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
 
-    pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, full: bool) {
+    pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>) {
+        let full = false;
         let pc = self.current_frame().pc;
         let iter = self.frame_iter();
         for (i, stack_entry) in iter.enumerate() {

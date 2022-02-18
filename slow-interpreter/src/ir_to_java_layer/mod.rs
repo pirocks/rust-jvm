@@ -133,7 +133,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
                 eprintln!("RunStaticNative");
-                int_state.debug_print_stack_trace(jvm, false);
+                int_state.debug_print_stack_trace(jvm);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let mut args_jv_handle = vec![];
                 let class_view = rc.view();
@@ -159,7 +159,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::RunNativeVirtual { res_ptr, arg_start, method_id, return_to_ptr } => {
                 //todo duplicated
                 eprintln!("RunNativeVirtual");
-                int_state.debug_print_stack_trace(jvm, false);
+                int_state.debug_print_stack_trace(jvm);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
@@ -197,6 +197,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let field_view = view.field(field_i as usize);
                 let mut static_vars_guard = rc.static_vars(jvm);
                 let field_name = field_view.field_name();
+                dbg!(field_name.0.to_str(&jvm.string_pool));
+                dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                 let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
                 static_vars_guard.set(field_name, njv);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -258,7 +260,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NPE { .. } => {
-                int_state.debug_print_stack_trace(jvm, true);
+                int_state.debug_print_stack_trace(jvm);
                 todo!()
             }
             RuntimeVMExitInput::BeforeReturn { return_to_ptr, frame_size_allegedly } => {
@@ -290,7 +292,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("NewString");
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
                 dbg!(&wtf8buf);
-                int_state.debug_print_stack_trace(jvm, false);
+                int_state.debug_print_stack_trace(jvm);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
                 dbg!(jstring.value(jvm));
                 let jv = jstring.new_java_value_handle();
@@ -370,6 +372,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let mut static_vars_guard = rc.static_vars(jvm);
                 let field_name = field_view.field_name();
                 let static_var = static_vars_guard.get(field_name);
+                //todo doesn't handle interfaces and the like
+                dbg!(field_name.0.to_str(&jvm.string_pool));
+                dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
+                int_state.debug_print_stack_trace(jvm);
                 unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -400,7 +406,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr } => {
                 eprintln!("RunNativeSpecial");
-                int_state.debug_print_stack_trace(jvm, false);
+                int_state.debug_print_stack_trace(jvm);
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);

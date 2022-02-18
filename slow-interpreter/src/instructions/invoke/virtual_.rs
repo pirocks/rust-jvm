@@ -203,7 +203,7 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
             // dbg!(method_view.desc_str());
             // dbg!(method_view.classview().name());
             // dbg!(method_name);
-            int_state.debug_print_stack_trace(jvm,false);
+            int_state.debug_print_stack_trace(jvm);
             panic!()
         }
     }
@@ -252,7 +252,7 @@ pub fn virtual_method_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ m
             dbg!(method_name.0.to_str(&jvm.string_pool));
             dbg!(md);
             dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
-            int_state.debug_print_stack_trace(jvm,false);
+            int_state.debug_print_stack_trace(jvm);
             // dbg!(int_state.current_frame().operand_stack_types());
             // dbg!(int_state.current_frame().local_vars_types());
             // dbg!(int_state.previous_frame().operand_stack_types());

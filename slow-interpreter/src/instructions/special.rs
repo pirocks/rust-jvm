@@ -58,7 +58,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
             }*/ {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
             } else {
-                int_state.debug_print_stack_trace(jvm, false);
+                int_state.debug_print_stack_trace(jvm);
                 dbg!(object_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 dbg!(instanceof_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 unimplemented!()
