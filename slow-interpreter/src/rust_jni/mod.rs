@@ -96,7 +96,6 @@ pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state:
     int_state.register_interpreter_state_guard(jvm);
     unsafe { assert!(jvm.get_int_state().registered()); }
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
-    dbg!(unsafe { nix::unistd::gettid() });
     let cif_res: *mut c_void = unsafe { cif.call(fn_ptr, c_args.as_slice()) };
     let res = match &md.return_type {
         CPDType::VoidType => None,

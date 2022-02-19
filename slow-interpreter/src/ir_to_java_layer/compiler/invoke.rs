@@ -81,7 +81,7 @@ pub fn invokespecial(
                     }
                     Some((ir_method_id, address)) => {
                         let target_method_layout = resolver.lookup_method_layout(method_id);
-                        let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
+                        let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
                             temp_register_2: Register(2),
@@ -208,65 +208,64 @@ pub fn invokevirtual(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let target_class_type = CPDType::Ref(classname_ref_type.clone());
     let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
-    match resolver.lookup_virtual(target_class_type, method_name, descriptor.clone()) {
-        None => {
-            Either::Left(array_into_iter([restart_point,
-                IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: target_class_type_id,
-                        this_method_id: method_frame_data.current_method_id,
-                        restart_point_id,
-                    },
-                }]))
-        }
-        Some((method_id, is_native)) => {
-            let num_args = descriptor.arg_types.len();
-            Either::Right(if is_native {
-                let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
-                let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType {
-                    Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-                } else {
-                    None
-                };
-                Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::RunNativeVirtual {
-                        method_id,
-                        arg_start_frame_offset,
-                        res_pointer_offset,
-                        num_args: num_args as u16,
-                    }
-                }]))
-            } else {
-                // todo investigate size of table for invokevirtual without tagging.
-                let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
-                Either::Right(array_into_iter([restart_point,
-                    IRInstr::VMExit2 {
-                        exit_type: IRVMExitType::InvokeVirtualResolve {
-                            object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
-                            method_shape_id: resolver.lookup_method_shape(MethodShape{ name: method_name, desc: descriptor.clone() }),
-                            debug_target_method_id: method_id
-                        }
-                    },
-                    IRInstr::IRCall {
-                        temp_register_1: Register(1),
-                        temp_register_2: Register(2),
-                        arg_from_to_offsets,
-                        return_value: if descriptor.return_type.is_void() {
-                            None
-                        } else {
-                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-                        },
-                        target_address: IRCallTarget::Variable {
-                            address: InvokeVirtualResolve::ADDRESS_RES,
-                            ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
-                            method_id: InvokeVirtualResolve::METHOD_ID_RES,
-                            new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
-                        },
-                        current_frame_size: method_frame_data.full_frame_size(),
-                    }]))
-            })
-        }
+    if resolver.lookup_type_loaded(&target_class_type).is_none() {
+        //todo this should never happen?
+        return Either::Left(array_into_iter([restart_point,
+            IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: target_class_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id,
+                },
+            }]));
     }
+
+    let num_args = descriptor.arg_types.len();
+    if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(),method_name,descriptor.clone()) {
+        let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
+        let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType {
+            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+        } else {
+            None
+        };
+        return Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
+            exit_type: IRVMExitType::RunNativeVirtual {
+                method_id,
+                arg_start_frame_offset,
+                res_pointer_offset,
+                num_args: num_args as u16,
+            }
+        }]));
+    }
+
+    let method_shape_id = resolver.lookup_virtual(target_class_type, method_name, descriptor.clone());
+    // todo investigate size of table for invokevirtual without tagging.
+    let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
+    return Either::Right(array_into_iter([restart_point,
+        IRInstr::VMExit2 {
+            exit_type: IRVMExitType::InvokeVirtualResolve {
+                object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
+                method_shape_id: resolver.lookup_method_shape(MethodShape { name: method_name, desc: descriptor.clone() }),
+                debug_target_method_id: usize::MAX,
+            }
+        },
+        IRInstr::IRCall {
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            arg_from_to_offsets,
+            return_value: if descriptor.return_type.is_void() {
+                None
+            } else {
+                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+            },
+            target_address: IRCallTarget::Variable {
+                address: InvokeVirtualResolve::ADDRESS_RES,
+                ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
+                method_id: InvokeVirtualResolve::METHOD_ID_RES,
+                new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
+            },
+            current_frame_size: method_frame_data.full_frame_size(),
+        }]));
 }
 
 pub fn invoke_interface(
@@ -276,7 +275,7 @@ pub fn invoke_interface(
     restart_point_generator: &mut RestartPointGenerator,
     method_name: &MethodName,
     descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType
+    classname_ref_type: &CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
     let num_args = descriptor.arg_types.len() as u16;
 
@@ -284,7 +283,7 @@ pub fn invoke_interface(
     let cpdtype_id = resolver.get_cpdtype_id(&target_class_cpdtype);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_virtual(target_class_cpdtype, *method_name, descriptor.clone()) {
+    match resolver.lookup_interface(target_class_cpdtype, *method_name, descriptor.clone()) {
         Some((target_method_id, is_native)) => {
             if is_native {
                 todo!()
@@ -300,7 +299,7 @@ pub fn invoke_interface(
                     IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
-                        arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, target_method_id),
+                        arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor),
                         return_value: if descriptor.return_type.is_void() {
                             None
                         } else {
@@ -330,7 +329,7 @@ pub fn invoke_interface(
     }
 }
 
-fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
     // let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];

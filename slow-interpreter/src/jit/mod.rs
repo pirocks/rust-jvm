@@ -27,8 +27,8 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 
+use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::reflect::method::Method;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -92,7 +92,26 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
-    pub fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    pub fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID {
+        self.jvm.method_shapes.lookup_method_shape_id(MethodShape { name, desc })
+    }
+
+    pub fn lookup_native_virtual(&self, on:CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId> {
+        let classes_guard = self.jvm.classes.read().unwrap();
+        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        assert_eq!(loader_name, self.loader);
+        let view = rc.view();
+        let method_view = view.lookup_method(name, &desc)?;
+        assert!(!method_view.is_static());
+        if !method_view.is_native(){
+            return None
+        }
+        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+        Some(method_id)
+    }
+
+
+    pub fn lookup_interface(&self, on:CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
@@ -127,7 +146,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let function_frame_type = self.jvm.function_frame_type_data_no_tops.read().unwrap();
         let frames = function_frame_type.get(&methodid).unwrap();
         let code = method_view.code_attribute().unwrap();
-        YetAnotherLayoutImpl::new(frames,code)
+        YetAnotherLayoutImpl::new(frames, code)
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
@@ -147,7 +166,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
     pub fn lookup_ir_method_id_and_address(&self, method_id: MethodId) -> Option<(IRMethodID, *const c_void)> {
         let ir_method_id = self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
         let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-        Some((ir_method_id,ptr))
+        Some((ir_method_id, ptr))
     }
 
     pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> FieldId {
@@ -160,7 +179,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         self.jvm.cpdtype_table.write().unwrap().get_cpdtype_id(cpdtype)
     }
 
-    pub fn get_commpressed_version_of_wtf8(&self, wtf8: &Wtf8Buf) -> CompressedWtf8String{
+    pub fn get_commpressed_version_of_wtf8(&self, wtf8: &Wtf8Buf) -> CompressedWtf8String {
         self.jvm.wtf8_pool.add_entry(wtf8.clone())
     }
 
@@ -168,7 +187,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
     //     self.jvm.inheritance_ids.read().unwrap().lookup(self.jvm,method_id)
     // }
 
-    pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID{
+    pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
     }
 }
