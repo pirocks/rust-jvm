@@ -281,5 +281,5 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
     let full_name = PTypeView::from_compressed(&obj.cpdtype(), &jvm.string_pool).class_name_representation();
-    new_string_with_string(env, full_name.to_string())
+    new_string_with_string(env, Wtf8Buf::from_string(full_name))
 }

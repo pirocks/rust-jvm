@@ -1,5 +1,5 @@
 use crate::java::lang::class::JClass;
-use crate::{InterpreterStateGuard, JavaValue, JVMState, WasException};
+use crate::{InterpreterStateGuard, JavaValue, JVMState, NewJavaValue, WasException};
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
 
 pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {

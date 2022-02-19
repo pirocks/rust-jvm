@@ -735,7 +735,13 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     )
 }
 
-pub(crate) unsafe fn push_type_to_operand_stack_new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType, l: &mut VarargProvider) -> NewJavaValueHandle<'gc_life> {
+#[must_use]
+pub(crate) unsafe fn push_type_to_operand_stack_new(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    type_: &CPDType,
+    l: &mut VarargProvider
+) -> NewJavaValueHandle<'gc_life> {
     match type_ {
         CPDType::ByteType => {
             let byte_ = l.arg_byte();

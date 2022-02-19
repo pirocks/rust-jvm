@@ -2,16 +2,18 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use rust_jvm_common::classfile::InstructionInfo::ret;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
@@ -26,11 +28,26 @@ pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     };
     let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
 
-    let _ = invoke_static_impl(jvm, int_state, &expected_descriptor, final_target_method.clone(), target_method_i, &final_target_method.view().method_view_i(target_method_i));
+    let _ = invoke_static_impl(
+        jvm,
+        int_state,
+        &expected_descriptor,
+        final_target_method.clone(),
+        target_method_i,
+        &final_target_method.view().method_view_i(target_method_i),
+        todo!()
+    );
 }
 
-pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>, target_method_i: u16, target_method: &MethodView) -> Result<(), WasException> {
-    let mut args = vec![];
+pub fn invoke_static_impl(
+    jvm: &'gc_life JVMState<'gc_life>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    expected_descriptor: &CMethodDescriptor,
+    target_class: Arc<RuntimeClass<'gc_life>>,
+    target_method_i: u16,
+    target_method: &MethodView,
+    args: Vec<NewJavaValue<'gc_life,'_>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let mut current_frame = interpreter_state.current_frame_mut();
     let target_class_view = target_class.view();
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
@@ -45,7 +62,7 @@ pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: 
             let res = call_vmentry(jvm, interpreter_state, member_name)?;
             // let _member_name = interpreter_state.pop_current_operand_stack();
             interpreter_state.push_current_operand_stack(res);
-            Ok(())
+            Ok(todo!())
         } else {
             unimplemented!()
         }
@@ -53,31 +70,12 @@ pub fn invoke_static_impl(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: 
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-        for _ in 0..max_locals {
-            args.push(JavaValue::Top);
-        }
-        let mut i = 0;
-        for ptype in expected_descriptor.arg_types.iter().rev() {
-            let popped = current_frame.pop(Some(ptype.to_runtime_type().unwrap()));
-            match &popped {
-                JavaValue::Long(_) | JavaValue::Double(_) => i += 1,
-                _ => {}
-            }
-            args[i] = popped;
-            i += 1;
-        }
-        args[0..i].reverse();
-        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, todo!()/*args*/);
+        let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut function_call_frame) {
-            Ok(_) => {
+            Ok(res) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);
-                if !jvm.config.compiled_mode_active {
-                }
-                if interpreter_state.function_return() {
-                    interpreter_state.set_function_return(false);
-                    return Ok(());
-                }
+                return Ok(res);
                 panic!()
             }
             Err(_) => {

@@ -13,11 +13,12 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::JVMState;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
@@ -138,16 +139,17 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     let method_name_string = CStr::from_ptr(name).to_str().unwrap().to_string();
     let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
-    let class_obj_o = match from_object(jvm, clazz) {
+    let class_obj_o = match from_object_new(jvm, clazz) {
         None => return throw_npe(jvm, int_state),
         Some(class_obj_o) => Some(class_obj_o),
     };
-    let runtime_class = match class_object_to_runtime_class(&JavaValue::Object(class_obj_o).to_new().cast_class().unwrap(), jvm, int_state) {
+    let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm, int_state) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
     let view = &runtime_class.view();
-    let method = view.lookup_method(method_name, &CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool)).unwrap();
+    let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);
+    let method = view.lookup_method(method_name, &c_method_desc).unwrap();
     assert!(method.is_static());
     let res = Box::into_raw(box jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16));
     res as jmethodID

@@ -3,7 +3,7 @@ use std::iter::once;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 
-use wtf8::Wtf8Buf;
+use wtf8::{CodePoint, Wtf8, Wtf8Buf};
 
 use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstring};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -59,22 +59,25 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
 }
 
 pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {
-    let mut owned_str = String::with_capacity(len);
+    let mut owned_str = Wtf8Buf::with_capacity(len);
     for i in 0..len {
-        owned_str.push(utf.add(i).read() as u8 as char);
+        //todo this is probably wrong
+        owned_str.push(CodePoint::from_char(utf.add(i).read() as u8 as char));
     }
     new_string_with_string(env, owned_str)
 }
 
-pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: String) -> jstring {
+pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    if let Err(WasException {}) = create_string_on_stack(jvm, int_state, owned_str) {
-        return null_mut();
-    };
-    let string = int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_object();
-    assert!(!string.is_none());
-    new_local_ref_public(string, int_state)
+    match JString::from_rust(jvm, int_state, owned_str) {
+        Err(WasException {}) => {
+            null_mut()
+        }
+        Ok(res) => {
+            new_local_ref_public_new(res.new_java_value_handle().as_njv().unwrap_object_alloc(),int_state)
+        }
+    }
 }
 
 pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
@@ -153,9 +156,9 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
 }
 
 pub unsafe extern "C" fn new_string(env: *mut JNIEnv, unicode: *const jchar, len: jsize) -> jstring {
-    let mut str = String::with_capacity(len as usize);
+    let mut str = Wtf8Buf::with_capacity(len as usize);
     for i in 0..len {
-        str.push(unicode.offset(i as isize).read() as u8 as char) // todo handle unicode properly.
+        str.push(CodePoint::from_char(unicode.offset(i as isize).read() as u8 as char)) // todo handle unicode properly.
     }
     new_string_with_string(env, str)
 }

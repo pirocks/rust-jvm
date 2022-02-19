@@ -23,7 +23,7 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
@@ -42,9 +42,9 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
         Err(WasException {}) => {
             return null_mut();
         }
-        Ok(res) => res.unwrap_object(),
+        Ok(res) => res.unwrap_object_alloc(),
     };
-    new_local_ref_public(todo!()/*obj*/, int_state)
+    new_local_ref_public_new(obj, int_state)
 }
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
