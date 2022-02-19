@@ -57,7 +57,7 @@ impl VTables {
             let method_view = class_view.method_view_i(method.method_i());
             if !method_view.is_static() {
                 let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(),method_view.method_i());
-                let inheritance_method_id = jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id);
+                let inheritance_method_id = todo!()/*jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id)*/;
                 self.before_compilation_table.entry(allocated_object_id).or_default().insert(inheritance_method_id, UnResolvedInvokeVirtual { methodid: method_id });
             }
         }
@@ -72,7 +72,7 @@ impl VTables {
         let class_view = class.view();
         let method_view = class_view.method_view_i(method_i);
         if !method_view.is_static() {
-            let inheritance_method_id = jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id);
+            let inheritance_method_id = todo!()/*jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id)*/;
             let allocated_object_type = runtime_class_to_allocated_object_type(class.deref(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid());//todo loader and thread id
             let allocated_object_id = jvm.gc.memory_region.lock().unwrap().lookup_or_add_type(&allocated_object_type);
             self.table.entry(allocated_object_id).or_default().insert(inheritance_method_id, resolved);

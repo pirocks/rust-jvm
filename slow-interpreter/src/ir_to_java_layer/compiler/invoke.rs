@@ -13,6 +13,7 @@ use jvmti_jni_bindings::jlong;
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::MethodId;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
@@ -242,8 +243,8 @@ pub fn invokevirtual(
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeVirtualResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
-                            inheritance_method_id: resolver.lookup_inheritance_method_id(method_id),
-                            target_method_id: method_id,
+                            method_shape_id: resolver.lookup_method_shape(MethodShape{ name: method_name, desc: descriptor.clone() }),
+                            debug_target_method_id: method_id
                         }
                     },
                     IRInstr::IRCall {

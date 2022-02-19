@@ -15,7 +15,7 @@ use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, Regions, SMALL_REGION_SIZE, TERABYTE};
-use jvmti_jni_bindings::{jint, jlong, jobject};
+use jvmti_jni_bindings::{jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::JavaThreadId;
@@ -43,16 +43,16 @@ impl AllocatedObjectType {
                 *size
             }
             AllocatedObjectType::ObjectArray { len, .. } => {
-                let res = *len as usize * size_of::<jobject>() + size_of::<jint>();
+                let res = *len as usize * size_of::<jobject>() + size_of::<jlong>();
                 if res == 0 {
-                    return 1;
+                    panic!()
                 } else {
                     res
                 }
             }
             AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
                 if *len == 0 {
-                    return 1;
+                    return size_of::<jlong>();
                 } else {
                     *len as usize * size_of::<jlong>() + size_of::<jlong>()/*match primitive_type {
                         CPDType::BooleanType => 1,

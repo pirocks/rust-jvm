@@ -25,6 +25,7 @@ use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, 
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 
@@ -163,8 +164,12 @@ impl<'gc_life> MethodResolver<'gc_life> {
         self.jvm.wtf8_pool.add_entry(wtf8.clone())
     }
 
-    pub fn lookup_inheritance_method_id(&self, method_id: MethodId) -> InheritanceMethodID{
-        self.jvm.inheritance_ids.read().unwrap().lookup(self.jvm,method_id)
+    // pub fn lookup_inheritance_method_id(&self, method_id: MethodId) -> InheritanceMethodID{
+    //     self.jvm.inheritance_ids.read().unwrap().lookup(self.jvm,method_id)
+    // }
+
+    pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID{
+        self.jvm.method_shapes.lookup_method_shape_id(method_shape)
     }
 }
 

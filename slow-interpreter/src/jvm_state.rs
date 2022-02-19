@@ -30,6 +30,7 @@ use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescript
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
@@ -104,10 +105,11 @@ pub struct JVMState<'gc_life> {
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
-    pub vtables: RwLock<VTables>,
-    pub inheritance_ids: RwLock<InheritanceMethodIDs>,
+    // pub vtables: RwLock<VTables>,
+    // pub inheritance_ids: RwLock<InheritanceMethodIDs>,
     pub object_monitors: RwLock<HashMap<*const c_void, Monitor2>>,
     pub static_breakpoints: StaticBreakpoints,
+    pub method_shapes: MethodShapeIDs
 }
 
 pub struct Classes<'gc_life> {
@@ -292,10 +294,11 @@ impl<'gc_life> JVMState<'gc_life> {
             function_frame_type_data_no_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
-            vtables: RwLock::new(VTables::new()),
-            inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
+            // vtables: RwLock::new(VTables::new()),
+            // inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
             object_monitors: Default::default(),
             static_breakpoints: StaticBreakpoints::new(),
+            method_shapes: MethodShapeIDs::new()
         };
         (args, jvm)
     }
@@ -358,7 +361,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), runtime_class);
         let runtime_class = classes.class_class.clone();
-        self.inheritance_ids.write().unwrap().register(self, &runtime_class);
+        // self.inheritance_ids.write().unwrap().register(self, &runtime_class);
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 

@@ -160,8 +160,8 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
         }
         Some(res) => Ok(res.clone()),
     }?;
-    jvm.inheritance_ids.write().unwrap().register(jvm, &res);
-    jvm.vtables.write().unwrap().notify_load(jvm, res.clone());
+    // jvm.inheritance_ids.write().unwrap().register(jvm, &res);
+    // jvm.vtables.write().unwrap().notify_load(jvm, res.clone());
 
     Ok(res)
 }

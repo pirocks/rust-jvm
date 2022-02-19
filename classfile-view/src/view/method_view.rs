@@ -3,6 +3,7 @@ use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, parse_field_descriptor};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 
@@ -105,6 +106,17 @@ impl MethodView<'_> {
                 _ => None,
             })
         })
+    }
+
+    pub fn method_shape(&self) -> MethodShape{
+        MethodShape{
+            name: self.name(),
+            desc: self.desc().clone()
+        }
+    }
+
+    pub fn method_shape_id(&self, method_shapes: &MethodShapeIDs) -> MethodShapeID{
+        method_shapes.lookup_method_shape_id(self.method_shape())
     }
 }
 

@@ -131,7 +131,7 @@ fn setup_program_args(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![],"properties setting frame"));
+    let frame_for_properties = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame"));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

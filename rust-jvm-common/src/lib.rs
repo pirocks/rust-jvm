@@ -16,6 +16,7 @@ pub mod utils;
 pub mod vtype;
 pub mod cpdtype_table;
 pub mod opaque_id_table;
+pub mod method_shape;
 
 pub const EXPECTED_CLASSFILE_MAGIC: u32 = 0xCAFEBABE;
 
