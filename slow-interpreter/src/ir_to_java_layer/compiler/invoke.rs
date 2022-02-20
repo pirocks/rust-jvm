@@ -208,6 +208,7 @@ pub fn invokevirtual(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let target_class_type = CPDType::Ref(classname_ref_type.clone());
     let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
+
     if resolver.lookup_type_loaded(&target_class_type).is_none() {
         //todo this should never happen?
         return Either::Left(array_into_iter([restart_point,

@@ -43,7 +43,7 @@ use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, inst
 use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
-use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, fstore_n, istore_n};
+use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, fstore_n, istore_n, lstore_n};
 use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
@@ -551,6 +551,12 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::lload(index) => {
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
             }
+            CompressedInstructionInfo::lload_1 => {
+                this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, 1))
+            }
+            CompressedInstructionInfo::lload_2 => {
+                this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, 2))
+            }
             CompressedInstructionInfo::fload(index) => {
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))
             }
@@ -601,6 +607,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::irem => {
                 this_function_ir.extend(irem(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::lstore_2 => {
+                this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 2))
             }
             other => {
                 dbg!(other);

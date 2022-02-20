@@ -413,6 +413,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr } => {
                 eprintln!("CheckCast");
+                int_state.debug_print_stack_trace(jvm);
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
                 let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
