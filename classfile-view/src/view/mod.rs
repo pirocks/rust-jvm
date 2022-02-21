@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use itertools::Itertools;
 
 use classfile_parser::attribute_infos::annotation_to_bytes;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
@@ -46,6 +46,9 @@ pub trait HasAccessFlags {
     }
     fn is_synthetic(&self) -> bool {
         self.access_flags() & ACC_SYNTHETIC > 0
+    }
+    fn is_synchronized(&self) -> bool {
+        self.access_flags() & ACC_SYNCHRONIZED > 0
     }
 }
 

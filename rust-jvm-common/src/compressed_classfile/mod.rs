@@ -144,6 +144,28 @@ impl CompressedParsedRefType {
             CompressedParsedRefType::Class(_) => panic!(),
         }
     }
+
+    pub fn java_source_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            CompressedParsedRefType::Array(arr) => {
+                format!("{}[]", arr.java_source_representation(string_pool))
+            }
+            CompressedParsedRefType::Class(c) => {
+                format!("{}", c.0.to_str(string_pool))
+            }
+        }
+    }
+
+    pub fn jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            Self::Class(c) => {
+                format!("L{};", c.0.to_str(string_pool))
+            }
+            Self::Array(subtype) => {
+                format!("[{}", subtype.deref().jvm_representation(string_pool))
+            }
+        }
+    }
 }
 
 pub type CPDType = CompressedParsedDescriptorType;
@@ -163,6 +185,37 @@ pub enum CompressedParsedDescriptorType {
 }
 
 impl CompressedParsedDescriptorType {
+    pub fn java_source_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            Self::ByteType => "byte".to_string(),
+            Self::CharType => "char".to_string(),
+            Self::DoubleType => "double".to_string(),
+            Self::FloatType => "float".to_string(),
+            Self::IntType => "int".to_string(),
+            Self::LongType => "long".to_string(),
+            Self::Ref(ref_) => ref_.java_source_representation(string_pool),
+            Self::ShortType => "short".to_string(),
+            Self::BooleanType => "boolean".to_string(),
+            Self::VoidType => "void".to_string(),
+        }
+    }
+
+    pub fn jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            Self::ByteType => "B".to_string(),
+            Self::CharType => "C".to_string(),
+            Self::DoubleType => "D".to_string(),
+            Self::FloatType => "F".to_string(),
+            Self::IntType => "I".to_string(),
+            Self::LongType => "J".to_string(),
+            Self::Ref(ref_) => ref_.jvm_representation(string_pool),
+            Self::ShortType => "S".to_string(),
+            Self::BooleanType => "Z".to_string(),
+            Self::VoidType => "V".to_string(),
+        }
+    }
+
+
     pub fn unwrap_ref_type(&self) -> &CompressedParsedRefType {
         self.try_unwrap_ref_type().unwrap()
     }
@@ -320,6 +373,15 @@ impl CompressedMethodDescriptor {
             arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, pool)).collect_vec(),
             return_type: CPDType::from_ptype(&return_type, pool),
         }
+    }
+
+    pub fn jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        format!("({}){}", self.arg_types.iter().map(|arg| arg.jvm_representation(string_pool)).join(";"), self.return_type.jvm_representation(string_pool))
+    }
+
+
+    pub fn java_source_representation(&self, _string_pool: &CompressedClassfileStringPool) -> String {
+        todo!()
     }
 }
 

@@ -149,6 +149,13 @@ impl<'gc_life> MethodResolver<'gc_life> {
         YetAnotherLayoutImpl::new(frames, code)
     }
 
+    pub fn is_synchronized(&self, method_id: MethodId) -> bool {
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.is_synchronized()
+    }
+
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();

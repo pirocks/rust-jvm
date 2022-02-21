@@ -104,6 +104,7 @@ pub struct JVMState<'gc_life> {
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
+    pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     // pub vtables: RwLock<VTables>,
     // pub inheritance_ids: RwLock<InheritanceMethodIDs>,
@@ -292,6 +293,7 @@ impl<'gc_life> JVMState<'gc_life> {
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
             function_frame_type_data_no_tops: Default::default(),
+            function_frame_type_data_with_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             // vtables: RwLock::new(VTables::new()),
@@ -317,6 +319,7 @@ impl<'gc_life> JVMState<'gc_life> {
                 })
             });
             self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top.collect());
+            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.clone());
         }
     }
 

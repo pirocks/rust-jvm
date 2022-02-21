@@ -1129,6 +1129,7 @@ pub const ACC_PROTECTED: u16 = 0x0004;
 pub const ACC_STATIC: u16 = 0x0008;
 pub const ACC_FINAL: u16 = 0x0010;
 pub const ACC_SUPER: u16 = 0x0020;
+pub const ACC_SYNCHRONIZED: u16 = 0x0020;
 pub const ACC_BRIDGE: u16 = 0x0040;
 pub const ACC_VOLATILE: u16 = 0x0040;
 pub const ACC_TRANSIENT: u16 = 0x0080;

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::iter;
 use std::mem::size_of;
 use std::sync::Arc;
 
@@ -17,7 +18,6 @@ use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{Atype, Code, IInc};
-use rust_jvm_common::classfile::InstructionInfo::getfield;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -36,7 +36,7 @@ use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, 
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
-use crate::ir_to_java_layer::compiler::fields::{gettfield, putfield};
+use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
 use crate::ir_to_java_layer::compiler::float_arithmetic::{fadd, fcmpg, fcmpl, fdiv, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{f2i, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
@@ -369,7 +369,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(if_nonnull(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::getfield { name, desc: _, target_class } => {
-                this_function_ir.extend(gettfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(getfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
             }
             //todo handle implicit monitor enters on synchronized  functions
             CompressedInstructionInfo::monitorenter => {

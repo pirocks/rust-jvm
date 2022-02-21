@@ -13,6 +13,7 @@ use jvmti_jni_bindings::jlong;
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::MethodId;
 
@@ -222,7 +223,7 @@ pub fn invokevirtual(
     }
 
     let num_args = descriptor.arg_types.len();
-    if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(),method_name,descriptor.clone()) {
+    if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(), method_name, descriptor.clone()) {
         let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
         let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType {
             Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
@@ -334,10 +335,20 @@ fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_f
     // let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
-    for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
-        let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-        let to = FramePointerOffset(FRAME_HEADER_END_OFFSET + (i as u16 + 1) as usize * size_of::<jlong>());
-        arg_from_to_offsets.push((from, to))
+    let mut local_var_i = 0;
+    for (operand_stack_i, arg_type) in descriptor.arg_types.iter().enumerate() {
+        let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - operand_stack_i - 1) as u16);
+        let to = FramePointerOffset(FRAME_HEADER_END_OFFSET + (local_var_i as u16 + 1) as usize * size_of::<jlong>());
+        arg_from_to_offsets.push((from, to));
+        match arg_type {
+            CompressedParsedDescriptorType::LongType |
+            CompressedParsedDescriptorType::DoubleType => {
+                local_var_i += 2;
+            }
+            _ => {
+                local_var_i += 1;
+            }
+        }
     }
     let object_ref_from = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
     let object_ref_to = FramePointerOffset(FRAME_HEADER_END_OFFSET);
@@ -350,10 +361,21 @@ fn static_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &J
     let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
-    for (i, arg_type) in descriptor.arg_types.iter().enumerate() {
-        let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - i - 1) as u16);
-        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), i as u16);
-        arg_from_to_offsets.push((from, to))
+    let mut local_var_i = 0;
+    //todo this is jank needs to better
+    for (operand_stack_i, arg_type) in descriptor.arg_types.iter().enumerate() {
+        let from = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_args - operand_stack_i - 1) as u16);
+        let to = target_method_layout.local_var_entry(ByteCodeIndex(0), local_var_i as u16);
+        arg_from_to_offsets.push((from, to));
+        match arg_type {
+            CompressedParsedDescriptorType::LongType |
+            CompressedParsedDescriptorType::DoubleType => {
+                local_var_i += 2;
+            }
+            _ => {
+                local_var_i += 1;
+            }
+        }
     }
     arg_from_to_offsets
 }

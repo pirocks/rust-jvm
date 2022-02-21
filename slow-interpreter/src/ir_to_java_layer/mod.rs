@@ -15,7 +15,7 @@ use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
 use iced_x86::CpuidFeature::UDBG;
 use iced_x86::OpCodeOperandKind::al;
-use itertools::Itertools;
+use itertools::{all, Itertools};
 use libc::{memcpy, memset, read};
 
 use another_jit_vm::{Method, VMExitAction};
@@ -35,7 +35,7 @@ use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 
-use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState};
+use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue};
 use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
 use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::invoke::native::mhn_temp::init::init;
@@ -165,7 +165,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
                 let arg_types = &method_view.desc().arg_types;
-                let mut arg_start: *const c_void = *arg_start;
+                let arg_start: *const c_void = *arg_start;
                 let args_jv_handle = Self::virtual_args_extract(jvm, arg_types, arg_start);
                 let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
@@ -201,6 +201,12 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 dbg!(field_name.0.to_str(&jvm.string_pool));
                 dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                 let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
+                if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
+                    let rc = alloc.runtime_class(jvm);
+                    if instance_of_exit_impl(jvm, &field_view.field_type(), Some(alloc)) == 0 {
+                        panic!()
+                    }
+                }
                 static_vars_guard.set(field_name, njv);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -241,7 +247,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
-                eprintln!("Before:{:?} {}", instr.info, bytecode_offset.0);
+                eprintln!("Before:{:?} {}", instr.info.better_debug_string(&jvm.string_pool), bytecode_offset.0);
                 if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
@@ -255,7 +261,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
-                eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info);
+                eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info.better_debug_string(&jvm.string_pool));
                 jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -316,23 +322,23 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::InvokeVirtualResolve { object_ref, return_to_ptr, method_shape_id, debug_target_method_id } => {
                 eprintln!("InvokeVirtualResolve");
-                let MethodShape{ name, desc } = jvm.method_shapes.lookup_method_shape(*method_shape_id);
+                let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(*method_shape_id);
                 //todo this is probably wrong what if there's a class with a same name private method?
                 // like surely I need to start at the classname specified in the bytecode
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(*object_ref as usize as *mut c_void).unwrap()).clone();
                 let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
                 let rc = match allocated_type {
-                    AllocatedObjectType::Class { name,.. } => {
+                    AllocatedObjectType::Class { name, .. } => {
                         assert_inited_or_initing_class(jvm, (name).into())
                     }
                     AllocatedObjectType::ObjectArray { .. } => todo!(),
                     AllocatedObjectType::PrimitiveArray { .. } => todo!()
                 };
-                let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state,name, &desc,rc).unwrap();
+                let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, name, &desc, rc).unwrap();
                 let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, method_i);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-                if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none(){
+                if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
                     jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
                 }
 
@@ -419,9 +425,13 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
-                let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
-                if res_int == 0 {
-                    todo!()
+                dbg!(cpdtype.unwrap_class_type().0.to_str(&jvm.string_pool));
+                if let Some(handle) = value{
+                    dbg!(handle.as_allocated_obj().runtime_class(jvm).view().name().unwrap_name().0.to_str(&jvm.string_pool));
+                    let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
+                    if res_int == 0 {
+                        todo!()
+                    }
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -432,7 +442,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
                 let arg_types = &method_view.desc().arg_types;
-                let mut arg_start: *const c_void = *arg_start;
+                let arg_start: *const c_void = *arg_start;
                 let args_jv_handle = Self::virtual_args_extract(jvm, arg_types, arg_start);
                 let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
@@ -551,7 +561,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
-            assertion_state: Mutex::new(AssertionState { current_before: vec![] })
+            assertion_state: Mutex::new(AssertionState { current_before: vec![] }),
         };
         res
     }
@@ -596,7 +606,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         self.try_lookup_ir_method_id(opaque_or_not).unwrap()
     }
 
-    pub fn lookup_resolved_invoke_virtual(&self, method_id: MethodId, resolver: &MethodResolver) -> Result<ResolvedInvokeVirtual,NotCompiledYet>{
+    pub fn lookup_resolved_invoke_virtual(&self, method_id: MethodId, resolver: &MethodResolver) -> Result<ResolvedInvokeVirtual, NotCompiledYet> {
         let ir_method_id = self.lookup_method_ir_method_id(method_id);
         let address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
 
@@ -686,7 +696,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 }
             }
             let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc);
-            int_state.deregister_int_state(jvm,old_intstate);
+            int_state.deregister_int_state(jvm, old_intstate);
             res
         });
         let mut ir_instructions = vec![];
@@ -705,12 +715,12 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             ir_index_to_bytecode_pc,
             associated_method_id: method_id,
         });
-/*        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {
-            address: self.ir.lookup_ir_method_id_pointer(ir_method_id),
-            ir_method_id,
-            method_id,
-            new_frame_size: java_frame_data.full_frame_size(),
-        })*/;
+        /*        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {
+                    address: self.ir.lookup_ir_method_id_pointer(ir_method_id),
+                    ir_method_id,
+                    method_id,
+                    new_frame_size: java_frame_data.full_frame_size(),
+                })*/;
         drop(write_guard);
     }
 }

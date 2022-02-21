@@ -5,9 +5,9 @@ use std::num::NonZeroU8;
 use itertools::Either;
 use wtf8::Wtf8Buf;
 
-use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
 use crate::ByteCodeOffset;
-use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CPDType, CPRefType};
+use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
+use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use crate::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use crate::vtype::VType;
 
@@ -18,6 +18,724 @@ pub struct CompressedInstruction {
     pub offset: ByteCodeOffset,
     pub instruction_size: u16,
     pub info: CompressedInstructionInfo,
+}
+
+impl CompressedInstructionInfo {
+    pub fn better_debug_string(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            CompressedInstructionInfo::aaload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aconst_null => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aload(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aload_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aload_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aload_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::aload_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::anewarray(type_) => {
+                format!("anewarray:{}", type_.jvm_representation(string_pool))
+            }
+            CompressedInstructionInfo::areturn => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::arraylength => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::astore(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::astore_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::astore_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::astore_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::astore_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::athrow => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::baload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::bastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::bipush(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::caload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::castore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::checkcast(type_) => {
+                format!("checkcast:{}", type_.jvm_representation(string_pool))
+            }
+            CompressedInstructionInfo::d2f => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::d2i => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::d2l => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dadd => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::daload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dcmpg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dcmpl => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dconst_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dconst_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ddiv => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dload(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dload_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dload_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dload_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dload_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dmul => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dneg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::drem => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dreturn => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dstore(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dstore_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dstore_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dstore_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dstore_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dsub => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup_x1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup_x2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup2_x1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::dup2_x2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::f2d => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::f2i => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::f2l => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fadd => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::faload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fcmpg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fcmpl => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fconst_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fconst_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fconst_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fdiv => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fload(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fload_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fload_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fload_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fload_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fmul => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fneg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::frem => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::freturn => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fstore(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fstore_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fstore_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fstore_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fstore_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::fsub => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::getfield { name, desc, target_class } => {
+                format!("getfield:{}/{}/{}", name.0.to_str(string_pool), desc.0.jvm_representation(string_pool), target_class.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::getstatic { name, desc, target_class } => {
+                format!("getstatic:{}/{}/{}", name.0.to_str(string_pool), desc.0.jvm_representation(string_pool), target_class.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::putfield { name, desc, target_class } => {
+                format!("putfield:{}/{}/{}", name.0.to_str(string_pool), desc.0.jvm_representation(string_pool), target_class.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::putstatic { name, desc, target_class } => {
+                format!("putstatic:{}/{}/{}", name.0.to_str(string_pool), desc.0.jvm_representation(string_pool), target_class.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::goto_(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::goto_w(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2b => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2c => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2d => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2f => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2l => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::i2s => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iadd => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iaload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iand => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_m1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_4 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iconst_5 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::idiv => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_acmpeq(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_acmpne(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmpeq(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmpne(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmplt(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmpge(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmpgt(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::if_icmple(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifeq(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifne(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iflt(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifge(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifgt(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifle(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifnonnull(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ifnull(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iinc(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iload(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iload_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iload_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iload_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iload_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::imul => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ineg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::instanceof(type_) => {
+                format!("instanceof:{}",type_.jvm_representation(string_pool))
+            }
+            CompressedInstructionInfo::invokedynamic(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
+                format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool),count)
+            }
+            CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
+                format!("invokespecial:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
+                format!("invokestatic:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
+                format!("invokevirtual:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::ior => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::irem => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ireturn => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ishl => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ishr => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::istore(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::istore_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::istore_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::istore_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::istore_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::isub => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::iushr => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ixor => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::jsr(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::jsr_w(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::l2d => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::l2f => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::l2i => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ladd => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::laload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::land => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lcmp => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lconst_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lconst_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ldc(ldc_type) => {
+                match ldc_type {
+                    Either::Left(ldc_type) => {
+                        match ldc_type {
+                            CompressedLdcW::String { str } => {
+                                format!("ldc:string:\"{}\"", str.to_string_lossy().to_string())
+                            }
+                            CompressedLdcW::Class { type_ } => {
+                                format!("ldc:class:{}", type_.jvm_representation(string_pool))
+                            }
+                            CompressedLdcW::Float { float } => {
+                                format!("ldc:float:{}", float)
+                            }
+                            CompressedLdcW::Integer { integer } => {
+                                format!("ldc:integer:{}", integer)
+                            }
+                            CompressedLdcW::MethodType { .. } => {
+                                todo!()
+                            }
+                            CompressedLdcW::MethodHandle { .. } => {
+                                todo!()
+                            }
+                            CompressedLdcW::LiveObject(_) => {
+                                todo!()
+                            }
+                        }
+                    }
+                    Either::Right(ldc_type) => {
+                        match ldc_type {
+                            CompressedLdc2W::Long(_) => {
+                                todo!()
+                            }
+                            CompressedLdc2W::Double(double) => {
+                                format!("ldc:double:{}", double)
+                            }
+                        }
+                    }
+                }
+            }
+            CompressedInstructionInfo::ldc_w(ldc_type) => {
+                match ldc_type {
+                    CompressedLdcW::String { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::Class { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::Float { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::Integer { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::MethodType { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::MethodHandle { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::LiveObject(_) => {
+                        todo!()
+                    }
+                }
+            }
+            CompressedInstructionInfo::ldc2_w(ldc_type) => {
+                match ldc_type{
+                    CompressedLdc2W::Long(long) => {
+                        format!("ldc2_w:long:{}", long)
+                    }
+                    CompressedLdc2W::Double(double) => {
+                        format!("ldc2_w:double:{}", double)
+                    }
+                }
+            }
+            CompressedInstructionInfo::ldiv => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lload(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lload_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lload_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lload_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lload_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lmul => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lneg => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lookupswitch(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::lor => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lrem => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lreturn => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lshl => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lshr => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lstore(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lstore_0 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lstore_1 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lstore_2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lstore_3 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lsub => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lushr => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::lxor => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::monitorenter => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::monitorexit => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::multianewarray { .. } => {
+                todo!()
+            }
+            CompressedInstructionInfo::new(a_type) => {
+                format!("new/{}", a_type.0.to_str(string_pool))
+            }
+            CompressedInstructionInfo::newarray(a_type) => {
+                format!("newarray/{:?}", a_type)
+            }
+            CompressedInstructionInfo::nop => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::pop => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::pop2 => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::ret(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::return_ => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::saload => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::sastore => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::sipush(_) => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::swap => {
+                format!("{:?}", self)
+            }
+            CompressedInstructionInfo::tableswitch(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::wide(wide) => {
+                match wide {
+                    Wide::Iload(_) => {
+                        todo!()
+                    }
+                    Wide::Fload(_) => {
+                        todo!()
+                    }
+                    Wide::Aload(_) => {
+                        todo!()
+                    }
+                    Wide::Lload(_) => {
+                        todo!()
+                    }
+                    Wide::Dload(_) => {
+                        todo!()
+                    }
+                    Wide::Istore(_) => {
+                        todo!()
+                    }
+                    Wide::Fstore(_) => {
+                        todo!()
+                    }
+                    Wide::Astore(_) => {
+                        todo!()
+                    }
+                    Wide::Lstore(_) => {
+                        todo!()
+                    }
+                    Wide::Dstore(_) => {
+                        todo!()
+                    }
+                    Wide::Ret(_) => {
+                        todo!()
+                    }
+                    Wide::IInc(_) => {
+                        todo!()
+                    }
+                }
+            }
+            CompressedInstructionInfo::EndOfCode => {
+                todo!()
+            }
+        }
+    }
 }
 
 pub type CInstructionInfo = CompressedInstructionInfo;

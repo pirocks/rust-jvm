@@ -1,6 +1,7 @@
 use std::ptr::null_mut;
 
 use by_address::ByAddress;
+use itertools::Itertools;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -67,14 +68,14 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let stack = int_state.cloned_stack_snapshot(jvm);
+    let stack = int_state.frame_iter().collect_vec();
     let classes_guard = jvm.classes.read().unwrap();
     let protection_domains = &classes_guard.protection_domains;
     let protection_domains = stack
         .iter()
         .rev()
         .flat_map(|entry| {
-            match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer()?.clone())) {
+            match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer(jvm)?.clone())) {
                 None => None,
                 Some(domain) => {
                     JavaValue::Object(todo!() /*domain.clone().0.into()*/).cast_protection_domain().into()

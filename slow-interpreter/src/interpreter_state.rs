@@ -492,10 +492,6 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
     pub fn cloned_stack_snapshot(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<StackEntry<'gc_life>> {
-        /*match self.int_state.as_ref().unwrap().deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.to_vec(),*/
-            InterpreterState::Jit { call_stack, .. } => StackIter::new(jvm, call_stack).collect_vec().into_iter().rev().collect_vec(),
-        }*/
         todo!()
     }
 

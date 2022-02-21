@@ -171,7 +171,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
             panic!()
         }
         let pc = self.pc(jvm)?;
-        let function_frame_type = jvm.function_frame_type_data_no_tops.read().unwrap();
+        let function_frame_type = jvm.function_frame_type_data_with_tops.read().unwrap();
         let locals = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().locals;
         Ok(locals.len() as u16)
     }
@@ -753,7 +753,7 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
                 let num_args = self.num_vars();
                 assert!(i < num_args);
                 if let Some(pc) = *pc {
-                    let function_frame_data_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
+                    let function_frame_data_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
                     let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
                     let frame = function_frame_data.get(&pc).unwrap();
                     let verification_data_expected_frame_data = frame.locals[i as usize].to_runtime_type();
@@ -1039,7 +1039,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     pub fn local_var_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<VType> {
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
-        let read_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
+        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
         let function_frame_type = read_guard.get(&method_id).unwrap();
         function_frame_type.get(&pc).unwrap().locals.deref().clone()
     }

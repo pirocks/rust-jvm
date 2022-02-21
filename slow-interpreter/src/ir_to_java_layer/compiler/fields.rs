@@ -9,6 +9,7 @@ use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, checkcast_impl};
 use crate::java::lang::reflect::field::Field;
 use crate::jit::MethodResolver;
 
@@ -23,12 +24,12 @@ pub fn putfield(
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let cpd_type_id_obj = resolver.get_cpdtype_id(&cpd_type);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
-                    class: cpd_type_id,
+                    class: cpd_type_id_obj,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                 }
@@ -43,6 +44,12 @@ pub fn putfield(
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
+                if field_type.try_unwrap_class_type().is_some(){
+                    checkcast_impl(resolver.get_cpdtype_id(field_type),to_put_value_offset)
+                }else {
+                      IRInstr::NOP
+                },
+                checkcast_impl(cpd_type_id_obj,object_ptr_offset),
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
@@ -69,7 +76,7 @@ pub fn putfield(
 }
 
 
-pub fn gettfield(
+pub fn getfield(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
@@ -80,12 +87,12 @@ pub fn gettfield(
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let obj_cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
-                    class: cpd_type_id,
+                    class: obj_cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                 }
@@ -100,6 +107,7 @@ pub fn gettfield(
             let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
+                checkcast_impl(obj_cpd_type_id,object_ptr_offset),
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
@@ -116,7 +124,12 @@ pub fn gettfield(
                 IRInstr::Const64bit { to: offset, const_: (field_number.0 * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset },
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value },
-                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset }
+                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset },
+                if field_type.try_unwrap_class_type().is_some() {
+                    checkcast_impl(resolver.get_cpdtype_id(field_type),to_get_value_offset)
+                } else {
+                    IRInstr::NOP
+                }
             ]))
         }
     }
