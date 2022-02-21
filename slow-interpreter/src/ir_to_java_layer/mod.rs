@@ -516,7 +516,11 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
                 }
                 _ => {
                     let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
-                    eprint!("#{}: {:?}\t", i, jv.as_njv())
+                    if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc(){
+                        eprint!("#{}: {:?}({})\t", i, jv.as_njv(),obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                    }else {
+                        eprint!("#{}: {:?}\t", i, jv.as_njv())
+                    }
                 }
             }
         }
@@ -534,7 +538,11 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
                 eprint!("#{}: Top: {:?}\t", i, jv.object)*/
             } else {
                 let jv = operand_stack.get(i as u16, operand_stack_type);
-                eprint!("#{}: {:?}\t", i, jv.as_njv())
+                if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc(){
+                    eprint!("#{}: {:?}({})\t", i, jv.as_njv(),obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                }else {
+                    eprint!("#{}: {:?}\t", i, jv.as_njv())
+                }
             }
         }
     }

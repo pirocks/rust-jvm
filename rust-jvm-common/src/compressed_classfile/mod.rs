@@ -89,6 +89,19 @@ pub enum CompressedParsedRefType {
 }
 
 impl CompressedParsedRefType {
+    pub(crate) fn short_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            CompressedParsedRefType::Array(arr) => {
+                format!("{}[]",arr.short_representation(string_pool))
+            }
+            CompressedParsedRefType::Class(c) => {
+                c.0.to_str(string_pool).split('/').last().unwrap().to_string()
+            }
+        }
+    }
+}
+
+impl CompressedParsedRefType {
     pub fn unwrap_object_name(&self) -> CClassName {
         match self {
             CompressedParsedRefType::Array(_) => panic!(),
@@ -209,6 +222,21 @@ impl CompressedParsedDescriptorType {
             Self::IntType => "I".to_string(),
             Self::LongType => "J".to_string(),
             Self::Ref(ref_) => ref_.jvm_representation(string_pool),
+            Self::ShortType => "S".to_string(),
+            Self::BooleanType => "Z".to_string(),
+            Self::VoidType => "V".to_string(),
+        }
+    }
+
+    pub fn short_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        match self {
+            Self::ByteType => "B".to_string(),
+            Self::CharType => "C".to_string(),
+            Self::DoubleType => "D".to_string(),
+            Self::FloatType => "F".to_string(),
+            Self::IntType => "I".to_string(),
+            Self::LongType => "J".to_string(),
+            Self::Ref(ref_) => ref_.short_representation(string_pool),
             Self::ShortType => "S".to_string(),
             Self::BooleanType => "Z".to_string(),
             Self::VoidType => "V".to_string(),
