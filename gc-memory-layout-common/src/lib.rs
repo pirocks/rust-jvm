@@ -211,7 +211,12 @@ impl MemoryRegions {
             let region_index = ((ptr.as_ptr() as u64 & mask) / MEDIUM_REGION_SIZE as u64) as usize;
             let region_data = &self.medium_region_types[region_index];
             region_data.region_type
-        } else {
+        } else if region_base_masked_ptr == self.early_mmaped_regions.large_regions as u64 {
+            let region_index = ((ptr.as_ptr() as u64 & mask) / LARGE_REGION_SIZE as u64) as usize;
+            let region_data = &self.large_region_types[region_index];
+            region_data.region_type
+        }
+        else {
             dbg!(self.early_mmaped_regions.large_regions);
             dbg!(&self.early_mmaped_regions);
             dbg!(region_base_masked_ptr as *mut c_void);

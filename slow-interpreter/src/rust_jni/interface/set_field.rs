@@ -1,7 +1,8 @@
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::java_values::JavaValue;
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
 unsafe fn set_field<'gc_life>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue<'gc_life>) {
@@ -54,49 +55,49 @@ pub unsafe extern "C" fn set_object_field(env: *mut JNIEnv, obj: jobject, field_
 }
 
 pub unsafe extern "C" fn set_static_boolean_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jboolean) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Boolean(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Boolean(value));
 }
 
 pub unsafe extern "C" fn set_static_byte_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jbyte) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Byte(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Byte(value));
 }
 
 pub unsafe extern "C" fn set_static_short_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jshort) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Short(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Short(value));
 }
 
 pub unsafe extern "C" fn set_static_char_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jchar) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Char(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Char(value));
 }
 
 pub unsafe extern "C" fn set_static_int_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jint) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Int(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Int(value));
 }
 
 pub unsafe extern "C" fn set_static_long_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jlong) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Long(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Long(value));
 }
 
 pub unsafe extern "C" fn set_static_float_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jfloat) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Float(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Float(value));
 }
 
 pub unsafe extern "C" fn set_static_double_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jdouble) {
-    set_static_field(env, clazz, field_id_raw, JavaValue::Double(value));
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::Double(value));
 }
 
 pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jobject) {
     let jvm = get_state(env);
-    let value = from_object(jvm, value);
-    set_static_field(env, clazz, field_id_raw, JavaValue::Object(value));
+    let value = from_object_new(jvm, value);
+    set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::from_optional_object(value));
 }
 
-unsafe fn set_static_field<'gc_life>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: JavaValue<'gc_life>) {
+unsafe fn set_static_field<'gc_life>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: NewJavaValueHandle<'gc_life>) {
     let jvm = get_state(env);
     //todo create a field conversion function.
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let field_name = view.field(field_i as usize).field_name();
     let static_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
-    static_class.static_vars(jvm).set(field_name, todo!()/*value.to_new()*/);
+    static_class.static_vars(jvm).set(field_name, value);
 }

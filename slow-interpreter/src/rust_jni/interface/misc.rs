@@ -22,9 +22,10 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::jvm_state::{JVMState, NativeLibraries};
+use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
@@ -67,17 +68,17 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let sub_not_null = match from_object(jvm, sub) {
+    let sub_not_null = match from_object_new(jvm, sub) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    let sup_not_null = match from_object(jvm, sup) {
+    let sup_not_null = match from_object_new(jvm, sup) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
 
-    let sub_type = JavaValue::Object(sub_not_null.into()).to_new().cast_class().unwrap().as_type(jvm);
-    let sup_type = JavaValue::Object(sup_not_null.into()).to_new().cast_class().unwrap().as_type(jvm);
+    let sub_type = NewJavaValueHandle::Object(sub_not_null.into()).cast_class().unwrap().as_type(jvm);
+    let sup_type = NewJavaValueHandle::Object(sup_not_null.into()).cast_class().unwrap().as_type(jvm);
 
     let loader = &int_state.current_loader(jvm);
     let sub_vtype = sub_type.to_verification_type(*loader);
