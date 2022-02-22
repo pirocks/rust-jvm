@@ -11,6 +11,7 @@
 #![feature(exclusive_range_pattern)]
 #![feature(step_trait)]
 #![feature(generic_associated_types)]
+#![feature(never_type)]
 extern crate errno;
 extern crate libc;
 extern crate libloading;

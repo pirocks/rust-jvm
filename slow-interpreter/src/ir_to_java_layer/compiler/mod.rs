@@ -60,6 +60,7 @@ pub struct ByteCodeIndex(pub u16);
 
 // all metadata needed to compile to ir, excluding resolver stuff
 pub struct JavaCompilerMethodAndFrameData {
+    should_trace_instructions: bool,
     layout: YetAnotherLayoutImpl,
     index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
     current_method_id: MethodId,
@@ -74,6 +75,7 @@ impl JavaCompilerMethodAndFrameData {
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         Self {
+            should_trace_instructions: jvm.trace_options.should_trace(method_id),
             layout: YetAnotherLayoutImpl::new(frames, code),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
@@ -214,9 +216,13 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         };
         let mut this_function_ir = vec![];
         if let Some(prev_offset) = prev_offset {
-            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset } });
+            if method_frame_data.should_trace_instructions {
+                this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset } });
+            }
         }
-        this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset } });
+        if method_frame_data.should_trace_instructions {
+            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset } });
+        }
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type));

@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::ffi::OsString;
 
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::MethodId;
 
 use crate::loading::Classpath;
 
@@ -21,6 +23,37 @@ pub struct JVMOptions {
     pub(crate) store_generated_classes: bool,
     pub(crate) debug_print_exceptions: bool,
     pub(crate) assertions_enabled: bool,
+    pub(crate) trace_options: TraceOptions
+}
+
+pub enum  TraceOptions{
+    TraceAll,
+    TraceNone,
+    TraceMethods(!)
+}
+
+impl TraceOptions {
+    pub fn partial_tracing(&self) -> bool{
+        match self {
+            TraceOptions::TraceAll => false,
+            TraceOptions::TraceNone => true,
+            TraceOptions::TraceMethods(_) => true
+        }
+    }
+
+    pub fn should_trace(&self, method_id: MethodId) -> bool {
+        match self {
+            TraceOptions::TraceAll => {
+                true
+            }
+            TraceOptions::TraceNone => {
+                false
+            }
+            TraceOptions::TraceMethods(_) => {
+                todo!()
+            }
+        }
+    }
 }
 
 impl JVMOptions {
@@ -37,6 +70,7 @@ impl JVMOptions {
             store_generated_classes,
             debug_print_exceptions,
             assertions_enabled,
+            trace_options: TraceOptions::TraceNone
         }
     }
 }

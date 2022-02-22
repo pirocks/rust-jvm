@@ -154,7 +154,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
-                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                if !jvm.trace_options.partial_tracing(){
+                    jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::RunNativeVirtual { res_ptr, arg_start, method_id, return_to_ptr } => {
@@ -172,7 +174,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
-                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                if !jvm.trace_options.partial_tracing(){
+                    jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
@@ -251,7 +255,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
-                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
+                if !jvm.trace_options.partial_tracing(){
+                    jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset } => {
@@ -262,7 +268,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info.better_debug_string(&jvm.string_pool));
-                jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
+                if !jvm.trace_options.partial_tracing(){
+                    jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
+                }
                 dump_frame_contents(jvm, int_state);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -447,7 +455,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
-                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                if !jvm.trace_options.partial_tracing(){
+                    jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
