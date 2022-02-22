@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     //todo need to assert not on main thread
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
+    let thread_object = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread();
     jvm.thread_state.start_thread_from_obj(jvm, int_state, thread_object, false);
 }
 

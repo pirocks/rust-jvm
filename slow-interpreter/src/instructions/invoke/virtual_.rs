@@ -73,8 +73,10 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(
         return Ok(todo!());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, todo!()/*args*/) {
-            Ok(_) => todo!(),
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+            Ok(res) => {
+                return Ok(res)
+            },
             Err(_) => todo!(),
         }
     } else if !target_method.is_abstract() {

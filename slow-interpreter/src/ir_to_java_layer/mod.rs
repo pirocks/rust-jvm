@@ -441,7 +441,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let arg_types = &method_view.desc().arg_types;
                 let arg_start: *const c_void = *arg_start;
                 let args_jv_handle = Self::virtual_args_extract(jvm, arg_types, arg_start);
-                let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
+                let args_new_jv: Vec<NewJavaValue> = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
+                args_new_jv[0].unwrap_object_alloc().unwrap();//nonnull this
                 let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }

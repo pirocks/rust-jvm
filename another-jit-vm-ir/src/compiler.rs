@@ -25,7 +25,7 @@ pub enum IRInstr {
     Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rdx: Register },
     DivFloat { res: FloatRegister, divisor: FloatRegister },
     Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
-    Mul { res: Register, a: Register },
+    Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
     MulFloat { res: FloatRegister, a: FloatRegister },
     MulConst { res: Register, a: i32 },
     ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },

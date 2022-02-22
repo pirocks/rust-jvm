@@ -54,7 +54,7 @@ pub fn invokespecial(
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::RunNativeSpecial {
                             method_id,
-                            arg_start_frame_offset: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
+                            arg_start_frame_offset: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                             res_pointer_offset: if CompressedParsedDescriptorType::VoidType == descriptor.return_type {
                                 None
                             } else {

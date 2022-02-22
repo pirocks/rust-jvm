@@ -344,19 +344,28 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::Div { .. } => todo!(),
         IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
-            assert_eq!(must_be_rax.0,0);
-            assert_eq!(must_be_rdx.to_native_64(),rdx);
-            assert_eq!(must_be_rbx.to_native_64(),rbx);
-            assert_eq!(must_be_rcx.to_native_64(),rcx);
+            assert_eq!(must_be_rax.0, 0);
+            assert_eq!(must_be_rdx.to_native_64(), rdx);
+            assert_eq!(must_be_rbx.to_native_64(), rbx);
+            assert_eq!(must_be_rcx.to_native_64(), rcx);
             assembler.mov(rax, res.to_native_64()).unwrap();
-            assembler.mov(rbx,0u64).unwrap();
-            assembler.mov(rcx,0u64).unwrap();
-            assembler.mov(rdx,0u64).unwrap();
-            assembler.idiv( divisor.to_native_64()).unwrap();
-            assembler.mov( res.to_native_64(),rdx).unwrap();
-        },
-        IRInstr::Mul { .. } => {
-            todo!()
+            assembler.mov(rbx, 0u64).unwrap();
+            assembler.mov(rcx, 0u64).unwrap();
+            assembler.mov(rdx, 0u64).unwrap();
+            assembler.idiv(divisor.to_native_64()).unwrap();
+            assembler.mov(res.to_native_64(), rdx).unwrap();
+        }
+        IRInstr::Mul { res, a, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
+            assert_eq!(must_be_rax.0, 0);
+            assert_eq!(must_be_rdx.to_native_64(), rdx);
+            assert_eq!(must_be_rbx.to_native_64(), rbx);
+            assert_eq!(must_be_rcx.to_native_64(), rcx);
+            assembler.mov(rax, res.to_native_64()).unwrap();
+            assembler.mov(rbx, 0u64).unwrap();
+            assembler.mov(rcx, 0u64).unwrap();
+            assembler.mov(rdx, 0u64).unwrap();
+            assembler.imul(a.to_native_64()).unwrap();
+            assembler.mov(res.to_native_64(), rdx).unwrap();
         }
         IRInstr::BinaryBitAnd { res, a } => {
             assembler.and(res.to_native_64(), a.to_native_64()).unwrap()
@@ -621,7 +630,7 @@ SF = 0;
             assembler.cmovc(res.to_native_64(), m_one.to_native_64()).unwrap();
             assembler.cmovz(res.to_native_64(), zero.to_native_64()).unwrap();
             let saved = zero;
-            assembler.mov(saved.to_native_64(),res.to_native_64()).unwrap();
+            assembler.mov(saved.to_native_64(), res.to_native_64()).unwrap();
             match compare_mode {
                 FloatCompareMode::G => {
                     assembler.cmovp(res.to_native_64(), one.to_native_64()).unwrap();

@@ -461,8 +461,8 @@ pub struct UnAllocatedObjectObject<'gc_life, 'l> {
 
 #[derive(Clone)]
 pub struct UnAllocatedObjectArray<'gc_life, 'l> {
-    pub(crate) whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
-    pub(crate) elems: Vec<NewJavaValue<'gc_life, 'l>>,
+    pub whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
+    pub elems: Vec<NewJavaValue<'gc_life, 'l>>,
 }
 
 pub struct AllocatedObject<'gc_life, 'l> {

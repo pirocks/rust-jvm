@@ -35,7 +35,7 @@ pub fn to_native_type(t: &CPDType) -> Type {
         CPDType::LongType => Type::i64(),
         CPDType::ShortType => Type::i16(),
         CPDType::BooleanType => Type::u8(),
-        CPDType::Ref(_) => Type::pointer(),
+        CPDType::Ref(_) => Type::usize(),
         _ => panic!(),
     }
 }
@@ -50,7 +50,6 @@ pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: NewJavaValue<'gc_life, '_
         CPDType::LongType => Arg::new(Box::into_raw(Box::new(j.unwrap_long_strict())).as_ref().unwrap() as &jlong),
         CPDType::Ref(_) => {
             let object_ptr = new_local_ref(env, to_object_new(j.unwrap_object_alloc()));
-            drop(j);
             Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
         }
         CPDType::ShortType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort),

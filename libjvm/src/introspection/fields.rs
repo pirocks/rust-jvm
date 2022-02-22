@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::ptr::null_mut;
+
 use libc::time;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -10,6 +11,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
@@ -19,9 +21,10 @@ use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::{UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::field_object_from_view;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
 
 #[no_mangle]
@@ -47,9 +50,10 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let res = Some(jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, object_array, CPDType::Ref(CPRefType::Class(CClassName::field())), jvm.thread_state.new_monitor("".to_string())) {
-        Ok(arr) => arr,
-        Err(WasException {}) => return null_mut(),
-    })*/));
-    new_local_ref_public(todo!()/*res*/, int_state)
+    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::Ref(CPRefType::Class(CClassName::field())))).unwrap();
+    let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
+        whole_array_runtime_class: array_rc,
+        elems: object_array.iter().map(|handle| handle.as_njv()).collect(),
+    }));
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }

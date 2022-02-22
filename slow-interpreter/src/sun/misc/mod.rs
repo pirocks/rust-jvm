@@ -3,7 +3,7 @@ pub mod unsafe_ {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::runtime_type::RuntimeType;
 
-    use crate::{InterpreterStateGuard, JVMState};
+    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::java::lang::reflect::field::Field;

@@ -4,6 +4,7 @@ use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValu
 
 pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
     fn object(self) -> AllocatedObjectHandle<'gc_life>;
+    fn object_ref(&self) -> AllocatedObject<'gc_life,'_>;
 
 
     fn java_value(self) -> JavaValue<'gc_life> {
@@ -12,6 +13,10 @@ pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
 
     fn new_java_value_handle(self) -> NewJavaValueHandle<'gc_life> {
         NewJavaValueHandle::Object(self.object())
+    }
+
+    fn new_java_value(&self) -> NewJavaValue<'gc_life,'_>{
+        NewJavaValue::AllocObject(self.object_ref())
     }
 
     fn get_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<JClass<'gc_life>, WasException> {

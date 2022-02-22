@@ -19,7 +19,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
 use crate::NewAsObjectOrJavaValue;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
@@ -81,11 +81,11 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> js
 }
 
 pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
-    let str_obj = match from_object(jvm, str_unsafe) {
+    let str_obj = match from_object_new(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
-    Ok(to_object(todo!()/*intern_safe(jvm, str_obj).object().to_gc_managed().into()*/))
+    Ok(to_object_new(intern_safe(jvm, str_obj).object().as_allocated_obj().into()))//todo should this be local ref?
 }
 
 pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: AllocatedObjectHandle<'gc_life>) -> JString<'gc_life> {

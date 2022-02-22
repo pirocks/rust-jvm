@@ -23,7 +23,13 @@ use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, method_i: u16, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+pub fn run_native_method(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    class: Arc<RuntimeClass<'gc_life>>,
+    method_i: u16,
+    args: Vec<NewJavaValue<'gc_life,'k>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let view = &class.view();
     // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());

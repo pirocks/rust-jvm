@@ -24,7 +24,7 @@ use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LoaderName};
 use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_field_numbers};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
@@ -59,7 +59,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object, to_object_new};
 use crate::utils::throw_npe;
 
 //todo this should be in state impl
@@ -606,17 +606,22 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 
     let field_id: FieldId = transmute(field_id);
     let (rc, i) = jvm.field_table.write().unwrap().lookup(field_id);
-    to_object(
+    to_object_new(
         match field_object_from_view(jvm, int_state, rc.clone(), rc.view().field(i as usize)) {
             Ok(res) => res,
             Err(_) => todo!(),
         }
-            .unwrap_object(),
+            .unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()),
     )
 }
 
 //shouldn't take class as arg and should be an impl method on Field
-pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class_obj: Arc<RuntimeClass<'gc_life>>, f: FieldView) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn field_object_from_view(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    class_obj: Arc<RuntimeClass<'gc_life>>,
+    f: FieldView
+) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
     let field_class_name_ = class_obj.clone().cpdtype();
     let parent_runtime_class = load_class_constant_by_type(jvm, int_state, &field_class_name_)?;
 
@@ -634,7 +639,7 @@ pub fn field_object_from_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     let signature = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_desc_str))?;
     let annotations_ = vec![]; //todo impl annotations.
 
-    Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.java_value())
+    Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.new_java_value_handle())
 }
 
 unsafe extern "C" fn from_reflected_method(env: *mut JNIEnv, method: jobject) -> jmethodID {
