@@ -1,19 +1,21 @@
 use std::mem::size_of;
-use iced_x86::CC_be::na;
 
+use iced_x86::CC_be::na;
 use itertools::{Either, Itertools};
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-use crate::class_loading::get_field_numbers;
 
+use crate::class_loading::get_field_numbers;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, checkcast_impl};
 use crate::java::lang::reflect::field::Field;
 use crate::jit::MethodResolver;
+use crate::runtime_class::{FieldNumber, RuntimeClassClass};
 
 pub fn putfield(
     resolver: &MethodResolver<'vm_life>,
@@ -46,12 +48,12 @@ pub fn putfield(
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
-                if field_type.try_unwrap_class_type().is_some(){
-                    checkcast_impl(resolver.get_cpdtype_id(field_type),to_put_value_offset)
-                }else {
-                      IRInstr::NOP
+                if field_type.try_unwrap_class_type().is_some() {
+                    checkcast_impl(resolver.get_cpdtype_id(field_type), to_put_value_offset)
+                } else {
+                    IRInstr::NOP
                 },
-                checkcast_impl(cpd_type_id_obj,object_ptr_offset),
+                checkcast_impl(cpd_type_id_obj, object_ptr_offset),
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
@@ -101,10 +103,7 @@ pub fn getfield(
             }]))
         }
         Some((rc, _)) => {
-            dbg!(name.0.to_str(&resolver.jvm.string_pool));
-            dbg!(rc.cpdtype().jvm_representation(&resolver.jvm.string_pool));
-            dbg!(rc.unwrap_class_class().field_numbers.keys().map(|field| field.0.to_str(&resolver.jvm.string_pool)).collect_vec());
-            let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(&name).unwrap();
+            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(),name);
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
             let offset = Register(3);
@@ -112,7 +111,7 @@ pub fn getfield(
             let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             Either::Right(array_into_iter([
                 restart_point,
-                checkcast_impl(obj_cpd_type_id,object_ptr_offset),
+                checkcast_impl(obj_cpd_type_id, object_ptr_offset),
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
@@ -131,11 +130,18 @@ pub fn getfield(
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value },
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset },
                 if field_type.try_unwrap_class_type().is_some() {
-                    checkcast_impl(resolver.get_cpdtype_id(field_type),to_get_value_offset)
+                    checkcast_impl(resolver.get_cpdtype_id(field_type), to_get_value_offset)
                 } else {
                     IRInstr::NOP
                 }
             ]))
         }
+    }
+}
+
+fn recursively_find_field_number_and_type(rc: &'l RuntimeClassClass, name: FieldName) -> &'l (FieldNumber, CPDType) {
+    match rc.field_numbers.get(&name) {
+        Some(x) => x,
+        None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),
     }
 }

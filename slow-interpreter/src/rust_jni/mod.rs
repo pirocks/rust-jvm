@@ -86,14 +86,11 @@ pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state:
     let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object()))];
     let args_and_type = if suppress_runtime_class { args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>() } else { args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>() };
     for (j, t) in args_and_type.iter() {
-        dbg!(t);
-        dbg!(j.to_type_basic());
         args_type.push(to_native_type(&t));
         unsafe {
             c_args.push(to_native(env, (*j).clone(), &t));
         }
     }
-    dbg!(&args_type);
     let cif = Cif::new(args_type.into_iter(), Type::usize());
     let fn_ptr = CodePtr::from_fun(*raw);
     int_state.register_interpreter_state_guard(jvm);

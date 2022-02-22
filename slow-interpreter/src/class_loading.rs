@@ -256,15 +256,6 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 for interface in class_view.interfaces() {
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
-                if class_view.name().jvm_representation(&jvm.string_pool) == "Ljava/lang/StringBuilder;"{
-                    let field_names = get_field_numbers(&class_view, &parent).1.keys().map(|field_name| field_name.0.to_str(&jvm.string_pool)).collect_vec();
-                    dbg!(&field_names);
-                    dbg!(&parent.is_some());
-                    dbg!(parent.as_ref().map(|parent| parent.view().fields().map(|field| field.field_name().0.to_str(&jvm.string_pool)).collect_vec()));
-                    if field_names.is_empty(){
-                        panic!()
-                    }
-                }
                 let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
                 let static_var_types = get_static_var_types(class_view.deref());
                 let res = Arc::new(RuntimeClass::Object(
