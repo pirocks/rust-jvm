@@ -357,11 +357,12 @@ pub mod constructor {
 
 pub mod field {
     use jvmti_jni_bindings::jint;
+    use rust_jvm_common::classnames::ClassName;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
-    use crate::class_loading::check_initing_or_inited_class;
+    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
@@ -433,11 +434,13 @@ pub mod field {
         }
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
-            self.normal_object.as_allocated_obj().lookup_field(todo!(), FieldName::field_name()).cast_string().expect("fields must have names")
+            let field_rc = assert_inited_or_initing_class(jvm,CClassName::field().into());
+            self.normal_object.as_allocated_obj().lookup_field(&field_rc, FieldName::field_name()).cast_string().expect("fields must have names")
         }
 
         pub fn clazz(&self, jvm: &'gc_life JVMState<'gc_life>) -> JClass<'gc_life> {
-            self.normal_object.as_allocated_obj().lookup_field(todo!(), FieldName::field_clazz()).cast_class().expect("todo")
+            let field_rc = assert_inited_or_initing_class(jvm,CClassName::field().into());
+            self.normal_object.as_allocated_obj().lookup_field(&field_rc, FieldName::field_clazz()).cast_class().expect("todo")
         }
 
         // as_object_or_java_value!();

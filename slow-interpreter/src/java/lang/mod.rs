@@ -291,7 +291,7 @@ pub mod class {
 
     impl<'gc_life> JClass<'gc_life> {
         pub fn gc_lifeify(&self) -> JClass<'gc_life> {
-            todo!()
+            JClass{ normal_object: self.normal_object.duplicate_discouraged() }//todo there should be a better way to do this b/c class objects live forever
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {

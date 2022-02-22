@@ -9,19 +9,25 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
+use slow_interpreter::new_java_values::{AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-unsafe fn get_obj_and_name<'gc_life>(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong) -> Result<(Arc<RuntimeClass<'gc_life>>, GcManagedObject<'gc_life>, FieldName), WasException> {
+unsafe fn get_obj_and_name<'gc_life>(
+    env: *mut JNIEnv,
+    the_unsafe: jobject,
+    target_obj: jobject,
+    offset: jlong
+) -> Result<(Arc<RuntimeClass<'gc_life>>, AllocatedObjectHandle<'gc_life>, FieldName), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
     let view = rc.view();
     let field = view.field(field_i as usize);
     let field_name = field.field_name();
-    let notnull = match from_object(jvm, target_obj) {
+    let notnull = match from_object_new(jvm, target_obj) {
         None => {
             throw_npe_res(jvm, int_state)?;
             unreachable!()
@@ -38,7 +44,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
     };
-    let normal_obj = notnull.unwrap_normal_object();
+    let to_jv = notnull.to_jv();
+    let normal_obj = to_jv.unwrap_normal_object();
     let curval = normal_obj.get_var(jvm, rc.clone(), field_name);
     (if curval.unwrap_int() == old {
         normal_obj.set_var(rc, field_name, JavaValue::Int(new));
@@ -55,7 +62,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
     };
-    let normal_obj = notnull.unwrap_normal_object();
+    let jv = notnull.to_jv();
+    let normal_obj = jv.unwrap_normal_object();
     let curval = normal_obj.get_var_top_level(jvm, field_name);
     (if curval.unwrap_long() == old {
         normal_obj.set_var(rc, field_name, JavaValue::Long(new));
@@ -66,40 +74,44 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jobject, new: jobject) -> jboolean {
+unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, old: jobject, new: jobject, offset: jlong) -> jboolean {
+    dbg!(the_unsafe);
+    dbg!(target_obj);
+    dbg!(offset);
+    dbg!(old);
+    dbg!(new);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let notnull = match from_object(jvm, target_obj) {
+    int_state.debug_print_stack_trace(jvm);
+    let notnull = match from_object_new(jvm, target_obj) {
         None => {
             return throw_npe(jvm, int_state);
         }
         Some(notnull) => notnull,
     };
-    let new = JavaValue::Object(from_object(jvm, new));
-    match notnull.deref() {
-        Object::Array(arr) => {
-            let curval = arr.get_i(jvm, (offset as i32));
-            let old = from_object(jvm, old);
-            let (should_replace, new) = do_swap(curval, old, new);
-            todo!();
-            // arr.set_i(jvm, offset as i32, new);
-            should_replace
-        }
-        Object::Object(normal_obj) => {
-            let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-                Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
-                Err(WasException {}) => return jboolean::MAX,
-            };
-            let mut curval = normal_obj.get_var(jvm, rc.clone(), field_name);
-            let old = from_object(jvm, old);
-            let (should_replace, new) = do_swap(curval, old, new);
-            normal_obj.set_var(rc, field_name, new);
-            should_replace
-        }
+    let new = NewJavaValueHandle::from_optional_object(from_object_new(jvm, new));
+    if notnull.is_array(jvm){
+        todo!()
+        /*let curval = arr.get_i(jvm, (offset as i32));
+        let old = from_object(jvm, old);
+        let (should_replace, new) = do_swap(curval, old, new);
+        todo!();
+        // arr.set_i(jvm, offset as i32, new);
+        should_replace*/
+    }else {
+        let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
+            Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
+            Err(WasException {}) => return jboolean::MAX,
+        };
+        let curval = notnull.as_allocated_obj().get_var(jvm, &rc, field_name);
+        let old = from_object_new(jvm, old);
+        let (should_replace, new) = do_swap(curval.as_njv(), old, new.as_njv());
+        notnull.as_allocated_obj().set_var(&rc, field_name, new);
+        should_replace
     }
 }
 
-pub fn do_swap(curval: JavaValue<'gc_life>, old: Option<GcManagedObject<'gc_life>>, new: JavaValue<'gc_life>) -> (jboolean, JavaValue<'gc_life>) {
+pub fn do_swap<'l, 'gc_life>(curval: NewJavaValue<'gc_life, 'l>, old: Option<AllocatedObjectHandle<'gc_life>>, new: NewJavaValue<'gc_life, 'l>) -> (jboolean, NewJavaValue<'gc_life, 'l>) {
     let should_replace = match curval.unwrap_object() {
         None => match old {
             None => true,
@@ -107,7 +119,7 @@ pub fn do_swap(curval: JavaValue<'gc_life>, old: Option<GcManagedObject<'gc_life
         },
         Some(cur) => match old {
             None => false,
-            Some(old) => GcManagedObject::ptr_eq(&cur, &old),
+            Some(old) => cur.unwrap_alloc().raw_ptr_usize() == old.as_allocated_obj().raw_ptr_usize(),
         },
     };
     let mut res = curval;

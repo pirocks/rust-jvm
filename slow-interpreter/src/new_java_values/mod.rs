@@ -13,8 +13,8 @@ use libc::c_void;
 
 use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
-use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
@@ -41,11 +41,9 @@ pub enum NewJavaValueHandle<'gc_life> {
     Top,
 }
 
-impl Eq for NewJavaValueHandle<'_> {
+impl Eq for NewJavaValueHandle<'_> {}
 
-}
-
-impl PartialEq for NewJavaValueHandle<'_>{
+impl PartialEq for NewJavaValueHandle<'_> {
     fn eq(&self, other: &Self) -> bool {
         todo!()
     }
@@ -106,7 +104,7 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         self.unwrap_object().unwrap()
     }
 
-    pub fn from_optional_object(obj: Option<AllocatedObjectHandle<'gc_life>>) -> Self{
+    pub fn from_optional_object(obj: Option<AllocatedObjectHandle<'gc_life>>) -> Self {
         match obj {
             None => {
                 Self::Null
@@ -379,7 +377,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn rtype(&self, jvm: &'gc_life JVMState<'gc_life>) -> RuntimeType{
+    pub fn rtype(&self, jvm: &'gc_life JVMState<'gc_life>) -> RuntimeType {
         match self {
             NewJavaValue::Long(_) => {
                 RuntimeType::LongType
@@ -417,6 +415,40 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
             NewJavaValue::Top => {
                 todo!()
             }
+        }
+    }
+
+    pub fn to_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {
+        match self {
+            NewJavaValue::Long(_) => { CPDType::LongType }
+            NewJavaValue::Int(_) => { CPDType::IntType }
+            NewJavaValue::Short(_) => { CPDType::ShortType }
+            NewJavaValue::Byte(_) => { CPDType::ByteType }
+            NewJavaValue::Boolean(_) => { CPDType::BooleanType }
+            NewJavaValue::Char(_) => { CPDType::CharType }
+            NewJavaValue::Float(_) => { CPDType::FloatType }
+            NewJavaValue::Double(_) => { CPDType::DoubleType }
+            NewJavaValue::Null => { CPDType::Ref(CompressedParsedRefType::Class(CClassName::object())) }
+            NewJavaValue::UnAllocObject(_) => { todo!() }
+            NewJavaValue::AllocObject(obj) => { obj.runtime_class(jvm).cpdtype() }
+            NewJavaValue::Top => panic!()
+        }
+    }
+
+    pub fn to_type_basic(&self) -> CPDType {
+        match self {
+            NewJavaValue::Long(_) => { CPDType::LongType }
+            NewJavaValue::Int(_) => { CPDType::IntType }
+            NewJavaValue::Short(_) => { CPDType::ShortType }
+            NewJavaValue::Byte(_) => { CPDType::ByteType }
+            NewJavaValue::Boolean(_) => { CPDType::BooleanType }
+            NewJavaValue::Char(_) => { CPDType::CharType }
+            NewJavaValue::Float(_) => { CPDType::FloatType }
+            NewJavaValue::Double(_) => { CPDType::DoubleType }
+            NewJavaValue::Null => { CClassName::object().into() }
+            NewJavaValue::UnAllocObject(_) => { CPDType::object().into() }
+            NewJavaValue::AllocObject(_) => { CPDType::object().into() }
+            NewJavaValue::Top => panic!()
         }
     }
 }
@@ -485,6 +517,14 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         }
     }
 
+    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+        let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
+        unsafe {
+            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).read();
+            native_jv.to_new_java_value(desc_type, jvm)
+        }
+    }
+
     pub fn lookup_field(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
         let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
         let cpdtype = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().1;
@@ -529,11 +569,9 @@ pub struct AllocatedObjectHandle<'gc_life> {
     pub(crate) ptr: NonNull<c_void>,
 }
 
-impl Eq for AllocatedObjectHandle<'_> {
+impl Eq for AllocatedObjectHandle<'_> {}
 
-}
-
-impl <'gc_life> PartialEq for AllocatedObjectHandle<'gc_life> {
+impl<'gc_life> PartialEq for AllocatedObjectHandle<'gc_life> {
     fn eq(&self, other: &Self) -> bool {
         self.ptr == other.ptr
     }
@@ -548,7 +586,7 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         AllocatedObject { handle: self }
     }
 
-    pub fn to_jv(&self) -> JavaValue<'gc_life> {
+    pub fn to_jv(&'any self) -> JavaValue<'gc_life> {
         todo!()
     }
 
@@ -556,7 +594,13 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         self.jvm.gc.register_root_reentrant(self.jvm, self.ptr)
     }
 
-    pub fn unwrap_array(&self) -> ArrayWrapper<'gc_life, '_> {
+    pub fn is_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
+        let rc = self.as_allocated_obj().runtime_class(jvm);
+        rc.cpdtype().is_array()
+    }
+
+    pub fn unwrap_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayWrapper<'gc_life, '_> {
+        assert!(self.is_array(jvm));
         ArrayWrapper {
             allocated_object: self.as_allocated_obj()
         }

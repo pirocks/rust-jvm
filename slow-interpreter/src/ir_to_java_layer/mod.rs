@@ -423,9 +423,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
                 if let Some(handle) = value{
-                    dbg!(cpdtype.jvm_representation(&jvm.string_pool));
                     let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
                     if res_int == 0 {
+                        dbg!(cpdtype.jvm_representation(&jvm.string_pool));
                         int_state.debug_print_stack_trace(jvm);
                         todo!()
                     }

@@ -98,7 +98,7 @@ pub fn intern_safe<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj: Allocat
         }
         Some(char_array_ptr) => char_array_ptr,
     };
-    let char_array = char_array_ptr.unwrap_array();
+    let char_array = char_array_ptr.unwrap_array(jvm);
     let mut native_string_bytes = Vec::with_capacity(char_array.len() as usize);
     for char_ in char_array.array_iterator() {
         native_string_bytes.push(char_.as_njv().unwrap_char_strict());

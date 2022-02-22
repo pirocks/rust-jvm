@@ -11,8 +11,9 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::FieldId;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
 
 use crate::introspection::JVM_GetCallerClass;
@@ -89,7 +90,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__JI(env: *mut JNIEnv, the_
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEnv, the_unsafe: jobject, field_obj: jobject) -> jlong {
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
+    let jfield = NewJavaValueHandle::Object(from_object_new(jvm, field_obj).unwrap()).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
     let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let class_view = clazz.view();
