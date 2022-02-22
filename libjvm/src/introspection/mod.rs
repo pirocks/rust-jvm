@@ -216,9 +216,11 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter().rev();
-    stack.next();
-    stack.next();
+    let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
+    let this_native_fn_frame = stack.next().unwrap();
+    assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque());
+    let parent_frame = stack.next().unwrap();
+    assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque());
     let possibly_class_pointer = stack.find_map(|entry| {
         let class_pointer = entry.try_class_pointer(jvm)?;
         let view = class_pointer.view();
@@ -238,6 +240,8 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
+    int_state.debug_print_stack_trace(jvm);
+    dbg!(type_.jvm_representation(&jvm.string_pool));
     let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap();
     new_local_ref_public_new(jclass.unwrap_object_alloc(), int_state)
 }

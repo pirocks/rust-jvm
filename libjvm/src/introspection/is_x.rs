@@ -9,8 +9,9 @@ use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvmti::is::is_array_impl;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use slow_interpreter::utils::throw_array_out_of_bounds;
 
 #[no_mangle]
@@ -56,6 +57,6 @@ unsafe extern "system" fn JVM_IsArrayClass(env: *mut JNIEnv, cls: jclass) -> jbo
 #[no_mangle]
 unsafe extern "system" fn JVM_IsPrimitiveClass(env: *mut JNIEnv, cls: jclass) -> jboolean {
     let jvm = get_state(env);
-    let type_ = JavaValue::Object(from_object(jvm, cls)).to_new().cast_class().expect("todo").as_type(jvm);
+    let type_ = NewJavaValueHandle::from_optional_object(from_object_new(jvm, cls)).cast_class().expect("todo").as_type(jvm);
     type_.is_primitive() as jboolean
 }

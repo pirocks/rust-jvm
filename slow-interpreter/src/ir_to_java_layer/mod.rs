@@ -51,11 +51,11 @@ use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMeth
 use crate::java::lang::class::JClass;
 use crate::java::lang::int::Int;
 use crate::java::NewAsObjectOrJavaValue;
-use crate::java_values::{GcManagedObject, NativeJavaValue, StackNativeJavaValue};
+use crate::java_values::{ByAddressAllocatedObject, GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
-use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::{StackEntryMut, StackEntryRef};
 use crate::threading::safepoints::Monitor2;
@@ -527,7 +527,7 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
                 _ => {
                     let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
                     if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc() {
-                        eprint!("#{}: {:?}({})\t", i, jv.as_njv(), obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                        display_obj(jvm, i, &jv, obj);
                     } else {
                         eprint!("#{}: {:?}\t", i, jv.as_njv())
                     }
@@ -549,7 +549,7 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
             } else {
                 let jv = operand_stack.get(i as u16, operand_stack_type);
                 if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc() {
-                    eprint!("#{}: {:?}({})\t", i, jv.as_njv(), obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                    display_obj(jvm,i,&jv,obj)
                 } else {
                     eprint!("#{}: {:?}\t", i, jv.as_njv())
                 }
@@ -557,6 +557,21 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
         }
     }
     eprintln!()
+}
+
+fn display_obj(jvm: &'gc_life JVMState<'gc_life>, i: usize, jv: &NewJavaValueHandle<'gc_life>, obj: AllocatedObject<'gc_life,'_>) {
+    let obj_type = obj.runtime_class(jvm).cpdtype();
+    if obj_type == CClassName::class().into() {
+        let class_short_name = match jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(obj.raw_ptr_usize())) {
+            Some(class) => {
+                Some(class.cpdtype().jvm_representation(&jvm.string_pool))
+            },
+            None => None,
+        };
+        eprint!("#{}: {:?}(Class:{:?})\t", i, jv.as_njv(), class_short_name)
+    } else {
+        eprint!("#{}: {:?}({})\t", i, jv.as_njv(), obj_type.short_representation(&jvm.string_pool))
+    }
 }
 
 pub struct JavaVMStateWrapper<'vm_life> {

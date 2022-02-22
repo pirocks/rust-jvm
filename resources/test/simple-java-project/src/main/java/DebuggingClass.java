@@ -155,10 +155,18 @@
 
 import sun.invoke.util.ValueConversions;
 import sun.misc.Unsafe;
+import sun.reflect.Reflection;
+
+import java.io.BufferedInputStream;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import static sun.reflect.Reflection.verifyMemberAccess;
 
 public class DebuggingClass{
-    public static void main(String[] args) {
-        Class<Unsafe> unsafeClass = Unsafe.class;
-        System.out.println(unsafeClass);
+    public static void main(String[] args) throws IllegalAccessException {
+        AtomicReferenceFieldUpdater.newUpdater(BufferedInputStream.class, byte[].class, "buf");
+        Reflection.ensureMemberAccess(AtomicReferenceFieldUpdater.class,BufferedInputStream.class,null,64);
+        /*final boolean res = verifyMemberAccess(AtomicReferenceFieldUpdater.class, BufferedInputStream.class, null, 64);
+        System.out.println(res);*/
     }
 }
