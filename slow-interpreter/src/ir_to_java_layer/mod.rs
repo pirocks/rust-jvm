@@ -399,8 +399,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let field_name = field_view.field_name();
                 let static_var = static_vars_guard.get(field_name);
                 //todo doesn't handle interfaces and the like
-                dbg!(field_name.0.to_str(&jvm.string_pool));
-                dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                 int_state.debug_print_stack_trace(jvm);
                 unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -419,17 +417,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr } => {
                 eprintln!("CheckCast");
-                int_state.debug_print_stack_trace(jvm);
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
                 let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
-                dbg!(cpdtype.unwrap_class_type().0.to_str(&jvm.string_pool));
                 if let Some(handle) = value{
-                    dbg!(handle.as_allocated_obj().runtime_class(jvm).view().name().unwrap_name().0.to_str(&jvm.string_pool));
+                    dbg!(cpdtype.jvm_representation(&jvm.string_pool));
                     let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
                     if res_int == 0 {
+                        int_state.debug_print_stack_trace(jvm);
                         todo!()
                     }
                 }

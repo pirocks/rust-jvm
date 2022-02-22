@@ -269,7 +269,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
                     return null_mut();
                 };
             }
-            new_local_ref_public(Some(class_object.to_gc_managed()), int_state)
+            new_local_ref_public_new(Some(class_object), int_state)
         }
         Err(WasException {}) => null_mut(),
     }

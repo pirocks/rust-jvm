@@ -691,7 +691,7 @@ pub mod call_site {
             let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) };
-            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc)?;
+            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc,todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 

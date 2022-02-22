@@ -19,7 +19,7 @@ use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue, Object};
 use crate::jit::MethodResolver;
-use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::{NewJavaValueHandle, NewJVObject};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -30,7 +30,7 @@ Otherwise we have a better method for invoke_virtual w/ resolution
  */
 pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //let the main instruction check intresstate inste
-    let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor);
+    let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor,todo!());
 }
 
 pub fn invoke_virtual_method_i<'gc_life, 'l>(
@@ -185,7 +185,13 @@ pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterState
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn invoke_virtual(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+    method_name: MethodName,
+    md: &CMethodDescriptor,
+    args: Vec<NewJavaValue<'gc_life,'_>>
+) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         panic!() //should have been caught by verifier, though perhaps it is possible to reach this w/ invokedynamic todo
@@ -196,12 +202,8 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
     //we assume that it isn't signature polymorphic for now todo
 
     //Let C be the class of objectref.
-    let this_pointer = {
-        let current_frame = int_state.current_frame();
-        let operand_stack = &current_frame.operand_stack(jvm);
-        &operand_stack.get((operand_stack.len() as usize - md.arg_types.len() - 1) as u16, RuntimeType::object())
-    };
-    let c = match match this_pointer.to_jv().unwrap_object() {
+    let this_pointer = args[0].clone();
+    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
             let method_i = int_state.current_frame().method_i(jvm);
@@ -218,22 +220,19 @@ pub fn invoke_virtual(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
             int_state.debug_print_stack_trace(jvm);
             panic!()
         }
-    }
-        .deref()
-    {
-        Object::Array(_a) => {
+    } {
+        NewJVObject::Array(_a) => {
             //todo so spec seems vague about this, but basically assume this is an Object
             let object_class = assert_inited_or_initing_class(jvm, CClassName::object().into());
             object_class
         }
-        Object::Object(o) => o.objinfo.class_pointer.clone(),
-    };
+        NewJVObject::Object(o) => o.objinfo.class_pointer.clone(),
+    }*/
 
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    /*invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, todo!())*/
-    todo!()
+    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args)
 }
 
 pub fn virtual_method_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {

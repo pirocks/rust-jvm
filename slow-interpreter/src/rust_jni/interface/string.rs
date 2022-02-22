@@ -117,13 +117,13 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let str_obj = match from_object(jvm, str) {
+    let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let jstring = JavaValue::Object(str_obj.into()).cast_string().unwrap();
+    let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap();
     let rust_str = jstring.to_rust_string(jvm);
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }

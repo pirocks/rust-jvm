@@ -6,6 +6,7 @@ use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
 use iced_x86::CC_b::c;
+use iced_x86::code_asm::ch;
 use iced_x86::ConditionCode::p;
 use iced_x86::OpCodeOperandKind::al;
 use libc::c_void;
@@ -246,6 +247,18 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         match self {
             NewJavaValue::Int(int) => {
                 *int
+            }
+            NewJavaValue::Short(short) => {
+                *short as jint
+            }
+            NewJavaValue::Byte(byte) => {
+                *byte as jint
+            }
+            NewJavaValue::Boolean(bool) => {
+                *bool as jint
+            }
+            NewJavaValue::Char(char) => {
+                *char as jint
             }
             _ => panic!()
         }

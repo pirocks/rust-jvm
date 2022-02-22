@@ -16,29 +16,30 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let action = from_object(jvm, action);
-    let unwrapped_action = match action.clone() {
+    let action = from_object_new(jvm, action);
+    let unwrapped_action = match action {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) };
-    int_state.push_current_operand_stack(JavaValue::Object(action));
-    invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor);
+    let mut args = vec![];
+    args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
+    let res = invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor,args).unwrap().unwrap().unwrap_object();
     if int_state.throw().is_some() {
         return null_mut();
     }
-    let res = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
-    new_local_ref_public(res, int_state)
+    new_local_ref_public_new(res.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 ///Java_java_security_AccessController_getInheritedAccessControlContext

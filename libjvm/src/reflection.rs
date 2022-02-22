@@ -111,7 +111,7 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     if is_virtual {
-        invoke_virtual(jvm, int_state, method_name, &parsed_md);
+        invoke_virtual(jvm, int_state, method_name, &parsed_md, todo!());
     } else {
         run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, todo!());
     }

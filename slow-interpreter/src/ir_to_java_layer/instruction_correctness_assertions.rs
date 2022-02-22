@@ -302,8 +302,9 @@ impl<'gc_life> AssertionState<'gc_life> {
                 NoValidate
             }
             CompressedInstructionInfo::getstatic { desc, target_class, name } => {
-                let res = get_static_impl(jvm, int_state, *target_class, *name).unwrap().unwrap();
-                BeforeState::TopOfOperandStackIs { native_jv: res.as_njv().to_native(), rtype: res.as_njv().rtype(jvm) }
+                /*let res = get_static_impl(jvm, int_state, *target_class, *name).unwrap().unwrap();
+                BeforeState::TopOfOperandStackIs { native_jv: res.as_njv().to_native(), rtype: res.as_njv().rtype(jvm) }*/
+                NoValidate
             }
             CompressedInstructionInfo::goto_(_) => {
                 NoValidate

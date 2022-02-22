@@ -46,7 +46,7 @@ macro_rules! as_object_or_java_value {
                 arg_types: vec![],
                 return_type: rust_jvm_common::compressed_classfile::CPDType::Ref(rust_jvm_common::compressed_classfile::CPRefType::Class(rust_jvm_common::compressed_classfile::names::CClassName::string())),
             };
-            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_toString(), &desc)?;
+            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_toString(), &desc, todo!())?;
             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::string().into())).cast_string())
         }
 
@@ -56,14 +56,14 @@ macro_rules! as_object_or_java_value {
                 arg_types: vec![],
                 return_type: rust_jvm_common::compressed_classfile::CPDType::Ref(rust_jvm_common::compressed_classfile::CPRefType::Class(rust_jvm_common::compressed_classfile::names::CClassName::class())),
             };
-            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_getClass(), &desc)?;
+            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_getClass(), &desc, todo!())?;
             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::class().into())).to_new().cast_class().expect("object can never not have a class"))
         }
 
         pub fn hash_code(&self, jvm: &'gc_life crate::jvm_state::JVMState<'gc_life>, int_state: &'_ mut crate::InterpreterStateGuard<'gc_life,'l>) -> Result<i32, crate::WasException> {
             todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
             let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor { arg_types: vec![], return_type: rust_jvm_common::compressed_classfile::CPDType::IntType };
-            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_hashCode(), &desc)?;
+            crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_hashCode(), &desc, todo!())?;
             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::runtime_type::RuntimeType::IntType)).unwrap_int())
         }
     };

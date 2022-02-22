@@ -26,9 +26,10 @@ use slow_interpreter::java::lang::thread::JThread;
 use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::{JavaThread, SuspendError};
 use slow_interpreter::threading::safepoints::Monitor2;
@@ -62,7 +63,7 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
 
     let int_state = get_interpreter_state(env);
-    let java_thread = match JavaValue::Object(from_object(jvm, thread)).cast_thread().try_get_java_thread(jvm) {
+    let java_thread = match NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread().try_get_java_thread(jvm) {
         None => return 0 as jboolean,
         Some(jt) => jt,
     };

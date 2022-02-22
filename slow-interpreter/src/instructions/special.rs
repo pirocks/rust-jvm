@@ -116,7 +116,9 @@ pub fn instance_of_exit_impl_impl(jvm: &'gc_life JVMState<'gc_life>, instance_of
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
                     if instance_of_class_name == &CClassName::serializable() || instance_of_class_name == &CClassName::cloneable() {
-                        unimplemented!() //todo need to handle serializable and the like
+                        unimplemented!() //todo need to handle serializable and the like, check subtype is castable as per spec
+                    } else if instance_of_class_name == &CClassName::object() {
+                        1
                     } else {
                         0
                     }
