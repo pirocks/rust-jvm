@@ -10,6 +10,7 @@ use std::thread::current;
 
 use bimap::BiHashMap;
 use iced_x86::CC_b::c;
+use iced_x86::CC_be::na;
 use iced_x86::CC_g::g;
 use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
@@ -154,7 +155,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
-                if !jvm.trace_options.partial_tracing(){
+                if !jvm.trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -174,7 +175,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
-                if !jvm.trace_options.partial_tracing(){
+                if !jvm.trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -255,7 +256,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
-                if !jvm.trace_options.partial_tracing(){
+                if !jvm.trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -268,7 +269,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info.better_debug_string(&jvm.string_pool));
-                if !jvm.trace_options.partial_tracing(){
+                if !jvm.trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
                 }
                 dump_frame_contents(jvm, int_state);
@@ -430,7 +431,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
-                if let Some(handle) = value{
+                if let Some(handle) = value {
                     let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
                     if res_int == 0 {
                         dbg!(cpdtype.jvm_representation(&jvm.string_pool));
@@ -455,7 +456,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
-                if !jvm.trace_options.partial_tracing(){
+                if !jvm.trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -491,13 +492,14 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
     }
 
     fn virtual_args_extract(jvm: &'gc_life JVMState<'gc_life>, arg_types: &Vec<CompressedParsedDescriptorType>, mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc_life>> {
-        let obj_ref = unsafe { arg_start.cast::<NativeJavaValue>().read() }.to_new_java_value(&CClassName::object().into(), jvm);
+        let obj_ref_native = unsafe { arg_start.cast::<NativeJavaValue>().read() };
+        let obj_ref = obj_ref_native.to_new_java_value(&CClassName::object().into(), jvm);
         let mut args_jv_handle = vec![];
         args_jv_handle.push(obj_ref);
         unsafe {
-            arg_start = arg_start.offset(size_of::<NativeJavaValue>() as isize);
+            arg_start = arg_start.sub(size_of::<NativeJavaValue>());
             for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
-                let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;
+                let arg_ptr = arg_start.sub(i * size_of::<jlong>()) as *const u64;
                 let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
                 args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
             }
@@ -524,9 +526,9 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
                 }
                 _ => {
                     let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
-                    if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc(){
-                        eprint!("#{}: {:?}({})\t", i, jv.as_njv(),obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
-                    }else {
+                    if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc() {
+                        eprint!("#{}: {:?}({})\t", i, jv.as_njv(), obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                    } else {
                         eprint!("#{}: {:?}\t", i, jv.as_njv())
                     }
                 }
@@ -546,9 +548,9 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
                 eprint!("#{}: Top: {:?}\t", i, jv.object)*/
             } else {
                 let jv = operand_stack.get(i as u16, operand_stack_type);
-                if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc(){
-                    eprint!("#{}: {:?}({})\t", i, jv.as_njv(),obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
-                }else {
+                if let Some(Some(obj)) = jv.as_njv().try_unwrap_object_alloc() {
+                    eprint!("#{}: {:?}({})\t", i, jv.as_njv(), obj.runtime_class(jvm).cpdtype().short_representation(&jvm.string_pool))
+                } else {
                     eprint!("#{}: {:?}\t", i, jv.as_njv())
                 }
             }

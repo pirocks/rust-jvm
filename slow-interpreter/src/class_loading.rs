@@ -256,6 +256,15 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 for interface in class_view.interfaces() {
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
+                if class_view.name().jvm_representation(&jvm.string_pool) == "Ljava/lang/StringBuilder;"{
+                    let field_names = get_field_numbers(&class_view, &parent).1.keys().map(|field_name| field_name.0.to_str(&jvm.string_pool)).collect_vec();
+                    dbg!(&field_names);
+                    dbg!(&parent.is_some());
+                    dbg!(parent.as_ref().map(|parent| parent.view().fields().map(|field| field.field_name().0.to_str(&jvm.string_pool)).collect_vec()));
+                    if field_names.is_empty(){
+                        panic!()
+                    }
+                }
                 let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
                 let static_var_types = get_static_var_types(class_view.deref());
                 let res = Arc::new(RuntimeClass::Object(
@@ -287,7 +296,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
-    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
+    let start_field_number = parent.as_ref().map(|parent| dbg!(parent.unwrap_class_class().num_vars())).unwrap_or(0);
     let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.0).enumerate().map(|(index, (name, ptype))| (name, (FieldNumber(index + start_field_number), ptype))).collect::<HashMap<_, _>>();
     (start_field_number + field_numbers.len(), field_numbers)
 }

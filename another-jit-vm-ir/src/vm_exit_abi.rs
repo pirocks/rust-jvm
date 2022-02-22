@@ -880,10 +880,9 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::RunNativeVirtual => {
-                let arg_start = register_state.saved_registers_without_ip.get_register(RunNativeVirtual::ARG_START) as *const c_void;
                 RuntimeVMExitInput::RunNativeVirtual {
                     res_ptr: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::RES_PTR) as *mut c_void,
-                    arg_start,
+                    arg_start: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::ARG_START) as *const c_void,
                     method_id: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::METHODID) as MethodId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunNativeVirtual::RESTART_IP) as *const c_void,
                 }

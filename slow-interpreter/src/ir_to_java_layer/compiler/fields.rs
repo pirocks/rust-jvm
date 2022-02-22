@@ -1,12 +1,14 @@
 use std::mem::size_of;
+use iced_x86::CC_be::na;
 
-use itertools::Either;
+use itertools::{Either, Itertools};
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use crate::class_loading::get_field_numbers;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, checkcast_impl};
@@ -99,6 +101,9 @@ pub fn getfield(
             }]))
         }
         Some((rc, _)) => {
+            dbg!(name.0.to_str(&resolver.jvm.string_pool));
+            dbg!(rc.cpdtype().jvm_representation(&resolver.jvm.string_pool));
+            dbg!(rc.unwrap_class_class().field_numbers.keys().map(|field| field.0.to_str(&resolver.jvm.string_pool)).collect_vec());
             let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(&name).unwrap();
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
