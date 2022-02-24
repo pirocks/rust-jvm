@@ -49,7 +49,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
         match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
             Err(WasException {}) => return null_mut(),
-        }
+        }.intern(jvm,int_state).unwrap()
             .object().as_allocated_obj()
             .into(),
         int_state,
@@ -69,7 +69,7 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match JString::from_rust(jvm, int_state, owned_str) {
+    match JString::from_rust(jvm, int_state, owned_str).unwrap().intern(jvm,int_state) {
         Err(WasException {}) => {
             null_mut()
         }

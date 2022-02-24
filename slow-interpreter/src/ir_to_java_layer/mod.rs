@@ -224,6 +224,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
+                eprintln!("InitClassAndRecompile done");
                 IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
@@ -307,10 +308,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
                 eprintln!("NewString");
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-                dbg!(&wtf8buf);
-                int_state.debug_print_stack_trace(jvm);
-                let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions");
-                dbg!(jstring.value(jvm));
+                let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm,int_state).unwrap();
                 let jv = jstring.new_java_value_handle();
                 unsafe {
                     let raw_64 = jv.as_njv().to_native().as_u64;

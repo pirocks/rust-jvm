@@ -620,6 +620,31 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::lstore_2 => {
                 this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 2))
             }
+            CompressedInstructionInfo::ldc_w(elem) => {
+                match elem {
+                    CompressedLdcW::String { str } => {
+                        this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, resolver.get_commpressed_version_of_wtf8(str)))
+                    }
+                    CompressedLdcW::Class { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::Float { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::Integer { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::MethodType { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::MethodHandle { .. } => {
+                        todo!()
+                    }
+                    CompressedLdcW::LiveObject(_) => {
+                        todo!()
+                    }
+                }
+            }
             other => {
                 dbg!(other);
                 todo!()

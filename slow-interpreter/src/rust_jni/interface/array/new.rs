@@ -2,10 +2,13 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
+use crate::{check_initing_or_inited_class, check_loaded_class};
+use crate::class_loading::assert_inited_or_initing_class;
 
 use crate::interpreter::WasException;
-use crate::java_values::{ArrayObject, default_value, JavaValue, Object};
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::java_values::{ArrayObject, default_value, default_value_njv, JavaValue, Object};
+use crate::new_java_values::UnAllocatedObject;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
@@ -62,13 +65,12 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
     let int_state = get_interpreter_state(env);
     let mut the_vec = vec![];
     for _ in 0..len {
-        the_vec.push(default_value(&elem_type))
+        the_vec.push(default_value_njv(&elem_type))
     }
-    new_local_ref_public(
-        Some(todo!()/*jvm.allocate_object(todo!()/*Object::Array(match ArrayObject::new_array(jvm, int_state, the_vec, elem_type, jvm.thread_state.new_monitor("monitor for jni created byte array".to_string())) {
-            Ok(arr) => arr,
-            Err(WasException {}) => return null_mut(),
-        })*/)*/),
+    let rc = check_initing_or_inited_class(jvm,int_state, CPDType::array(elem_type)).unwrap();
+    let object_array = UnAllocatedObject::new_array(rc, the_vec);
+    new_local_ref_public_new(
+        Some(jvm.allocate_object(object_array).as_allocated_obj()),
         int_state,
     )
 }

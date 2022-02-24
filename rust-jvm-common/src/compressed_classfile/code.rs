@@ -547,8 +547,8 @@ impl CompressedInstructionInfo {
             }
             CompressedInstructionInfo::ldc_w(ldc_type) => {
                 match ldc_type {
-                    CompressedLdcW::String { .. } => {
-                        todo!()
+                    CompressedLdcW::String { str } => {
+                        format!("ldc:string:\"{}\"", str.to_string_lossy().to_string())
                     }
                     CompressedLdcW::Class { .. } => {
                         todo!()

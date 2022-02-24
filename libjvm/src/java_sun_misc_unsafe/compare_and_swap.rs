@@ -23,11 +23,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
     };
-    let to_jv = notnull.to_jv();
-    let normal_obj = to_jv.unwrap_normal_object();
-    let curval = normal_obj.get_var(jvm, rc.clone(), field_name);
-    (if curval.unwrap_int() == old {
-        normal_obj.set_var(rc, field_name, JavaValue::Int(new));
+    let curval = notnull.as_allocated_obj().get_var(jvm, &rc, field_name);
+    (if curval.as_njv().unwrap_int() == old {
+        notnull.as_allocated_obj().set_var(&rc, field_name, NewJavaValue::Int(new));
         1
     } else {
         0

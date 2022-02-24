@@ -163,8 +163,8 @@ impl IRInstr {
             IRInstr::Return { .. } => {
                 "Return".to_string()
             }
-            IRInstr::RestartPoint(_) => {
-                "RestartPoint".to_string()
+            IRInstr::RestartPoint(id) => {
+                format!("RestartPoint #{}",id.0)
             }
             IRInstr::VMExit2 { exit_type } => {
                 format!("VMExit2-{}", match exit_type {

@@ -133,6 +133,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_UTIL_PROPERTIES as AddOnlyVecIDType)
     }
 
+    pub const fn hashtable() -> Self {
+        Self::from_raw_id(JAVA_UTIL_HASHTABLE as AddOnlyVecIDType)
+    }
+
     pub const fn thread() -> Self {
         Self::from_raw_id(JAVA_LANG_THREAD as AddOnlyVecIDType)
     }
@@ -256,6 +260,7 @@ enum PredefinedStrings {
     SUN_MISC_UNSAFE,
     JAVA_LANG_REFLECT_FIELD,
     JAVA_UTIL_PROPERTIES,
+    JAVA_UTIL_HASHTABLE,
     JAVA_LANG_THREAD,
     JAVA_LANG_THREADGROUP,
     JAVA_LANG_REFLECT_CONSTRUCTOR,
@@ -301,9 +306,11 @@ enum PredefinedStrings {
     field_function,
     field_genericInfo,
     field_and_method_getContextClassLoader,
+    field_key,
     field_index,
     field_invokers,
     field_and_method_isAlive,
+    field_map,
     field_maxPriority,
     field_methodDescriptor,
     field_methodHandles,
@@ -330,9 +337,12 @@ enum PredefinedStrings {
     field_theUnsafe,
     field_threadStatus,
     field_threads,
+    field_table,
     field_tid,
     field_and_method_type,
     field_and_method_value,
+    field_next,
+    field_hash,
     field_vmentry,
     field_and_method_inheritedAccessControlContext,
     field_IMPL_LOOKUP,
@@ -370,6 +380,7 @@ enum PredefinedStrings {
     method_printStackTrace,
     method_publicLookup,
     method_setProperty,
+    method_getProperty,
     method_start,
     method_toString,
     method_initializeSystemClass,
@@ -425,6 +436,7 @@ impl PredefinedStrings {
             SUN_MISC_LAUNCHER_EXT_CLASS_LOADER => "sun/misc/Launcher$ExtClassLoader".to_string(),
             JAVA_LANG_LINKAGE_ERROR => "java/lang/LinkageError".to_string(),
             JAVA_LANG_INVOKE_INVOKERS => "java/lang/invoke/Invokers".to_string(),
+            JAVA_UTIL_HASHTABLE => "java/util/Hashtable".to_string(),
             field_annotationData => "annotationData".to_string(),
             field_annotationType => "annotationType".to_string(),
             field_argCounts => "argCounts".to_string(),
@@ -515,6 +527,7 @@ impl PredefinedStrings {
             method_objectFieldOffset => "objectFieldOffset".to_string(),
             method_printStackTrace => "printStackTrace".to_string(),
             method_publicLookup => "publicLookup".to_string(),
+            method_getProperty => "getProperty".to_string(),
             method_setProperty => "setProperty".to_string(),
             method_start => "start".to_string(),
             method_toString => "toString".to_string(),
@@ -522,6 +535,11 @@ impl PredefinedStrings {
             constructor_init => "<init>".to_string(),
             constructor_clinit => "<clinit>".to_string(),
             method_linkToVirtual => "linkToVirtual".to_string(),
+            field_map => "map".to_string(),
+            field_table => "table".to_string(),
+            field_key => "key".to_string(),
+            field_next => "next".to_string(),
+            field_hash => "hash".to_string()
         }
     }
 }
@@ -621,6 +639,9 @@ impl FieldName {
     pub fn field_getContextClassLoader() -> Self {
         Self::from_raw_id(field_and_method_getContextClassLoader)
     }
+    pub fn field_key() -> Self {
+        Self::from_raw_id(field_key)
+    }
     pub fn field_index() -> Self {
         Self::from_raw_id(field_index)
     }
@@ -629,6 +650,9 @@ impl FieldName {
     }
     pub fn field_isAlive() -> Self {
         Self::from_raw_id(field_and_method_isAlive)
+    }
+    pub fn field_map() -> Self {
+        Self::from_raw_id(field_map)
     }
     pub fn field_maxPriority() -> Self {
         Self::from_raw_id(field_maxPriority)
@@ -708,6 +732,9 @@ impl FieldName {
     pub fn field_threads() -> Self {
         Self::from_raw_id(field_threads)
     }
+    pub fn field_table() -> Self {
+        Self::from_raw_id(field_table)
+    }
     pub fn field_tid() -> Self {
         Self::from_raw_id(field_tid)
     }
@@ -716,6 +743,12 @@ impl FieldName {
     }
     pub fn field_value() -> Self {
         Self::from_raw_id(field_and_method_value)
+    }
+    pub fn field_hash() -> Self {
+        Self::from_raw_id(field_hash)
+    }
+    pub fn field_next() -> Self {
+        Self::from_raw_id(field_next)
     }
     pub fn field_vmentry() -> Self {
         Self::from_raw_id(field_vmentry)
@@ -852,6 +885,9 @@ impl MethodName {
     }
     pub fn method_setProperty() -> Self {
         Self::from_raw_id(method_setProperty)
+    }
+    pub fn method_getProperty() -> Self {
+        Self::from_raw_id(method_getProperty)
     }
     pub fn method_start() -> Self {
         Self::from_raw_id(method_start)

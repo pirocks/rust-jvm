@@ -128,11 +128,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
 unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match from_object(jvm, obj) {
+    match from_object_new(jvm, obj) {
         Some(notnull) => {
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            notnull.unwrap_normal_object().get_var_top_level(jvm, field_name).unwrap_int()
+            notnull.as_allocated_obj().get_var_top_level(jvm, field_name).as_njv().unwrap_int()
         }
         None => {
             //static

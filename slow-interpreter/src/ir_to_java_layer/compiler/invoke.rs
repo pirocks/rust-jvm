@@ -32,10 +32,13 @@ pub fn invokespecial(
     let class_cpdtype = CPDType::Ref(classname_ref_type.clone());
     let restart_point_id_class_load = restart_point_generator.new_restart_point();
     let restart_point_class_load = IRInstr::RestartPoint(restart_point_id_class_load);
+    let restart_point_id_function_address = restart_point_generator.new_restart_point();
+    let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
     match resolver.lookup_type_loaded(&class_cpdtype) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&CPDType::Ref(classname_ref_type.clone()));
             Either::Left(array_into_iter([restart_point_class_load,
+                restart_point_function_address,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::LoadClassAndRecompile {
                         class: cpd_type_id,
@@ -51,6 +54,7 @@ pub fn invokespecial(
             Either::Right(if is_native {
                 Either::Left(array_into_iter([
                     restart_point_class_load,
+                    restart_point_function_address,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::RunNativeSpecial {
                             method_id,
@@ -66,8 +70,6 @@ pub fn invokespecial(
                 ]))
             } else {
                 let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
-                let restart_point_id_function_address = restart_point_generator.new_restart_point();
-                let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
                 Either::Right(match maybe_address {
                     None => {
                         let exit_instr = IRInstr::VMExit2 {
@@ -118,17 +120,21 @@ pub fn invokestatic(
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let class_init_restart_point = IRInstr::RestartPoint(restart_point_id);
+    let restart_point_id_function_address = restart_point_generator.new_restart_point();
+    let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
     let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
             let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
-            Either::Left(array_into_iter([class_init_restart_point, IRInstr::VMExit2 {
-                exit_type: IRVMExitType::InitClassAndRecompile {
-                    class: cpdtype_id,
-                    this_method_id: method_frame_data.current_method_id,
-                    restart_point_id,
-                },
-            }]))
+            Either::Left(array_into_iter([class_init_restart_point,
+                restart_point_function_address,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::InitClassAndRecompile {
+                        class: cpdtype_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id,
+                    },
+                }]))
         }
         Some((method_id, is_native)) => {
             Either::Right(if is_native {
@@ -139,24 +145,24 @@ pub fn invokestatic(
                 } else {
                     None
                 };
-                Either::Left(array_into_iter([class_init_restart_point, IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::RunStaticNative {
-                        method_id,
-                        arg_start_frame_offset,
-                        res_pointer_offset: if descriptor.return_type.is_void() {
-                            None
-                        } else {
-                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                Either::Left(array_into_iter([class_init_restart_point,
+                    restart_point_function_address,
+                    IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::RunStaticNative {
+                            method_id,
+                            arg_start_frame_offset,
+                            res_pointer_offset: if descriptor.return_type.is_void() {
+                                None
+                            } else {
+                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                            },
+                            num_args,
                         },
-                        num_args,
-                    },
-                }]))
+                    }]))
             } else {
                 let num_args = descriptor.arg_types.len();
                 let arg_from_to_offsets = static_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
                 let target_method_layout = resolver.lookup_method_layout(method_id);
-                let restart_point_id_function_address = restart_point_generator.new_restart_point();
-                let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
                 Either::Right(match resolver.lookup_ir_method_id_and_address(method_id) {
                     None => {
                         let exit_instr = IRInstr::VMExit2 {
@@ -167,10 +173,13 @@ pub fn invokestatic(
                             }
                         };
                         //todo have restart point ids for matching same restart points
-                        Either::Left(array_into_iter([class_init_restart_point, restart_point_function_address, exit_instr]))
+                        Either::Left(array_into_iter([class_init_restart_point,
+                            restart_point_function_address,
+                            exit_instr]))
                     }
                     Some((ir_method_id, address)) => {
-                        Either::Right(array_into_iter([class_init_restart_point, restart_point_function_address,
+                        Either::Right(array_into_iter([class_init_restart_point,
+                            restart_point_function_address,
                             IRInstr::IRCall {
                                 temp_register_1: Register(1),
                                 temp_register_2: Register(2),

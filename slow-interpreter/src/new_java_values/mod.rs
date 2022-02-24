@@ -238,7 +238,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_int_strict(&self) -> jint {
-        todo!()
+        match self {
+            NewJavaValue::Int(res) => *res,
+            _ => {
+                panic!()
+            }
+        }
     }
 
     pub fn unwrap_int(&self) -> jint {
@@ -518,6 +523,15 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
     }
 
     pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+        let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
+        unsafe {
+            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).read();
+            native_jv.to_new_java_value(desc_type, jvm)
+        }
+    }
+
+    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+        let current_class_pointer = self.runtime_class(jvm);
         let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
         unsafe {
             let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).read();

@@ -287,7 +287,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
 }
 
 pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
-    let start_field_number = parent.as_ref().map(|parent| dbg!(parent.unwrap_class_class().num_vars())).unwrap_or(0);
+    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
     let field_numbers = class_view.fields().filter(|field| !field.is_static()).map(|name| (name.field_name(), name.field_type())).sorted_by_key(|(name, _ptype)| name.0).enumerate().map(|(index, (name, ptype))| (name, (FieldNumber(index + start_field_number), ptype))).collect::<HashMap<_, _>>();
     (start_field_number + field_numbers.len(), field_numbers)
 }
