@@ -20,13 +20,16 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::{NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::misc::get_all_methods;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
+use itertools::Itertools;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
@@ -71,8 +74,8 @@ fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
-    let temp1 = from_object(jvm, ofClass);
-    let class_obj = JavaValue::Object(temp1).to_new().cast_class().expect("todo");
+    let temp1 = from_object_new(jvm, ofClass);
+    let class_obj = NewJavaValueHandle::from_optional_object(temp1).cast_class().expect("todo");
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
@@ -94,8 +97,10 @@ fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_
 
     constructors.iter().filter(|m| if publicOnly { m.is_public() } else { true }).for_each(|m| {
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
-        object_array.push(constructor.java_value())
+        object_array.push(constructor.new_java_value_handle())
     });
-    let res = jvm.allocate_object(todo!()/*Object::object_array(jvm, int_state, object_array, CClassName::constructor().into())?*/);
-    Ok(unsafe { new_local_ref_public(todo!()/*res*/, int_state) })
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::constructor().into())).unwrap();
+    let unallocated = UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems: object_array.iter().map(|handle|handle.as_njv()).collect_vec() });
+    let res = jvm.allocate_object(unallocated);
+    Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), int_state) })
 }

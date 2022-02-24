@@ -114,6 +114,10 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
             }
         }
     }
+
+    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, empty_byte_array: Arc<RuntimeClass<'gc_life>>) -> Self{
+        Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class: empty_byte_array, elems: vec![] })))
+    }
 }
 
 

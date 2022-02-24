@@ -424,6 +424,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 //TODO bug there are places where we don't sign extend properly
                 //for now does nothing but should really store ints as  actual 32 bit ints so in future todo
             }
+            CompressedInstructionInfo::i2c => {
+                //todo
+            }
             CompressedInstructionInfo::ldc2_w(ldc2) => {
                 match ldc2 {
                     CompressedLdc2W::Long(long) => {

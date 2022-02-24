@@ -385,7 +385,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("MonitorEnter");
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                let monitor = monitors_guard.entry(*dbg!(obj_ptr)).or_insert_with(|| Monitor2::new(next_id));
                 monitor.lock(jvm, int_state).unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
@@ -393,7 +393,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 eprintln!("MonitorExit");
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                let monitor = monitors_guard.entry(*dbg!(obj_ptr)).or_insert_with(|| Monitor2::new(next_id));
                 monitor.unlock(jvm, int_state).unwrap();
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }

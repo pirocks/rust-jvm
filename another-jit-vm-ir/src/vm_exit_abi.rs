@@ -486,12 +486,12 @@ impl IRVMExitType {
             }
             IRVMExitType::MonitorEnter { obj } => {
                 assembler.mov(rax, RawVMExitType::MonitorEnter as u64).unwrap();
-                assembler.lea(MonitorEnter::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
+                assembler.mov(MonitorEnter::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
                 assembler.lea(MonitorEnter::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::MonitorExit { obj } => {
                 assembler.mov(rax, RawVMExitType::MonitorExit as u64).unwrap();
-                assembler.lea(MonitorExit::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
+                assembler.mov(MonitorExit::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
                 assembler.lea(MonitorExit::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::Throw { .. } => {
