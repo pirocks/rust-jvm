@@ -27,6 +27,7 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use crate::class_loading::assert_inited_or_initing_class;
 
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -100,14 +101,23 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
-        let view = rc.view();
-        let method_view = view.lookup_method(name, &desc)?;
-        assert!(!method_view.is_static());
-        if !method_view.is_native(){
-            return None
+        if name == MethodName::method_clone(){
+            let object= assert_inited_or_initing_class(self.jvm,CPDType::object());
+            let view = object.view();
+            let method_views = view.lookup_method_name(MethodName::method_clone());
+            let method_view = method_views.into_iter().next().unwrap();
+            let method_id = self.jvm.method_table.write().unwrap().get_method_id(object, method_view.method_i());
+            Some(method_id)
+        }else {
+            let view = rc.view();
+            let method_view = view.lookup_method(name, &desc)?;
+            assert!(!method_view.is_static());
+            if !method_view.is_native(){
+                return None
+            }
+            let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+            Some(method_id)
         }
-        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-        Some(method_id)
     }
 
 

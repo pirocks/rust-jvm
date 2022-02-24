@@ -429,7 +429,7 @@ impl CompressedInstructionInfo {
                 format!("invokestatic:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                format!("invokevirtual:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+                format!("invokevirtual:{}/{}/{}", classname_ref_type.try_unwrap_name().map(|name|name.0.to_str(&string_pool)).unwrap_or("array".to_string()), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::ior => {
                 format!("{:?}", self)

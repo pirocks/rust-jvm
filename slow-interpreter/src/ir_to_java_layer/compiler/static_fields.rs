@@ -66,6 +66,7 @@ pub fn getstatic(
                 }])
         }
         Some((rc, loader)) => {
+            dbg!(name.0.to_str(&resolver.jvm.string_pool));
             let field_id = resolver.get_field_id(rc, name);
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
