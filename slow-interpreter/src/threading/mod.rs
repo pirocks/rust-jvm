@@ -25,7 +25,7 @@ use rust_jvm_common::{ByteCodeOffset, JavaThreadId};
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{CURRENT_INT_STATE_GUARD, CURRENT_INT_STATE_GUARD_VALID, InterpreterState};
@@ -140,6 +140,12 @@ impl<'gc_life> ThreadState<'gc_life> {
         main_send
     }
 
+    fn debug_assertions(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>){
+        let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
+        let res = jstring.hash_code(jvm, int_state).unwrap();
+        assert_eq!(res, 111607186);
+    }
+
     fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
@@ -160,6 +166,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         int_state.register_interpreter_state_guard(jvm);
+        Self::debug_assertions(jvm,int_state);
         match run_function(&jvm, int_state, &mut init_frame_guard) {
             Ok(_) => {}
             Err(_) => todo!(),

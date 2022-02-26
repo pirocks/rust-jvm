@@ -95,8 +95,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 
     pub fn restart_location(&self, ir_method_id: IRMethodID, restart_point: RestartPointID) -> IRInstructIndex {
         let restart_points = &self.methods.get(&ir_method_id).unwrap().restart_points;
-        dbg!(restart_points);
-        dbg!(restart_point);
         *restart_points.get(&restart_point).unwrap()
     }
 }

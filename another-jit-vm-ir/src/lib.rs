@@ -365,7 +365,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.mov(rcx, 0u64).unwrap();
             assembler.mov(rdx, 0u64).unwrap();
             assembler.imul(a.to_native_64()).unwrap();
-            assembler.mov(res.to_native_64(), rdx).unwrap();
+            assembler.mov(res.to_native_64(), rax).unwrap();
         }
         IRInstr::BinaryBitAnd { res, a } => {
             assembler.and(res.to_native_64(), a.to_native_64()).unwrap()

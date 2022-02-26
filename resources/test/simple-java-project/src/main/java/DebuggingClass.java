@@ -169,6 +169,7 @@ public class DebuggingClass{
     private static final int MASK = 0x1f;
     public static void main(String[] args) throws IllegalAccessException {
         final String key = "utf-8";
+        System.out.println(key.hashCode());
         int h = key.hashCode() >> SHIFT & MASK;
         System.out.println(h);
     }
