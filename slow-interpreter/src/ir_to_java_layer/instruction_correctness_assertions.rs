@@ -126,71 +126,71 @@ impl<'gc_life> AssertionState<'gc_life> {
                 NoValidate
             }
             CompressedInstructionInfo::daload => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dastore => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dcmpg => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dcmpl => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dconst_0 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dconst_1 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::ddiv => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dload(_) => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dload_0 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dload_1 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dload_2 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dload_3 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dmul => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dneg => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::drem => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dreturn => {
                 self.current_before.pop().unwrap();
                 return;
             }
             CompressedInstructionInfo::dstore(_) => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dstore_0 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dstore_1 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dstore_2 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dstore_3 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dsub => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dup => {
                 NoValidate
@@ -199,16 +199,16 @@ impl<'gc_life> AssertionState<'gc_life> {
                 NoValidate
             }
             CompressedInstructionInfo::dup_x2 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dup2 => {
                 NoValidate
             }
             CompressedInstructionInfo::dup2_x1 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::dup2_x2 => {
-                todo!()
+                NoValidate
             }
             CompressedInstructionInfo::f2d => {
                 NoValidate

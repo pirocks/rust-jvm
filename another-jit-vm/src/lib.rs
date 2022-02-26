@@ -131,6 +131,25 @@ impl FloatRegister {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct DoubleRegister(pub u8);
+
+impl DoubleRegister {
+    pub fn to_xmm(&self) -> AsmRegisterXmm {
+        match self.0 {
+            0 => xmm0,
+            1 => xmm1,
+            2 => xmm2,
+            3 => xmm3,
+            4 => xmm4,
+            5 => xmm5,
+            6 => xmm6,
+            7 => xmm7,
+            _ => todo!()
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct MMRegister(pub u8);
 
 impl MMRegister {

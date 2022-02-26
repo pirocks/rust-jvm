@@ -13,7 +13,7 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, fword_ptr, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, fword_ptr, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
@@ -342,7 +342,18 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Sub { res, to_subtract } => {
             assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap()
         }
-        IRInstr::Div { .. } => todo!(),
+        IRInstr::Div { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
+            assert_eq!(must_be_rax.0, 0);
+            assert_eq!(must_be_rdx.to_native_64(), rdx);
+            assert_eq!(must_be_rbx.to_native_64(), rbx);
+            assert_eq!(must_be_rcx.to_native_64(), rcx);
+            assembler.mov(rax, res.to_native_64()).unwrap();
+            assembler.mov(rbx, 0u64).unwrap();
+            assembler.mov(rcx, 0u64).unwrap();
+            assembler.mov(rdx, 0u64).unwrap();
+            assembler.idiv(divisor.to_native_64()).unwrap();
+            assembler.mov(res.to_native_64(), rax).unwrap();
+        },
         IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
             assert_eq!(must_be_rax.0, 0);
             assert_eq!(must_be_rdx.to_native_64(), rdx);
@@ -577,11 +588,25 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::MulConst { res, a } => {
             assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()
         }
+        IRInstr::LoadFPRelativeDouble { from, to } => {
+            assembler.vmovsd(to.to_xmm(), dword_ptr(rbp - from.0)).unwrap();
+        }
+        IRInstr::StoreFPRelativeDouble { from, to } => {
+            assembler.vmovsd(dword_ptr(rbp - to.0), from.to_xmm()).unwrap();
+        }
         IRInstr::LoadFPRelativeFloat { from, to } => {
             assembler.movss(to.to_xmm(), fword_ptr(rbp - from.0)).unwrap();
         }
         IRInstr::StoreFPRelativeFloat { from, to } => {
             assembler.movss(fword_ptr(rbp - to.0), from.to_xmm()).unwrap();
+        }
+        IRInstr::DoubleToIntegerConvert { from, temp, to } => {
+            assembler.cvtpd2pi(temp.to_mm(), from.to_xmm()).unwrap();
+            assembler.movd(to.to_native_32(), temp.to_mm()).unwrap();
+        }
+        IRInstr::IntegerToDoubleConvert { to, temp, from } => {
+            assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
+            assembler.cvtpi2pd(to.to_xmm(), temp.to_mm()).unwrap()
         }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
@@ -664,6 +689,12 @@ SF = 0;
         }
         IRInstr::BinaryBitOr { res, a } => {
             assembler.or(res.to_native_64(), a.to_native_64()).unwrap();
+        }
+        IRInstr::FloatToDoubleConvert { from, to } => {
+            assembler.cvtpd2ps(to.to_xmm(),from.to_xmm()).unwrap();
+        }
+        IRInstr::MulDouble { res, a } => {
+            assembler.mulpd(res.to_xmm(),a.to_xmm()).unwrap();
         }
     }
 }

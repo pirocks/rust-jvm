@@ -1,4 +1,4 @@
-use another_jit_vm::{FloatRegister, Register};
+use another_jit_vm::{DoubleRegister, FloatRegister, Register};
 use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr};
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
@@ -41,6 +41,17 @@ pub fn fmul(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
         IRInstr::MulFloat { res: value1, a: value2 },
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn dmul(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = DoubleRegister(0);
+    let value1 = DoubleRegister(1);
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::MulDouble { res: value1, a: value2 },
+        IRInstr::StoreFPRelativeDouble { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 

@@ -10,6 +10,10 @@ pub fn caload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     array_load_impl(method_frame_data, current_instr_data)
 }
 
+pub fn baload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_load_impl(method_frame_data, current_instr_data)
+}
+
 pub fn aaload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_load_impl(method_frame_data, current_instr_data)
 }

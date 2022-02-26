@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use another_jit_vm::{FloatRegister, MMRegister, Register};
+use another_jit_vm::{DoubleRegister, FloatRegister, MMRegister, Register};
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::MethodId;
 
@@ -10,10 +10,15 @@ use crate::{IRMethodID, IRVMExitType};
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register },
     LoadFPRelativeFloat { from: FramePointerOffset, to: FloatRegister },
+    LoadFPRelativeDouble { from: FramePointerOffset, to: DoubleRegister },
     StoreFPRelative { from: Register, to: FramePointerOffset },
     StoreFPRelativeFloat { from: FloatRegister, to: FramePointerOffset },
+    StoreFPRelativeDouble { from: DoubleRegister, to: FramePointerOffset },
     FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
+    DoubleToIntegerConvert { from: DoubleRegister, temp: MMRegister, to: Register },
+    FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
     IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
+    IntegerToDoubleConvert { to: DoubleRegister, temp: MMRegister, from: Register },
     Load { to: Register, from_address: Register },
     Load32 { to: Register, from_address: Register },
     Store { to_address: Register, from: Register },
@@ -22,11 +27,12 @@ pub enum IRInstr {
     IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register },
     AddFloat { res: FloatRegister, a: FloatRegister },
     Sub { res: Register, to_subtract: Register },
-    Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rdx: Register },
+    Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
     DivFloat { res: FloatRegister, divisor: FloatRegister },
     Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
     Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
     MulFloat { res: FloatRegister, a: FloatRegister },
+    MulDouble { res: DoubleRegister, a: DoubleRegister },
     MulConst { res: Register, a: i32 },
     ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
     LogicalShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
@@ -283,6 +289,24 @@ impl IRInstr {
             }
             IRInstr::BinaryBitOr { .. } => {
                 "BinaryBitOr".to_string()
+            }
+            IRInstr::DoubleToIntegerConvert { .. } => {
+                "DoubleToIntegerConvert".to_string()
+            }
+            IRInstr::IntegerToDoubleConvert { .. } => {
+                "IntegerToDoubleConvert".to_string()
+            }
+            IRInstr::LoadFPRelativeDouble { .. } => {
+                "LoadFPRelativeDouble".to_string()
+            }
+            IRInstr::StoreFPRelativeDouble { .. } => {
+                "StoreFPRelativeDouble".to_string()
+            }
+            IRInstr::FloatToDoubleConvert { .. } => {
+                "FloatToDoubleConvert".to_string()
+            }
+            IRInstr::MulDouble { .. } => {
+                "MulDouble".to_string()
             }
         }
     }
