@@ -60,9 +60,9 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Err(WasException {}) => {
             return null_mut();
         }
-        Ok(res) => res.unwrap_object(),
+        Ok(res) => res.unwrap_object_alloc(),
     };
-    new_local_ref_public(todo!()/*obj*/, int_state)
+    new_local_ref_public_new(obj, int_state)
 }
 
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {

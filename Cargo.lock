@@ -46,6 +46,7 @@ dependencies = [
 name = "another-jit-vm-ir"
 version = "0.1.0"
 dependencies = [
+ "add-only-static-vec",
  "another-jit-vm",
  "bimap",
  "gc-memory-layout-common",

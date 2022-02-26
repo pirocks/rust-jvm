@@ -1,17 +1,19 @@
 use std::ffi::c_void;
-use std::ptr::NonNull;
+use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
 
 use bimap::BiHashMap;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use add_only_static_vec::AddOnlyId;
 
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use gc_memory_layout_common::FramePointerOffset;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedClassfileString, CPDType};
+use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
@@ -117,9 +119,10 @@ impl PutStatic {
 pub struct GetStatic;
 
 impl GetStatic {
-    pub const FIELD_ID: Register = Register(2);
+    pub const FIELD_NAME: Register = Register(2);
     pub const RES_VALUE_PTR: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const CPDTYPE_ID: Register = Register(5);
 }
 
 pub struct InitClassAndRecompile;
@@ -225,14 +228,15 @@ impl CheckCast {
 pub struct InvokeVirtualResolve;
 
 impl InvokeVirtualResolve {
-    pub const OBJECT_REF: Register = Register(2);
+    pub const OBJECT_REF_PTR: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
     pub const ADDRESS_RES: Register = Register(4);
     pub const IR_METHOD_ID_RES: Register = Register(5);
     pub const METHOD_ID_RES: Register = Register(6);
     pub const NEW_FRAME_SIZE_RES: Register = Register(7);
     pub const METHOD_SHAPE_ID: Register = Register(8);
-    pub const DEBUG_METHOD_ID: Register = Register(9);
+    pub const NATIVE_RESTART_POINT: Register = Register(9);
+    pub const NATIVE_RETURN_PTR: Register = Register(5);
 }
 
 pub struct InvokeInterfaceResolve;
@@ -331,7 +335,8 @@ pub enum IRVMExitType {
         value: FramePointerOffset,
     },
     GetStatic {
-        field_id: FieldId,
+        field_name: FieldName,
+        rc_type: CPDTypeID,
         res_value: FramePointerOffset,
     },
     LogFramePointerOffsetValue {
@@ -353,7 +358,8 @@ pub enum IRVMExitType {
     InvokeVirtualResolve {
         object_ref: FramePointerOffset,
         method_shape_id: MethodShapeID,
-        debug_target_method_id: MethodId,
+        native_restart_point: RestartPointID,
+        native_return_offset: FramePointerOffset,
     },
     InvokeInterfaceResolve {
         object_ref: FramePointerOffset,
@@ -477,12 +483,13 @@ impl IRVMExitType {
                 assembler.lea(NewClass::RES.to_native_64(), rbp - res.0).unwrap();
                 assembler.lea(NewClass::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, debug_target_method_id } => {
+            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, native_restart_point, native_return_offset } => {
                 assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
-                assembler.mov(InvokeVirtualResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
+                assembler.lea(InvokeVirtualResolve::OBJECT_REF_PTR.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(InvokeVirtualResolve::METHOD_SHAPE_ID.to_native_64(), method_shape_id.0).unwrap();
-                assembler.mov(InvokeVirtualResolve::DEBUG_METHOD_ID.to_native_64(), *debug_target_method_id as u64).unwrap();
+                assembler.mov(InvokeVirtualResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
+                assembler.lea(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
             }
             IRVMExitType::MonitorEnter { obj } => {
                 assembler.mov(rax, RawVMExitType::MonitorEnter as u64).unwrap();
@@ -497,10 +504,11 @@ impl IRVMExitType {
             IRVMExitType::Throw { .. } => {
                 assembler.mov(rax, RawVMExitType::Throw as u64).unwrap();
             }
-            IRVMExitType::GetStatic { res_value, field_id } => {
+            IRVMExitType::GetStatic { field_name, rc_type, res_value } => {
                 assembler.mov(rax, RawVMExitType::GetStatic as u64).unwrap();
                 assembler.lea(GetStatic::RES_VALUE_PTR.to_native_64(), rbp - res_value.0).unwrap();
-                assembler.mov(GetStatic::FIELD_ID.to_native_64(), *field_id as u64).unwrap();
+                assembler.mov(GetStatic::FIELD_NAME.to_native_64(), field_name.0.id.0 as u64).unwrap();
+                assembler.mov(GetStatic::CPDTYPE_ID.to_native_64(), rc_type.0 as u64).unwrap();
                 assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::Todo => {
@@ -650,7 +658,8 @@ pub enum RuntimeVMExitInput {
     },
     GetStatic {
         res_value_ptr: *mut c_void,
-        field_id: FieldId,
+        field_name: FieldName,
+        cpdtype_id: CPDTypeID,
         return_to_ptr: *const c_void,
     },
     LogFramePointerOffsetValue {
@@ -687,9 +696,10 @@ pub enum RuntimeVMExitInput {
     },
     InvokeVirtualResolve {
         return_to_ptr: *const c_void,
-        object_ref: u64,
+        object_ref_ptr: *const c_void,
         method_shape_id: MethodShapeID,
-        debug_target_method_id: MethodId,
+        native_method_restart_point: RestartPointID,
+        native_method_res: *mut c_void
     },
     InvokeInterfaceResolve {
         return_to_ptr: *const c_void,
@@ -835,11 +845,14 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::InvokeVirtualResolve => {
+                let native_method_res = register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void;
+                assert_ne!(native_method_res, null_mut());
                 RuntimeVMExitInput::InvokeVirtualResolve {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::RESTART_IP) as *const c_void,
-                    object_ref: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF) as u64,
                     method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::METHOD_SHAPE_ID) as u64),
-                    debug_target_method_id: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::DEBUG_METHOD_ID) as usize,
+                    object_ref_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF_PTR) as *const c_void,
+                    native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RESTART_POINT)),
+                    native_method_res
                 }
             }
             RawVMExitType::MonitorEnter => {
@@ -860,7 +873,8 @@ impl RuntimeVMExitInput {
             RawVMExitType::GetStatic => {
                 RuntimeVMExitInput::GetStatic {
                     res_value_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RES_VALUE_PTR) as *mut c_void,
-                    field_id: register_state.saved_registers_without_ip.get_register(GetStatic::FIELD_ID) as FieldId,
+                    field_name: FieldName(CompressedClassfileString{ id: AddOnlyId(register_state.saved_registers_without_ip.get_register(GetStatic::FIELD_NAME) as u32) }),
+                    cpdtype_id: CPDTypeID(register_state.saved_registers_without_ip.get_register(GetStatic::CPDTYPE_ID) as u32),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(GetStatic::RESTART_IP) as *const c_void,
                 }
             }

@@ -20,6 +20,7 @@ extern crate nix;
 extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
+extern crate core;
 
 use std::error::Error;
 use std::sync::Arc;

@@ -467,6 +467,12 @@ pub mod string {
         }
     }
 
+    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
+        pub fn cast_string(self) -> JString<'gc_life> {
+            JString { normal_object: self }
+        }
+    }
+
     impl<'gc_life> JString<'gc_life> {
         pub fn to_rust_string(&self, jvm: &'gc_life JVMState<'gc_life>) -> String {
             string_obj_to_string(jvm, self.normal_object.as_allocated_obj())
@@ -508,6 +514,18 @@ pub mod string {
                 res.push(elem.as_njv().unwrap_char_strict())
             }
             res
+        }
+
+        pub fn to_rust_string_better(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<String> {
+            let string_class = assert_inited_or_initing_class(jvm, CClassName::string().into());
+            let as_allocated_obj = self.normal_object.as_allocated_obj();
+            let value_field = as_allocated_obj.lookup_field(&string_class, FieldName::field_value());
+            value_field.as_njv().unwrap_object_alloc()?;
+            let mut res = vec![];
+            for elem in value_field.unwrap_array(jvm).array_iterator() {
+                res.push(elem.as_njv().unwrap_char_strict())
+            }
+            String::from_utf16(res.as_slice()).ok()
         }
 
         pub fn length(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<jint, WasException> {
@@ -1044,6 +1062,7 @@ pub mod long {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Long<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1052,6 +1071,12 @@ pub mod long {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_long(&self) -> Long<'gc_life> {
             Long { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_long(&self) -> Long<'gc_life> {
+            Long { normal_object: todo!() }
         }
     }
 
@@ -1086,6 +1111,7 @@ pub mod int {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Int<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1094,6 +1120,12 @@ pub mod int {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_int(&self) -> Int<'gc_life> {
             Int { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_int(&self) -> Int<'gc_life> {
+            Int { normal_object: todo!() }
         }
     }
 
@@ -1128,6 +1160,7 @@ pub mod short {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Short<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1136,6 +1169,12 @@ pub mod short {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_short(&self) -> Short<'gc_life> {
             Short { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_short(&self) -> Short<'gc_life> {
+            Short { normal_object: todo!() }
         }
     }
 
@@ -1170,6 +1209,7 @@ pub mod byte {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Byte<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1178,6 +1218,12 @@ pub mod byte {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_byte(&self) -> Byte<'gc_life> {
             Byte { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_byte(&self) -> Byte<'gc_life> {
+            Byte { normal_object: todo!() }
         }
     }
 
@@ -1212,6 +1258,7 @@ pub mod boolean {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Boolean<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1220,6 +1267,12 @@ pub mod boolean {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_boolean(&self) -> Boolean<'gc_life> {
             Boolean { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_boolean(&self) -> Boolean<'gc_life> {
+            Boolean { normal_object: todo!() }
         }
     }
 
@@ -1254,6 +1307,7 @@ pub mod char {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Char<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1262,6 +1316,12 @@ pub mod char {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_char(&self) -> Char<'gc_life> {
             Char { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_char(&self) -> Char<'gc_life> {
+            Char { normal_object: todo!() }
         }
     }
 
@@ -1296,6 +1356,7 @@ pub mod float {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Float<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1304,6 +1365,12 @@ pub mod float {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_float(&self) -> Float<'gc_life> {
             Float { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_float(&self) -> Float<'gc_life> {
+            Float { normal_object: todo!() }
         }
     }
 
@@ -1338,6 +1405,7 @@ pub mod double {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct Double<'gc_life> {
         normal_object: GcManagedObject<'gc_life>,
@@ -1346,6 +1414,12 @@ pub mod double {
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_double(&self) -> Double<'gc_life> {
             Double { normal_object: self.unwrap_object_nonnull() }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_double(&self) -> Double<'gc_life> {
+            Double { normal_object: todo!() }
         }
     }
 

@@ -66,12 +66,12 @@ pub fn getstatic(
                 }])
         }
         Some((rc, loader)) => {
-            dbg!(name.0.to_str(&resolver.jvm.string_pool));
-            let field_id = resolver.get_field_id(rc, name);
+            let rc_type = resolver.get_cpdtype_id(&rc.cpdtype());
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::GetStatic {
-                        field_id,
+                        field_name: name,
+                        rc_type,
                         res_value: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                     }
                 }])

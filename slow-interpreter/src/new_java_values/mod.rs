@@ -118,6 +118,14 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
     pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, empty_byte_array: Arc<RuntimeClass<'gc_life>>) -> Self{
         Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class: empty_byte_array, elems: vec![] })))
     }
+
+    pub fn try_unwrap_object_alloc(self) -> Option<Option<AllocatedObjectHandle<'gc_life>>> {
+        match self {
+            NewJavaValueHandle::Null => Some(None),
+            NewJavaValueHandle::Object(obj) => Some(Some(obj)),
+            _ => None
+        }
+    }
 }
 
 
@@ -219,7 +227,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_bool_strict(&self) -> jboolean {
-        todo!()
+        match self {
+            NewJavaValue::Boolean(bool) => *bool,
+            _ => {
+                panic!()
+            }
+        }
     }
 
     pub fn unwrap_byte_strict(&self) -> jbyte {
@@ -584,7 +597,7 @@ pub struct AllocatedObjectHandle<'gc_life> {
     pub(crate) jvm: &'gc_life JVMState<'gc_life>,
     //todo move gc to same crate
     /*pub(in crate::java_values)*/
-    pub(crate) ptr: NonNull<c_void>,
+    pub ptr: NonNull<c_void>,
 }
 
 impl Eq for AllocatedObjectHandle<'_> {}

@@ -113,7 +113,7 @@ pub struct StaticVarGuard<'gc_life, 'l> {
 
 impl<'gc_life, 'l> StaticVarGuard<'gc_life, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc_life>> {
-        let cpd_type = self.types.get(&name).unwrap();
+        let cpd_type = self.types.get(&name)?;
         Some(self.data_guard.get(&name)?.to_new_java_value(cpd_type, self.jvm))
     }
 

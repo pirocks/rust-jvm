@@ -216,6 +216,8 @@ pub fn invokevirtual(
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let after_call_restart_point_id = restart_point_generator.new_restart_point();
+    let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
     let target_class_type = CPDType::Ref(classname_ref_type.clone());
     let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
 
@@ -228,11 +230,11 @@ pub fn invokevirtual(
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                 },
-            }]));
+            }, after_call_restart_point]));
     }
 
     let num_args = descriptor.arg_types.len();
-    if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(), method_name, descriptor.clone()) {
+    /*if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(), method_name, descriptor.clone()) {
         let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
         let res_pointer_offset = if descriptor.return_type != CompressedParsedDescriptorType::VoidType {
             Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
@@ -247,7 +249,7 @@ pub fn invokevirtual(
                 num_args: num_args as u16,
             }
         }]));
-    }
+    }*/
 
     let method_shape_id = resolver.lookup_virtual(target_class_type, method_name, descriptor.clone());
     // todo investigate size of table for invokevirtual without tagging.
@@ -257,7 +259,8 @@ pub fn invokevirtual(
             exit_type: IRVMExitType::InvokeVirtualResolve {
                 object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                 method_shape_id: resolver.lookup_method_shape(MethodShape { name: method_name, desc: descriptor.clone() }),
-                debug_target_method_id: usize::MAX,
+                native_restart_point: after_call_restart_point_id,
+                native_return_offset: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
             }
         },
         IRInstr::IRCall {
@@ -276,7 +279,8 @@ pub fn invokevirtual(
                 new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
             },
             current_frame_size: method_frame_data.full_frame_size(),
-        }]));
+        },
+        after_call_restart_point]));
 }
 
 pub fn invoke_interface(

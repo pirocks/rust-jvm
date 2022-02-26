@@ -26,10 +26,11 @@ use slow_interpreter::java::lang::long::Long;
 use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{run_static_or_virtual, string_obj_to_string, throw_npe};
 
 #[no_mangle]
@@ -123,15 +124,15 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
 unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let constructor_obj = match from_object(jvm, c) {
+    let constructor_obj = match from_object_new(jvm, c) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let signature_str_obj = constructor_obj.lookup_field(jvm, FieldName::field_signature());
-    let temp_4 = constructor_obj.lookup_field(jvm, FieldName::field_clazz());
-    let clazz = match class_object_to_runtime_class(&temp_4.to_new().cast_class().expect("todo"), jvm, int_state) {
+    let signature_str_obj = constructor_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_signature());
+    let temp_4 = constructor_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_clazz());
+    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -140,12 +141,13 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     if let Err(WasException {}) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
         return null_mut();
     };
+    let signature_object = match signature_str_obj.unwrap_object() {
+        None => return throw_npe(jvm, int_state),
+        Some(signature) => signature,
+    };
     let mut signature_str = string_obj_to_string(
         jvm,
-        match signature_str_obj.unwrap_object() {
-            None => return throw_npe(jvm, int_state),
-            Some(signature) => todo!()/*signature*/,
-        },
+        signature_object.as_allocated_obj(),
     );
     dbg!(&signature_str);
     dbg!(clazz.cpdtype().unwrap_class_type().0.to_str(&jvm.string_pool));
@@ -153,28 +155,28 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     let args = if args0.is_null() {
         vec![]
     } else {
-        let temp_1 = match from_object(jvm, args0) {
+        let temp_1 = match from_object_new(jvm, args0) {
             Some(x) => x,
             None => {
                 return throw_npe(jvm, int_state);
             }
         };
-        let elems_refcell = temp_1.unwrap_array();
+        let elems_refcell = temp_1.unwrap_array(jvm);
         elems_refcell
-            .array_iterator(jvm)
+            .array_iterator()
             .zip(parameter_types.iter())
             .map(|(arg, ptype)| {
                 //todo dupe with standard method invoke
                 match CPDType::from_ptype(ptype, &jvm.string_pool) {
-                    CompressedParsedDescriptorType::BooleanType => JavaValue::Boolean(arg.cast_boolean().inner_value(jvm)),
-                    CompressedParsedDescriptorType::ByteType => JavaValue::Byte(arg.cast_byte().inner_value(jvm)),
-                    CompressedParsedDescriptorType::ShortType => JavaValue::Short(arg.cast_short().inner_value(jvm)),
-                    CompressedParsedDescriptorType::CharType => JavaValue::Char(arg.cast_char().inner_value(jvm)),
-                    CompressedParsedDescriptorType::IntType => JavaValue::Int(arg.cast_int().inner_value(jvm)),
-                    CompressedParsedDescriptorType::LongType => JavaValue::Long(arg.cast_long().inner_value(jvm)),
-                    CompressedParsedDescriptorType::FloatType => JavaValue::Float(arg.cast_float().inner_value(jvm)),
-                    CompressedParsedDescriptorType::DoubleType => JavaValue::Double(arg.cast_double().inner_value(jvm)),
-                    _ => arg.clone(),
+                    CompressedParsedDescriptorType::BooleanType => NewJavaValueHandle::Boolean(arg.cast_boolean().inner_value(jvm)),
+                    CompressedParsedDescriptorType::ByteType => NewJavaValueHandle::Byte(arg.cast_byte().inner_value(jvm)),
+                    CompressedParsedDescriptorType::ShortType => NewJavaValueHandle::Short(arg.cast_short().inner_value(jvm)),
+                    CompressedParsedDescriptorType::CharType => NewJavaValueHandle::Char(arg.cast_char().inner_value(jvm)),
+                    CompressedParsedDescriptorType::IntType => NewJavaValueHandle::Int(arg.cast_int().inner_value(jvm)),
+                    CompressedParsedDescriptorType::LongType => NewJavaValueHandle::Long(arg.cast_long().inner_value(jvm)),
+                    CompressedParsedDescriptorType::FloatType => NewJavaValueHandle::Float(arg.cast_float().inner_value(jvm)),
+                    CompressedParsedDescriptorType::DoubleType => NewJavaValueHandle::Double(arg.cast_double().inner_value(jvm)),
+                    _ => arg,
                 }
             })
             .collect::<Vec<_>>()
@@ -184,9 +186,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool), //todo use from_leaacy instead
     };
     let obj = new_object(jvm, int_state, &clazz);
-    let mut full_args = vec![obj.to_jv().clone()];
-    full_args.extend(args.iter().cloned());
+    let mut full_args = vec![obj.new_java_value()];
+    full_args.extend(args.iter().map(|handle|handle.as_njv()));
     // dbg!(&full_args);
-    run_constructor(jvm, int_state, clazz, todo!()/*full_args*/, &signature);
-    new_local_ref_public(todo!()/*obj.unwrap_object()*/, int_state)
+    run_constructor(jvm, int_state, clazz, full_args, &signature);
+    new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }

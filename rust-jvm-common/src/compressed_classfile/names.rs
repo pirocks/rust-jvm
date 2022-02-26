@@ -219,6 +219,23 @@ impl CompressedClassName {
     pub const fn invokers() -> Self {
         Self::from_raw_id(JAVA_LANG_INVOKE_INVOKERS as AddOnlyVecIDType)
     }
+
+    pub const fn fast_charset_provider() -> Self {
+        Self::from_raw_id(SUN_NIO_CS_FAST_CHARSET_PROVIDER as AddOnlyVecIDType)
+    }
+
+    pub const fn standard_charsets() -> Self {
+        Self::from_raw_id(SUN_NIO_CS_STANDARD_CHARSETS as AddOnlyVecIDType)
+    }
+
+    pub const fn standard_charsets_cache() -> Self {
+        Self::from_raw_id(SUN_NIO_CS_STANDARD_CHARSETS_CACHE as AddOnlyVecIDType)
+    }
+
+    pub const fn pre_hashed_map() -> Self {
+        Self::from_raw_id(SUN_UTIL_PRE_HASHED_MAP as AddOnlyVecIDType)
+    }
+
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -281,6 +298,10 @@ enum PredefinedStrings {
     SUN_MISC_LAUNCHER_EXT_CLASS_LOADER,
     JAVA_LANG_LINKAGE_ERROR,
     JAVA_LANG_INVOKE_INVOKERS,
+    SUN_NIO_CS_FAST_CHARSET_PROVIDER,
+    SUN_NIO_CS_STANDARD_CHARSETS,
+    SUN_NIO_CS_STANDARD_CHARSETS_CACHE,
+    SUN_UTIL_PRE_HASHED_MAP,
     field_annotationData,
     field_annotationType,
     field_argCounts,
@@ -305,6 +326,7 @@ enum PredefinedStrings {
     field_form,
     field_function,
     field_genericInfo,
+    field_ht,
     field_and_method_getContextClassLoader,
     field_key,
     field_index,
@@ -539,7 +561,12 @@ impl PredefinedStrings {
             field_table => "table".to_string(),
             field_key => "key".to_string(),
             field_next => "next".to_string(),
-            field_hash => "hash".to_string()
+            field_hash => "hash".to_string(),
+            SUN_NIO_CS_FAST_CHARSET_PROVIDER => "sun/nio/cs/FastCharsetProvider".to_string(),
+            field_ht => "ht".to_string(),
+            SUN_NIO_CS_STANDARD_CHARSETS => "sun/nio/cs/StandardCharsets".to_string(),
+            SUN_NIO_CS_STANDARD_CHARSETS_CACHE => "sun/nio/cs/StandardCharsets$Cache".to_string(),
+            SUN_UTIL_PRE_HASHED_MAP => "sun/util/PreHashedMap".to_string()
         }
     }
 }
@@ -635,6 +662,9 @@ impl FieldName {
     }
     pub fn field_genericInfo() -> Self {
         Self::from_raw_id(field_genericInfo)
+    }
+    pub fn field_ht() -> Self {
+        Self::from_raw_id(field_ht)
     }
     pub fn field_getContextClassLoader() -> Self {
         Self::from_raw_id(field_and_method_getContextClassLoader)

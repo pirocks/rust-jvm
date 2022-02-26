@@ -245,7 +245,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 IRVMExitAction::RestartAtPtr { ptr } => {
                     launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(ptr), saved_registers_without_ip: None })
                 }
-                IRVMExitAction::RestartAtIRestartPoint { restart_point: _ } => {
+                IRVMExitAction::RestartAtIRestartPoint { restart_point:_ } => {
                     todo!()
                 }
                 IRVMExitAction::RestartWithRegisterState { diff } => {

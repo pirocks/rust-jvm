@@ -163,10 +163,13 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static sun.reflect.Reflection.verifyMemberAccess;
 
 public class DebuggingClass{
+    private static final int ROWS = 32;
+    private static final int SIZE = 39;
+    private static final int SHIFT = 1;
+    private static final int MASK = 0x1f;
     public static void main(String[] args) throws IllegalAccessException {
-        AtomicReferenceFieldUpdater.newUpdater(BufferedInputStream.class, byte[].class, "buf");
-        Reflection.ensureMemberAccess(AtomicReferenceFieldUpdater.class,BufferedInputStream.class,null,64);
-        /*final boolean res = verifyMemberAccess(AtomicReferenceFieldUpdater.class, BufferedInputStream.class, null, 64);
-        System.out.println(res);*/
+        final String key = "utf-8";
+        int h = key.hashCode() >> SHIFT & MASK;
+        System.out.println(h);
     }
 }

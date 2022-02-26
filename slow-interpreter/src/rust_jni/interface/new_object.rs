@@ -8,8 +8,8 @@ use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::interface::push_type_to_operand_stack;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut args: VaList) -> jobject {
@@ -34,12 +34,17 @@ pub unsafe fn new_object_impl(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmet
     let _name = method.name();
     let parsed = method.desc();
     let obj = new_object(jvm, int_state, &class);
-    int_state.push_current_operand_stack(obj.to_jv().clone());
+    let mut args = vec![];
+    let mut args_handle = vec![];
+    args.push(obj.new_java_value());
     for type_ in &parsed.arg_types {
-        push_type_to_operand_stack(jvm, int_state, type_, &mut l)
+        args_handle.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
-    if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), todo!()) {
+    for arg in args_handle.iter(){
+        args.push(arg.as_njv());
+    }
+    if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), args) {
         return null_mut();
     };
-    new_local_ref_public(obj.to_jv().unwrap_object(), int_state)
+    new_local_ref_public_new(obj.new_java_value().unwrap_object_alloc(), int_state)
 }

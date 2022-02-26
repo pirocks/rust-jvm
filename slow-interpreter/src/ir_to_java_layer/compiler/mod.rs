@@ -48,6 +48,7 @@ use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
+use crate::java::lang::byte::Byte;
 use crate::java_values::NativeJavaValue;
 use crate::jit::MethodResolver;
 use crate::jit::state::{Labeler, NaiveStackframeLayout};
@@ -191,7 +192,6 @@ impl<'l> CompilerLabeler<'l> {
         })
     }
 }
-
 
 pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();

@@ -55,7 +55,7 @@ pub type CCString = CompressedClassfileString;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub struct CompressedClassfileString {
-    id: AddOnlyId,
+    pub id: AddOnlyId,
 }
 
 impl CompressedClassfileString {
