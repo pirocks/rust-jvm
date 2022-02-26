@@ -6,12 +6,29 @@ use rust_jvm_common::MethodId;
 
 use crate::{IRMethodID, IRVMExitType};
 
+pub enum Size {
+    Byte,
+    X86Word,
+    X86DWord,
+    X86QWord,
+}
+
+pub enum Signed {
+    Signed,
+    Unsigned,
+}
+
+pub enum BitwiseLogicType {
+    Arithmetic,
+    Logical,
+}
+
 #[derive(Debug, Clone)]
 pub enum IRInstr {
-    LoadFPRelative { from: FramePointerOffset, to: Register },
+    LoadFPRelative { from: FramePointerOffset, to: Register, size: Size },
     LoadFPRelativeFloat { from: FramePointerOffset, to: FloatRegister },
     LoadFPRelativeDouble { from: FramePointerOffset, to: DoubleRegister },
-    StoreFPRelative { from: Register, to: FramePointerOffset },
+    StoreFPRelative { from: Register, to: FramePointerOffset, size: Size },
     StoreFPRelativeFloat { from: FloatRegister, to: FramePointerOffset },
     StoreFPRelativeDouble { from: DoubleRegister, to: FramePointerOffset },
     FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
@@ -19,28 +36,25 @@ pub enum IRInstr {
     FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
     IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
     IntegerToDoubleConvert { to: DoubleRegister, temp: MMRegister, from: Register },
-    Load { to: Register, from_address: Register },
-    Load32 { to: Register, from_address: Register },
-    Store { to_address: Register, from: Register },
+    Load { to: Register, from_address: Register, size: Size },
+    Store { to_address: Register, from: Register, size: Size },
     CopyRegister { from: Register, to: Register },
-    Add { res: Register, a: Register },
-    IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register },
+    Add { res: Register, a: Register, size: Size },
+    IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register, size: Size },
     AddFloat { res: FloatRegister, a: FloatRegister },
-    Sub { res: Register, to_subtract: Register },
-    Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
+    Sub { res: Register, to_subtract: Register, size: Size, signed: Signed },
+    Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     DivFloat { res: FloatRegister, divisor: FloatRegister },
-    Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
-    Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register },
+    Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
+    Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     MulFloat { res: FloatRegister, a: FloatRegister },
     MulDouble { res: DoubleRegister, a: DoubleRegister },
-    MulConst { res: Register, a: i32 },
-    ArithmeticShiftLeft { res: Register, a: Register, cl_aka_register_2: Register },
-    LogicalShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
-    ArithmeticShiftRight { res: Register, a: Register, cl_aka_register_2: Register },
-    BinaryBitAnd { res: Register, a: Register },
-    BinaryBitXor { res: Register, a: Register },
-    BinaryBitOr { res: Register, a: Register },
-    ForwardBitScan { to_scan: Register, res: Register },
+    MulConst { res: Register, a: i32, size: Size, signed: Signed },
+    ShiftLeft { res: Register, a: Register, cl_aka_register_2: Register, size: Size, signed: BitwiseLogicType },
+    ShiftRight { res: Register, a: Register, cl_aka_register_2: Register, size: Size, signed: BitwiseLogicType },
+    BinaryBitAnd { res: Register, a: Register, size: Size },
+    BinaryBitXor { res: Register, a: Register, size: Size },
+    BinaryBitOr { res: Register, a: Register, size: Size },
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
@@ -54,7 +68,7 @@ pub enum IRInstr {
     FloatCompare { value1: FloatRegister, value2: FloatRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName },
     BranchALessB { a: Register, b: Register, label: LabelName },
-    BoundsCheck { length: Register, index: Register },
+    BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
     RestartPoint(RestartPointID),
@@ -170,7 +184,7 @@ impl IRInstr {
                 "Return".to_string()
             }
             IRInstr::RestartPoint(id) => {
-                format!("RestartPoint #{}",id.0)
+                format!("RestartPoint #{}", id.0)
             }
             IRInstr::VMExit2 { exit_type } => {
                 format!("VMExit2-{}", match exit_type {
