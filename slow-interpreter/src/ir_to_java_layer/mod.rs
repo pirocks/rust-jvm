@@ -121,7 +121,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address } => {
-                eprintln!("AllocateObjectArray");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("AllocateObjectArray");
+                }
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 assert!(*len >= 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
@@ -139,8 +141,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr } => {
-                eprintln!("RunStaticNative");
-                int_state.debug_print_stack_trace(jvm);
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("RunStaticNative");
+                }
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let mut args_jv_handle = vec![];
                 let class_view = rc.view();
@@ -159,7 +162,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
-                if !jvm.trace_options.partial_tracing() {
+                if !jvm.instruction_trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -168,7 +171,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 todo!()
             }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
-                eprintln!("TopLevelReturn");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("TopLevelReturn");
+                }
                 IRVMExitAction::ExitVMCompletely { return_data: *return_value }
             }
             RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
@@ -176,7 +181,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 to_recompile,
                 restart_point
             } => {
-                eprintln!("CompileFunctionAndRecompileCurrent");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("CompileFunctionAndRecompileCurrent");
+                }
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
@@ -184,7 +191,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
-                eprintln!("PutStatic");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("PutStatic");
+                }
                 let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
                 let view = rc.view();
                 let field_view = view.field(field_i as usize);
@@ -201,7 +210,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp } => {
-                eprintln!("InitClassAndRecompile");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("InitClassAndRecompile");
+                }
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
                 let saved = int_state.frame_state_assert_save();
                 let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
@@ -209,16 +220,22 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
-                eprintln!("InitClassAndRecompile done");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("InitClassAndRecompile done");
+                }
                 IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
             RuntimeVMExitInput::LogFramePointerOffsetValue { value, return_to_ptr } => {
-                eprintln!("value:{}", value);
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("value:{}", value);
+                }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::LogWholeFrame { return_to_ptr } => {
-                eprintln!("LogWholeFrame");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("LogWholeFrame");
+                }
                 let current_frame = int_state.current_frame();
                 dbg!(current_frame.pc);
                 let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
@@ -242,7 +259,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), *bytecode_offset) {
                     eprintln!("here");
                 }
-                if !jvm.trace_options.partial_tracing() {
+                if !jvm.instruction_trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -255,7 +272,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let code = method_view.code_attribute().unwrap();
                 let instr = code.instructions.get(bytecode_offset).unwrap();
                 eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(*method_id, &jvm.string_pool), instr.info.better_debug_string(&jvm.string_pool));
-                if !jvm.trace_options.partial_tracing() {
+                if !jvm.instruction_trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
                 }
                 dump_frame_contents(jvm, int_state);
@@ -265,19 +282,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 int_state.debug_print_stack_trace(jvm);
                 todo!()
             }
-            RuntimeVMExitInput::BeforeReturn { return_to_ptr, frame_size_allegedly } => {
-                // int_state.debug_print_stack_trace(jvm, false);
-                let saved = int_state.frame_state_assert_save();
-                dbg!(saved);
-                int_state.current_frame().ir_stack_entry_debug_print();
-                if let Some(previous_frame) = int_state.previous_frame() {
-                    // previous_frame.ir_stack_entry_debug_print();
-                    dbg!(frame_size_allegedly);
-                }
-                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
-            }
             RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address } => {
-                eprintln!("AllocateObject");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("AllocateObject");
+                }
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
                 let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None, int_state.thread().java_tid);
@@ -291,7 +299,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
-                eprintln!("NewString");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("NewString");
+                }
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
                 let jv = jstring.new_java_value_handle();
@@ -302,7 +312,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr } => {
-                eprintln!("NewClass");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("NewClass");
+                }
                 let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(*type_).clone();
                 let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
                 let jv_new_handle = jclass.new_java_value_handle();
@@ -313,7 +325,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, native_method_restart_point, native_method_res } => {
-                eprintln!("InvokeVirtualResolve");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("InvokeVirtualResolve");
+                }
                 let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
                 let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(*method_shape_id);
                 //todo this is probably wrong what if there's a class with a same name private method?
@@ -352,7 +366,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         if let Some(res) = res {
                             unsafe { ((*native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                         };
-                        if !jvm.trace_options.partial_tracing() {
+                        if !jvm.instruction_trace_options.partial_tracing() {
                             jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                         }
                         let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, *native_method_restart_point);
@@ -393,7 +407,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
             }
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr } => {
-                eprintln!("MonitorEnter");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("MonitorEnter");
+                }
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
                 let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
@@ -401,7 +417,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr } => {
-                eprintln!("MonitorExit");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("MonitorExit");
+                }
                 let mut monitors_guard = jvm.object_monitors.write().unwrap();
                 let next_id = monitors_guard.len();
                 let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
@@ -409,7 +427,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_name, cpdtype_id, return_to_ptr } => {
-                eprintln!("GetStatic");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("GetStatic");
+                }
                 let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
                 let name = cpd_type.unwrap_class_type();
                 let static_var = get_static_impl(jvm, int_state, name, *field_name).unwrap().unwrap();
@@ -421,7 +441,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
             }
 
             RuntimeVMExitInput::InstanceOf { res, value, cpdtype_id, return_to_ptr } => {
-                eprintln!("InstanceOf");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("InstanceOf");
+                }
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
                 let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
@@ -432,7 +454,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr } => {
-                eprintln!("CheckCast");
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("CheckCast");
+                }
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
                 let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
@@ -449,8 +473,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr } => {
-                eprintln!("RunNativeSpecial");
-                int_state.debug_print_stack_trace(jvm);
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("RunNativeSpecial");
+                }
                 let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 let class_view = rc.view();
                 let method_view = class_view.method_view_i(method_i);
@@ -463,12 +488,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
                 };
-                if !jvm.trace_options.partial_tracing() {
+                if !jvm.instruction_trace_options.partial_tracing() {
                     jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
+                if jvm.exit_trace_options.tracing_enabled(){
+                    eprintln!("InvokeInterfaceResolve");
+                }
                 let obj_jv_handle = unsafe { (*object_ref).cast::<NativeJavaValue>().read() }.to_new_java_value(&CPDType::object(), jvm);
                 let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
                 let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(*target_method_id).unwrap();

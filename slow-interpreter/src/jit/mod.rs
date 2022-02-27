@@ -89,9 +89,6 @@ impl<'gc_life> MethodResolver<'gc_life> {
         assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let string_pool = &self.jvm.string_pool;
-        dbg!(name.0.to_str(string_pool));
-        dbg!(desc.jvm_representation(string_pool));
-        dbg!(view.name().unwrap_name().0.to_str(string_pool));
         let method_view = match view.lookup_method(name, &desc) {
             Some(x) => x,
             None => {

@@ -235,7 +235,6 @@ impl IRInstr {
                     IRVMExitType::LogWholeFrame { .. } => { "LogWholeFrame" }
                     IRVMExitType::TraceInstructionBefore { .. } => { "TraceInstructionBefore" }
                     IRVMExitType::TraceInstructionAfter { .. } => { "TraceInstructionAfter" }
-                    IRVMExitType::BeforeReturn { .. } => { "BeforeReturn" }
                     IRVMExitType::AllocateObject { .. } => { "AllocateObject" }
                     IRVMExitType::NewString { .. } => { "NewString" }
                     IRVMExitType::NewClass { .. } => { "NewClass" }

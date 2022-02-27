@@ -55,7 +55,7 @@ use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, UnAllocatedObject, UnAllocatedObjectObject};
-use crate::options::{JVMOptions, SharedLibraryPaths, TraceOptions};
+use crate::options::{JVMOptions, SharedLibraryPaths, InstructionTraceOptions, ExitTracingOptions};
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
 use crate::static_breakpoints::StaticBreakpoints;
@@ -111,7 +111,8 @@ pub struct JVMState<'gc_life> {
     pub object_monitors: RwLock<HashMap<*const c_void, Monitor2>>,
     pub static_breakpoints: StaticBreakpoints,
     pub method_shapes: MethodShapeIDs,
-    pub trace_options: TraceOptions
+    pub instruction_trace_options: InstructionTraceOptions,
+    pub exit_trace_options: ExitTracingOptions
 }
 
 pub struct Classes<'gc_life> {
@@ -240,7 +241,8 @@ impl<'gc_life> JVMState<'gc_life> {
             store_generated_classes,
             debug_print_exceptions,
             assertions_enabled,
-            trace_options,
+            instruction_trace_options,
+            exit_trace_options,
         } = jvm_options;
         let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
         let classpath_arc = Arc::new(classpath);
@@ -303,7 +305,8 @@ impl<'gc_life> JVMState<'gc_life> {
             object_monitors: Default::default(),
             static_breakpoints: StaticBreakpoints::new(),
             method_shapes: MethodShapeIDs::new(),
-            trace_options
+            instruction_trace_options,
+            exit_trace_options
         };
         (args, jvm)
     }

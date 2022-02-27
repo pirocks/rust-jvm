@@ -240,8 +240,6 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    int_state.debug_print_stack_trace(jvm);
-    dbg!(type_.jvm_representation(&jvm.string_pool));
     let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap();
     new_local_ref_public_new(jclass.unwrap_object_alloc(), int_state)
 }

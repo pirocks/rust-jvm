@@ -61,7 +61,6 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     dbg!(new);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
             return throw_npe(jvm, int_state);

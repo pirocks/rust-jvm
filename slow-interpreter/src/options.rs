@@ -23,33 +23,52 @@ pub struct JVMOptions {
     pub(crate) store_generated_classes: bool,
     pub(crate) debug_print_exceptions: bool,
     pub(crate) assertions_enabled: bool,
-    pub(crate) trace_options: TraceOptions
+    pub(crate) instruction_trace_options: InstructionTraceOptions,
+    pub(crate) exit_trace_options: ExitTracingOptions
 }
 
-pub enum  TraceOptions{
+pub enum ExitTracingOptions{
+    TraceAll,
+    TraceNone,
+    TraceSome(!)
+}
+
+impl ExitTracingOptions {
+    pub fn tracing_enabled(&self) -> bool{
+        match self {
+            ExitTracingOptions::TraceAll => true,
+            ExitTracingOptions::TraceNone => false,
+            ExitTracingOptions::TraceSome(_) => {
+                todo!()
+            }
+        }
+    }
+}
+
+pub enum InstructionTraceOptions {
     TraceAll,
     TraceNone,
     TraceMethods(!)
 }
 
-impl TraceOptions {
+impl InstructionTraceOptions {
     pub fn partial_tracing(&self) -> bool{
         match self {
-            TraceOptions::TraceAll => false,
-            TraceOptions::TraceNone => true,
-            TraceOptions::TraceMethods(_) => true
+            InstructionTraceOptions::TraceAll => false,
+            InstructionTraceOptions::TraceNone => true,
+            InstructionTraceOptions::TraceMethods(_) => true
         }
     }
 
     pub fn should_trace(&self, method_id: MethodId) -> bool {
         match self {
-            TraceOptions::TraceAll => {
+            InstructionTraceOptions::TraceAll => {
                 true
             }
-            TraceOptions::TraceNone => {
+            InstructionTraceOptions::TraceNone => {
                 false
             }
-            TraceOptions::TraceMethods(_) => {
+            InstructionTraceOptions::TraceMethods(_) => {
                 todo!()
             }
         }
@@ -70,7 +89,8 @@ impl JVMOptions {
             store_generated_classes,
             debug_print_exceptions,
             assertions_enabled,
-            trace_options: TraceOptions::TraceAll
+            instruction_trace_options: InstructionTraceOptions::TraceNone,
+            exit_trace_options: ExitTracingOptions::TraceNone
         }
     }
 }
