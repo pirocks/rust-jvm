@@ -4,7 +4,7 @@ use iced_x86::CC_b::c;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::{FloatRegister, Register};
-use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
+use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -82,8 +82,8 @@ pub fn ldc_float(method_frame_data: &JavaCompilerMethodAndFrameData,
                  float: f32) -> impl Iterator<Item=IRInstr> {
     let target_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
     array_into_iter([
-        IRInstr::Const32bit { to: Register(1), const_: dbg!(float).to_bits() },
-        IRInstr::StoreFPRelative { from: Register(1), to: target_offset },
+        IRInstr::Const32bit { to: Register(1), const_: float.to_bits() },
+        IRInstr::StoreFPRelative { from: Register(1), to: target_offset, size: Size::float() },
         IRInstr::LoadFPRelativeFloat { from: target_offset, to: FloatRegister(1) }
     ])
 }
@@ -93,7 +93,7 @@ pub fn ldc_integer(method_frame_data: &JavaCompilerMethodAndFrameData,
                    integer: i32) -> impl Iterator<Item=IRInstr> {
     array_into_iter([
         IRInstr::Const32bit { to: Register(1), const_: integer as u32 },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }])
 }
 
 pub fn ldc_double(method_frame_data: &JavaCompilerMethodAndFrameData,
@@ -101,7 +101,7 @@ pub fn ldc_double(method_frame_data: &JavaCompilerMethodAndFrameData,
                  float: f64) -> impl Iterator<Item=IRInstr> {
     array_into_iter([
         IRInstr::Const64bit { to: Register(1), const_: float.to_bits() },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::double() }])
 }
 
 pub fn ldc_long(method_frame_data: &JavaCompilerMethodAndFrameData,
@@ -109,5 +109,5 @@ pub fn ldc_long(method_frame_data: &JavaCompilerMethodAndFrameData,
                   long: i64) -> impl Iterator<Item=IRInstr> {
     array_into_iter([
         IRInstr::Const64bit { to: Register(1), const_: long as u64 },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }])
 }

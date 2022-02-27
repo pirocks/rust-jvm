@@ -1,5 +1,5 @@
 use another_jit_vm::{DoubleRegister, FloatRegister, Register};
-use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr};
+use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, Size};
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn fcmpg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
@@ -28,7 +28,7 @@ fn fcmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: 
             temp3: Register(4),
             compare_mode,
         },
-        IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::float() }
     ])
 }
 

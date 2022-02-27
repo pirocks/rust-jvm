@@ -1,5 +1,5 @@
 use another_jit_vm::Register;
-use another_jit_vm_ir::compiler::IRInstr;
+use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
@@ -7,10 +7,10 @@ pub fn ladd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let a = Register(1);
     let b = Register(2);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: a },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: b },
-        IRInstr::Add { res: b, a },
-        IRInstr::StoreFPRelative { from: b, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: a, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: b, size: Size::long() },
+        IRInstr::Add { res: b, a, size: Size::long() },
+        IRInstr::StoreFPRelative { from: b, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
     ])
 }
 
@@ -19,10 +19,10 @@ pub fn isub(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(1);
     let value1 = Register(2);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Sub { res: value1, to_subtract: value2 },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },
+        IRInstr::Sub { res: value1, to_subtract: value2, size: Size::int() },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
 
@@ -30,10 +30,10 @@ pub fn lsub(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(1);
     let value1 = Register(2);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Sub { res: value1, to_subtract: value2 },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::long() },
+        IRInstr::Sub { res: value1, to_subtract: value2, size: Size::long() },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
     ])
 }
 
@@ -42,10 +42,10 @@ pub fn iadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(1);
     let value1 = Register(2);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Add { res: value1, a: value2 },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },
+        IRInstr::Add { res: value1, a: value2, size: Size::int() },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
 
@@ -53,10 +53,10 @@ pub fn irem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(6);
     let value1 = Register(5);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Mod { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3) },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },
+        IRInstr::Mod { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3), size: Size::int(), signed: Signed::Signed },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
 
@@ -64,10 +64,10 @@ pub fn idiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(6);
     let value1 = Register(5);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Div { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3) },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },
+        IRInstr::Div { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3), size: Size::int(), signed: Signed::Signed },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
 
@@ -75,10 +75,10 @@ pub fn imul(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value2 = Register(6);
     let value1 = Register(5);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::Mul { res: value1, a: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3) },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },
+        IRInstr::Mul { res: value1, a: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3), size: Size::int(), signed: Signed::Signed },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
 
@@ -86,10 +86,10 @@ pub fn iinc(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let temp = Register(1);
     let const_register = Register(2);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.local_var_entry(current_instr_data.current_index, *index), to: temp },
+        IRInstr::LoadFPRelative { from: method_frame_data.local_var_entry(current_instr_data.current_index, *index), to: temp, size: Size::int() },
         IRInstr::Const64bit { to: const_register, const_: *const_ as i64 as u64 },
-        IRInstr::Add { res: temp, a: const_register },
-        IRInstr::StoreFPRelative { from: temp, to: method_frame_data.local_var_entry(current_instr_data.current_index, *index) }
+        IRInstr::Add { res: temp, a: const_register, size: Size::int() },
+        IRInstr::StoreFPRelative { from: temp, to: method_frame_data.local_var_entry(current_instr_data.current_index, *index), size: Size::int() }
     ])
 }
 
@@ -98,9 +98,9 @@ pub fn lcmp(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let value1 = Register(2);
     let res = Register(3);
     array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::IntCompare { value1, value2, temp1: Register(4), temp2: Register(5), res, temp3: Register(6) },
-        IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::long() },
+        IRInstr::IntCompare { value1, value2, temp1: Register(4), temp2: Register(5), res, temp3: Register(6), size: Size::long() },
+        IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
     ])
 }

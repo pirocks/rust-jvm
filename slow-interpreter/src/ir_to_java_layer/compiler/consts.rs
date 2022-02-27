@@ -1,5 +1,5 @@
 use another_jit_vm::Register;
-use another_jit_vm_ir::compiler::IRInstr;
+use another_jit_vm_ir::compiler::{IRInstr, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::java_values::NativeJavaValue;
@@ -10,18 +10,22 @@ pub fn const_64(method_frame_data: &JavaCompilerMethodAndFrameData, current_inst
 
     array_into_iter([
         IRInstr::Const64bit { to: const_register, const_: n },
-        IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) },
+        IRInstr::StoreFPRelative { from: const_register, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::X86QWord },
     ])
 }
 
 pub fn sipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, val: &u16) -> impl Iterator<Item=IRInstr> {
+    //todo needs to sign extend
+    todo!();
     array_into_iter([IRInstr::Const16bit { to: Register(1), const_: *val },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }])
 }
 
 pub fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, val_: &u8) -> impl Iterator<Item=IRInstr> {
+    //todo needs to sign extend
+    todo!();
     array_into_iter([IRInstr::Const32bit { to: Register(1), const_: *val_ as i8 as i32 as u32 },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }])
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }])
 }
 
 pub fn fconst(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, float_const: f32) -> impl Iterator<Item=IRInstr> {

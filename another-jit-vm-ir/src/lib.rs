@@ -13,7 +13,7 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, fword_ptr, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp};
+use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp, word_ptr};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
@@ -23,7 +23,7 @@ use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
-use crate::compiler::{FloatCompareMode, IRCallTarget};
+use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
 
@@ -245,7 +245,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 IRVMExitAction::RestartAtPtr { ptr } => {
                     launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(ptr), saved_registers_without_ip: None })
                 }
-                IRVMExitAction::RestartAtIRestartPoint { restart_point:_ } => {
+                IRVMExitAction::RestartAtIRestartPoint { restart_point: _ } => {
                     todo!()
                 }
                 IRVMExitAction::RestartWithRegisterState { diff } => {
@@ -322,69 +322,129 @@ fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRI
 fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, labels: &mut HashMap<LabelName, CodeLabel>,
                        restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) {
     match instruction {
-        IRInstr::LoadFPRelative { from, to } => {
+        IRInstr::LoadFPRelative { from, to, size } => {
             //stack grows down
-            assembler.mov(to.to_native_64(), rbp - from.0).unwrap();
+            match size {
+                Size::Byte => assembler.mov(to.to_native_8(), rbp - from.0).unwrap(),
+                Size::X86Word => assembler.mov(to.to_native_16(), rbp - from.0).unwrap(),
+                Size::X86DWord => assembler.mov(to.to_native_32(), rbp - from.0).unwrap(),
+                Size::X86QWord => assembler.mov(to.to_native_64(), rbp - from.0).unwrap()
+            }
         }
-        IRInstr::StoreFPRelative { from, to } => {
-            assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap();
+        IRInstr::StoreFPRelative { from, to, size } => {
+            match size {
+                Size::Byte => assembler.mov(byte_ptr(rbp - to.0), from.to_native_8()).unwrap(),
+                Size::X86Word => assembler.mov(word_ptr(rbp - to.0), from.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.mov(dword_ptr(rbp - to.0), from.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap(),
+            }
         }
-        IRInstr::Load { to, from_address } => {
-            assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap();
+        IRInstr::Load { to, from_address, size } => {
+            match size {
+                Size::Byte => assembler.mov(to.to_native_8(), from_address.to_native_64() + 0).unwrap(),
+                Size::X86Word => assembler.mov(to.to_native_16(), from_address.to_native_64() + 0).unwrap(),
+                Size::X86DWord => assembler.mov(to.to_native_32(), from_address.to_native_64() + 0).unwrap(),
+                Size::X86QWord => assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap(),
+            }
         }
-        IRInstr::Store { from, to_address } => {
-            assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap()
+        IRInstr::Store { from, to_address, size } => {
+            match size {
+                Size::Byte => assembler.mov(byte_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
+                Size::X86Word => assembler.mov(word_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
+                Size::X86DWord => assembler.mov(dword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
+                Size::X86QWord => assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
+            }
         }
         IRInstr::CopyRegister { .. } => todo!(),
-        IRInstr::Add { res, a } => {
-            assembler.add(res.to_native_64(), a.to_native_64()).unwrap()
+        IRInstr::Add { res, a, size } => {
+            match size {
+                Size::Byte => assembler.add(res.to_native_8(), a.to_native_8()).unwrap(),
+                Size::X86Word => assembler.add(res.to_native_16(), a.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.add(res.to_native_32(), a.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.add(res.to_native_64(), a.to_native_64()).unwrap(),
+            }
         }
-        IRInstr::Sub { res, to_subtract } => {
-            assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap()
+        IRInstr::Sub { res, to_subtract, size } => {
+            match size {
+                Size::Byte => assembler.sub(res.to_native_8(), to_subtract.to_native_8()).unwrap(),
+                Size::X86Word => assembler.sub(res.to_native_16(), to_subtract.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.sub(res.to_native_32(), to_subtract.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.sub(res.to_native_64(), to_subtract.to_native_64()).unwrap(),
+            }
         }
-        IRInstr::Div { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
+        IRInstr::Div { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed } => {
+            div_rem_common(assembler, res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed);
+            match size {
+                Size::Byte => assembler.mov(res.to_native_8(), al).unwrap(),
+                Size::X86Word => assembler.mov(res.to_native_16(), ax).unwrap(),
+                Size::X86DWord => assembler.mov(res.to_native_32(), eax).unwrap(),
+                Size::X86QWord => assembler.mov(res.to_native_64(), rax).unwrap(),
+            }
+        }
+        IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed } => {
+            div_rem_common(assembler, res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed);
+            match size {
+                Size::Byte => assembler.mov(res.to_native_8(), al).unwrap(),
+                Size::X86Word => assembler.mov(res.to_native_16(), ax).unwrap(),
+                Size::X86DWord => assembler.mov(res.to_native_32(), eax).unwrap(),
+                Size::X86QWord => assembler.mov(res.to_native_64(), rax).unwrap(),
+            }
+        }
+        IRInstr::Mul { res, a, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed } => {
             assert_eq!(must_be_rax.0, 0);
             assert_eq!(must_be_rdx.to_native_64(), rdx);
             assert_eq!(must_be_rbx.to_native_64(), rbx);
             assert_eq!(must_be_rcx.to_native_64(), rcx);
-            assembler.mov(rax, res.to_native_64()).unwrap();
+            match size {
+                Size::Byte => assembler.mov(al, res.to_native_8()).unwrap(),
+                Size::X86Word => assembler.mov(ax, res.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.mov(eax, res.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.mov(rax, res.to_native_64()).unwrap(),
+            }
             assembler.mov(rbx, 0u64).unwrap();
             assembler.mov(rcx, 0u64).unwrap();
             assembler.mov(rdx, 0u64).unwrap();
-            assembler.idiv(divisor.to_native_64()).unwrap();
-            assembler.mov(res.to_native_64(), rax).unwrap();
-        },
-        IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
-            assert_eq!(must_be_rax.0, 0);
-            assert_eq!(must_be_rdx.to_native_64(), rdx);
-            assert_eq!(must_be_rbx.to_native_64(), rbx);
-            assert_eq!(must_be_rcx.to_native_64(), rcx);
-            assembler.mov(rax, res.to_native_64()).unwrap();
-            assembler.mov(rbx, 0u64).unwrap();
-            assembler.mov(rcx, 0u64).unwrap();
-            assembler.mov(rdx, 0u64).unwrap();
-            assembler.idiv(divisor.to_native_64()).unwrap();
-            assembler.mov(res.to_native_64(), rdx).unwrap();
+            match signed {
+                Signed::Signed => {
+                    match size {
+                        Size::Byte => assembler.imul(a.to_native_8()).unwrap(),
+                        Size::X86Word => assembler.imul(a.to_native_16()).unwrap(),
+                        Size::X86DWord => assembler.imul(a.to_native_32()).unwrap(),
+                        Size::X86QWord => assembler.imul(a.to_native_64()).unwrap(),
+                    }
+                }
+                Signed::Unsigned => {
+                    match size {
+                        Size::Byte => assembler.mul(a.to_native_8()).unwrap(),
+                        Size::X86Word => assembler.mul(a.to_native_16()).unwrap(),
+                        Size::X86DWord => assembler.mul(a.to_native_32()).unwrap(),
+                        Size::X86QWord => assembler.mul(a.to_native_64()).unwrap(),
+                    }
+                }
+            }
+            match size {
+                Size::Byte => assembler.mov(res.to_native_8(), al).unwrap(),
+                Size::X86Word => assembler.mov(res.to_native_16(), ax).unwrap(),
+                Size::X86DWord => assembler.mov(res.to_native_32(), eax).unwrap(),
+                Size::X86QWord => assembler.mov(res.to_native_64(), rax).unwrap(),
+            }
         }
-        IRInstr::Mul { res, a, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx } => {
-            assert_eq!(must_be_rax.0, 0);
-            assert_eq!(must_be_rdx.to_native_64(), rdx);
-            assert_eq!(must_be_rbx.to_native_64(), rbx);
-            assert_eq!(must_be_rcx.to_native_64(), rcx);
-            assembler.mov(rax, res.to_native_64()).unwrap();
-            assembler.mov(rbx, 0u64).unwrap();
-            assembler.mov(rcx, 0u64).unwrap();
-            assembler.mov(rdx, 0u64).unwrap();
-            assembler.imul(a.to_native_64()).unwrap();
-            assembler.mov(res.to_native_64(), rax).unwrap();
+        IRInstr::BinaryBitAnd { res, a, size } => {
+            match size {
+                Size::Byte => assembler.and(res.to_native_8(), a.to_native_8()).unwrap(),
+                Size::X86Word => assembler.and(res.to_native_16(), a.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.and(res.to_native_32(), a.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.and(res.to_native_64(), a.to_native_64()).unwrap(),
+            }
         }
-        IRInstr::BinaryBitAnd { res, a } => {
-            assembler.and(res.to_native_64(), a.to_native_64()).unwrap()
+        IRInstr::BinaryBitXor { res, a, size } => {
+            match size {
+                Size::Byte => assembler.xor(res.to_native_8(), a.to_native_8()).unwrap(),
+                Size::X86Word => assembler.xor(res.to_native_16(), a.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.xor(res.to_native_32(), a.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.xor(res.to_native_64(), a.to_native_64()).unwrap(),
+            }
         }
-        IRInstr::BinaryBitXor { res, a } => {
-            assembler.xor(res.to_native_64(), a.to_native_64()).unwrap()
-        }
-        IRInstr::ForwardBitScan { .. } => todo!(),
         IRInstr::Const32bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_).unwrap();
         }
@@ -398,27 +458,57 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
-        IRInstr::BranchEqual { a, b, label } => {
+        IRInstr::BranchEqual { a, b, label, size } => {
+            match size {
+                Size::Byte => todo!(),
+                Size::X86Word => todo!(),
+                Size::X86DWord => todo!(),
+                Size::X86QWord => todo!(),
+            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.je(*code_label).unwrap();
         }
-        IRInstr::BranchNotEqual { a, b, label, } => {
+        IRInstr::BranchNotEqual { a, b, label, size, } => {
+            match size {
+                Size::Byte => todo!(),
+                Size::X86Word => todo!(),
+                Size::X86DWord => todo!(),
+                Size::X86QWord => todo!(),
+            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jne(*code_label).unwrap();
         }
-        IRInstr::BranchAGreaterEqualB { a, b, label } => {
+        IRInstr::BranchAGreaterEqualB { a, b, label, size } => {
+            match size {
+                Size::Byte => todo!(),
+                Size::X86Word => todo!(),
+                Size::X86DWord => todo!(),
+                Size::X86QWord => todo!(),
+            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jge(*code_label).unwrap();
         }
-        IRInstr::BranchAGreaterB { a, b, label } => {
+        IRInstr::BranchAGreaterB { a, b, label, size } => {
+            match size {
+                Size::Byte => todo!(),
+                Size::X86Word => todo!(),
+                Size::X86DWord => todo!(),
+                Size::X86QWord => todo!(),
+            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jg(*code_label).unwrap();
         }
-        IRInstr::BranchALessB { a, b, label } => {
+        IRInstr::BranchALessB { a, b, label, size } => {
+            match size {
+                Size::Byte => todo!(),
+                Size::X86Word => todo!(),
+                Size::X86DWord => todo!(),
+                Size::X86QWord => todo!(),
+            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
             assembler.jl(*code_label).unwrap();
@@ -556,49 +646,73 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::DebuggerBreakpoint => {
             assembler.int3().unwrap();
         }
-        IRInstr::Load32 { to, from_address } => {
-            assembler.mov(to.to_native_32(), qword_ptr(from_address.to_native_64())).unwrap();
-        }
         IRInstr::Const16bit { const_, to } => {
             assembler.mov(to.to_native_32(), *const_ as u32).unwrap()
         }
-        IRInstr::ArithmeticShiftLeft { res, a, cl_aka_register_2 } => {
+        IRInstr::ShiftLeft { res, a, cl_aka_register_2, size, signed } => {
             assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
             assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
-            assembler.sal(res.to_native_64(), code_asm::cl).unwrap();
+            match signed {
+                BitwiseLogicType::Arithmetic => match size {
+                    Size::Byte => assembler.sal(res.to_native_8(), code_asm::cl).unwrap(),
+                    Size::X86Word => assembler.sal(res.to_native_16(), code_asm::cl).unwrap(),
+                    Size::X86DWord => assembler.sal(res.to_native_32(), code_asm::cl).unwrap(),
+                    Size::X86QWord => assembler.sal(res.to_native_64(), code_asm::cl).unwrap(),
+                },
+                BitwiseLogicType::Logical => match size {
+                    Size::Byte => assembler.shl(res.to_native_8(), code_asm::cl).unwrap(),
+                    Size::X86Word => assembler.shl(res.to_native_16(), code_asm::cl).unwrap(),
+                    Size::X86DWord => assembler.shl(res.to_native_32(), code_asm::cl).unwrap(),
+                    Size::X86QWord => assembler.shl(res.to_native_64(), code_asm::cl).unwrap(),
+                },
+            }
         }
-        IRInstr::LogicalShiftRight { res, a, cl_aka_register_2 } => {
+        IRInstr::ShiftRight { res, a, cl_aka_register_2, size, signed } => {
             assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
             assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
-            assembler.shr(res.to_native_64(), code_asm::cl).unwrap();
+            match signed {
+                BitwiseLogicType::Arithmetic => match size {
+                    Size::Byte => assembler.sar(res.to_native_8(), code_asm::cl).unwrap(),
+                    Size::X86Word => assembler.sar(res.to_native_16(), code_asm::cl).unwrap(),
+                    Size::X86DWord => assembler.sar(res.to_native_32(), code_asm::cl).unwrap(),
+                    Size::X86QWord => assembler.sar(res.to_native_64(), code_asm::cl).unwrap(),
+                }
+                BitwiseLogicType::Logical => match size {
+                    Size::Byte => assembler.shr(res.to_native_8(), code_asm::cl).unwrap(),
+                    Size::X86Word => assembler.shr(res.to_native_16(), code_asm::cl).unwrap(),
+                    Size::X86DWord => assembler.shr(res.to_native_32(), code_asm::cl).unwrap(),
+                    Size::X86QWord => assembler.shr(res.to_native_64(), code_asm::cl).unwrap(),
+                }
+            }
         }
-        IRInstr::ArithmeticShiftRight { res, a, cl_aka_register_2 } => {
-            assert_eq!(cl_aka_register_2.to_native_8(), code_asm::cl);
-            assembler.mov(code_asm::cl, a.to_native_8()).unwrap();
-            assembler.sar(res.to_native_64(), code_asm::cl).unwrap();
-        }
-        IRInstr::BoundsCheck { length, index } => {
+        IRInstr::BoundsCheck { length, index, size } => {
             let mut not_out_of_bounds = assembler.create_label();
-            assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap();
+            match size {
+                Size::Byte => assembler.cmp(index.to_native_8(), length.to_native_8()).unwrap(),
+                Size::X86Word => assembler.cmp(index.to_native_16(), length.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.cmp(index.to_native_32(), length.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap(),
+            }
             assembler.jl(not_out_of_bounds.clone()).unwrap();
             assembler.int3().unwrap();//todo
             assembler.set_label(&mut not_out_of_bounds).unwrap();
             assembler.nop().unwrap();
         }
-        IRInstr::MulConst { res, a } => {
-            assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()
+        IRInstr::MulConst { res, a, size, signed } => {
+            assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap();
+            todo!(" need to handle sizgned and sized")
         }
         IRInstr::LoadFPRelativeDouble { from, to } => {
-            assembler.vmovsd(to.to_xmm(), dword_ptr(rbp - from.0)).unwrap();
+            assembler.vmovsd(to.to_xmm(), rbp - from.0).unwrap();
         }
         IRInstr::StoreFPRelativeDouble { from, to } => {
-            assembler.vmovsd(dword_ptr(rbp - to.0), from.to_xmm()).unwrap();
+            assembler.vmovsd(rbp - to.0, from.to_xmm()).unwrap();
         }
         IRInstr::LoadFPRelativeFloat { from, to } => {
-            assembler.movss(to.to_xmm(), fword_ptr(rbp - from.0)).unwrap();
+            assembler.movss(to.to_xmm(), rbp - from.0).unwrap();
         }
         IRInstr::StoreFPRelativeFloat { from, to } => {
-            assembler.movss(fword_ptr(rbp - to.0), from.to_xmm()).unwrap();
+            assembler.movss(rbp - to.0, from.to_xmm()).unwrap();
         }
         IRInstr::DoubleToIntegerConvert { from, temp, to } => {
             assembler.cvtpd2pi(temp.to_mm(), from.to_xmm()).unwrap();
@@ -668,7 +782,7 @@ SF = 0;
             assembler.cmovnz(res.to_native_64(), saved.to_native_64()).unwrap();
             assembler.nop().unwrap();
         }
-        IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3 } => {
+        IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3, size } => {
             assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap();
             assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
             assembler.mov(temp1.to_native_64(), 1u64).unwrap();
@@ -687,14 +801,53 @@ SF = 0;
         IRInstr::AddFloat { res, a } => {
             assembler.addss(res.to_xmm(), a.to_xmm()).unwrap();
         }
-        IRInstr::BinaryBitOr { res, a } => {
-            assembler.or(res.to_native_64(), a.to_native_64()).unwrap();
+        IRInstr::BinaryBitOr { res, a, size } => {
+            match size {
+                Size::Byte => assembler.or(res.to_native_8(), a.to_native_8()).unwrap(),
+                Size::X86Word => assembler.or(res.to_native_16(), a.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.or(res.to_native_32(), a.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.or(res.to_native_64(), a.to_native_64()).unwrap(),
+            }
         }
         IRInstr::FloatToDoubleConvert { from, to } => {
-            assembler.cvtpd2ps(to.to_xmm(),from.to_xmm()).unwrap();
+            assembler.cvtpd2ps(to.to_xmm(), from.to_xmm()).unwrap();
         }
         IRInstr::MulDouble { res, a } => {
-            assembler.mulpd(res.to_xmm(),a.to_xmm()).unwrap();
+            assembler.mulpd(res.to_xmm(), a.to_xmm()).unwrap();
+        }
+    }
+}
+
+fn div_rem_common(assembler: &mut CodeAssembler, res: &Register, divisor: &Register, must_be_rax: &Register, must_be_rbx: &Register, must_be_rcx: &Register, must_be_rdx: &Register, size: &Size, signed: &Signed) {
+    assert_eq!(must_be_rax.0, 0);
+    assert_eq!(must_be_rdx.to_native_64(), rdx);
+    assert_eq!(must_be_rbx.to_native_64(), rbx);
+    assert_eq!(must_be_rcx.to_native_64(), rcx);
+    match size {
+        Size::Byte => assembler.mov(al, res.to_native_8()).unwrap(),
+        Size::X86Word => assembler.mov(ax, res.to_native_16()).unwrap(),
+        Size::X86DWord => assembler.mov(eax, res.to_native_32()).unwrap(),
+        Size::X86QWord => assembler.mov(rax, res.to_native_64()).unwrap(),
+    }
+    assembler.mov(rbx, 0u64).unwrap();
+    assembler.mov(rcx, 0u64).unwrap();
+    assembler.mov(rdx, 0u64).unwrap();
+    match signed {
+        Signed::Signed => {
+            match size {
+                Size::Byte => assembler.idiv(divisor.to_native_8()).unwrap(),
+                Size::X86Word => assembler.idiv(divisor.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.idiv(divisor.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.idiv(divisor.to_native_64()).unwrap(),
+            }
+        }
+        Signed::Unsigned => {
+            match size {
+                Size::Byte => assembler.div(divisor.to_native_8()).unwrap(),
+                Size::X86Word => assembler.div(divisor.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.div(divisor.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.div(divisor.to_native_64()).unwrap(),
+            }
         }
     }
 }

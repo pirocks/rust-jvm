@@ -6,6 +6,7 @@ use rust_jvm_common::MethodId;
 
 use crate::{IRMethodID, IRVMExitType};
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Size {
     Byte,
     X86Word,
@@ -13,11 +14,47 @@ pub enum Size {
     X86QWord,
 }
 
+impl Size {
+    pub const fn int() -> Self {
+        Self::X86DWord
+    }
+
+    pub const fn float() -> Self {
+        Self::X86DWord
+    }
+
+    pub const fn short() -> Self {
+        Self::X86Word
+    }
+
+    pub const fn char() -> Self {
+        Self::X86Word
+    }
+
+    pub const fn byte() -> Self {
+        Self::Byte
+    }
+
+    pub const fn pointer() -> Self {
+        Self::X86QWord
+    }
+
+    pub const fn double() -> Self {
+        Self::X86QWord
+    }
+
+    pub const fn long() -> Self {
+        Self::X86QWord
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Signed {
     Signed,
     Unsigned,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum BitwiseLogicType {
     Arithmetic,
     Logical,
@@ -42,7 +79,7 @@ pub enum IRInstr {
     Add { res: Register, a: Register, size: Size },
     IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register, size: Size },
     AddFloat { res: FloatRegister, a: FloatRegister },
-    Sub { res: Register, to_subtract: Register, size: Size, signed: Signed },
+    Sub { res: Register, to_subtract: Register, size: Size },
     Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     DivFloat { res: FloatRegister, divisor: FloatRegister },
     Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
@@ -62,12 +99,12 @@ pub enum IRInstr {
     LoadLabel { label: LabelName, to: Register },
     LoadRBP { to: Register },
     WriteRBP { from: Register },
-    BranchEqual { a: Register, b: Register, label: LabelName },
-    BranchNotEqual { a: Register, b: Register, label: LabelName },
-    BranchAGreaterB { a: Register, b: Register, label: LabelName },
     FloatCompare { value1: FloatRegister, value2: FloatRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
-    BranchAGreaterEqualB { a: Register, b: Register, label: LabelName },
-    BranchALessB { a: Register, b: Register, label: LabelName },
+    BranchEqual { a: Register, b: Register, label: LabelName, size: Size },
+    BranchNotEqual { a: Register, b: Register, label: LabelName, size: Size },
+    BranchAGreaterB { a: Register, b: Register, label: LabelName, size: Size },
+    BranchAGreaterEqualB { a: Register, b: Register, label: LabelName, size: Size },
+    BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
     BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
@@ -152,9 +189,6 @@ impl IRInstr {
             }
             IRInstr::BinaryBitAnd { .. } => {
                 "BinaryBitAnd".to_string()
-            }
-            IRInstr::ForwardBitScan { .. } => {
-                "ForwardBitScan".to_string()
             }
             IRInstr::Const32bit { .. } => {
                 "Const32bit".to_string()
@@ -241,9 +275,6 @@ impl IRInstr {
             IRInstr::DebuggerBreakpoint => {
                 "DebuggerBreakpoint".to_string()
             }
-            IRInstr::Load32 { .. } => {
-                "Load32".to_string()
-            }
             IRInstr::Const16bit { .. } => {
                 "Const16bit".to_string()
             }
@@ -255,9 +286,6 @@ impl IRInstr {
             }
             IRInstr::BranchAGreaterEqualB { .. } => {
                 "BranchAGreaterEqualB".to_string()
-            }
-            IRInstr::ArithmeticShiftLeft { .. } => {
-                "LogicalShiftLeft".to_string()
             }
             IRInstr::BoundsCheck { .. } => {
                 "BoundsCheck".to_string()
@@ -283,9 +311,6 @@ impl IRInstr {
             IRInstr::MulFloat { .. } => {
                 "MulFloat".to_string()
             }
-            IRInstr::LogicalShiftRight { .. } => {
-                "LogicalShiftRight".to_string()
-            }
             IRInstr::BinaryBitXor { .. } => {
                 "BinaryBitXor".to_string()
             }
@@ -294,9 +319,6 @@ impl IRInstr {
             }
             IRInstr::AddFloat { .. } => {
                 "AddFloat".to_string()
-            }
-            IRInstr::ArithmeticShiftRight { .. } => {
-                "ArithmeticShiftRight".to_string()
             }
             IRInstr::IntCompare { .. } => {
                 "IntCompare".to_string()
@@ -321,6 +343,12 @@ impl IRInstr {
             }
             IRInstr::MulDouble { .. } => {
                 "MulDouble".to_string()
+            }
+            IRInstr::ShiftLeft { .. } => {
+                "ShiftLeft".to_string()
+            }
+            IRInstr::ShiftRight { .. } => {
+                "ShiftRight".to_string()
             }
         }
     }
