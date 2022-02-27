@@ -47,8 +47,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
             dbg!("null");
         }
     }
-    let _ = properties.get_property(jvm, int_state, key).unwrap().unwrap().new_java_value_handle().unwrap_object().unwrap();
-    panic!();
+    // let _ = properties.get_property(jvm, int_state, key).unwrap().unwrap().new_java_value_handle().unwrap_object().unwrap();
     /*let key = key.new_java_value();
     let handle = invoke_virtual_method_i(
         jvm,

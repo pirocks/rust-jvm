@@ -804,7 +804,7 @@ SF = 0;
             }
         }
         IRInstr::FloatToDoubleConvert { from, to } => {
-            assembler.cvtpd2ps(to.to_xmm(), from.to_xmm()).unwrap();
+            assembler.cvtps2pd(to.to_xmm(), from.to_xmm()).unwrap();
         }
         IRInstr::MulDouble { res, a } => {
             assembler.mulpd(res.to_xmm(), a.to_xmm()).unwrap();

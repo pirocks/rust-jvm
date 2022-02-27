@@ -10,6 +10,10 @@ pub fn castore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
     array_store_impl(method_frame_data, current_instr_data, Size::char())
 }
 
+pub fn bastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data, Size::byte())
+}
+
 pub fn iastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data,Size::int())
 }
