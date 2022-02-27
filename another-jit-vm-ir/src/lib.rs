@@ -459,58 +459,28 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::LoadRBP { .. } => todo!(),
         IRInstr::WriteRBP { .. } => todo!(),
         IRInstr::BranchEqual { a, b, label, size } => {
-            match size {
-                Size::Byte => todo!(),
-                Size::X86Word => todo!(),
-                Size::X86DWord => todo!(),
-                Size::X86QWord => todo!(),
-            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            sized_integer_compare(assembler, a, b, size);
             assembler.je(*code_label).unwrap();
         }
         IRInstr::BranchNotEqual { a, b, label, size, } => {
-            match size {
-                Size::Byte => todo!(),
-                Size::X86Word => todo!(),
-                Size::X86DWord => todo!(),
-                Size::X86QWord => todo!(),
-            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            sized_integer_compare(assembler, a, b, size);
             assembler.jne(*code_label).unwrap();
         }
         IRInstr::BranchAGreaterEqualB { a, b, label, size } => {
-            match size {
-                Size::Byte => todo!(),
-                Size::X86Word => todo!(),
-                Size::X86DWord => todo!(),
-                Size::X86QWord => todo!(),
-            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            sized_integer_compare(assembler, a, b, size);
             assembler.jge(*code_label).unwrap();
         }
         IRInstr::BranchAGreaterB { a, b, label, size } => {
-            match size {
-                Size::Byte => todo!(),
-                Size::X86Word => todo!(),
-                Size::X86DWord => todo!(),
-                Size::X86QWord => todo!(),
-            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            sized_integer_compare(assembler, a, b, size);
             assembler.jg(*code_label).unwrap();
         }
         IRInstr::BranchALessB { a, b, label, size } => {
-            match size {
-                Size::Byte => todo!(),
-                Size::X86Word => todo!(),
-                Size::X86DWord => todo!(),
-                Size::X86QWord => todo!(),
-            }
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
-            assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
+            sized_integer_compare(assembler, a, b, size);
             assembler.jl(*code_label).unwrap();
         }
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
@@ -699,8 +669,24 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.nop().unwrap();
         }
         IRInstr::MulConst { res, a, size, signed } => {
-            assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap();
-            todo!(" need to handle sizgned and sized")
+            match signed {
+                Signed::Signed => {
+                    match size {
+                        Size::Byte => todo!(),
+                        Size::X86Word => todo!(),
+                        Size::X86DWord => todo!(),
+                        Size::X86QWord => assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap(),
+                    }
+                }
+                Signed::Unsigned => {
+                    match size {
+                        Size::Byte => todo!(),
+                        Size::X86Word => todo!(),
+                        Size::X86DWord => todo!(),
+                        Size::X86QWord => todo!()/*assembler.imul_3(res.to_native_64(), res.to_native_64(), *a).unwrap()*/,
+                    }
+                }
+            }
         }
         IRInstr::LoadFPRelativeDouble { from, to } => {
             assembler.vmovsd(to.to_xmm(), rbp - from.0).unwrap();
@@ -815,6 +801,15 @@ SF = 0;
         IRInstr::MulDouble { res, a } => {
             assembler.mulpd(res.to_xmm(), a.to_xmm()).unwrap();
         }
+    }
+}
+
+fn sized_integer_compare(assembler: &mut CodeAssembler, a: &Register, b: &Register, size: &Size) {
+    match size {
+        Size::Byte => todo!(),
+        Size::X86Word => todo!(),
+        Size::X86DWord => assembler.cmp(a.to_native_32(), b.to_native_32()).unwrap(),
+        Size::X86QWord => assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap(),
     }
 }
 

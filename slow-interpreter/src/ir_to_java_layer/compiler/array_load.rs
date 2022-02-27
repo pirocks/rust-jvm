@@ -37,7 +37,7 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
         IRInstr::Load { to: length, from_address: array_ref, size: Size::int() },
         IRInstr::Add { res: array_ref, a: native_jv_size_register, size: Size::pointer() },
         IRInstr::BoundsCheck { length, index, size: Size::int() },
-        IRInstr::MulConst { res: index, a: native_jv_size as i32, size: Size::pointer(), signed: Signed::Unsigned },
+        IRInstr::MulConst { res: index, a: native_jv_size as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
         IRInstr::Load { to: res, from_address: array_ref, size: elem_size },
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: elem_size }

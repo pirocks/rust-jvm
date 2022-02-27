@@ -441,7 +441,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 }
             }
             CompressedInstructionInfo::sipush(val) => {
-                this_function_ir.extend(sipush(method_frame_data, &current_instr_data, val))
+                this_function_ir.extend(sipush(method_frame_data, &current_instr_data, *val))
             }
             CompressedInstructionInfo::iload_0 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 0))
@@ -477,7 +477,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(lcmp(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::bipush(val_) => {
-                this_function_ir.extend(bipush(method_frame_data, current_instr_data, val_))
+                this_function_ir.extend(bipush(method_frame_data, current_instr_data, *val_))
             }
             CompressedInstructionInfo::lshl => {
                 this_function_ir.extend(lshl(method_frame_data, current_instr_data))
