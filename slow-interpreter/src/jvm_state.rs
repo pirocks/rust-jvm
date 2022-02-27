@@ -54,7 +54,7 @@ use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, UnAllocatedObject, UnAllocatedObjectObject};
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedObjectHandleByAddress, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::options::{JVMOptions, SharedLibraryPaths, InstructionTraceOptions, ExitTracingOptions};
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
@@ -102,7 +102,7 @@ pub struct JVMState<'gc_life> {
     pub live: AtomicBool,
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, MethodId>>,
     pub include_name_field: AtomicBool,
-    pub stacktraces_by_throwable: RwLock<HashMap<ByAddress<GcManagedObject<'gc_life>>, Vec<StackTraceElement<'gc_life>>>>,
+    pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc_life>, Vec<StackTraceElement<'gc_life>>>>,
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,

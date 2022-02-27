@@ -1,6 +1,8 @@
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 use by_address::ByAddress;
+use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::attribute_view::SourceFileView;
@@ -11,27 +13,35 @@ use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::new_java_values::AllocatedObjectHandleByAddress;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
+
+struct OwnedStackEntry<'gc_life>{
+    declaring_class: Arc<RuntimeClass<'gc_life>>,
+    line_number: jint,
+    class_name_wtf8: Wtf8Buf,
+    method_name_wtf8: Wtf8Buf,
+    source_file_name_wtf8: Wtf8Buf,
+}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
     //todo handle opaque frames properly
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let stacktrace = int_state.cloned_stack_snapshot(jvm);
-
+    let stacktrace = int_state.frame_iter().collect_vec();
     let stack_entry_objs = stacktrace
         .iter()
         .map(|stack_entry| {
-            let declaring_class = match stack_entry.try_class_pointer() {
+            let declaring_class = match stack_entry.try_class_pointer(jvm) {
                 None => return Ok(None),
                 Some(declaring_class) => declaring_class,
             };
 
             let declaring_class_view = declaring_class.view();
-            let method_view = declaring_class_view.method_view_i(stack_entry.method_i());
+            let method_view = declaring_class_view.method_view_i(stack_entry.method_i(jvm));
             let file = match declaring_class_view.sourcefile_attr() {
                 None => "unknown_source".to_string(),
                 Some(sourcefile) => sourcefile.file(),
@@ -42,27 +52,36 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                     //todo have a lookup function for this
                     let mut cur_line = -1;
                     for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
-                        if (*start_pc) <= stack_entry.pc() {
-                            cur_line = *line_number as jint;
+                        if let Some(pc) = stack_entry.try_pc(jvm){
+                            if (*start_pc) <= pc.0 {
+                                cur_line = *line_number as jint;
+                            }
                         }
                     }
                     cur_line
                 }
             };
-            let declaring_class_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation()))?;
-            let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool)))?;
-            let source_file_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(file))?;
-
-            Ok(Some(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?))
+            let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
+            let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
+            let source_file_name_wtf8 = Wtf8Buf::from_string(file);
+            Ok(Some(OwnedStackEntry{ declaring_class,  line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
         .collect::<Result<Vec<Option<_>>, WasException>>()
         .expect("todo")
         .into_iter()
         .flatten()
-        .collect::<Vec<_>>();
+        .map(|OwnedStackEntry{ declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }|{
+            let declaring_class_name = JString::from_rust(jvm, int_state, class_name_wtf8)?;
+            let method_name = JString::from_rust(jvm, int_state, method_name_wtf8)?;
+            let source_file_name = JString::from_rust(jvm, int_state, source_file_name_wtf8)?;
+
+            Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
+        })
+        .collect::<Result<Vec<_>,WasException>>().expect("todo");
+
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
     stack_traces_guard.insert(
-        ByAddress(match from_object(jvm, throwable) {
+        AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
             Some(x) => x,
             None => {
                 return throw_npe(jvm, int_state);
@@ -76,7 +95,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
 unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jobject) -> jint {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(jvm, throwable) {
+    match jvm.stacktraces_by_throwable.read().unwrap().get(&AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -92,7 +111,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&ByAddress(match from_object(jvm, throwable) {
+    match match jvm.stacktraces_by_throwable.read().unwrap().get(&AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
@@ -602,6 +603,7 @@ pub struct AllocatedObjectHandle<'gc_life> {
 
 impl Eq for AllocatedObjectHandle<'_> {}
 
+
 impl<'gc_life> PartialEq for AllocatedObjectHandle<'gc_life> {
     fn eq(&self, other: &Self) -> bool {
         self.ptr == other.ptr
@@ -644,13 +646,30 @@ impl Debug for AllocatedObjectHandle<'_> {
     }
 }
 
-
 impl Drop for AllocatedObjectHandle<'_> {
     fn drop(&mut self) {
         self.jvm.gc.deregister_root_reentrant(self.ptr)
     }
 }
 
+
+pub struct AllocatedObjectHandleByAddress<'gc_life>(pub AllocatedObjectHandle<'gc_life>);
+
+impl Hash for AllocatedObjectHandleByAddress<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_usize(self.0.ptr.as_ptr() as usize);
+    }
+}
+
+impl PartialEq for AllocatedObjectHandleByAddress<'_>{
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr == other.0.ptr
+    }
+}
+
+impl Eq for AllocatedObjectHandleByAddress<'_>{
+
+}
 
 pub enum AllocatedObjectCOW<'gc_life, 'k> {
     Handle(AllocatedObjectHandle<'gc_life>),

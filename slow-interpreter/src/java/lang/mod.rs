@@ -46,25 +46,33 @@ pub mod stack_trace_element {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+    use crate::NewJavaValue;
 
-    #[derive(Clone)]
     pub struct StackTraceElement<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_stack_trace_element(&self) -> StackTraceElement<'gc_life> {
-            StackTraceElement { normal_object: self.unwrap_object_nonnull() }
+            todo!()
+            /*StackTraceElement { normal_object: self.unwrap_object_nonnull() }*/
+        }
+    }
+
+    impl <'gc_life> AllocatedObjectHandle<'gc_life> {
+        pub fn cast_stack_trace_element(self) -> StackTraceElement<'gc_life> {
+            StackTraceElement{ normal_object: self }
         }
     }
 
     impl<'gc_life> StackTraceElement<'gc_life> {
         pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, declaring_class: JString<'gc_life>, method_name: JString<'gc_life>, file_name: JString<'gc_life>, line_number: jint) -> Result<StackTraceElement<'gc_life>, WasException> {
             let class_ = check_initing_or_inited_class(jvm, int_state, CClassName::stack_trace_element().into())?;
-            let res = new_object(jvm, int_state, &class_).to_jv();
-            let full_args = vec![res.clone(), declaring_class.new_java_value_handle().to_jv(), method_name.new_java_value_handle().to_jv(), file_name.new_java_value_handle().to_jv(), JavaValue::Int(line_number)];
+            let res = new_object(jvm, int_state, &class_);
+            let full_args = vec![res.new_java_value(), declaring_class.new_java_value(), method_name.new_java_value(), file_name.new_java_value(), NewJavaValue::Int(line_number)];
             let desc = CMethodDescriptor::void_return(vec![CClassName::string().into(), CClassName::string().into(), CClassName::string().into(), CPDType::IntType]);
-            run_constructor(jvm, int_state, class_, todo!()/*full_args*/, &desc)?;
+            run_constructor(jvm, int_state, class_, full_args, &desc)?;
             Ok(res.cast_stack_trace_element())
         }
 

@@ -647,6 +647,7 @@ pub enum RuntimeVMExitInput {
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
+    Throw {},
     GetStatic {
         res_value_ptr: *mut c_void,
         field_name: FieldName,
@@ -849,7 +850,7 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::Throw => {
-                todo!()
+                RuntimeVMExitInput::Throw {}
             }
             RawVMExitType::GetStatic => {
                 RuntimeVMExitInput::GetStatic {

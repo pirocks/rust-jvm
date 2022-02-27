@@ -971,6 +971,10 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         self.pc.unwrap()
     }
 
+    pub fn try_pc(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<ByteCodeOffset> {
+        self.pc
+    }
+
     pub fn pc_offset(&self) -> i32 {
         /*match self {
             /*StackEntryRef::LegacyInterpreter { entry, .. } => { entry.pc_offset() }*/

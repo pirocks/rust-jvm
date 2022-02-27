@@ -525,6 +525,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                 }
             }
+            RuntimeVMExitInput::Throw { .. } => {
+                todo!()
+            }
         }
     }
 
