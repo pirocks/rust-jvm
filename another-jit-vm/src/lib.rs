@@ -18,7 +18,7 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10d, r10w, r11, r11d, r11w, r12, r12d, r12w, r13, r13d, r13w, r14, r14d, r14w, r15, r8, r8d, r8w, r9, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10b, r10d, r10w, r11, r11b, r11d, r11w, r12, r12b, r12d, r12w, r13, r13b, r13d, r13w, r14, r14b, r14d, r14w, r15, r8, r8b, r8d, r8w, r9, r9b, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
@@ -106,6 +106,13 @@ impl Register {
             1 => bl,
             2 => cl,
             3 => dl,
+            4 => r8b,
+            5 => r9b,
+            6 => r10b,
+            7 => r11b,
+            8 => r12b,
+            9 => r13b,
+            10 => r14b,
             _ => todo!(),
         }
     }

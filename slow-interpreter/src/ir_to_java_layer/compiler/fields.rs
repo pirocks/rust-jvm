@@ -9,6 +9,7 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::class_loading::get_field_numbers;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
@@ -29,6 +30,17 @@ pub const fn field_type_to_size(cpd_type: &CPDType) -> Size{
         CPDType::DoubleType => Size::X86QWord,
         CPDType::VoidType => panic!(),
         CPDType::Ref(_) => Size::pointer()
+    }
+}
+
+pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size{
+    match rtype {
+        RuntimeType::IntType => Size::int(),
+        RuntimeType::FloatType => Size::float(),
+        RuntimeType::DoubleType => Size::double(),
+        RuntimeType::LongType => Size::long(),
+        RuntimeType::Ref(_) => Size::pointer(),
+        RuntimeType::TopType => panic!()
     }
 }
 
@@ -150,7 +162,7 @@ pub fn getfield(
                 IRInstr::Const64bit { to: offset, const_: (field_number.0 * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
-                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: field_size },
+                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) },
                 if field_type.try_unwrap_class_type().is_some() {
                     checkcast_impl(resolver.get_cpdtype_id(field_type), to_get_value_offset)
                 } else {

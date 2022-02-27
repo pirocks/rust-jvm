@@ -13,7 +13,7 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
-use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp, word_ptr};
+use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dl, dword_ptr, dx, eax, edx, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp, word_ptr};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
@@ -323,9 +323,11 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
                        restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) {
     match instruction {
         IRInstr::LoadFPRelative { from, to, size } => {
-            //stack grows down
+            assembler.sub(to.to_native_64(), to.to_native_64()).unwrap();
             match size {
-                Size::Byte => assembler.mov(to.to_native_8(), rbp - from.0).unwrap(),
+                Size::Byte => {
+                    assembler.mov(to.to_native_8(), rbp - from.0).unwrap();
+                }
                 Size::X86Word => assembler.mov(to.to_native_16(), rbp - from.0).unwrap(),
                 Size::X86DWord => assembler.mov(to.to_native_32(), rbp - from.0).unwrap(),
                 Size::X86QWord => assembler.mov(to.to_native_64(), rbp - from.0).unwrap()
@@ -333,21 +335,27 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::StoreFPRelative { from, to, size } => {
             match size {
-                Size::Byte => assembler.mov(byte_ptr(rbp - to.0), from.to_native_8()).unwrap(),
-                Size::X86Word => assembler.mov(word_ptr(rbp - to.0), from.to_native_16()).unwrap(),
-                Size::X86DWord => assembler.mov(dword_ptr(rbp - to.0), from.to_native_32()).unwrap(),
-                Size::X86QWord => assembler.mov(qword_ptr(rbp - to.0), from.to_native_64()).unwrap(),
+                Size::Byte => {
+                    assembler.mov(byte_ptr(rbp - to.0), from.to_native_8()).unwrap()
+                }
+                Size::X86Word => assembler.mov(rbp - to.0, from.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.mov(rbp - to.0, from.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.mov(rbp - to.0, from.to_native_64()).unwrap(),
             }
         }
         IRInstr::Load { to, from_address, size } => {
+            assembler.sub(to.to_native_64(), to.to_native_64()).unwrap();
             match size {
-                Size::Byte => assembler.mov(to.to_native_8(), from_address.to_native_64() + 0).unwrap(),
+                Size::Byte => {
+                    assembler.mov(to.to_native_8(), from_address.to_native_64() + 0).unwrap();
+                }
                 Size::X86Word => assembler.mov(to.to_native_16(), from_address.to_native_64() + 0).unwrap(),
                 Size::X86DWord => assembler.mov(to.to_native_32(), from_address.to_native_64() + 0).unwrap(),
                 Size::X86QWord => assembler.mov(to.to_native_64(), from_address.to_native_64() + 0).unwrap(),
             }
         }
         IRInstr::Store { from, to_address, size } => {
+            //todo in future will need to make size actually respected here and not zx
             match size {
                 Size::Byte => assembler.mov(byte_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
                 Size::X86Word => assembler.mov(word_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
@@ -384,10 +392,10 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::Mod { res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed } => {
             div_rem_common(assembler, res, divisor, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed);
             match size {
-                Size::Byte => assembler.mov(res.to_native_8(), al).unwrap(),
-                Size::X86Word => assembler.mov(res.to_native_16(), ax).unwrap(),
-                Size::X86DWord => assembler.mov(res.to_native_32(), eax).unwrap(),
-                Size::X86QWord => assembler.mov(res.to_native_64(), rax).unwrap(),
+                Size::Byte => assembler.mov(res.to_native_8(), dl).unwrap(),
+                Size::X86Word => assembler.mov(res.to_native_16(), dx).unwrap(),
+                Size::X86DWord => assembler.mov(res.to_native_32(), edx).unwrap(),
+                Size::X86QWord => assembler.mov(res.to_native_64(), rdx).unwrap(),
             }
         }
         IRInstr::Mul { res, a, must_be_rax, must_be_rbx, must_be_rcx, must_be_rdx, size, signed } => {
@@ -804,20 +812,12 @@ SF = 0;
     }
 }
 
-fn sized_integer_compare(assembler: &mut CodeAssembler, a: &Register, b: &Register, size: &Size) {
-    match size {
-        Size::Byte => todo!(),
-        Size::X86Word => todo!(),
-        Size::X86DWord => assembler.cmp(a.to_native_32(), b.to_native_32()).unwrap(),
-        Size::X86QWord => assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap(),
-    }
-}
-
 fn div_rem_common(assembler: &mut CodeAssembler, res: &Register, divisor: &Register, must_be_rax: &Register, must_be_rbx: &Register, must_be_rcx: &Register, must_be_rdx: &Register, size: &Size, signed: &Signed) {
     assert_eq!(must_be_rax.0, 0);
     assert_eq!(must_be_rdx.to_native_64(), rdx);
     assert_eq!(must_be_rbx.to_native_64(), rbx);
     assert_eq!(must_be_rcx.to_native_64(), rcx);
+    assembler.sub(rax,rax).unwrap();
     match size {
         Size::Byte => assembler.mov(al, res.to_native_8()).unwrap(),
         Size::X86Word => assembler.mov(ax, res.to_native_16()).unwrap(),
@@ -844,6 +844,15 @@ fn div_rem_common(assembler: &mut CodeAssembler, res: &Register, divisor: &Regis
                 Size::X86QWord => assembler.div(divisor.to_native_64()).unwrap(),
             }
         }
+    }
+}
+
+fn sized_integer_compare(assembler: &mut CodeAssembler, a: &Register, b: &Register, size: &Size) {
+    match size {
+        Size::Byte => todo!(),
+        Size::X86Word => todo!(),
+        Size::X86DWord => assembler.cmp(a.to_native_32(), b.to_native_32()).unwrap(),
+        Size::X86QWord => assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap(),
     }
 }
 

@@ -190,8 +190,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let field_view = view.field(field_i as usize);
                 let mut static_vars_guard = rc.static_vars(jvm);
                 let field_name = field_view.field_name();
-                dbg!(field_name.0.to_str(&jvm.string_pool));
-                dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                 let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc_life>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
                 if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
                     let rc = alloc.runtime_class(jvm);
