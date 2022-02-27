@@ -15,7 +15,7 @@ use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
@@ -23,93 +23,92 @@ use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_boolean()
+    java_value.as_njv().unwrap_bool_strict()
 }
 
 pub unsafe extern "C" fn get_byte_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jbyte {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_byte()
+    java_value.as_njv().unwrap_byte_strict()
 }
 
 pub unsafe extern "C" fn get_short_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jshort {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_short()
+    java_value.as_njv().unwrap_short_strict()
 }
 
 pub unsafe extern "C" fn get_char_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jchar {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_char()
+    java_value.as_njv().unwrap_char_strict()
 }
 
 pub unsafe extern "C" fn get_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_int() as jint
+    java_value.as_njv().unwrap_int_strict() as jint
 }
 
 pub unsafe extern "C" fn get_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_long() as jlong
+    java_value.as_njv().unwrap_long_strict() as jlong
 }
 
 pub unsafe extern "C" fn get_float_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jfloat {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_float()
+    java_value.as_njv().unwrap_float_strict()
 }
 
 pub unsafe extern "C" fn get_double_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jdouble {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.unwrap_double()
+    java_value.as_njv().unwrap_double_strict()
 }
 
 pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
     let int_state = get_interpreter_state(env);
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
-        Err(WasException {}) => ExceptionReturn::invalid_default(),
+        Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
 
-    new_local_ref_public(java_value.unwrap_object(), int_state)
+    new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
-unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<JavaValue<'gc_life>, WasException> {
+unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
     let view = &rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = match from_object(jvm, obj) {
+    let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
         None => {
             throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
     };
-    let normal_obj = notnull.unwrap_normal_object();
-    Ok(normal_obj.get_var(jvm, rc, name).clone())
+    Ok(notnull.as_allocated_obj().get_var(jvm, &rc, name))
 }
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {

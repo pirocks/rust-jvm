@@ -605,7 +605,7 @@ impl CompressedInstructionInfo {
                 format!("{:?}", self)
             }
             CompressedInstructionInfo::lookupswitch(_) => {
-                todo!()
+                format!("{:?}", self)
             }
             CompressedInstructionInfo::lor => {
                 format!("{:?}", self)

@@ -7,6 +7,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
+use rust_jvm_common::classfile::InstructionInfo::dup;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -67,7 +68,8 @@ pub fn putfield(
             }]))
         }
         Some((rc, _)) => {
-            let (field_number, field_type) = rc.unwrap_class_class().field_numbers.get(&name).unwrap();
+            let string_pool = &resolver.jvm.string_pool;
+            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(),name);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);

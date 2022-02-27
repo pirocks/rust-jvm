@@ -95,6 +95,7 @@ pub enum IRInstr {
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
+    SignExtend { from: Register, to: Register, from_size:Size, to_size: Size },
     BranchToLabel { label: LabelName },
     LoadLabel { label: LabelName, to: Register },
     LoadRBP { to: Register },
@@ -349,6 +350,9 @@ impl IRInstr {
             }
             IRInstr::ShiftRight { .. } => {
                 "ShiftRight".to_string()
+            }
+            IRInstr::SignExtend { .. } => {
+                "SignExtend".to_string()
             }
         }
     }

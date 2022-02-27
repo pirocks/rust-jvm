@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use iced_x86::{BlockEncoder, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
+use iced_x86::CC_be::na;
 use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
 use itertools::Itertools;
 use memoffset::offset_of;
@@ -87,7 +88,18 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
         let view = rc.view();
-        let method_view = view.lookup_method(name, &desc).unwrap();
+        let string_pool = &self.jvm.string_pool;
+        dbg!(name.0.to_str(string_pool));
+        dbg!(desc.jvm_representation(string_pool));
+        dbg!(view.name().unwrap_name().0.to_str(string_pool));
+        let method_view = match view.lookup_method(name, &desc) {
+            Some(x) => x,
+            None => {
+                let super_name =  view.super_name().unwrap();
+                assert_inited_or_initing_class(self.jvm,super_name.clone().into());
+                return self.lookup_static(super_name.into(),name,desc);
+            },
+        };
         assert!(method_view.is_static());
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))

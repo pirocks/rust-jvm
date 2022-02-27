@@ -31,15 +31,15 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let non_null_array_obj = match from_object(jvm, array) {
+    let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
             return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
-    let array = non_null_array_obj.unwrap_array();
+    let array = non_null_array_obj.unwrap_array(jvm);
     for i in 0..len {
-        let elem = T::from(array.get_i(jvm, start + i).unwrap_int()).unwrap();
+        let elem = T::from(array.get_i((start + i) as usize).as_njv().unwrap_int()).unwrap();
         buf.offset(i as isize).write(elem)
     }
 }

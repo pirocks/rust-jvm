@@ -124,3 +124,27 @@ pub fn if_null(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
         }
     ])
 }
+
+pub fn lookup_switch(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, pairs: &Vec<(i32, i32)>, default: &i32) -> impl Iterator<Item=IRInstr> {
+    let mut res = vec![];
+    let key_register = Register(1);
+    res.push(IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: key_register, size: Size::int() });
+    for (key, offset) in pairs {
+        let current_key_register = Register(2);
+        let target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + offset) as u16);
+        let target_label = current_instr_data.compiler_labeler.label_at(target_offset);
+        res.push(IRInstr::Const32bit { to: current_key_register, const_: *key as u32 });
+        res.push(IRInstr::BranchEqual {
+            a: key_register,
+            b: current_key_register,
+            label: target_label,
+            size: Size::int()
+        });
+    }
+    //todo dup have a lable_at_offset which does this addition
+    let default_target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + default) as u16);
+    let default_target_label = current_instr_data.compiler_labeler.label_at(default_target_offset);
+    res.push(IRInstr::BranchToLabel { label: default_target_label });
+    let iter = res.into_iter();
+    iter
+}

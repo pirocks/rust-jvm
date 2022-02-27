@@ -2,56 +2,57 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jflo
 
 use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::NewJavaValue;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
-unsafe fn set_field<'gc_life>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: JavaValue<'gc_life>) {
+unsafe fn set_field<'gc_life>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: NewJavaValue<'gc_life,'_>) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
-    let notnull = match from_object(jvm, obj) {
+    let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    notnull.unwrap_normal_object().set_var(rc, name, val);
+    notnull.as_allocated_obj().set_var(&rc, name, val);
 }
 
 pub unsafe extern "C" fn set_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jboolean) {
-    set_field(env, obj, field_id_raw, JavaValue::Boolean(val))
+    set_field(env, obj, field_id_raw, NewJavaValue::Boolean(val))
 }
 
 pub unsafe extern "C" fn set_byte_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jbyte) {
-    set_field(env, obj, field_id_raw, JavaValue::Byte(val))
+    set_field(env, obj, field_id_raw, NewJavaValue::Byte(val))
 }
 
 pub unsafe extern "C" fn set_short_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jshort) {
-    set_field(env, obj, field_id_raw, JavaValue::Short(val))
+    set_field(env, obj, field_id_raw, NewJavaValue::Short(val))
 }
 
 pub unsafe extern "C" fn set_char_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jchar) {
-    set_field(env, obj, field_id_raw, JavaValue::Char(val))
+    set_field(env, obj, field_id_raw, NewJavaValue::Char(val))
 }
 
 pub unsafe extern "C" fn set_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jint) {
-    set_field(env, obj, field_id_raw, JavaValue::Int(val));
+    set_field(env, obj, field_id_raw, NewJavaValue::Int(val));
 }
 
 pub unsafe extern "C" fn set_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jlong) {
-    set_field(env, obj, field_id_raw, JavaValue::Long(val));
+    set_field(env, obj, field_id_raw, NewJavaValue::Long(val));
 }
 
 pub unsafe extern "C" fn set_float_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jfloat) {
-    set_field(env, obj, field_id_raw, JavaValue::Float(val));
+    set_field(env, obj, field_id_raw, NewJavaValue::Float(val));
 }
 
 pub unsafe extern "C" fn set_double_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jdouble) {
-    set_field(env, obj, field_id_raw, JavaValue::Double(val));
+    set_field(env, obj, field_id_raw, NewJavaValue::Double(val));
 }
 
 pub unsafe extern "C" fn set_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jobject) {
-    set_field(env, obj, field_id_raw, JavaValue::Object(from_object(get_state(env), val)));
+    set_field(env, obj, field_id_raw, NewJavaValueHandle::from_optional_object(from_object_new(get_state(env), val)).as_njv());
 }
 
 pub unsafe extern "C" fn set_static_boolean_field(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: jboolean) {

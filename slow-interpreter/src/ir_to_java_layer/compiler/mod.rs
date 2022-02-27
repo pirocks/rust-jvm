@@ -3,13 +3,14 @@ use std::ffi::c_void;
 use std::iter;
 use std::mem::size_of;
 use std::sync::Arc;
+use std::vec::IntoIter;
 
 use iced_x86::CC_be::na;
 use itertools::{Either, Itertools};
 use libc::input_absinfo;
 
 use another_jit_vm::{FloatRegister, MMRegister, Register};
-use another_jit_vm_ir::compiler::{FloatCompareMode, IRCallTarget, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID};
+use another_jit_vm_ir::compiler::{FloatCompareMode, IRCallTarget, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID, Size};
 use another_jit_vm_ir::compiler::IRInstr::{IRCall, VMExit2};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, IRVMExitType};
@@ -17,7 +18,7 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::{Atype, Code, IInc};
+use rust_jvm_common::classfile::{Atype, Code, IInc, LookupSwitch};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -33,13 +34,14 @@ use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lshl};
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, ReferenceComparisonType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
 use crate::ir_to_java_layer::compiler::float_arithmetic::{dmul, fadd, fcmpg, fcmpl, fdiv, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{d2i, f2d, f2i, i2d, i2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
+use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l};
 use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
@@ -424,11 +426,13 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(newarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, atype))
             }
             CompressedInstructionInfo::i2l => {
-                //TODO bug there are places where we don't sign extend properly
-                //for now does nothing but should really store ints as  actual 32 bit ints so in future todo
+                this_function_ir.extend(i2l(method_frame_data, &current_instr_data));
             }
             CompressedInstructionInfo::i2c => {
-                //todo
+                this_function_ir.extend(i2c(method_frame_data, &current_instr_data));
+            }
+            CompressedInstructionInfo::i2b => {
+                this_function_ir.extend(i2b(method_frame_data, &current_instr_data));
             }
             CompressedInstructionInfo::ldc2_w(ldc2) => {
                 match ldc2 {
@@ -693,6 +697,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     }
                 }
             }
+            CompressedInstructionInfo::lookupswitch(LookupSwitch{ pairs, default }) => {
+                this_function_ir.extend(lookup_switch(method_frame_data, current_instr_data, pairs, default));
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -711,6 +718,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     }
     final_ir
 }
+
 
 
 pub mod float_convert;
@@ -734,6 +742,7 @@ pub mod array_store;
 pub mod ldc;
 pub mod arithmetic;
 pub mod bitmanip;
+pub mod int_convert;
 
 pub fn array_into_iter<T, const N: usize>(array: [T; N]) -> impl Iterator<Item=T> {
     <[T; N]>::into_iter(array)

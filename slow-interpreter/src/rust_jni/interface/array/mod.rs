@@ -6,26 +6,27 @@ use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::{JavaValue, Object};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use crate::utils::{throw_illegal_arg, throw_npe};
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let temp = match from_object(jvm, array) {
+    let temp = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let non_null_array: &Object = temp.deref();
-    let len = match non_null_array {
+    return temp.unwrap_array(jvm).len() as jsize;
+    // let non_null_array: &Object = temp.deref();
+    /*let len = match non_null_array {
         Object::Array(a) => a.len(),
         Object::Object(_o) => {
             return throw_illegal_arg(jvm, int_state);
         }
     };
-    len as jsize
+    len as jsize*/
 }
 
 pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
