@@ -39,14 +39,6 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let properties = prop_obj.cast_properties();
     let table = properties.table(jvm);
     let table_array = table.unwrap_array(jvm);
-    for value in table_array.array_iterator() {
-        if let Some(notnull) = value.unwrap_object(){
-            let entry = notnull.cast_entry();
-            dbg!(entry.hash(jvm));
-        }else {
-            dbg!("null");
-        }
-    }
     // let _ = properties.get_property(jvm, int_state, key).unwrap().unwrap().new_java_value_handle().unwrap_object().unwrap();
     /*let key = key.new_java_value();
     let handle = invoke_virtual_method_i(

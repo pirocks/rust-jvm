@@ -54,11 +54,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 
 #[no_mangle]
 unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
-    dbg!(the_unsafe);
-    dbg!(target_obj);
-    dbg!(offset);
-    dbg!(expected);
-    dbg!(new);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
@@ -81,12 +76,12 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
             Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
             Err(WasException {}) => return jboolean::MAX,
         };
-        dbg!(field_name.0.to_str(&jvm.string_pool));
         let curval = notnull.as_allocated_obj().get_var(jvm, &rc, field_name);
         let expected = from_object_new(jvm, expected);
         let (should_replace, new) = do_swap(curval.as_njv(), expected, new.as_njv());
+        //todo make this a real compare and swap
         notnull.as_allocated_obj().set_var(&rc, field_name, new);
-        dbg!(should_replace)
+        should_replace
     }
 }
 

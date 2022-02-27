@@ -354,7 +354,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     } else {
                         //is native should run native method
                         //todo duplicated
-                        eprintln!("RunNativeVirtual");
+                        if jvm.exit_trace_options.tracing_enabled() {
+                            eprintln!("RunNativeVirtual");
+                        }
                         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                         let class_view = rc.view();
                         let method_view = class_view.method_view_i(method_i);
