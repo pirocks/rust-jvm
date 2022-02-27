@@ -684,7 +684,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let method_name = method_view.name().0.to_str(&jvm.string_pool);
         let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
         let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
-        eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
+        // eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let current_frame_pointer = int_state.current_frame().frame_view.ir_ref.frame_ptr();
         let assert_data = int_state.frame_state_assert_save_from(current_frame_pointer);
@@ -697,7 +697,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
         let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
-        eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
+        // eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         res
     }
 

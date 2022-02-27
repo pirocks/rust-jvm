@@ -322,8 +322,8 @@ impl<'gc_life> ThreadState<'gc_life> {
     fn thread_start_impl<'l>(jvm: &'gc_life JVMState<'gc_life>, java_thread: Arc<JavaThread<'gc_life>>, loader_name: LoaderName) {
         let java_thread_clone: Arc<JavaThread<'gc_life>> = java_thread.clone();
         // let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
-        let state = Some(java_thread_clone.interpreter_state.lock().unwrap());
-        let mut interpreter_state_guard: InterpreterStateGuard = todo!()/*InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state)*/; // { int_state: , thread: &java_thread };
+        let state = java_thread_clone.interpreter_state.lock().unwrap();
+        let mut interpreter_state_guard: InterpreterStateGuard = InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state); // { int_state: , thread: &java_thread };
         interpreter_state_guard.register_interpreter_state_guard(jvm);
 
         if let Some(jvmti) = jvm.jvmti_state() {

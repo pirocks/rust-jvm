@@ -409,7 +409,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         };
         let self_: &'l VMState<'vm_life, T, ExtraData> = self;
         let iterator: LaunchedVM<'vm_life, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, extra, pending_exit: false };
-        eprintln!("==== VM Start ====");
+        // eprintln!("==== VM Start ====");
         return iterator;
     }
 }
