@@ -125,6 +125,12 @@ impl GetStatic {
     pub const CPDTYPE_ID: Register = Register(5);
 }
 
+pub struct Throw;
+
+impl Throw {
+    pub const EXCEPTION_PTR: Register = Register(2);
+}
+
 pub struct InitClassAndRecompile;
 
 impl InitClassAndRecompile {
@@ -368,7 +374,9 @@ pub enum IRVMExitType {
     MonitorExit {
         obj: FramePointerOffset
     },
-    Throw {},
+    Throw {
+        to_throw_obj_offset: FramePointerOffset
+    },
 }
 
 impl IRVMExitType {
@@ -493,8 +501,9 @@ impl IRVMExitType {
                 assembler.mov(MonitorExit::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
                 assembler.lea(MonitorExit::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::Throw { .. } => {
+            IRVMExitType::Throw { to_throw_obj_offset } => {
                 assembler.mov(rax, RawVMExitType::Throw as u64).unwrap();
+                assembler.lea(Throw::EXCEPTION_PTR.to_native_64(), rbp - to_throw_obj_offset.0).unwrap()
             }
             IRVMExitType::GetStatic { field_name, rc_type, res_value } => {
                 assembler.mov(rax, RawVMExitType::GetStatic as u64).unwrap();
@@ -647,7 +656,9 @@ pub enum RuntimeVMExitInput {
         field_id: FieldId,
         return_to_ptr: *const c_void,
     },
-    Throw {},
+    Throw {
+        exception_obj_ptr: *const c_void
+    },
     GetStatic {
         res_value_ptr: *mut c_void,
         field_name: FieldName,
@@ -850,7 +861,9 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::Throw => {
-                RuntimeVMExitInput::Throw {}
+                RuntimeVMExitInput::Throw {
+                    exception_obj_ptr: register_state.saved_registers_without_ip.get_register(Throw::EXCEPTION_PTR) as *const c_void
+                }
             }
             RawVMExitType::GetStatic => {
                 RuntimeVMExitInput::GetStatic {

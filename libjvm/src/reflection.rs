@@ -149,8 +149,6 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         jvm,
         signature_object.as_allocated_obj(),
     );
-    dbg!(&signature_str);
-    dbg!(clazz.cpdtype().unwrap_class_type().0.to_str(&jvm.string_pool));
     let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
     let args = if args0.is_null() {
         vec![]

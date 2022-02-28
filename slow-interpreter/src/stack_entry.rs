@@ -983,7 +983,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn method_i(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPIndex {
+    pub fn method_i(&self, jvm: &'gc_life JVMState<'gc_life>) -> u16 {
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }

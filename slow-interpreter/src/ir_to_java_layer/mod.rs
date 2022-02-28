@@ -31,7 +31,7 @@ use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
-use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
@@ -516,7 +516,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
-                if jvm.exit_trace_options.tracing_enabled(){
+                if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("InvokeInterfaceResolve");
                 }
                 let obj_jv_handle = unsafe { (*object_ref).cast::<NativeJavaValue>().read() }.to_new_java_value(&CPDType::object(), jvm);
@@ -546,7 +546,33 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                 }
             }
-            RuntimeVMExitInput::Throw { .. } => {
+            RuntimeVMExitInput::Throw { exception_obj_ptr } => {
+                int_state.debug_print_stack_trace(jvm);
+                let exception_obj_native_value = unsafe { (*exception_obj_ptr).cast::<NativeJavaValue<'gc_life>>().read() };
+                let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
+                let exception_obj_rc = exception_obj_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
+                for current_frame in int_state.frame_iter() {
+                    let rc = current_frame.class_pointer(jvm);
+                    let view = rc.view();
+                    let method_i = current_frame.method_i(jvm);
+                    let method_view = view.method_view_i(method_i);
+                    if let Some(code) = method_view.code_attribute() {
+                        let current_pc = current_frame.pc(jvm);
+                        for CompressedExceptionTableElem {
+                            start_pc,
+                            end_pc,
+                            handler_pc,
+                            catch_type
+                        } in &code.exception_table {
+                            dbg!(current_pc);
+                            dbg!(start_pc);
+                            dbg!(end_pc);
+                            if *start_pc <= current_pc && current_pc < *end_pc {
+                                todo!()
+                            }
+                        }
+                    }
+                }
                 jvm.perf_metrics.display();
                 todo!()
             }
@@ -786,7 +812,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_method_if_needed(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
-        if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id,resolver) {
+        if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
             let compile_guard = jvm.perf_metrics.compilation_start();
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);

@@ -487,7 +487,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::athrow => {
-                this_function_ir.extend(athrow());
+                this_function_ir.extend(athrow(method_frame_data, &current_instr_data));
             }
             CompressedInstructionInfo::areturn => {
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
