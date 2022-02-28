@@ -18,6 +18,8 @@ use crossbeam::thread::Scope;
 use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
+use metered::{HitCount, ResponseTime};
+use metered::metric::OnResult;
 use another_jit_vm_ir::ir_stack::IRStackMut;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -55,13 +57,15 @@ use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedObjectHandleByAddress, UnAllocatedObject, UnAllocatedObjectObject};
-use crate::options::{JVMOptions, SharedLibraryPaths, InstructionTraceOptions, ExitTracingOptions};
+use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
+use crate::perf_metrics::PerfMetrics;
 use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
 use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
+
 
 pub static mut JVM: Option<&'static JVMState> = None;
 
@@ -112,8 +116,10 @@ pub struct JVMState<'gc_life> {
     pub static_breakpoints: StaticBreakpoints,
     pub method_shapes: MethodShapeIDs,
     pub instruction_trace_options: InstructionTraceOptions,
-    pub exit_trace_options: ExitTracingOptions
+    pub exit_trace_options: ExitTracingOptions,
+    pub perf_metrics: PerfMetrics
 }
+
 
 pub struct Classes<'gc_life> {
     //todo needs to be used for all instances of getClass
@@ -306,7 +312,8 @@ impl<'gc_life> JVMState<'gc_life> {
             static_breakpoints: StaticBreakpoints::new(),
             method_shapes: MethodShapeIDs::new(),
             instruction_trace_options,
-            exit_trace_options
+            exit_trace_options,
+            perf_metrics: PerfMetrics::new()
         };
         (args, jvm)
     }

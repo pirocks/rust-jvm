@@ -12,6 +12,7 @@ libc = "0.2.66"
 lock_api = "0.3.4"
 parking_lot = "0.10.2"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
+metered = "0.8.0"
 
 [build-dependencies]
 bindgen = "0.53.2"
