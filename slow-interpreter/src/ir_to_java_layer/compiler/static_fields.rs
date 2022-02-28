@@ -5,7 +5,7 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::LoaderName;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
 
@@ -14,6 +14,7 @@ pub fn putstatic(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
@@ -21,6 +22,7 @@ pub fn putstatic(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_loaded(&target_class.into()) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class.into() });
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
@@ -49,6 +51,7 @@ pub fn getstatic(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
@@ -56,6 +59,7 @@ pub fn getstatic(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_loaded(&target_class.into()) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class.into() });
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {

@@ -157,7 +157,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         let method_views = system_view.lookup_method_name(MethodName::method_initializeSystemClass());
         let init_method_view = method_views.first().unwrap().clone();
         let method_id = jvm.method_table.write().unwrap().get_method_id(system_class.clone(), init_method_view.method_i());
-        jvm.java_vm_state.add_method(jvm, &MethodResolver{ jvm, loader: LoaderName::BootstrapLoader }, method_id);
+        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: LoaderName::BootstrapLoader }, method_id);
         let mut locals = vec![];
         for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
             locals.push(NewJavaValue::Top);

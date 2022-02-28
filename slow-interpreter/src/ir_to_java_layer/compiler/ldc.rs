@@ -11,7 +11,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
 
@@ -19,6 +19,7 @@ pub fn ldc_string(resolver: &MethodResolver<'vm_life>,
                   method_frame_data: &JavaCompilerMethodAndFrameData,
                   current_instr_data: &CurrentInstructionCompilerData,
                   restart_point_generator: &mut RestartPointGenerator,
+                  recompile_conditions: &mut MethodRecompileConditions,
                   str: CompressedWtf8String) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
@@ -26,6 +27,7 @@ pub fn ldc_string(resolver: &MethodResolver<'vm_life>,
     match resolver.lookup_type_loaded(&string_class_cpdtype) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&string_class_cpdtype);
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: string_class_cpdtype });
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,
@@ -49,6 +51,7 @@ pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
                  method_frame_data: &JavaCompilerMethodAndFrameData,
                  current_instr_data: &CurrentInstructionCompilerData,
                  restart_point_generator: &mut RestartPointGenerator,
+                 recompile_conditions: &mut MethodRecompileConditions,
                  type_: &CPDType) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
@@ -57,6 +60,7 @@ pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
     //todo we could do this in the exit and cut down on recompilations
     match resolver.lookup_type_loaded(&to_load_cpdtype) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: to_load_cpdtype });
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,

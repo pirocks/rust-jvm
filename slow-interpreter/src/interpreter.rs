@@ -62,7 +62,7 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
-        jvm.java_vm_state.add_method(jvm, &resolver, method_id);
+        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
         assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
         let restore_clone = jvm.java_vm_state.assertion_state.lock().unwrap().current_before.clone();

@@ -17,7 +17,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::MethodId;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 
 pub fn invokespecial(
@@ -25,6 +25,7 @@ pub fn invokespecial(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
@@ -37,6 +38,7 @@ pub fn invokespecial(
     match resolver.lookup_type_loaded(&class_cpdtype) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&CPDType::Ref(classname_ref_type.clone()));
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_cpdtype });
             Either::Left(array_into_iter([restart_point_class_load,
                 restart_point_function_address,
                 IRInstr::VMExit2 {
@@ -49,9 +51,10 @@ pub fn invokespecial(
         }
         Some((rc, loader)) => {
             let view = rc.view();
-            let (method_id, is_native) = resolver.lookup_special(class_cpdtype, method_name, descriptor.clone()).unwrap();
+            let (method_id, is_native) = resolver.lookup_special(&class_cpdtype, method_name, descriptor.clone()).unwrap();
             let num_args = descriptor.arg_types.len();
             Either::Right(if is_native {
+                //todo if ever native methods get compiled this will need a recompile check as well maybe
                 Either::Left(array_into_iter([
                     restart_point_class_load,
                     restart_point_function_address,
@@ -72,6 +75,7 @@ pub fn invokespecial(
                 let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
                 Either::Right(match maybe_address {
                     None => {
+                        recompile_conditions.add_condition(NeedsRecompileIf::FunctionCompiled { method_id });
                         let exit_instr = IRInstr::VMExit2 {
                             exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                                 current_method_id: method_frame_data.current_method_id,
@@ -83,6 +87,7 @@ pub fn invokespecial(
                         Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
                     }
                     Some((ir_method_id, address)) => {
+                        recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
                         let target_method_layout = resolver.lookup_method_layout(method_id);
                         let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
@@ -114,6 +119,7 @@ pub fn invokestatic(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
@@ -126,6 +132,7 @@ pub fn invokestatic(
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
             let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_as_cpdtype });
             Either::Left(array_into_iter([class_init_restart_point,
                 restart_point_function_address,
                 IRInstr::VMExit2 {
@@ -145,6 +152,7 @@ pub fn invokestatic(
                 } else {
                     None
                 };
+                //todo if ever native methods get compiled this will need a recompile check as well maybe
                 Either::Left(array_into_iter([class_init_restart_point,
                     restart_point_function_address,
                     IRInstr::VMExit2 {
@@ -165,6 +173,7 @@ pub fn invokestatic(
                 let target_method_layout = resolver.lookup_method_layout(method_id);
                 Either::Right(match resolver.lookup_ir_method_id_and_address(method_id) {
                     None => {
+                        recompile_conditions.add_condition(NeedsRecompileIf::FunctionCompiled { method_id });
                         let exit_instr = IRInstr::VMExit2 {
                             exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
                                 current_method_id: method_frame_data.current_method_id,
@@ -178,6 +187,7 @@ pub fn invokestatic(
                             exit_instr]))
                     }
                     Some((ir_method_id, address)) => {
+                        recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
                         Either::Right(array_into_iter([class_init_restart_point,
                             restart_point_function_address,
                             IRInstr::IRCall {
@@ -210,6 +220,7 @@ pub fn invokevirtual(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
@@ -222,6 +233,7 @@ pub fn invokevirtual(
     let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
 
     if resolver.lookup_type_loaded(&target_class_type).is_none() {
+        recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
         //todo this should never happen?
         return Either::Left(array_into_iter([restart_point,
             IRInstr::VMExit2 {
@@ -288,6 +300,7 @@ pub fn invoke_interface(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     method_name: &MethodName,
     descriptor: &CMethodDescriptor,
     classname_ref_type: &CPRefType,
@@ -298,7 +311,18 @@ pub fn invoke_interface(
     let cpdtype_id = resolver.get_cpdtype_id(&target_class_cpdtype);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_interface(target_class_cpdtype, *method_name, descriptor.clone()) {
+    match resolver.lookup_interface(&target_class_cpdtype, *method_name, descriptor.clone()) {
+        None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_cpdtype });//todo this could be part of method resolver so that stuff always gets recompiled as needed
+            Either::Right(array_into_iter([restart_point,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::InitClassAndRecompile {
+                        class: cpdtype_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id,
+                    },
+                }]))
+        }
         Some((target_method_id, is_native)) => {
             if is_native {
                 todo!()
@@ -330,16 +354,6 @@ pub fn invoke_interface(
                     }
                 ]))
             }
-        }
-        None => {
-            Either::Right(array_into_iter([restart_point,
-                IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: cpdtype_id,
-                        this_method_id: method_frame_data.current_method_id,
-                        restart_point_id,
-                    },
-                }]))
         }
     }
 }

@@ -46,7 +46,7 @@ use crate::inheritance_method_ids::InheritanceMethodIDs;
 use crate::inheritance_vtable::VTables;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use crate::ir_to_java_layer::compiler::JavaCompilerMethodAndFrameData;
+use crate::ir_to_java_layer::compiler::{JavaCompilerMethodAndFrameData, RecompileConditions};
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
@@ -110,14 +110,13 @@ pub struct JVMState<'gc_life> {
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
-    // pub vtables: RwLock<VTables>,
-    // pub inheritance_ids: RwLock<InheritanceMethodIDs>,
     pub object_monitors: RwLock<HashMap<*const c_void, Monitor2>>,
     pub static_breakpoints: StaticBreakpoints,
     pub method_shapes: MethodShapeIDs,
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
-    pub perf_metrics: PerfMetrics
+    pub perf_metrics: PerfMetrics,
+    pub recompilation_conditions: RwLock<RecompileConditions>
 }
 
 
@@ -313,7 +312,8 @@ impl<'gc_life> JVMState<'gc_life> {
             method_shapes: MethodShapeIDs::new(),
             instruction_trace_options,
             exit_trace_options,
-            perf_metrics: PerfMetrics::new()
+            perf_metrics: PerfMetrics::new(),
+            recompilation_conditions: RwLock::new(RecompileConditions::new())
         };
         (args, jvm)
     }

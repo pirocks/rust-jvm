@@ -777,8 +777,13 @@ SF = 0;
             assembler.nop().unwrap();
         }
         IRInstr::IntCompare { res, value1, value2, temp1, temp2, temp3, size } => {
-            assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap();
-            assembler.xor(res.to_native_64(), res.to_native_64()).unwrap();
+            match size {
+                Size::Byte => assembler.cmp(value1.to_native_8(), value2.to_native_8()).unwrap(),
+                Size::X86Word => assembler.cmp(value1.to_native_16(), value2.to_native_16()).unwrap(),
+                Size::X86DWord => assembler.cmp(value1.to_native_32(), value2.to_native_32()).unwrap(),
+                Size::X86QWord => assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap(),
+            }
+            assembler.sub(res.to_native_64(), res.to_native_64()).unwrap();
             assembler.mov(temp1.to_native_64(), 1u64).unwrap();
             assembler.mov(temp2.to_native_64(), 0u64).unwrap();
             assembler.mov(temp3.to_native_64(), -1i64).unwrap();

@@ -7,7 +7,7 @@ use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 
@@ -15,12 +15,14 @@ pub fn new(resolver: &MethodResolver<'vm_life>,
            method_frame_data: &JavaCompilerMethodAndFrameData,
            current_instr_data: &CurrentInstructionCompilerData,
            restart_point_generator: &mut RestartPointGenerator,
+           recompile_conditions: &mut MethodRecompileConditions,
            ccn: CClassName) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    let cpd_type_id = resolver.get_cpdtype_id(&ccn.into());
+    let cpd_type_id = resolver.get_cpdtype_id(&ccn.clone().into());
     match resolver.lookup_type_loaded(&(ccn).into()) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: ccn.clone().into() });
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id,
@@ -46,6 +48,7 @@ pub fn anewarray(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     elem_type: &CPDType,
 ) -> impl Iterator<Item=IRInstr> {
     let array_type = CPDType::Ref(CPRefType::Array(box elem_type.clone()));
@@ -54,6 +57,7 @@ pub fn anewarray(
     match resolver.lookup_type_loaded(&array_type) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&array_type);
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: array_type });
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
@@ -87,9 +91,10 @@ pub fn newarray(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     elem_type: &Atype,
 ) -> impl Iterator<Item=IRInstr> {
-    anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, &match elem_type {
+    anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, recompile_conditions,&match elem_type {
         Atype::TBoolean => CPDType::BooleanType,
         Atype::TChar => CPDType::CharType,
         Atype::TFloat => CPDType::FloatType,

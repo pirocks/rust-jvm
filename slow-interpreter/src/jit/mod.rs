@@ -130,7 +130,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
     }
 
 
-    pub fn lookup_interface(&self, on:CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    pub fn lookup_interface(&self, on:&CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
@@ -141,7 +141,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
-    pub fn lookup_special(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    pub fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);

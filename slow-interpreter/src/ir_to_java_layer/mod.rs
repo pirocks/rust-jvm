@@ -49,7 +49,7 @@ use crate::instructions::invoke::virtual_::virtual_method_lookup;
 use crate::instructions::special::{instance_of_exit_impl, instance_of_impl, invoke_instanceof};
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
-use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData, YetAnotherLayoutImpl};
+use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData, RecompileConditions, YetAnotherLayoutImpl};
 use crate::ir_to_java_layer::instruction_correctness_assertions::AssertionState;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::class::JClass;
@@ -190,8 +190,8 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 drop(exit_guard);
-                jvm.java_vm_state.add_method(jvm, &method_resolver, *to_recompile);
-                jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
+                jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *to_recompile);
+                jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 IRVMExitAction::RestartAtPtr { ptr: restart_point }
             }
@@ -225,7 +225,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 int_state.saved_assert_frame_same(saved);
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 drop(exit_guard);
-                jvm.java_vm_state.add_method(jvm, &method_resolver, *current_method_id);
+                jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("InitClassAndRecompile done");
@@ -363,7 +363,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
                     if !jvm.is_native_by_method_id(method_id) {
-                        jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
+                        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
                     } else {
                         //is native should run native method
                         //todo duplicated
@@ -401,7 +401,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     }
                     Err(NotCompiledYet { needs_compiling }) => {
                         // let rc = assert_loaded_class(jvm, allocated_type.as_cpdtype());
-                        jvm.java_vm_state.add_method(jvm, &method_resolver, needs_compiling);
+                        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, needs_compiling);
                         // jvm.java_vm_state.add_method(jvm, &method_resolver, *debug_method_id);
                         // jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
                         dbg!(needs_compiling);
@@ -529,7 +529,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc, method_name, method_desc).unwrap();
                 let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, resolved_method_i);
                 let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-                jvm.java_vm_state.add_method(jvm, &resolver, resolved_method_id);
+                jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
                 let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
                 let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
                 let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
@@ -785,72 +785,78 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
-    pub fn add_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
-        let compile_guard = jvm.perf_metrics.compilation_start();
-        eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-        //todo need some mechanism for detecting recompile necessary
-        let is_native = jvm.is_native_by_method_id(method_id);
-        let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
-        let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
-        let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data);
-        let ir_exit_handler: ExitHandlerType<'vm_life, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
-            let ir_stack_mut: IRStackMut = ir_stack_mut;
-            let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
-            let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
-            let read_guard = self.inner.read().unwrap();
-            let ir_method_id = ir_vm_exit_event.ir_method;
-            let method = read_guard.methods.get(&ir_method_id).unwrap();
-            let method_id = method.associated_method_id;
-            let exiting_pc = *method.ir_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
-            drop(read_guard);
-            let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
+    pub fn add_method_if_needed(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
+        if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id,resolver) {
+            let compile_guard = jvm.perf_metrics.compilation_start();
+            let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
+            let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
+            eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            //todo need some mechanism for detecting recompile necessary
+            //todo unify resolver and recompile_conditions
+            let is_native = jvm.is_native_by_method_id(method_id);
+            assert!(!is_native);
+            let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
+            let java_frame_data = &java_function_frame_guard.entry(method_id).or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
+            let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions);
+            let ir_exit_handler: ExitHandlerType<'vm_life, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm_life, ()>, extra| {
+                let ir_stack_mut: IRStackMut = ir_stack_mut;
+                let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
+                let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
+                let read_guard = self.inner.read().unwrap();
+                let ir_method_id = ir_vm_exit_event.ir_method;
+                let method = read_guard.methods.get(&ir_method_id).unwrap();
+                let method_id = method.associated_method_id;
+                let exiting_pc = *method.ir_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
+                drop(read_guard);
+                let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
 
-            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-                int_state: ir_stack_mut,
-                thread: jvm.thread_state.get_current_thread(),
-                registered: false,
-                jvm,
-                current_exited_pc: Some(exiting_pc),
-            };
-            let old_intstate = int_state.register_interpreter_state_guard(jvm);
-            unsafe {
-                let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
-                let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
-                if exiting_stack_pointer != mmaped_top {
-                    let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize /*+ size_of::<u64>()*/;
-                    let frame_ref = int_state.current_frame().frame_view.ir_ref;
-                    let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
-                    assert_eq!(offset, expected_current_frame_size);
+                let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+                    int_state: ir_stack_mut,
+                    thread: jvm.thread_state.get_current_thread(),
+                    registered: false,
+                    jvm,
+                    current_exited_pc: Some(exiting_pc),
+                };
+                let old_intstate = int_state.register_interpreter_state_guard(jvm);
+                unsafe {
+                    let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
+                    let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
+                    if exiting_stack_pointer != mmaped_top {
+                        let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize /*+ size_of::<u64>()*/;
+                        let frame_ref = int_state.current_frame().frame_view.ir_ref;
+                        let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
+                        assert_eq!(offset, expected_current_frame_size);
+                    }
                 }
+                let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc);
+                int_state.deregister_int_state(jvm, old_intstate);
+                res
+            });
+            let mut ir_instructions = vec![];
+            let mut ir_index_to_bytecode_pc = HashMap::new();
+            //todo consider making this use iterators and stuff.
+            for (i, (offset, ir_instr)) in ir_instructions_and_offsets.into_iter().enumerate() {
+                let prev_value = ir_index_to_bytecode_pc.insert(IRInstructIndex(i), offset);
+                assert!(prev_value.is_none());
+                ir_instructions.push(ir_instr);
             }
-            let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, &mut int_state, method_id, &ir_vm_exit_event.exit_type, exiting_pc);
-            int_state.deregister_int_state(jvm, old_intstate);
-            res
-        });
-        let mut ir_instructions = vec![];
-        let mut ir_index_to_bytecode_pc = HashMap::new();
-        //todo consider making this use iterators and stuff.
-        for (i, (offset, ir_instr)) in ir_instructions_and_offsets.into_iter().enumerate() {
-            let prev_value = ir_index_to_bytecode_pc.insert(IRInstructIndex(i), offset);
-            assert!(prev_value.is_none());
-            ir_instructions.push(ir_instr);
-        }
-        let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
-        let mut write_guard = self.inner.write().unwrap();
-        write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
-        write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
-            restart_points,
-            ir_index_to_bytecode_pc,
-            associated_method_id: method_id,
-        });
-        /*        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {
+            let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
+            let mut write_guard = self.inner.write().unwrap();
+            write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
+            write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
+                restart_points,
+                ir_index_to_bytecode_pc,
+                associated_method_id: method_id,
+            });
+            /*        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {
                     address: self.ir.lookup_ir_method_id_pointer(ir_method_id),
                     ir_method_id,
                     method_id,
                     new_frame_size: java_frame_data.full_frame_size(),
                 })*/;
-        drop(write_guard);
-        drop(compile_guard);
+            drop(write_guard);
+            drop(compile_guard);
+        }
     }
 }
 

@@ -13,7 +13,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::class_loading::get_field_numbers;
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, checkcast_impl};
 use crate::java::lang::reflect::field::Field;
 use crate::jit::MethodResolver;
@@ -50,6 +50,7 @@ pub fn putfield(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
@@ -59,6 +60,7 @@ pub fn putfield(
     let cpd_type_id_obj = resolver.get_cpdtype_id(&cpd_type);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: cpd_type_id_obj,
@@ -118,6 +120,7 @@ pub fn getfield(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
 ) -> impl Iterator<Item=IRInstr> {
@@ -127,6 +130,7 @@ pub fn getfield(
     let obj_cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
     match resolver.lookup_type_loaded(&cpd_type) {
         None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::InitClassAndRecompile {
                     class: obj_cpd_type_id,

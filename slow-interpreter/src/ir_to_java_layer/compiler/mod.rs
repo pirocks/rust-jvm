@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::iter;
 use std::mem::size_of;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use std::sync::Mutex;
 use std::vec::IntoIter;
 
 use iced_x86::CC_be::na;
@@ -13,6 +14,7 @@ use another_jit_vm::{FloatRegister, MMRegister, Register};
 use another_jit_vm_ir::compiler::{FloatCompareMode, IRCallTarget, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID, Size};
 use another_jit_vm_ir::compiler::IRInstr::{IRCall, VMExit2};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
+use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, IRVMExitType};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
@@ -195,7 +197,84 @@ impl<'l> CompilerLabeler<'l> {
     }
 }
 
-pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData) -> Vec<(ByteCodeOffset, IRInstr)> {
+pub struct RecompileConditions {
+    conditions: HashMap<MethodId, Vec<NeedsRecompileIf>>,
+}
+
+impl RecompileConditions {
+    pub fn new() -> Self {
+        Self {
+            conditions: HashMap::new()
+        }
+    }
+
+    pub fn should_recompile(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc_life>) -> bool {
+        match self.conditions.get(&method_id) {
+            None => {
+                return true;
+            }
+            Some(needs_recompiling) => {
+                for condition in needs_recompiling {
+                    if condition.should_recompile(method_resolver) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    pub fn recompile_conditions(&mut self, method_id: MethodId) -> MethodRecompileConditions<'_> {
+        self.conditions.insert(method_id, vec![]);
+        MethodRecompileConditions {
+            conditions: self.conditions.get_mut(&method_id).unwrap()
+        }
+    }
+}
+
+
+pub struct MethodRecompileConditions<'l> {
+    conditions: &'l mut Vec<NeedsRecompileIf>,
+}
+
+impl<'l> MethodRecompileConditions<'l> {
+    pub fn add_condition(&mut self, condition: NeedsRecompileIf) {
+        self.conditions.push(condition);
+    }
+}
+
+#[derive(Debug)]
+pub enum NeedsRecompileIf {
+    FunctionRecompiled {
+        function_method_id: MethodId,
+        current_ir_method_id: IRMethodID,
+    },
+    FunctionCompiled {
+        method_id: MethodId
+    },
+    ClassLoaded {
+        class: CPDType
+    },
+}
+
+impl NeedsRecompileIf {
+    pub fn should_recompile(&self, method_resolver: &MethodResolver<'gc_life>) -> bool {
+        match self {
+            NeedsRecompileIf::FunctionRecompiled { function_method_id, current_ir_method_id } => {
+                let (ir_method_id, _address) = method_resolver.lookup_ir_method_id_and_address(*function_method_id).unwrap();
+                ir_method_id != *current_ir_method_id
+            }
+            NeedsRecompileIf::FunctionCompiled { method_id } => {
+                method_resolver.lookup_ir_method_id_and_address(*method_id).is_some()
+            }
+            NeedsRecompileIf::ClassLoaded { class } => {
+                method_resolver.lookup_type_loaded(class).is_some()
+            }
+        }
+    }
+}
+
+pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![];
     let mut compiler_labeler = CompilerLabeler {
@@ -227,7 +306,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
         }
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type));
+                this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
                 this_function_ir.extend(return_void(method_frame_data));
@@ -317,25 +396,25 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
-                this_function_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *ccn))
+                this_function_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *ccn))
             }
             CompressedInstructionInfo::dup => {
                 this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                this_function_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
+                this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, *method_name, descriptor, classname_ref_type))
+                this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::putstatic { name, desc, target_class } => {
-                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
-                this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, elem_type))
+                this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, elem_type))
             }
             CompressedInstructionInfo::ldc(either) => {
                 match either {
@@ -343,10 +422,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                         match left {
                             CompressedLdcW::String { str } => {
                                 let compressed = resolver.get_commpressed_version_of_wtf8(str);
-                                this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, compressed))
+                                this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, compressed))
                             }
                             CompressedLdcW::Class { type_ } => {
-                                this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, type_))
+                                this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, type_))
                             }
                             CompressedLdcW::Float { float } => {
                                 this_function_ir.extend(ldc_float(method_frame_data, &current_instr_data, *float))
@@ -380,7 +459,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(if_nonnull(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::getfield { name, desc: _, target_class } => {
-                this_function_ir.extend(getfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name))
+                this_function_ir.extend(getfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             //todo handle implicit monitor enters on synchronized  functions
             CompressedInstructionInfo::monitorenter => {
@@ -423,7 +502,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 1))
             }
             CompressedInstructionInfo::newarray(atype) => {
-                this_function_ir.extend(newarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, atype))
+                this_function_ir.extend(newarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, atype))
             }
             CompressedInstructionInfo::i2l => {
                 this_function_ir.extend(i2l(method_frame_data, &current_instr_data));
@@ -454,7 +533,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
             }
             CompressedInstructionInfo::getstatic { name, desc, target_class } => {
-                this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, *target_class, *name));
+                this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name));
             }
             CompressedInstructionInfo::if_icmplt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32));
@@ -592,7 +671,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, method_name, descriptor, classname_ref_type))
+                this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::pop => {
                 this_function_ir.extend(array_into_iter([]))
@@ -658,10 +737,10 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(idiv(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::lstore_0 => {
-                this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data,0))
+                this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 0))
             }
             CompressedInstructionInfo::lstore_1 => {
-                this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data,1))
+                this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 1))
             }
             CompressedInstructionInfo::lstore_2 => {
                 this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 2))
@@ -675,7 +754,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::ldc_w(elem) => {
                 match elem {
                     CompressedLdcW::String { str } => {
-                        this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, resolver.get_commpressed_version_of_wtf8(str)))
+                        this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, resolver.get_commpressed_version_of_wtf8(str)))
                     }
                     CompressedLdcW::Class { .. } => {
                         todo!()
@@ -697,7 +776,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     }
                 }
             }
-            CompressedInstructionInfo::lookupswitch(LookupSwitch{ pairs, default }) => {
+            CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default }) => {
                 this_function_ir.extend(lookup_switch(method_frame_data, current_instr_data, pairs, default));
             }
             other => {
@@ -718,7 +797,6 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     }
     final_ir
 }
-
 
 
 pub mod float_convert;
