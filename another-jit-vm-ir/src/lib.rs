@@ -17,7 +17,7 @@ use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dl, dword_p
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
-use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
+use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
@@ -142,7 +142,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     pub fn lookup_ip(&self, ip: *const c_void) -> (IRMethodID, IRInstructIndex) {
         let implementation_id = self.native_vm.lookup_ip(ip);
         let method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
-        let native_offset = IRInstructNativeOffset(unsafe { method_start.offset_from(ip) } as usize);
+        let native_offset = IRInstructNativeOffset(unsafe { method_start.offset_from(ip).abs() } as usize);
         let guard = self.inner.read().unwrap();
         let ir_method_id = *guard.implementation_id_to_ir_method_id.get(&implementation_id).unwrap();
         let native_offsets_to_index = guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
@@ -206,7 +206,11 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
             let exiting_stack_pointer = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rsp;
-            assert!(exiting_frame_position_rbp > exiting_stack_pointer);
+            if ir_method_id == self.get_top_level_return_ir_method_id(){
+                assert!(exiting_frame_position_rbp >= exiting_stack_pointer);
+            }else {
+                assert!(exiting_frame_position_rbp > exiting_stack_pointer);
+            }
             let function_start = self.lookup_ir_method_id_pointer(ir_method_id);
             let rip = vm_exit_event.saved_guest_registers.rip;
             let ir_instruct_native_offset = unsafe { IRInstructNativeOffset(rip.offset_from(function_start).abs() as usize) };
@@ -223,7 +227,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                 exit_ir_instr: ir_instr_index,
             };
             // let mmaped_top = ir_stack.native.mmaped_top;
-            let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp, exiting_stack_pointer);
+            let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp as *mut c_void, exiting_stack_pointer as *mut c_void);
             let read_guard = self.inner.read().unwrap();
 
             let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
@@ -240,10 +244,10 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                     let address_offsets = read_guard.method_ir_offsets_at_index.get(&ir_method_id).unwrap();
                     let address_offset = address_offsets.get(&index).unwrap();
                     let target_return_rip = unsafe { current_method_start.offset(address_offset.0 as isize) };
-                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: None });
+                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change() });
                 }
                 IRVMExitAction::RestartAtPtr { ptr } => {
-                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(ptr), saved_registers_without_ip: None })
+                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(ptr), saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change() })
                 }
                 IRVMExitAction::RestartAtIRestartPoint { restart_point: _ } => {
                     todo!()
@@ -962,6 +966,6 @@ pub struct IRVMExitEvent<'l> {
     pub ir_method: IRMethodID,
     pub exit_type: RuntimeVMExitInput,
     pub exit_ir_instr: IRInstructIndex,
-    _exiting_frame_position_rbp: *mut c_void,
+    _exiting_frame_position_rbp: *const c_void,
 }
 

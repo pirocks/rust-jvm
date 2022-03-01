@@ -14,7 +14,7 @@ impl<'gc_life> System<'gc_life> {
         let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
         let temp = system_class.static_vars(jvm);
         let prop_jv = temp.get(FieldName::field_props());
-        prop_jv.to_jv().cast_properties()
+        prop_jv.unwrap_object_nonnull().cast_properties()
     }
 
     as_object_or_java_value!();

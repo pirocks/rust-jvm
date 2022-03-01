@@ -1,7 +1,6 @@
 use std::ffi::c_void;
 use std::ptr::null_mut;
 
-
 use crate::Register;
 
 #[repr(C)]
@@ -17,69 +16,68 @@ impl SavedRegistersWithIP {
         if let Some(rip) = rip {
             self.rip = rip;
         }
-        if let Some(SavedRegistersWithoutIPDiff {
-                        rax,
-                        rbx,
-                        rcx,
-                        rdx,
-                        rsi,
-                        rdi,
-                        rbp,
-                        rsp,
-                        r8,
-                        r9,
-                        r10,
-                        r11,
-                        r12,
-                        r13,
-                        r14,
-                        xsave_area: _
-                    }) = saved_registers_without_ip {
-            if let Some(rax) = rax {
-                self.saved_registers_without_ip.rax = rax;
-            }
-            if let Some(rbx) = rbx {
-                self.saved_registers_without_ip.rbx = rbx;
-            }
-            if let Some(rcx) = rcx {
-                self.saved_registers_without_ip.rcx = rcx;
-            }
-            if let Some(rdx) = rdx {
-                self.saved_registers_without_ip.rdx = rdx;
-            }
-            if let Some(rsi) = rsi {
-                self.saved_registers_without_ip.rsi = rsi;
-            }
-            if let Some(rdi) = rdi {
-                self.saved_registers_without_ip.rdi = rdi;
-            }
-            if let Some(rbp) = rbp {
-                self.saved_registers_without_ip.rbp = rbp;
-            }
-            if let Some(rsp) = rsp {
-                self.saved_registers_without_ip.rsp = rsp;
-            }
-            if let Some(r8) = r8 {
-                self.saved_registers_without_ip.r8 = r8;
-            }
-            if let Some(r9) = r9 {
-                self.saved_registers_without_ip.r9 = r9;
-            }
-            if let Some(r10) = r10 {
-                self.saved_registers_without_ip.r10 = r10;
-            }
-            if let Some(r11) = r11 {
-                self.saved_registers_without_ip.r11 = r11;
-            }
-            if let Some(r12) = r12 {
-                self.saved_registers_without_ip.r12 = r12;
-            }
-            if let Some(r13) = r13 {
-                self.saved_registers_without_ip.r13 = r13;
-            }
-            if let Some(r14) = r14 {
-                self.saved_registers_without_ip.r14 = r14;
-            }
+        let SavedRegistersWithoutIPDiff {
+            rax,
+            rbx,
+            rcx,
+            rdx,
+            rsi,
+            rdi,
+            rbp,
+            rsp,
+            r8,
+            r9,
+            r10,
+            r11,
+            r12,
+            r13,
+            r14,
+            xsave_area: _
+        } = saved_registers_without_ip;
+        if let Some(rax) = rax {
+            self.saved_registers_without_ip.rax = rax;
+        }
+        if let Some(rbx) = rbx {
+            self.saved_registers_without_ip.rbx = rbx;
+        }
+        if let Some(rcx) = rcx {
+            self.saved_registers_without_ip.rcx = rcx;
+        }
+        if let Some(rdx) = rdx {
+            self.saved_registers_without_ip.rdx = rdx;
+        }
+        if let Some(rsi) = rsi {
+            self.saved_registers_without_ip.rsi = rsi;
+        }
+        if let Some(rdi) = rdi {
+            self.saved_registers_without_ip.rdi = rdi;
+        }
+        if let Some(rbp) = rbp {
+            self.saved_registers_without_ip.rbp = rbp;
+        }
+        if let Some(rsp) = rsp {
+            self.saved_registers_without_ip.rsp = rsp;
+        }
+        if let Some(r8) = r8 {
+            self.saved_registers_without_ip.r8 = r8;
+        }
+        if let Some(r9) = r9 {
+            self.saved_registers_without_ip.r9 = r9;
+        }
+        if let Some(r10) = r10 {
+            self.saved_registers_without_ip.r10 = r10;
+        }
+        if let Some(r11) = r11 {
+            self.saved_registers_without_ip.r11 = r11;
+        }
+        if let Some(r12) = r12 {
+            self.saved_registers_without_ip.r12 = r12;
+        }
+        if let Some(r13) = r13 {
+            self.saved_registers_without_ip.r13 = r13;
+        }
+        if let Some(r14) = r14 {
+            self.saved_registers_without_ip.r14 = r14;
         }
     }
 }
@@ -87,21 +85,21 @@ impl SavedRegistersWithIP {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithoutIP {
-    pub rax: *mut c_void,
-    pub rbx: *mut c_void,
-    pub rcx: *mut c_void,
-    pub rdx: *mut c_void,
-    pub rsi: *mut c_void,
-    pub rdi: *mut c_void,
-    pub rbp: *mut c_void,
-    pub rsp: *mut c_void,
-    pub r8: *mut c_void,
-    pub r9: *mut c_void,
-    pub r10: *mut c_void,
-    pub r11: *mut c_void,
-    pub r12: *mut c_void,
-    pub r13: *mut c_void,
-    pub r14: *mut c_void,
+    pub rax: *const c_void,
+    pub rbx: *const c_void,
+    pub rcx: *const c_void,
+    pub rdx: *const c_void,
+    pub rsi: *const c_void,
+    pub rdi: *const c_void,
+    pub rbp: *const c_void,
+    pub rsp: *const c_void,
+    pub r8: *const c_void,
+    pub r9: *const c_void,
+    pub r10: *const c_void,
+    pub r11: *const c_void,
+    pub r12: *const c_void,
+    pub r13: *const c_void,
+    pub r14: *const c_void,
     pub xsave_area: [u64; 64],
 }
 
@@ -148,26 +146,35 @@ impl SavedRegistersWithoutIP {
 #[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithIPDiff {
     pub rip: Option<*const c_void>,
-    pub saved_registers_without_ip: Option<SavedRegistersWithoutIPDiff>,
+    pub saved_registers_without_ip: SavedRegistersWithoutIPDiff,
+}
+
+impl SavedRegistersWithIPDiff {
+    pub fn no_change() -> Self {
+        Self {
+            rip: None,
+            saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithoutIPDiff {
-    pub rax: Option<*mut c_void>,
-    pub rbx: Option<*mut c_void>,
-    pub rcx: Option<*mut c_void>,
-    pub rdx: Option<*mut c_void>,
-    pub rsi: Option<*mut c_void>,
-    pub rdi: Option<*mut c_void>,
-    pub rbp: Option<*mut c_void>,
-    pub rsp: Option<*mut c_void>,
-    pub r8: Option<*mut c_void>,
-    pub r9: Option<*mut c_void>,
-    pub r10: Option<*mut c_void>,
-    pub r11: Option<*mut c_void>,
-    pub r12: Option<*mut c_void>,
-    pub r13: Option<*mut c_void>,
-    pub r14: Option<*mut c_void>,
+    pub rax: Option<*const c_void>,
+    pub rbx: Option<*const c_void>,
+    pub rcx: Option<*const c_void>,
+    pub rdx: Option<*const c_void>,
+    pub rsi: Option<*const c_void>,
+    pub rdi: Option<*const c_void>,
+    pub rbp: Option<*const c_void>,
+    pub rsp: Option<*const c_void>,
+    pub r8: Option<*const c_void>,
+    pub r9: Option<*const c_void>,
+    pub r10: Option<*const c_void>,
+    pub r11: Option<*const c_void>,
+    pub r12: Option<*const c_void>,
+    pub r13: Option<*const c_void>,
+    pub r14: Option<*const c_void>,
     pub xsave_area: Option<[u64; 64]>,
 }
 
@@ -194,7 +201,7 @@ impl SavedRegistersWithoutIPDiff {
     }
 
     //todo keep in sync with other get_registers
-    pub fn get_register_mut(&mut self, register: Register) -> &mut Option<*mut c_void> {
+    pub fn get_register_mut(&mut self, register: Register) -> &mut Option<*const c_void> {
         match register.0 {
             0 => &mut self.rax,
             1 => &mut self.rbx,

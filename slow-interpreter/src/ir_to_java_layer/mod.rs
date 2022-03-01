@@ -30,7 +30,7 @@ use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -46,7 +46,7 @@ use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::virtual_method_lookup;
-use crate::instructions::special::{instance_of_exit_impl, instance_of_impl, invoke_instanceof};
+use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl, instance_of_impl, invoke_instanceof};
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
 use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData, RecompileConditions, YetAnotherLayoutImpl};
@@ -75,6 +75,7 @@ pub struct ExitNumber(u64);
 pub struct JavaVMStateMethod {
     restart_points: HashMap<RestartPointID, IRInstructIndex>,
     ir_index_to_bytecode_pc: HashMap<IRInstructIndex, ByteCodeOffset>,
+    bytecode_pc_to_start_ir_index: HashMap<ByteCodeOffset, IRInstructIndex>,
     associated_method_id: MethodId,
 }
 
@@ -418,7 +419,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartWithRegisterState {
                     diff: SavedRegistersWithIPDiff {
                         rip: Some(*return_to_ptr),
-                        saved_registers_without_ip: Some(start_diff),
+                        saved_registers_without_ip: start_diff,
                     }
                 }
             }
@@ -426,9 +427,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("MonitorEnter");
                 }
-                let mut monitors_guard = jvm.object_monitors.write().unwrap();
-                let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                let monitor = jvm.monitor_for(*obj_ptr);
                 monitor.lock(jvm, int_state).unwrap();
                 drop(exit_guard);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -437,9 +436,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("MonitorExit");
                 }
-                let mut monitors_guard = jvm.object_monitors.write().unwrap();
-                let next_id = monitors_guard.len();
-                let monitor = monitors_guard.entry(*obj_ptr).or_insert_with(|| Monitor2::new(next_id));
+                let monitor = jvm.monitor_for(*obj_ptr);
                 monitor.unlock(jvm, int_state).unwrap();
                 drop(exit_guard);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -542,15 +539,20 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartWithRegisterState {
                     diff: SavedRegistersWithIPDiff {
                         rip: Some(*return_to_ptr),
-                        saved_registers_without_ip: Some(start_diff),
+                        saved_registers_without_ip: start_diff,
                     }
                 }
             }
             RuntimeVMExitInput::Throw { exception_obj_ptr } => {
+                if jvm.exit_trace_options.tracing_enabled() {
+                    eprintln!("Throw");
+                }
                 int_state.debug_print_stack_trace(jvm);
                 let exception_obj_native_value = unsafe { (*exception_obj_ptr).cast::<NativeJavaValue<'gc_life>>().read() };
                 let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
-                let exception_obj_rc = exception_obj_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
+                let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
+                let exception_obj = exception_object_handle.as_allocated_obj();
+                let exception_obj_rc = exception_obj.runtime_class(jvm);
                 for current_frame in int_state.frame_iter() {
                     let rc = current_frame.class_pointer(jvm);
                     let view = rc.view();
@@ -564,11 +566,25 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                             handler_pc,
                             catch_type
                         } in &code.exception_table {
-                            dbg!(current_pc);
-                            dbg!(start_pc);
-                            dbg!(end_pc);
-                            if *start_pc <= current_pc && current_pc < *end_pc {
-                                todo!()
+                            let matches_class = match catch_type {
+                                None => true,
+                                Some(class_name) => {
+                                    instance_of_exit_impl_impl(jvm, &CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
+                                }
+                            };
+                            if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
+                                let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
+                                let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
+                                let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
+                                let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
+                                let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
+                                let mut start_diff = SavedRegistersWithIPDiff::no_change();
+                                start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);
+                                start_diff.saved_registers_without_ip.rsp = Some(handler_rsp);
+                                start_diff.rip = Some(handler_address);
+                                return IRVMExitAction::RestartWithRegisterState {
+                                    diff: start_diff
+                                };
                             }
                         }
                     }
@@ -807,6 +823,12 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let pc = *method.ir_index_to_bytecode_pc.get(&ir_instruct_index).unwrap();
         Some((method_id, pc))
     }
+
+    pub fn lookup_byte_code_offset(&self, ir_method_id: IRMethodID, java_pc: ByteCodeOffset) -> *const c_void {
+        let read_guard = self.inner.read().unwrap();
+        let ir_instruct_index = *read_guard.methods.get(&ir_method_id).unwrap().bytecode_pc_to_start_ir_index.get(&java_pc).unwrap();
+        self.ir.lookup_location_of_ir_instruct(ir_method_id, ir_instruct_index).0
+    }
 }
 
 
@@ -860,10 +882,21 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             });
             let mut ir_instructions = vec![];
             let mut ir_index_to_bytecode_pc = HashMap::new();
+            let mut bytecode_pc_to_start_ir_index = HashMap::new();
             //todo consider making this use iterators and stuff.
             for (i, (offset, ir_instr)) in ir_instructions_and_offsets.into_iter().enumerate() {
-                let prev_value = ir_index_to_bytecode_pc.insert(IRInstructIndex(i), offset);
+                let current_ir_index = IRInstructIndex(i);
+                let prev_value = ir_index_to_bytecode_pc.insert(current_ir_index, offset);
                 assert!(prev_value.is_none());
+                let prev_value = bytecode_pc_to_start_ir_index.insert(offset, current_ir_index);
+                match prev_value {
+                    None => {}
+                    Some(prev_index) => {
+                        if prev_index < current_ir_index{
+                            bytecode_pc_to_start_ir_index.insert(offset, prev_index);
+                        }
+                    }
+                }
                 ir_instructions.push(ir_instr);
             }
             let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, java_frame_data.full_frame_size(), ir_exit_handler);
@@ -872,6 +905,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
                 restart_points,
                 ir_index_to_bytecode_pc,
+                bytecode_pc_to_start_ir_index,
                 associated_method_id: method_id,
             });
             /*        jvm.vtables.write().unwrap().notify_compile_or_recompile(jvm, method_id, ResolvedInvokeVirtual {

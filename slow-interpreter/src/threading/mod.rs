@@ -171,9 +171,6 @@ impl<'gc_life> ThreadState<'gc_life> {
             Ok(_) => {}
             Err(_) => todo!(),
         }
-        if int_state.function_return() {
-            int_state.set_function_return(false);
-        }
         if int_state.throw().is_some() {
             unimplemented!()
         }

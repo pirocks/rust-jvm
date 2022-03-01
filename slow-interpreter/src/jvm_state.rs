@@ -110,7 +110,7 @@ pub struct JVMState<'gc_life> {
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
-    pub object_monitors: RwLock<HashMap<*const c_void, Monitor2>>,
+    pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
     pub static_breakpoints: StaticBreakpoints,
     pub method_shapes: MethodShapeIDs,
     pub instruction_trace_options: InstructionTraceOptions,
@@ -559,6 +559,14 @@ impl<'gc_life> JVMState<'gc_life> {
     pub fn get_class_getter(&'l self, loader: LoaderName) -> Arc<dyn ClassFileGetter + 'l> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         Arc::new(BootstrapLoaderClassGetter { jvm: self })
+    }
+
+    pub fn monitor_for(&self, obj_ptr: *const c_void) -> Arc<Monitor2> {
+        assert!(obj_ptr != null_mut());
+        let mut monitors_guard = self.object_monitors.write().unwrap();
+        let next_id = monitors_guard.len();
+        let monitor = monitors_guard.entry(obj_ptr).or_insert_with(|| Arc::new(Monitor2::new(next_id)));
+        monitor.clone()
     }
 }
 
