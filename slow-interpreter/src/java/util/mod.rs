@@ -72,19 +72,15 @@ pub mod properties {
     }
 
     impl<'gc_life> Properties<'gc_life> {
-        pub fn set_property(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<(), WasException> {
-            /*let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            int_state.push_current_operand_stack(key.java_value());
-            int_state.push_current_operand_stack(value.java_value());
+        pub fn set_property(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+            let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
+            let args = vec![NewJavaValue::AllocObject(self.normal_object.as_allocated_obj()), key.new_java_value(), value.new_java_value()];
             let desc = CMethodDescriptor {
                 arg_types: vec![CClassName::string().into(), CClassName::string().into()],
                 return_type: CPDType::object(),
             };
-            run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), &desc, todo!())?;
-            int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-            Ok(())*/
-            todo!()
+            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_setProperty(), &desc, args)?;
+            Ok(res.unwrap())
         }
 
         pub fn get_property(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>) -> Result<Option<JString<'gc_life>>, WasException> {

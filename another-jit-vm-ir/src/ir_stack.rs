@@ -252,7 +252,7 @@ impl IRFrameRef<'_> {
 
     pub fn method_id(&self) -> Option<MethodId> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
-        if res as i64 == -1i64 {
+        if (res as i64) < 0 {
             return None;
         }
         let frame_header = unsafe { read_frame_ir_header(self.ptr) };
