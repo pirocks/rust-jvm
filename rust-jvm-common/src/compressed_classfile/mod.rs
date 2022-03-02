@@ -386,26 +386,136 @@ pub type CMethodDescriptor = CompressedMethodDescriptor;
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct CPDTypeOrderWrapper<'l>(pub &'l CPDType);
 
-impl PartialOrd for CPDTypeOrderWrapper<'_>{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+//todo replace with a derive
+impl Ord for CPDTypeOrderWrapper<'_>{
+    fn cmp(&self, other: &Self) -> Ordering {
         match self.0 {
-            CPDType::BooleanType => todo!(),
-            CPDType::ByteType => todo!(),
+            CPDType::BooleanType => match other.0 {
+                CPDType::BooleanType => Ordering::Equal,
+                CPDType::ByteType => Ordering::Greater,
+                CPDType::ShortType => Ordering::Greater,
+                CPDType::CharType => Ordering::Greater,
+                CPDType::IntType => Ordering::Greater,
+                CPDType::LongType => Ordering::Greater,
+                CPDType::FloatType => Ordering::Greater,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
+            CPDType::ByteType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Equal,
+                CPDType::ShortType => Ordering::Greater,
+                CPDType::CharType => Ordering::Greater,
+                CPDType::IntType => Ordering::Greater,
+                CPDType::LongType => Ordering::Greater,
+                CPDType::FloatType => Ordering::Greater,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
             CPDType::ShortType => todo!(),
-            CPDType::CharType => todo!(),
-            CPDType::IntType => todo!(),
-            CPDType::LongType => todo!(),
-            CPDType::FloatType => todo!(),
-            CPDType::DoubleType => todo!(),
+            CPDType::CharType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Equal,
+                CPDType::IntType => Ordering::Greater,
+                CPDType::LongType => Ordering::Greater,
+                CPDType::FloatType => Ordering::Greater,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
+            CPDType::IntType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Equal,
+                CPDType::LongType => Ordering::Greater,
+                CPDType::FloatType => Ordering::Greater,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater
+            },
+            CPDType::LongType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Equal,
+                CPDType::FloatType => Ordering::Greater,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
+            CPDType::FloatType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Equal,
+                CPDType::DoubleType => Ordering::Greater,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
+            CPDType::DoubleType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Less,
+                CPDType::DoubleType => Ordering::Equal,
+                CPDType::VoidType => Ordering::Greater,
+                CPDType::Ref(_) => Ordering::Greater,
+            },
             CPDType::VoidType => todo!(),
-            CPDType::Ref(_) => todo!(),
+            CPDType::Ref(this) => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Less,
+                CPDType::DoubleType => Ordering::Less,
+                CPDType::VoidType => Ordering::Less,
+                CPDType::Ref(other) => {
+                    match this {
+                        CompressedParsedRefType::Array(this_arr) => {
+                            match other {
+                                CompressedParsedRefType::Array(other_arr) => {
+                                    CPDTypeOrderWrapper(this_arr.deref()).cmp(&CPDTypeOrderWrapper(other_arr))
+                                }
+                                CompressedParsedRefType::Class(_) => {
+                                    Ordering::Greater
+                                }
+                            }
+                        },
+                        CompressedParsedRefType::Class(this_ccn) => match other {
+                            CompressedParsedRefType::Array(_other_arr) => {
+                                Ordering::Less
+                            }
+                            CompressedParsedRefType::Class(other_ccn) => {
+                                this_ccn.0.cmp(&other_ccn.0)
+                            }
+                        },
+                    }
+                },
+            },
         }
     }
 }
 
-impl Ord for CPDTypeOrderWrapper<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+impl PartialOrd for CPDTypeOrderWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

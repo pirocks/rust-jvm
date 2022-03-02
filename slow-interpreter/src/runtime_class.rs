@@ -182,22 +182,26 @@ pub struct RuntimeClassClass<'gc_life> {
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc_life> RuntimeClassClass<'gc_life> {
-    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>, static_var_types: HashMap<FieldName, CPDType>) -> Self {
+    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, method_numbers: HashMap<MethodShape, MethodNumber>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>, static_var_types: HashMap<FieldName, CPDType>) -> Self {
         let field_numbers_reverse = field_numbers.iter()
             .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
+            .collect();
+
+        let method_numbers_reverse = method_numbers.iter()
+            .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
             .collect();
         Self {
             class_view,
             field_numbers,
             field_numbers_reverse,
-            method_numbers: todo!(),
-            method_numbers_reverse: todo!(),
+            method_numbers,
+            method_numbers_reverse,
             recursive_num_fields,
             static_var_types,
             static_vars,
             parent,
             interfaces,
-            status
+            status,
         }
     }
 
@@ -205,7 +209,7 @@ impl<'gc_life> RuntimeClassClass<'gc_life> {
         self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
     }
 
-    pub fn num_virtual_methods(&self) -> usize{
+    pub fn num_virtual_methods(&self) -> usize {
         self.class_view.methods().filter(|method| !method.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_virtual_methods()).unwrap_or(0)
     }
 }

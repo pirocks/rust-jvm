@@ -258,9 +258,10 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
                 }
                 let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
+                let (_recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &parent);
                 let static_var_types = get_static_var_types(class_view.deref());
                 let res = Arc::new(RuntimeClass::Object(
-                    RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
+                    RuntimeClassClass::new(class_view, field_numbers, method_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
                 );
                 let verification_types = verifier_context.verification_types;
                 jvm.sink_function_verification_date(&verification_types, res.clone());
@@ -320,7 +321,7 @@ pub fn create_class_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut
         LoaderName::BootstrapLoader => JavaValue::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
-        let fields_handles = JVMState::get_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(&type_))).collect::<Vec<_>>();
+        let fields_handles = JVMState::get_class_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(&type_))).collect::<Vec<_>>();
         let fields = fields_handles.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
         let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: jvm.classes.read().unwrap().class_class.clone(), fields }));
         let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle);

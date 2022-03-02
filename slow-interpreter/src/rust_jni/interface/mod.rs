@@ -678,7 +678,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new(class_view.clone(),field_numbers,recursive_num_fields,Default::default(),super_class,interfaces,RwLock::new(ClassStatus::UNPREPARED), todo!())
+        RuntimeClassClass::new(class_view.clone(), field_numbers, todo!(), recursive_num_fields, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), todo!())
     ));
     let mut class_view_cache = HashMap::new();
     class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);

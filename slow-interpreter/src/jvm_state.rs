@@ -15,6 +15,7 @@ use std::time::Instant;
 use bimap::BiMap;
 use by_address::ByAddress;
 use crossbeam::thread::Scope;
+use iced_x86::CC_le::le;
 use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
@@ -29,10 +30,10 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs, ShapeOrderWrapper};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
@@ -383,17 +384,39 @@ impl<'gc_life> JVMState<'gc_life> {
 
     fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
         //todo turn this into a ::new
-        let field_numbers = JVMState::get_class_field_numbers();
+        let field_numbers = JVMState::get_class_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
+        let method_numbers = JVMState::get_class_class_or_object_class_method_numbers(class_view.deref());
         let static_vars = Default::default();
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let recursive_num_fields = field_numbers.len();
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
+        let object_method_numbers = JVMState::get_class_class_or_object_class_method_numbers(object_class_view.deref());
         let object_class_static_var_types = get_static_var_types(object_class_view.deref());
-        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(object_class_view, HashMap::new(), 0, RwLock::new(HashMap::new()), None, vec![], RwLock::new(ClassStatus::INITIALIZED), object_class_static_var_types)));
+        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
+            object_class_view,
+            HashMap::new(),
+            object_method_numbers,
+            0,
+            RwLock::new(HashMap::new()),
+            None,
+            vec![],
+            RwLock::new(ClassStatus::INITIALIZED),
+            object_class_static_var_types
+        )));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(class_view, field_numbers, recursive_num_fields, static_vars, Some(temp_object_class), interfaces, status, class_class_static_var_types)));
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
+            class_view,
+            field_numbers,
+            method_numbers,
+            recursive_num_fields,
+            static_vars,
+            Some(temp_object_class),
+            interfaces,
+            status,
+            class_class_static_var_types
+        )));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
         let class_object_pool: BiMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
@@ -410,7 +433,8 @@ impl<'gc_life> JVMState<'gc_life> {
         classes
     }
 
-    pub fn get_class_field_numbers() -> HashMap<FieldName, (FieldNumber, CPDType)> {
+    pub fn get_class_class_field_numbers() -> HashMap<FieldName, (FieldNumber, CPDType)> {
+        //todo this use the class view instead
         let class_class_fields = vec![
             (FieldName::field_cachedConstructor(), CClassName::constructor().into()),
             (FieldName::field_newInstanceCallerCache(), CClassName::class().into()),
@@ -429,8 +453,14 @@ impl<'gc_life> JVMState<'gc_life> {
         field_numbers
     }
 
-    pub fn get_class_method_numbers() -> HashMap<MethodShape, MethodNumber>{
-        todo!()
+    pub fn get_class_class_or_object_class_method_numbers(class_class_view: &dyn ClassView) -> HashMap<MethodShape, MethodNumber>{
+        class_class_view.methods()
+            .filter(|method|!method.is_static())
+            .map(|method|{ method.method_shape() })
+            .sorted_by(|left,right|ShapeOrderWrapper(left).cmp(&ShapeOrderWrapper(right)))
+            .enumerate()
+            .map(|(number, shape)|(shape,MethodNumber(number as u32)))
+            .collect()
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
