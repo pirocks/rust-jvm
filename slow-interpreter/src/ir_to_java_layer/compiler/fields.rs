@@ -106,7 +106,7 @@ pub fn putfield(
                     to: class_ref_register,
                     size: Size::pointer()
                 },
-                IRInstr::Const64bit { to: offset, const_: (field_number.0 * size_of::<jlong>()) as u64 },
+                IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
                 IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
             ]))
@@ -165,7 +165,7 @@ pub fn getfield(
                     to: class_ref_register,
                     size: Size::pointer()
                 },
-                IRInstr::Const64bit { to: offset, const_: (field_number.0 * size_of::<jlong>()) as u64 },
+                IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) },

@@ -59,7 +59,7 @@ use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedObjectHandleByAddress, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use crate::perf_metrics::PerfMetrics;
-use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
+use crate::runtime_class::{FieldNumber, MethodNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
 use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
@@ -365,7 +365,7 @@ impl<'gc_life> JVMState<'gc_life> {
         let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
         let mut fields_map_owned = (0..recursive_num_fields).map(|i| {
-            let field_number = FieldNumber(i);
+            let field_number = FieldNumber(i as u32);
             let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
             let default_jv = default_value(&cpd_type);
             (field_number, default_jv)
@@ -425,8 +425,12 @@ impl<'gc_life> JVMState<'gc_life> {
             (FieldName::field_annotationType(), CPDType::object()),
             (FieldName::field_classValueMap(), CPDType::object()),
         ];
-        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1), _2_type.clone()))).collect_vec().into_iter());
+        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1 as u32), _2_type.clone()))).collect_vec().into_iter());
         field_numbers
+    }
+
+    pub fn get_class_method_numbers() -> HashMap<MethodShape, MethodNumber>{
+        todo!()
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {

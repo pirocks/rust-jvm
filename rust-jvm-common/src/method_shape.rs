@@ -1,7 +1,8 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::sync::{RwLock};
+use std::sync::RwLock;
 
-use crate::compressed_classfile::CMethodDescriptor;
+use crate::compressed_classfile::{CMethodDescriptor, CPDTypeOrderWrapper};
 use crate::compressed_classfile::names::MethodName;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -53,9 +54,40 @@ impl MethodShapeIDs {
         right_len
     }
 
-    pub fn lookup_method_shape(&self, method_shape_id: MethodShapeID) -> MethodShape{
+    pub fn lookup_method_shape(&self, method_shape_id: MethodShapeID) -> MethodShape {
         let guard = self.inner.read().unwrap();
         Self::consistency_check(&guard);
         guard.id_to_shape.get(&method_shape_id).unwrap().clone()
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct ShapeOrderWrapper<'l>(pub &'l MethodShape);
+
+impl PartialOrd for ShapeOrderWrapper<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ShapeOrderWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let MethodShape { name: this_name, desc: this_desc } = self.0;
+        let MethodShape { name: other_name, desc: other_desc } = other.0;
+        if this_name == other_name {
+            if this_desc == other_desc {
+                Ordering::Equal
+            } else {
+                if this_desc.arg_types.len() == other_desc.arg_types.len(){
+                    this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).map(|(this,other)|{
+                        CPDTypeOrderWrapper(this).partial_cmp(&CPDTypeOrderWrapper(other))
+                    }).flatten().find(|ordering|!matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
+                }else {
+                    this_desc.arg_types.len().cmp(&other_desc.arg_types.len())
+                }
+            }
+        } else {
+            this_name.0.cmp(&other_name.0)
+        }
     }
 }

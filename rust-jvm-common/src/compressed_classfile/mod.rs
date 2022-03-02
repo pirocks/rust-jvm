@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::num::NonZeroU8;
 #[allow(unreachable_code)]
 #[allow(dead_code)]
@@ -381,6 +382,32 @@ impl From<CompressedClassName> for CompressedParsedDescriptorType {
 }
 
 pub type CMethodDescriptor = CompressedMethodDescriptor;
+
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
+pub struct CPDTypeOrderWrapper<'l>(pub &'l CPDType);
+
+impl PartialOrd for CPDTypeOrderWrapper<'_>{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.0 {
+            CPDType::BooleanType => todo!(),
+            CPDType::ByteType => todo!(),
+            CPDType::ShortType => todo!(),
+            CPDType::CharType => todo!(),
+            CPDType::IntType => todo!(),
+            CPDType::LongType => todo!(),
+            CPDType::FloatType => todo!(),
+            CPDType::DoubleType => todo!(),
+            CPDType::VoidType => todo!(),
+            CPDType::Ref(_) => todo!(),
+        }
+    }
+}
+
+impl Ord for CPDTypeOrderWrapper<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CompressedMethodDescriptor {

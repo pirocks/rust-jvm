@@ -984,7 +984,7 @@ impl<'gc_life, 'l> Object<'gc_life, 'l> {
         };
         let normal_object = self.unwrap_normal_object();
         let guard = normal_object.objinfo.fields.read().unwrap();
-        guard[field_number.0].to_java_value(rtype, jvm)
+        guard[field_number.0 as usize].to_java_value(rtype, jvm)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc_life, 'l> {
@@ -1327,7 +1327,7 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
                     do_class_check = false;
                 }
                 Some((field_index, ptype)) => {
-                    self.objinfo.fields.write().unwrap().get_mut(field_index.0).map(|set| *set = jv.to_native());
+                    self.objinfo.fields.write().unwrap().get_mut(field_index.0 as usize).map(|set| *set = jv.to_native());
                     return;
                 }
             };

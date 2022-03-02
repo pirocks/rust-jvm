@@ -163,11 +163,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static sun.reflect.Reflection.verifyMemberAccess;
 
 public class DebuggingClass{
-    private static final int ROWS = 32;
-    private static final int SIZE = 39;
-    private static final int SHIFT = 1;
-    private static final int MASK = 0x1f;
     public static void main(String[] args) throws IllegalAccessException {
-        Terminator.setup()
+
     }
 }

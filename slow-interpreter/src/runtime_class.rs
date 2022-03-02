@@ -8,6 +8,7 @@ use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::method_shape::MethodShape;
 
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
@@ -158,12 +159,17 @@ pub struct RuntimeClassArray<'gc_life> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FieldNumber(pub(crate) usize);
+pub struct FieldNumber(pub(crate) u32);
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct MethodNumber(pub(crate) u32);
 
 pub struct RuntimeClassClass<'gc_life> {
     pub class_view: Arc<dyn ClassView>,
     pub field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
     pub field_numbers_reverse: HashMap<FieldNumber, (FieldName, CPDType)>,
+    pub method_numbers: HashMap<MethodShape, MethodNumber>,
+    pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
     pub recursive_num_fields: usize,
     pub static_var_types: HashMap<FieldName, CPDType>,
     pub static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc_life>>>,
@@ -180,11 +186,27 @@ impl<'gc_life> RuntimeClassClass<'gc_life> {
         let field_numbers_reverse = field_numbers.iter()
             .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
             .collect();
-        Self { class_view, field_numbers, field_numbers_reverse, recursive_num_fields, static_var_types, static_vars, parent, interfaces, status }
+        Self {
+            class_view,
+            field_numbers,
+            field_numbers_reverse,
+            method_numbers: todo!(),
+            method_numbers_reverse: todo!(),
+            recursive_num_fields,
+            static_var_types,
+            static_vars,
+            parent,
+            interfaces,
+            status
+        }
     }
 
     pub fn num_vars(&self) -> usize {
         self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
+    }
+
+    pub fn num_virtual_methods(&self) -> usize{
+        self.class_view.methods().filter(|method| !method.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_virtual_methods()).unwrap_or(0)
     }
 }
 
