@@ -135,10 +135,10 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                 let res = todo!()/*class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)*/;
                                 res
                             }
-                            CPRefType::Array(sub_type) => {
+                            CPRefType::Array { base_type:sub_type, num_nested_arrs } => {
                                 drop(jvm.classes.write().unwrap());
-                                let sub_class = check_loaded_class(jvm, int_state, sub_type.deref().clone())?;
-                                let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
+                                let sub_class = check_loaded_class(jvm, int_state, sub_type.to_cpdtype())?;
+                                let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested: num_nested_arrs }));
                                 let obj = create_class_object(jvm, int_state, None, loader)?;
                                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj), ByAddress(res.clone()));
                                 res
@@ -277,10 +277,10 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
-            CPRefType::Array(sub_type) => {
-                let sub_class = check_resolved_class(jvm, int_state, sub_type.deref().clone())?;
+            CPRefType::Array{ base_type: sub_type, num_nested_arrs } => {
+                let sub_class = check_resolved_class(jvm, int_state, sub_type.to_cpdtype())?;
                 //todo handle class objects for arraus
-                (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
+                (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested: num_nested_arrs })))
             }
         },
     };

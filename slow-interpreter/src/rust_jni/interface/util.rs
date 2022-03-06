@@ -18,6 +18,6 @@ pub fn class_object_to_runtime_class(obj: &JClass<'gc_life>, jvm: &'gc_life JVMS
         CPRefType::Class(class_name) => {
             assert_loaded_class(jvm, class_name.clone().into()).into() //todo a better way?
         }
-        CPRefType::Array(_) => None,
+        CPRefType::Array{ .. } => None,
     }
 }

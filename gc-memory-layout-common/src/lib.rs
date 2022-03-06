@@ -16,7 +16,7 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jlong, jobject};
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -76,10 +76,10 @@ impl AllocatedObjectType {
                 (*name).into()
             }
             AllocatedObjectType::ObjectArray { sub_type, .. } => {
-                CPDType::Ref(CompressedParsedRefType::Array(box CPDType::Ref(sub_type.clone())))
+                CPDType::array(CPDType::Ref(*sub_type))
             }
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
-                CPDType::Ref(CompressedParsedRefType::Array(box primitive_type.clone()))
+                CPDType::array(*primitive_type)
             }
         }
     }

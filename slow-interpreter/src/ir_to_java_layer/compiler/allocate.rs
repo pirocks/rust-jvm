@@ -1,5 +1,6 @@
 use iced_x86::CC_b::c;
 use itertools::Either;
+use libc::exit;
 
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
@@ -51,7 +52,7 @@ pub fn anewarray(
     recompile_conditions: &mut MethodRecompileConditions,
     elem_type: &CPDType,
 ) -> impl Iterator<Item=IRInstr> {
-    let array_type = CPDType::Ref(CPRefType::Array(box elem_type.clone()));
+    let array_type = CPDType::array(*elem_type/*CPRefType::Array(box elem_type.clone())*/);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_loaded(&array_type) {

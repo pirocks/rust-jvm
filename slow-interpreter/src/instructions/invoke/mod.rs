@@ -194,7 +194,7 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     let class_name_ = match class_name_type {
         CPDType::Ref(r) => match r {
             CPRefType::Class(c) => c,
-            CPRefType::Array(_a) => {
+            CPRefType::Array { .. } => {
                 if expected_method_name == MethodName::method_clone() {
                     //todo replace with proper native impl
                     let temp = match int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object() {

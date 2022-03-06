@@ -63,7 +63,7 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
         match type_ {
             CPDType::Ref(ref_) => match ref_ {
                 CPRefType::Class(_) => {}
-                CPRefType::Array(_array) => {
+                CPRefType::Array { .. } => {
                     status |= JVMTI_CLASS_STATUS_ARRAY as i32;
                 }
             },

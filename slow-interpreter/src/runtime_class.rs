@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
+use std::num::NonZeroU8;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use iced_x86::CC_be::na;
+use serde_yaml::to_string;
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -48,7 +50,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
             RuntimeClass::Float => CPDType::FloatType,
             RuntimeClass::Double => CPDType::DoubleType,
             RuntimeClass::Void => CPDType::VoidType,
-            RuntimeClass::Array(arr) => CPDType::Ref(CPRefType::Array(box arr.sub_class.cpdtype())),
+            RuntimeClass::Array(arr) => CPDType::Ref(CPRefType::Array{ base_type: arr.sub_class.cpdtype().to_non_array(), num_nested_arrs: arr.num_nested }),
             RuntimeClass::Object(o) => CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name())),
             RuntimeClass::Top => panic!(),
         }
@@ -156,6 +158,7 @@ impl<'gc_life> RuntimeClass<'gc_life> {
 #[derive(Debug)]
 pub struct RuntimeClassArray<'gc_life> {
     pub sub_class: Arc<RuntimeClass<'gc_life>>,
+    pub num_nested: NonZeroU8
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

@@ -3,7 +3,7 @@ use crate::compressed_classfile::names::{CClassName, CompressedClassName};
 
 pub type RType = RuntimeType;
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum RuntimeType {
     IntType,
     FloatType,
@@ -13,7 +13,7 @@ pub enum RuntimeType {
     TopType,
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum RuntimeRefType {
     Array(CPDType),
     Class(CClassName),

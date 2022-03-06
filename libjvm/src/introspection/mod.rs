@@ -97,7 +97,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let temp = JavaValue::Object(object).to_new().cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public(
-        match JClass::from_type(jvm, int_state, object_class.unwrap_array().clone()) {
+        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException {}) => return null_mut(),
         }

@@ -579,7 +579,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                             let matches_class = match catch_type {
                                 None => true,
                                 Some(class_name) => {
-                                    instance_of_exit_impl_impl(jvm, &CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
+                                    instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
                                 }
                             };
                             if *start_pc <= current_pc && current_pc < *end_pc && matches_class {

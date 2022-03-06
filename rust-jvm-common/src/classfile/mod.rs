@@ -164,15 +164,9 @@ pub struct ArrayVariableInfo {
     pub array_type: PType,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UninitializedVariableInfo {
     pub offset: ByteCodeOffset,
-}
-
-impl Clone for UninitializedVariableInfo {
-    fn clone(&self) -> Self {
-        UninitializedVariableInfo { offset: self.offset }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

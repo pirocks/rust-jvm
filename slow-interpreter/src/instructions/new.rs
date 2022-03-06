@@ -77,7 +77,7 @@ pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     let mut current = JavaValue::null();
     let mut current_type = unwrapped_type;
     for len in dimensions {
-        let next_type = CPDType::Ref(CPRefType::Array(box current_type));
+        let next_type = CPDType::array(current_type);
         let mut new_vec = vec![];
         for _ in 0..len {
             new_vec.push(current.deep_clone(jvm))

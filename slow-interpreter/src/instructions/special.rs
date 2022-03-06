@@ -83,7 +83,7 @@ pub fn invoke_checkcast(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
                         Err(WasException {}) => return,
                     }*/
                 }
-                _ => &a.elem_type == expected_type,
+                _ => todo!()/*&a.elem_type == expected_type*/,
             };
             if cast_succeeds {
                 int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
@@ -108,23 +108,23 @@ pub fn instance_of_exit_impl(jvm: &'gc_life JVMState<'gc_life>, cpdtype: &CPDTyp
     }
 }
 
-pub fn instance_of_exit_impl_impl(jvm: &'gc_life JVMState<'gc_life>, instance_of_class_type: &CompressedParsedRefType, obj: AllocatedObject<'gc_life, '_>) -> jint {
+pub fn instance_of_exit_impl_impl(jvm: &'gc_life JVMState<'gc_life>, instance_of_class_type: CompressedParsedRefType, obj: AllocatedObject<'gc_life, '_>) -> jint {
     let rc = obj.runtime_class(jvm);
     let actual_cpdtype = rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
-        CompressedParsedRefType::Array(array) => {
+        CompressedParsedRefType::Array { base_type: actual_base_type, num_nested_arrs: actual_num_nested_arrs } => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    if instance_of_class_name == &CClassName::serializable() || instance_of_class_name == &CClassName::cloneable() {
+                    if instance_of_class_name == CClassName::serializable() || instance_of_class_name == CClassName::cloneable() {
                         unimplemented!() //todo need to handle serializable and the like, check subtype is castable as per spec
-                    } else if instance_of_class_name == &CClassName::object() {
+                    } else if instance_of_class_name == CClassName::object() {
                         1
                     } else {
                         0
                     }
                 }
-                CompressedParsedRefType::Array(a) => {
-                    if array == a {
+                CompressedParsedRefType::Array { base_type: expected_class_type, num_nested_arrs: expected_num_nested_arrs } => {
+                    if actual_base_type == expected_class_type && actual_num_nested_arrs == expected_num_nested_arrs {
                         1
                     } else {
                         todo!()
@@ -135,15 +135,15 @@ pub fn instance_of_exit_impl_impl(jvm: &'gc_life JVMState<'gc_life>, instance_of
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let instanceof_class = assert_inited_or_initing_class(jvm, (*instance_of_class_name).into());
-                    let object_class = assert_inited_or_initing_class(jvm,(*object).into());
+                    let instanceof_class = assert_inited_or_initing_class(jvm, (instance_of_class_name).into());
+                    let object_class = assert_inited_or_initing_class(jvm,(object).into());
                     if inherits_from(jvm, &object_class, &instanceof_class) {
                         1
                     } else {
                         0
                     }
                 }
-                CompressedParsedRefType::Array(_) => {
+                CompressedParsedRefType::Array{ .. } => {
                     0
                 }
             }
@@ -175,8 +175,8 @@ pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
                         int_state.push_current_operand_stack(JavaValue::Int(0))
                     }
                 }
-                CPRefType::Array(a) => {
-                    if a.deref() == &array.elem_type {
+                CPRefType::Array{ base_type, num_nested_arrs } => {
+                    if todo!()/*a.deref() == &array.elem_type*/ {
                         int_state.push_current_operand_stack(JavaValue::Int(1))
                     }
                 }
@@ -193,7 +193,7 @@ pub fn instance_of_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut In
                         int_state.push_current_operand_stack(JavaValue::Int(0))
                     }
                 }
-                CPRefType::Array(_) => int_state.push_current_operand_stack(JavaValue::Int(0)),
+                CPRefType::Array{ .. } => int_state.push_current_operand_stack(JavaValue::Int(0)),
             }
         }
     };

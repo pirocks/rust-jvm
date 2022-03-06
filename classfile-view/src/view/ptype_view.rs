@@ -80,7 +80,7 @@ impl PTypeView {
             CPDType::IntType => PTypeView::IntType,
             CPDType::LongType => PTypeView::LongType,
             CPDType::Ref(r) => PTypeView::Ref(match r {
-                CompressedParsedRefType::Array(arr) => ReferenceTypeView::Array(box PTypeView::from_compressed(arr.deref(), pool)),
+                CompressedParsedRefType::Array { .. } => todo!()/*ReferenceTypeView::Array(box PTypeView::from_compressed(arr.deref(), pool))*/,
                 CompressedParsedRefType::Class(obj) => ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string())),
             }),
             CPDType::ShortType => PTypeView::ShortType,

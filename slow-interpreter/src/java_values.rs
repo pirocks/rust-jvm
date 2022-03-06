@@ -360,7 +360,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
             }
             AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
                 let classes = jvm.classes.read().unwrap();
-                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::Ref(CompressedParsedRefType::Array(box CPDType::Ref(sub_type.clone()))));
+                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::array(CPDType::Ref(sub_type.clone())));
                 unsafe {
                     Arc::new(Object::Array(ArrayObject {
                         whole_array_runtime_class: runtime_class.clone(),
@@ -375,7 +375,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
             AllocatedObjectType::PrimitiveArray { primitive_type, len } => {
                 let classes = jvm.classes.read().unwrap();
                 //todo loader nonsense
-                let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::Ref(CompressedParsedRefType::Array(box primitive_type.clone())));
+                let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::array(*primitive_type));
                 unsafe {
                     Arc::new(Object::Array(ArrayObject {
                         whole_array_runtime_class: runtime_class.clone(),
@@ -1133,7 +1133,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
     }
 
     pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
-        check_resolved_class(jvm, int_state, CPDType::Ref(CPRefType::Array(box type_.clone())))?;
+        check_resolved_class(jvm, int_state, CPDType::array(type_/*CPRefType::Array(box type_.clone())*/))?;
         Ok(Self {
             whole_array_runtime_class: todo!(),
             loader: todo!(),

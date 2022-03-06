@@ -152,7 +152,7 @@ fn set_properties(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
 fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn ClassView>) -> u16 {
     let string_name = CClassName::string();
     let string_class = CPDType::Ref(CPRefType::Class(string_name));
-    let string_array = CPDType::Ref(CPRefType::Array(string_class.into()));
+    let string_array = CPDType::array(string_class);
     let psvms = main.lookup_method_name(MethodName(pool.add_name(&"main".to_string(), false)));
     for m in psvms {
         let desc = m.desc();

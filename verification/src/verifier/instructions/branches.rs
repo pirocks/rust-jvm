@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::view::ClassView;
@@ -301,7 +300,7 @@ pub fn instruction_is_type_safe_invokevirtual(class_type: &CPDType, method_name:
     let (class_name, method_class) = match class_type {
         CPDType::Ref(r) => match r {
             CPRefType::Class(c) => (Some(c.clone()), VType::Class(ClassWithLoader { class_name: *c, loader: env.class_loader.clone() })),
-            CPRefType::Array(a) => (None, VType::ArrayReferenceType(a.deref().clone())),
+            CPRefType::Array{ base_type, num_nested_arrs } => (None, VType::ArrayReferenceType(CPDType::new_array_or_normal(*base_type,num_nested_arrs.get() - 1))),
         },
         _ => panic!(),
     };
