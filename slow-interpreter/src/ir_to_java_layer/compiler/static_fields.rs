@@ -20,13 +20,13 @@ pub fn putstatic(
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_type_loaded(&target_class.into()) {
+    match resolver.lookup_type_inited_initing(&target_class.into()) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class.into() });
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: todo!(),
+                        class: resolver.get_cpdtype_id(&target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id
                     },
@@ -57,7 +57,7 @@ pub fn getstatic(
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_type_loaded(&target_class.into()) {
+    match resolver.lookup_type_inited_initing(&target_class.into()) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class.into() });
             array_into_iter([restart_point,

@@ -21,7 +21,7 @@ pub fn new(resolver: &MethodResolver<'vm_life>,
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let cpd_type_id = resolver.get_cpdtype_id(&ccn.clone().into());
-    match resolver.lookup_type_loaded(&(ccn).into()) {
+    match resolver.lookup_type_inited_initing(&(ccn).into()) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: ccn.clone().into() });
             array_into_iter([restart_point, IRInstr::VMExit2 {
@@ -55,7 +55,7 @@ pub fn anewarray(
     let array_type = CPDType::array(*elem_type/*CPRefType::Array(box elem_type.clone())*/);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    match resolver.lookup_type_loaded(&array_type) {
+    match resolver.lookup_type_inited_initing(&array_type) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&array_type);
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: array_type });

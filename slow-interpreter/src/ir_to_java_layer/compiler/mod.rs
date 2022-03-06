@@ -275,7 +275,7 @@ impl NeedsRecompileIf {
                 method_resolver.lookup_ir_method_id_and_address(*method_id).is_some()
             }
             NeedsRecompileIf::ClassLoaded { class } => {
-                method_resolver.lookup_type_loaded(class).is_some()
+                method_resolver.lookup_type_inited_initing(class).is_some()
             }
         }
     }

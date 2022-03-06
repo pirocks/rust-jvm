@@ -152,9 +152,9 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))
     }
 
-    pub fn lookup_type_loaded(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
+    pub fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
         let read_guard = self.jvm.classes.read().unwrap();
-        let rc = read_guard.is_loaded(cpdtype)?;
+        let rc = read_guard.is_inited_or_initing(cpdtype)?;
         let loader = read_guard.get_initiating_loader(&rc);
         Some((rc, loader))
     }

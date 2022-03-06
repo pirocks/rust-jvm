@@ -59,7 +59,7 @@ pub fn putfield(
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let cpd_type_id_obj = resolver.get_cpdtype_id(&cpd_type);
-    match resolver.lookup_type_loaded(&cpd_type) {
+    match resolver.lookup_type_inited_initing(&cpd_type) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
@@ -132,7 +132,7 @@ pub fn getfield(
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let obj_cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
-    match resolver.lookup_type_loaded(&cpd_type) {
+    match resolver.lookup_type_inited_initing(&cpd_type) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
             Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {

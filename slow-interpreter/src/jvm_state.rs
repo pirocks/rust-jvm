@@ -25,6 +25,7 @@ use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject, stat};
 use perf_metrics::PerfMetrics;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
+use rust_jvm_common::classfile::InstructionInfo::ret;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -141,6 +142,20 @@ impl<'gc_life> Classes<'gc_life> {
 
     pub fn is_loaded(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc_life>>> {
         self.initiating_loaders.get(&ptype)?.1.clone().into()
+    }
+
+    pub fn is_inited_or_initing(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc_life>>> {
+        let rc = self.initiating_loaders.get(&ptype)?.1.clone();
+        Some(match rc.status(){
+            ClassStatus::UNPREPARED |
+            ClassStatus::PREPARED => {
+                return None
+            }
+            ClassStatus::INITIALIZING |
+            ClassStatus::INITIALIZED => {
+                rc
+            }
+        })
     }
 
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc_life>>) -> LoaderName {

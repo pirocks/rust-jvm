@@ -24,7 +24,7 @@ pub fn ldc_string(resolver: &MethodResolver<'vm_life>,
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let string_class_cpdtype = CClassName::string().into();
-    match resolver.lookup_type_loaded(&string_class_cpdtype) {
+    match resolver.lookup_type_inited_initing(&string_class_cpdtype) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&string_class_cpdtype);
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: string_class_cpdtype });
@@ -58,7 +58,7 @@ pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
     let to_load_cpdtype = type_.clone();
     let cpd_type_id = resolver.get_cpdtype_id(&to_load_cpdtype);
     //todo we could do this in the exit and cut down on recompilations
-    match resolver.lookup_type_loaded(&to_load_cpdtype) {
+    match resolver.lookup_type_inited_initing(&to_load_cpdtype) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: to_load_cpdtype });
             array_into_iter([restart_point, IRInstr::VMExit2 {

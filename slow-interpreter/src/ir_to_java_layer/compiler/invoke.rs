@@ -35,7 +35,7 @@ pub fn invokespecial(
     let restart_point_class_load = IRInstr::RestartPoint(restart_point_id_class_load);
     let restart_point_id_function_address = restart_point_generator.new_restart_point();
     let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
-    match resolver.lookup_type_loaded(&class_cpdtype) {
+    match resolver.lookup_type_inited_initing(&class_cpdtype) {
         None => {
             let cpd_type_id = resolver.get_cpdtype_id(&CPDType::Ref(classname_ref_type.clone()));
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_cpdtype });
@@ -232,7 +232,7 @@ pub fn invokevirtual(
     let target_class_type = CPDType::Ref(classname_ref_type.clone());
     let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
 
-    if resolver.lookup_type_loaded(&target_class_type).is_none() {
+    if resolver.lookup_type_inited_initing(&target_class_type).is_none() {
         recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
         //todo this should never happen?
         return Either::Left(array_into_iter([restart_point,
