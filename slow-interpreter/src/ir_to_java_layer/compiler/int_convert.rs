@@ -77,3 +77,21 @@ pub fn i2b(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
     ])
 }
 
+pub fn l2i(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let from_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
+    let to_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
+    let temp_register = Register(1);
+    array_into_iter([
+        IRInstr::LoadFPRelative {
+            from: from_offset,
+            to: temp_register,
+            size: Size::int()
+        },
+        IRInstr::StoreFPRelative {
+            from: temp_register,
+            to: to_offset,
+            size: Size::int()
+        }
+    ])
+}
+

@@ -44,6 +44,17 @@ pub fn land(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     ])
 }
 
+pub fn lor(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value1 = Register(1);
+    let value2 = Register(2);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::long() },
+        IRInstr::BinaryBitOr { res: value2, a: value1, size: Size::long() },
+        IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
+    ])
+}
+
 
 pub fn ixor(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(1);

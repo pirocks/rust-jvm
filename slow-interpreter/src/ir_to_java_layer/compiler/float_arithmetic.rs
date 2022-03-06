@@ -76,3 +76,14 @@ pub fn fadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
+
+pub fn dadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = DoubleRegister(0);
+    let value1 = DoubleRegister(1);
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::AddDouble { res: value1, a: value2 },
+        IRInstr::StoreFPRelativeDouble { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}

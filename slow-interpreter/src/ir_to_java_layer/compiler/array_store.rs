@@ -22,6 +22,10 @@ pub fn aastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
     array_store_impl(method_frame_data, current_instr_data,Size::pointer())
 }
 
+pub fn lastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data,Size::long())
+}
+
 fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, elem_size: Size) -> impl Iterator<Item=IRInstr> {
     let index = Register(1);
     let array_ref = Register(2);

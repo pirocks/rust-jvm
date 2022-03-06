@@ -720,13 +720,26 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
             assembler.cvtpi2pd(to.to_xmm(), temp.to_mm()).unwrap()
         }
+        IRInstr::DoubleToLongConvert { from, temp, to } => {
+            assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
+            assembler.movq(to.to_native_64(), temp.to_mm()).unwrap();
+        }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
             assembler.movd(to.to_native_32(), temp.to_mm()).unwrap();
         }
         IRInstr::IntegerToFloatConvert { to, temp, from } => {
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
+            //todo use cvtsi2ss instead avoids the move to mmx
             assembler.cvtpi2ps(to.to_xmm(), temp.to_mm()).unwrap()
+        }
+        IRInstr::LongToFloatConvert { to, from } => {
+            // assembler.movq(temp.to_mm(), from.to_native_64()).unwrap();
+            assembler.cvtsi2ss(to.to_xmm(), from.to_native_64()).unwrap()
+        }
+        IRInstr::LongToDoubleConvert { to, from } => {
+            // assembler.movq(temp.to_mm(), from.to_native_64()).unwrap();
+            assembler.cvtsi2sd(to.to_xmm(), from.to_native_64()).unwrap()
         }
         IRInstr::FloatCompare { value1, value2, res, temp1: one, temp2: zero, temp3: m_one, compare_mode } => {
             /*
@@ -817,6 +830,9 @@ SF = 0;
         }
         IRInstr::MulDouble { res, a } => {
             assembler.mulpd(res.to_xmm(), a.to_xmm()).unwrap();
+        }
+        IRInstr::AddDouble { res, a } => {
+            assembler.addpd(res.to_xmm(), a.to_xmm()).unwrap();
         }
         IRInstr::SignExtend { from, to, from_size, to_size } => {
             match from_size {
