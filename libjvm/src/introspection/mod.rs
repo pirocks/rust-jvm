@@ -32,11 +32,12 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
@@ -93,16 +94,14 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
 unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let object = from_object(jvm, cls);
-    let temp = JavaValue::Object(object).to_new().cast_class().unwrap().as_type(jvm);
+    let object = from_object_new(jvm, cls);
+    let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public(
+    new_local_ref_public_new(
         match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException {}) => return null_mut(),
-        }
-            .java_value()
-            .unwrap_object(),
+        }.object_ref().into(),
         int_state,
     )
 }
