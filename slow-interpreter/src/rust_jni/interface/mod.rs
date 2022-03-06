@@ -690,6 +690,7 @@ pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
         current_loader: LoaderName::BootstrapLoader, //todo
         verification_types: Default::default(),
         debug: false,
+        perf_metrics: &jvm.perf_metrics
     };
     match verify(&mut vf, class_name, LoaderName::BootstrapLoader /*todo*/) {
         Ok(_) => {}

@@ -5,6 +5,7 @@ use std::collections::vec_deque::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use classfile_view::view::ClassView;
+use perf_metrics::PerfMetrics;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -18,7 +19,10 @@ use crate::verifier::TypeSafetyError;
 pub mod verifier;
 
 pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader })
+    let verify = vf.perf_metrics.verifier_start();
+    let res = class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader });
+    drop(verify);
+    res
 }
 
 #[derive(Debug)]
@@ -31,7 +35,6 @@ pub struct StackMap {
 pub struct CodeIndex(u16);
 
 
-
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
@@ -40,7 +43,7 @@ pub struct VerifierContext<'l> {
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
     pub debug: bool,
-
+    pub perf_metrics: &'l PerfMetrics,
 }
 
 pub trait ClassFileGetter {

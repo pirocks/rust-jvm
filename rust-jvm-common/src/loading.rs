@@ -87,7 +87,7 @@ impl std::error::Error for ClassLoadingError {}
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct LoaderIndex(pub usize);
+pub struct LoaderIndex(pub u32);
 
 #[derive(Debug, Eq, Clone, Hash, Copy)]
 pub enum LoaderName {
@@ -124,7 +124,7 @@ impl Display for LoaderName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ClassWithLoader {
     pub class_name: CClassName,
     pub loader: LoaderName,
@@ -140,12 +140,6 @@ impl Hash for ClassWithLoader {
 impl PartialEq for ClassWithLoader {
     fn eq(&self, other: &ClassWithLoader) -> bool {
         self.class_name == other.class_name && self.loader == other.loader
-    }
-}
-
-impl Clone for ClassWithLoader {
-    fn clone(&self) -> Self {
-        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
     }
 }
 

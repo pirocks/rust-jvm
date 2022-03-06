@@ -236,6 +236,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                     current_loader: LoaderName::BootstrapLoader,
                     verification_types: Default::default(),
                     debug: class_name == CClassName::string(),
+                    perf_metrics: &jvm.perf_metrics
                 };
                 match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
                     Ok(_) => {}

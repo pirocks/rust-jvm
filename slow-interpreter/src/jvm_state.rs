@@ -208,7 +208,7 @@ impl<'gc_life> Classes<'gc_life> {
         LoaderName::UserDefinedLoader(match loader_index_lookup {
             Some(x) => *x,
             None => {
-                let new_loader_id = LoaderIndex(loaders_guard.len());
+                let new_loader_id = LoaderIndex(loaders_guard.len() as u32);
                 assert!(!loaders_guard.contains_left(&new_loader_id));
                 loaders_guard.insert(new_loader_id, ByAddressAllocatedObject::Owned(obj));
                 //todo this whole mess needs a register class loader function which addes to approprate classes data structure
@@ -349,6 +349,7 @@ impl<'gc_life> JVMState<'gc_life> {
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,
+            perf_metrics: &self.perf_metrics
         };
         let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
         verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");

@@ -12,6 +12,7 @@ edition = "2018"
 rust-jvm-common = { path = "../rust-jvm-common" }
 classfile-parser = { path = "../classfile-parser" }
 classfile-view = { path = "../classfile-view" }
+perf-metrics = {path = "../perf-metrics"}
 elapsed = "0.1"
 itertools = "0.10"
 

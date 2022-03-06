@@ -93,6 +93,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         current_loader: loader.clone(),
         verification_types: Default::default(),
         debug: false,
+        perf_metrics: &jvm.perf_metrics
     };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean

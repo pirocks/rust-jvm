@@ -1714,6 +1714,7 @@ dependencies = [
  "itertools",
  "jar-manipulation",
  "ntest_timeout 0.3.3",
+ "perf-metrics",
  "rust-jvm-common",
  "timebomb",
 ]

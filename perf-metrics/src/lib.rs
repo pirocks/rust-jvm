@@ -10,7 +10,8 @@ pub struct PerfMetrics {
     throw_times: ResponseTime<AtomicHdrHistogram,StdInstantMicros>,
     allocate_object_times: ResponseTime<AtomicHdrHistogram,StdInstantMicros>,
     get_static_times: ResponseTime<AtomicHdrHistogram,StdInstantMicros>,
-    compilations: ResponseTime<AtomicHdrHistogram,StdInstantMicros>
+    compilations: ResponseTime<AtomicHdrHistogram,StdInstantMicros>,
+    verifier: ResponseTime<AtomicHdrHistogram,StdInstantMicros>
 }
 
 impl PerfMetrics {
@@ -22,7 +23,8 @@ impl PerfMetrics {
             throw_times: Default::default(),
             allocate_object_times: Default::default(),
             get_static_times: Default::default(),
-            compilations: ResponseTime::default()
+            compilations: ResponseTime::default(),
+            verifier: Default::default()
         }
     }
 
@@ -98,6 +100,19 @@ impl PerfMetrics {
         }
     }
 
+    pub fn verifier_start(&self) -> VerifyGuard{
+        if self.enabled{
+            let enter_instant = self.verifier.enter();
+            VerifyGuard::Enabled {
+                enter_instant,
+                metrics: self
+            }
+        }else {
+            VerifyGuard::Disabled
+        }
+    }
+
+
     pub fn display(&self) {
         let exit_histogram = self.exit_times.histogram();
         println!("Exits:\n{}", serde_yaml::to_string(&exit_histogram).unwrap());
@@ -111,6 +126,8 @@ impl PerfMetrics {
         println!("Allocate Object:\n{}", serde_yaml::to_string(&allocate_object_histogram).unwrap());
         let get_static_histogram = self.get_static_times.histogram();
         println!("Get Static:\n{}", serde_yaml::to_string(&get_static_histogram).unwrap());
+        let verifier_histogram = self.verifier.histogram();
+        println!("Verify:\n{}", serde_yaml::to_string(&verifier_histogram).unwrap());
     }
 }
 
@@ -130,6 +147,26 @@ impl Drop for CompilationGuard<'_> {
                 OnResult::<()>::leave_scope(&metrics.compilations, instant);
             }
             CompilationGuard::Disabled => {}
+        }
+    }
+}
+
+pub enum VerifyGuard<'l>{
+    Enabled{
+        enter_instant: StdInstantMicros,
+        metrics: &'l PerfMetrics
+    },
+    Disabled
+}
+
+impl Drop for VerifyGuard<'_> {
+    fn drop(&mut self) {
+        match self {
+            VerifyGuard::Enabled { enter_instant, metrics } => {
+                let instant = enter_instant.clone();
+                OnResult::<()>::leave_scope(&metrics.verifier, instant);
+            }
+            VerifyGuard::Disabled => {}
         }
     }
 }
