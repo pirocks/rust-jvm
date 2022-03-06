@@ -26,7 +26,7 @@ use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAc
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
-use gc_memory_layout_common::AllocatedObjectType;
+use gc_memory_layout_common::{AllocatedObjectType, BaseAddressAndMask};
 use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
@@ -129,7 +129,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 assert!(*len >= 0);
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
-                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize), int_state.thread().java_tid);
+                let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize));
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let array_size = object_array.size();
                 let region_data = memory_region_guard.find_or_new_region_for(object_array);
@@ -299,7 +299,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
                 let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
                 let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
-                let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None, int_state.thread().java_tid);
+                let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None);
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let object_size = object_type.size();
                 let allocated_object = memory_region_guard.find_or_new_region_for(object_type).get_allocation();
@@ -475,7 +475,14 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     eprintln!("CheckCast");
                 }
                 let type_table_guard = jvm.cpdtype_table.read().unwrap();
-                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
+                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id).clone();
+                drop(type_table_guard);
+                // let rc = check_initing_or_inited_class(jvm, int_state,cpdtype.clone());
+                let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                drop(memory_region_guard);
+                //todo just use region data from pointer to cache the result of this checkast and then havee a restart point
+                /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
+                todo!();*/
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
@@ -486,6 +493,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         int_state.debug_print_stack_trace(jvm);
                         todo!()
                     }
+
+                    let base_address_and_mask = jvm.gc.memory_region.lock().unwrap().find_object_base_address_and_mask(handle.ptr);
+                    jvm.known_addresses.sink_known_address(cpdtype, base_address_and_mask)
                 }
                 drop(exit_guard);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -838,7 +848,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             let compile_guard = jvm.perf_metrics.compilation_start();
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
-            eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             //todo need some mechanism for detecting recompile necessary
             //todo unify resolver and recompile_conditions
             let is_native = jvm.is_native_by_method_id(method_id);
@@ -892,7 +902,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 match prev_value {
                     None => {}
                     Some(prev_index) => {
-                        if prev_index < current_ir_index{
+                        if prev_index < current_ir_index {
                             bytecode_pc_to_start_ir_index.insert(offset, prev_index);
                         }
                     }

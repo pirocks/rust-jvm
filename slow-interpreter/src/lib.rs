@@ -87,6 +87,7 @@ pub mod inheritance_vtable;
 pub mod static_breakpoints;
 pub mod new_java_values;
 pub mod perf_metrics;
+pub mod known_type_to_address_mappings;
 
 pub fn run_main(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

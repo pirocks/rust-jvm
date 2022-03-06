@@ -1,3 +1,4 @@
+use std::iter;
 use std::mem::size_of;
 
 use iced_x86::CC_be::na;
@@ -19,7 +20,7 @@ use crate::java::lang::reflect::field::Field;
 use crate::jit::MethodResolver;
 use crate::runtime_class::{FieldNumber, RuntimeClassClass};
 
-pub const fn field_type_to_size(cpd_type: &CPDType) -> Size{
+pub const fn field_type_to_size(cpd_type: &CPDType) -> Size {
     match cpd_type {
         CPDType::BooleanType => Size::Byte,
         CPDType::ByteType => Size::byte(),
@@ -34,7 +35,7 @@ pub const fn field_type_to_size(cpd_type: &CPDType) -> Size{
     }
 }
 
-pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size{
+pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size {
     match rtype {
         RuntimeType::IntType => Size::int(),
         RuntimeType::FloatType => Size::float(),
@@ -48,7 +49,7 @@ pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size{
 pub fn putfield(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
-    current_instr_data: &CurrentInstructionCompilerData,
+    mut current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
     recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
@@ -71,45 +72,48 @@ pub fn putfield(
         }
         Some((rc, _)) => {
             let string_pool = &resolver.jvm.string_pool;
-            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(),name);
+            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
             let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 1);
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let field_size = field_type_to_size(field_type);
-            Either::Right(array_into_iter([
-                restart_point,
-                if field_type.try_unwrap_class_type().is_some() {
-                    checkcast_impl(resolver.get_cpdtype_id(field_type), to_put_value_offset)
+            Either::Right(array_into_iter([restart_point]).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
+                Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, field_type, to_put_value_offset))
+            } else {
+                Either::Right(iter::empty())
+            })
+                .chain(if resolver.debug_checkcast_assertions() {
+                    Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, &cpd_type, object_ptr_offset))
                 } else {
-                    IRInstr::NOP
-                },
-                checkcast_impl(cpd_type_id_obj, object_ptr_offset),
-                IRInstr::LoadFPRelative {
-                    from: object_ptr_offset,
-                    to: class_ref_register,
-                    size: Size::pointer()
-                },
-                IRInstr::NPECheck {
-                    possibly_null: class_ref_register,
-                    temp_register: to_put_value,
-                    npe_exit_type: IRVMExitType::NPE,
-                },
-                IRInstr::LoadFPRelative {
-                    from: to_put_value_offset,
-                    to: to_put_value,
-                    size: field_size
-                },
-                IRInstr::LoadFPRelative {
-                    from: object_ptr_offset,
-                    to: class_ref_register,
-                    size: Size::pointer()
-                },
-                IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
-                IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
-            ]))
+                    Either::Right(iter::empty())
+                })
+                .chain(array_into_iter([
+                    IRInstr::LoadFPRelative {
+                        from: object_ptr_offset,
+                        to: class_ref_register,
+                        size: Size::pointer(),
+                    },
+                    IRInstr::NPECheck {
+                        possibly_null: class_ref_register,
+                        temp_register: to_put_value,
+                        npe_exit_type: IRVMExitType::NPE,
+                    },
+                    IRInstr::LoadFPRelative {
+                        from: to_put_value_offset,
+                        to: to_put_value,
+                        size: field_size,
+                    },
+                    IRInstr::LoadFPRelative {
+                        from: object_ptr_offset,
+                        to: class_ref_register,
+                        size: Size::pointer(),
+                    },
+                    IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
+                    IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
+                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
+                ])))
         }
     }
 }
@@ -118,7 +122,7 @@ pub fn putfield(
 pub fn getfield(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
-    current_instr_data: &CurrentInstructionCompilerData,
+    mut current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
     recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
@@ -140,7 +144,7 @@ pub fn getfield(
             }]))
         }
         Some((rc, _)) => {
-            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(),name);
+            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
             let offset = Register(3);
@@ -148,12 +152,18 @@ pub fn getfield(
             let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             let field_size = field_type_to_size(field_type);
             Either::Right(array_into_iter([
-                restart_point,
-                checkcast_impl(obj_cpd_type_id, object_ptr_offset),
+                restart_point]).chain(
+                if resolver.debug_checkcast_assertions(){
+                    Either::Right(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, &cpd_type, object_ptr_offset))
+                }else {
+                    Either::Left(iter::empty())
+                }
+
+            ).chain(array_into_iter([
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
-                    size: Size::pointer()
+                    size: Size::pointer(),
                 },
                 IRInstr::NPECheck {
                     possibly_null: class_ref_register,
@@ -163,18 +173,17 @@ pub fn getfield(
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,
                     to: class_ref_register,
-                    size: Size::pointer()
+                    size: Size::pointer(),
                 },
                 IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
-                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) },
-                if field_type.try_unwrap_class_type().is_some() {
-                    checkcast_impl(resolver.get_cpdtype_id(field_type), to_get_value_offset)
-                } else {
-                    IRInstr::NOP
-                }
-            ]))
+                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
+            ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
+                Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, field_type, to_get_value_offset))
+            } else {
+                Either::Right(array_into_iter([]))
+            }))
         }
     }
 }

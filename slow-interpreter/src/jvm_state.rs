@@ -54,6 +54,7 @@ use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
+use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
@@ -116,8 +117,10 @@ pub struct JVMState<'gc_life> {
     pub method_shapes: MethodShapeIDs,
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
+    pub checkcast_debug_assertions: bool,
     pub perf_metrics: PerfMetrics,
-    pub recompilation_conditions: RwLock<RecompileConditions>
+    pub recompilation_conditions: RwLock<RecompileConditions>,
+    pub known_addresses: KnownAddresses
 }
 
 
@@ -313,8 +316,10 @@ impl<'gc_life> JVMState<'gc_life> {
             method_shapes: MethodShapeIDs::new(),
             instruction_trace_options,
             exit_trace_options,
+            checkcast_debug_assertions: false,
             perf_metrics: PerfMetrics::new(),
-            recompilation_conditions: RwLock::new(RecompileConditions::new())
+            recompilation_conditions: RwLock::new(RecompileConditions::new()),
+            known_addresses: KnownAddresses::new()
         };
         (args, jvm)
     }

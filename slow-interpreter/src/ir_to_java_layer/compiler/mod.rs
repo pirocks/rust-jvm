@@ -195,6 +195,13 @@ impl<'l> CompilerLabeler<'l> {
             labeler.new_label(labels_vec)
         })
     }
+
+    pub fn local_label(&mut self) -> LabelName {
+        let labels_vec = &mut self.labels_vec;
+        let labeler = self.labeler;
+        labeler.new_label(labels_vec)
+    }
+
 }
 
 pub struct RecompileConditions {
@@ -402,7 +409,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::putfield { name, desc, target_class } => {
-                this_function_ir.extend(putfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
+                this_function_ir.extend(putfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type))
@@ -459,7 +466,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(if_nonnull(method_frame_data, current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::getfield { name, desc: _, target_class } => {
-                this_function_ir.extend(getfield(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
+                this_function_ir.extend(getfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             //todo handle implicit monitor enters on synchronized  functions
             CompressedInstructionInfo::monitorenter => {
@@ -629,7 +636,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                 this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, cpdtype))
             }
             CompressedInstructionInfo::checkcast(cpdtype) => {
-                this_function_ir.extend(checkcast(resolver, method_frame_data, &current_instr_data, cpdtype))
+                this_function_ir.extend(checkcast(resolver, method_frame_data, current_instr_data, cpdtype))
             }
             CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
                 this_function_ir.extend(iinc(method_frame_data, current_instr_data, index, const_))

@@ -579,7 +579,7 @@ impl JITedCodeState {
     }
 }
 
-pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>, thread_id: JavaThreadId) -> AllocatedObjectType {
+pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
     match ref_type {
         RuntimeClass::Byte => panic!(),
         RuntimeClass::Boolean => panic!(),
@@ -603,7 +603,6 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 RuntimeClass::Void => panic!(),
                 RuntimeClass::Object(_) | RuntimeClass::Array(_) => {
                     return AllocatedObjectType::ObjectArray {
-                        thread: thread_id,
                         sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
                         len: arr_len.unwrap() as i32,
                         sub_type_loader: loader,
@@ -611,10 +610,9 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 }
                 RuntimeClass::Top => panic!(),
             };
-            AllocatedObjectType::PrimitiveArray { thread: thread_id, primitive_type, len: arr_len.unwrap() as i32 }
+            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() as i32 }
         }
         RuntimeClass::Object(class_class) => AllocatedObjectType::Class {
-            thread: thread_id,
             name: class_class.class_view.name().unwrap_name(),
             loader,
             size: class_class.recursive_num_fields * size_of::<jlong>(),

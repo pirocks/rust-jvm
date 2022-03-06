@@ -19,6 +19,7 @@ use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::ptype_view::PTypeView;
+use gc_memory_layout_common::BaseAddressAndMask;
 use rust_jvm_common::{ByteCodeOffset, FieldId, InheritanceMethodID, MethodI, MethodId};
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
@@ -215,6 +216,14 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
     pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
+    }
+
+    pub fn known_addresses_for_type(&self, cpd_type: &CPDType) -> Vec<BaseAddressAndMask>{
+        self.jvm.known_addresses.known_addresses_for_type(cpd_type)
+    }
+
+    pub fn debug_checkcast_assertions(&self) -> bool{
+        self.jvm.checkcast_debug_assertions
     }
 }
 

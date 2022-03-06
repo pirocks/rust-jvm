@@ -46,7 +46,7 @@ impl VTables {
         if rc.cpdtype().is_array() || rc.cpdtype().is_primitive(){
             return;
         }
-        let allocated_object_type = runtime_class_to_allocated_object_type(rc.deref(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid());//todo loader and thread id
+        let allocated_object_type = runtime_class_to_allocated_object_type(rc.deref(), LoaderName::BootstrapLoader, None);//todo loader and thread id
         let allocated_object_id = jvm.gc.memory_region.lock().unwrap().lookup_or_add_type(&allocated_object_type);
         self.notify_load_impl(jvm, rc, allocated_object_id)
     }
@@ -73,7 +73,7 @@ impl VTables {
         let method_view = class_view.method_view_i(method_i);
         if !method_view.is_static() {
             let inheritance_method_id = todo!()/*jvm.inheritance_ids.read().unwrap().lookup(jvm, method_id)*/;
-            let allocated_object_type = runtime_class_to_allocated_object_type(class.deref(), LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid());//todo loader and thread id
+            let allocated_object_type = runtime_class_to_allocated_object_type(class.deref(), LoaderName::BootstrapLoader, None);//todo loader and thread id
             let allocated_object_id = jvm.gc.memory_region.lock().unwrap().lookup_or_add_type(&allocated_object_type);
             self.table.entry(allocated_object_id).or_default().insert(inheritance_method_id, resolved);
         }

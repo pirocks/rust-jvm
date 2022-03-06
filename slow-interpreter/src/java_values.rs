@@ -85,8 +85,8 @@ impl<'gc_life> GC<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
-            UnAllocatedObject::Array(arr) => runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, LoaderName::BootstrapLoader, Some(arr.elems.len()), jvm.thread_state.get_current_thread_tid_or_invalid()),//todo loader name nonsense
-            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None, jvm.thread_state.get_current_thread_tid_or_invalid()),
+            UnAllocatedObject::Array(arr) => runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, LoaderName::BootstrapLoader, Some(arr.elems.len())),//todo loader name nonsense
+            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
         };
         let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
         let allocated = memory_region.get_allocation();
@@ -343,7 +343,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
         let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
-            AllocatedObjectType::Class { size, name, loader, .. } => {
+            AllocatedObjectType::Class { size, name, loader } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
                 let runtime_class_class = runtime_class.unwrap_class_class();
@@ -358,7 +358,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                     }))
                 }
             }
-            AllocatedObjectType::ObjectArray { thread, sub_type, sub_type_loader, len } => {
+            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::Ref(CompressedParsedRefType::Array(box CPDType::Ref(sub_type.clone()))));
                 unsafe {
@@ -372,7 +372,7 @@ impl<'gc_life> GcManagedObject<'gc_life> {
                     }))
                 }
             }
-            AllocatedObjectType::PrimitiveArray { thread, primitive_type, len } => {
+            AllocatedObjectType::PrimitiveArray { primitive_type, len } => {
                 let classes = jvm.classes.read().unwrap();
                 //todo loader nonsense
                 let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::Ref(CompressedParsedRefType::Array(box primitive_type.clone())));
