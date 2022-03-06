@@ -62,7 +62,7 @@ pub(crate) fn get_static_impl(
     field_class_name: CClassName,
     field_name: FieldName
 ) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
+    let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     //todo handle interfaces in setting as well
     let temp = target_classfile.static_vars(jvm);
     let attempted_get = temp.try_get(field_name);

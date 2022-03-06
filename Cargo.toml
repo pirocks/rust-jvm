@@ -54,5 +54,6 @@ members = [
     "another-jit-vm",
     "classfile-writer",
     "another-jit-vm-ir",
-    "gc-memory-layout-common"
+    "gc-memory-layout-common",
+    "perf-metrics"
 ]

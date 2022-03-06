@@ -19,6 +19,7 @@ use iced_x86::OpCodeOperandKind::al;
 use itertools::{all, Itertools};
 use libc::{memcpy, memset, read};
 use metered::Enter;
+use nix::sys::personality::get;
 
 use another_jit_vm::{Method, VMExitAction};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -221,11 +222,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     eprintln!("InitClassAndRecompile");
                 }
                 let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*class_type).clone();
-                let saved = int_state.frame_state_assert_save();
-                let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
-                int_state.saved_assert_frame_same(saved);
-                let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 drop(exit_guard);
+                let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+                let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                 jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *current_method_id);
                 let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
                 if jvm.exit_trace_options.tracing_enabled() {
@@ -294,6 +293,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 todo!()
             }
             RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address } => {
+                let guard = jvm.perf_metrics.vm_exit_allocate_obj();
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("AllocateObject");
                 }
@@ -308,6 +308,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }//todo do correct initing of fields
                 unsafe { res_address.write(allocated_object) }
                 drop(exit_guard);
+                drop(guard);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
@@ -442,6 +443,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_name, cpdtype_id, return_to_ptr } => {
+                let get_static = jvm.perf_metrics.vm_exit_get_static();
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("GetStatic");
                 }
@@ -453,6 +455,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 // int_state.debug_print_stack_trace(jvm);
                 unsafe { (*value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
                 drop(exit_guard);
+                drop(get_static);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
 
@@ -471,15 +474,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr } => {
+                let checkcast = jvm.perf_metrics.vm_exit_checkcast();
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("CheckCast");
                 }
-                let type_table_guard = jvm.cpdtype_table.read().unwrap();
-                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id).clone();
-                drop(type_table_guard);
-                // let rc = check_initing_or_inited_class(jvm, int_state,cpdtype.clone());
-                let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-                drop(memory_region_guard);
+                let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
                 //todo just use region data from pointer to cache the result of this checkast and then havee a restart point
                 /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
                 todo!();*/
@@ -498,6 +497,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     jvm.known_addresses.sink_known_address(cpdtype, base_address_and_mask)
                 }
                 drop(exit_guard);
+                drop(checkcast);
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
             RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr } => {
@@ -554,6 +554,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
             }
             RuntimeVMExitInput::Throw { exception_obj_ptr } => {
+                let throw = jvm.perf_metrics.vm_exit_throw();
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("Throw");
                 }
@@ -844,8 +845,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_method_if_needed(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
+        let compile_guard = jvm.perf_metrics.compilation_start();
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
-            let compile_guard = jvm.perf_metrics.compilation_start();
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
             // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
@@ -925,7 +926,6 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     new_frame_size: java_frame_data.full_frame_size(),
                 })*/;
             drop(write_guard);
-            drop(compile_guard);
         }
     }
 }

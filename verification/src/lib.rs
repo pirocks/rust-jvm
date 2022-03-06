@@ -40,6 +40,7 @@ pub struct VerifierContext<'l> {
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
     pub debug: bool,
+
 }
 
 pub trait ClassFileGetter {

@@ -135,7 +135,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                                 let res = todo!()/*class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)*/;
                                 res
                             }
-                            CPRefType::Array { base_type:sub_type, num_nested_arrs } => {
+                            CPRefType::Array { base_type: sub_type, num_nested_arrs } => {
                                 drop(jvm.classes.write().unwrap());
                                 let sub_class = check_loaded_class(jvm, int_state, sub_type.to_cpdtype())?;
                                 let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested: num_nested_arrs }));
@@ -277,7 +277,7 @@ pub fn bootstrap_load(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Inte
                 jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.clone()), ByAddress(res.clone()));
                 (class_object, res)
             }
-            CPRefType::Array{ base_type: sub_type, num_nested_arrs } => {
+            CPRefType::Array { base_type: sub_type, num_nested_arrs } => {
                 let sub_class = check_resolved_class(jvm, int_state, sub_type.to_cpdtype())?;
                 //todo handle class objects for arraus
                 (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested: num_nested_arrs })))
@@ -303,8 +303,8 @@ pub fn get_method_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc
     let method_numbers = class_view.methods().filter(|method| !method.is_static()).map(|method| {
         method.method_shape()
     })
-            .sorted_by(|shape_1, shape_2| ShapeOrderWrapper(shape_1).cmp(&ShapeOrderWrapper(shape_2)))
-            .enumerate()
+        .sorted_by(|shape_1, shape_2| ShapeOrderWrapper(shape_1).cmp(&ShapeOrderWrapper(shape_2)))
+        .enumerate()
         .map(|(index, shape)| (shape, MethodNumber((index + start_field_number) as u32)))
         .collect::<HashMap<_, _>>();
     ((start_field_number + method_numbers.len()) as u32, method_numbers)
@@ -346,7 +346,10 @@ pub fn check_resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mu
 pub fn assert_inited_or_initing_class(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) -> Arc<RuntimeClass<'gc_life>> {
     let class: Arc<RuntimeClass<'gc_life>> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
-        ClassStatus::UNPREPARED => panic!(),
+        ClassStatus::UNPREPARED => {
+            jvm.perf_metrics.display();
+            panic!()
+        }
         ClassStatus::PREPARED => panic!(),
         ClassStatus::INITIALIZING => class,
         ClassStatus::INITIALIZED => class,
