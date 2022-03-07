@@ -13,7 +13,7 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::utils::throw_npe;
 
 use crate::introspection::JVM_GetCallerClass;
@@ -208,7 +208,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_freeMemory(env: *mut JNIEnv, the_
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, field_id_and_array_idx: jlong) -> jobject {
     let jvm = get_state(env);
-    match from_object(jvm, obj) {
+    match from_object_new(jvm, obj) {
         None => {
             let field_id = field_id_and_array_idx as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
@@ -219,14 +219,15 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             let res = runtime_class.static_vars(jvm).get(name);
             to_object(todo!()/*res.unwrap_object()*/)
         }
-        Some(object_to_read) => match object_to_read.deref() {
-            Object::Array(arr) => {
-                let array_idx = field_id_and_array_idx;
-                let res = &arr.get_i(jvm, array_idx as i32);
-                to_object(res.unwrap_object())
+        Some(object_to_read) => {
+            if !object_to_read.is_array(jvm) {
+                todo!()
             }
-            Object::Object(_) => unimplemented!(),
-        },
+            let arr = object_to_read.unwrap_array(jvm);
+            let array_idx = field_id_and_array_idx;
+            let res = arr.get_i(array_idx as i32 as usize);
+            to_object_new(res.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()))
+        }
     }
 }
 
@@ -244,7 +245,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let mut static_vars_guard = runtime_class.static_vars(jvm);
             let mut res = static_vars_guard.get(name);
             res = todo!()/*JavaValue::Object(from_object(jvm, to_put))*/; //todo dup with get function
-            static_vars_guard.set(name,res)
+            static_vars_guard.set(name, res)
         }
         Some(object_to_read) => match object_to_read.deref() {
             Object::Array(arr) => {

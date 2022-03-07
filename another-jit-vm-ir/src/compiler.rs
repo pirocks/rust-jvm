@@ -70,7 +70,7 @@ pub enum IRInstr {
     StoreFPRelativeDouble { from: DoubleRegister, to: FramePointerOffset },
     FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
     DoubleToIntegerConvert { from: DoubleRegister, temp: MMRegister, to: Register },
-    DoubleToLongConvert { from: DoubleRegister, temp: MMRegister, to: Register },
+    DoubleToLongConvert { from: DoubleRegister, to: Register },
     FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
     IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
     LongToFloatConvert { to: FloatRegister, from: Register },

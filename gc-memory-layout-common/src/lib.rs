@@ -161,8 +161,7 @@ impl MemoryRegions {
         match self.types_reverse.get(type_) {
             None => {
                 self.types.push(type_.clone());
-                dbg!(type_);
-                let region_to_use = RegionToUse::smallest_which_fits(dbg!(object_size));
+                let region_to_use = RegionToUse::smallest_which_fits(object_size);
                 self.current_region_type.push(region_to_use);
                 self.current_region_index.push(None);
                 self.type_to_region_datas.push(vec![]);

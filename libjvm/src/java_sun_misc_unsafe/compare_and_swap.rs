@@ -39,11 +39,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
     };
-    let jv = notnull.to_jv();
-    let normal_obj = jv.unwrap_normal_object();
+    let jv = notnull;
+    let normal_obj = jv.as_allocated_obj();
     let curval = normal_obj.get_var_top_level(jvm, field_name);
-    (if curval.unwrap_long() == old {
-        normal_obj.set_var(rc, field_name, JavaValue::Long(new));
+    (if curval.as_njv().unwrap_long_strict() == old {
+        normal_obj.set_var(&rc, field_name, NewJavaValue::Long(new));
         1
     } else {
         0
@@ -54,6 +54,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 
 #[no_mangle]
 unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
+    //todo make these intrinsics
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
@@ -64,13 +65,12 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     };
     let new = NewJavaValueHandle::from_optional_object(from_object_new(jvm, new));
     if notnull.is_array(jvm) {
-        todo!()
-        /*let curval = arr.get_i(jvm, (offset as i32));
-        let old = from_object(jvm, old);
-        let (should_replace, new) = do_swap(curval, old, new);
-        todo!();
-        // arr.set_i(jvm, offset as i32, new);
-        should_replace*/
+        let arr = notnull.unwrap_array(jvm);
+        let curval = arr.get_i(offset as i32 as usize);
+        let old = from_object_new(jvm, expected);
+        let (should_replace, new) = do_swap(curval.as_njv(), old, new.as_njv());
+        arr.set_i(offset as i32 as usize, new);
+        should_replace
     } else {
         let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
             Ok((rc, notnull, field_name)) => (rc, notnull, field_name),

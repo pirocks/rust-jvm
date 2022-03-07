@@ -133,7 +133,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(*len as usize));
                 let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                 let array_size = object_array.size();
-                int_state.debug_print_stack_trace(jvm);
                 let region_data = memory_region_guard.find_or_new_region_for(object_array);
                 let allocated_object = region_data.get_allocation();
                 unsafe { res_address.write(allocated_object) }

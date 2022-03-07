@@ -720,7 +720,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
             assembler.cvtpi2pd(to.to_xmm(), temp.to_mm()).unwrap()
         }
-        IRInstr::DoubleToLongConvert { from, temp, to } => {
+        IRInstr::DoubleToLongConvert { from, to } => {
             assembler.cvttsd2si(to.to_native_64(), from.to_xmm()).unwrap();
             // assembler.movq(to.to_native_64(), temp.to_mm()).unwrap();
         }

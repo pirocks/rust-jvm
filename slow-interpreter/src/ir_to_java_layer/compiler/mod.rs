@@ -158,7 +158,7 @@ impl YetAnotherLayoutImpl {
 
     pub fn is_category_2(&self, index: ByteCodeIndex, from_end: u16) -> bool {
         let category_2_array = &self.is_type_2_computational_type[index.0 as usize];
-        *category_2_array.iter().rev().nth(from_end as usize).unwrap()
+        *category_2_array.iter().nth(from_end as usize).unwrap()
     }
 
     pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
