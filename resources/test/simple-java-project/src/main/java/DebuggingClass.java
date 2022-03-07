@@ -153,17 +153,12 @@
 //    }
 //}
 
-import sun.invoke.util.ValueConversions;
-import sun.misc.Unsafe;
-import sun.reflect.Reflection;
-
-import java.io.BufferedInputStream;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static sun.reflect.Reflection.verifyMemberAccess;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DebuggingClass{
     public static void main(String[] args) throws IllegalAccessException {
-
+        final ConcurrentHashMap<Object, Object> obj = new ConcurrentHashMap<Object,Object>(16,0.75f,16);
+        obj.put("","");
+        System.out.println(obj);
     }
 }

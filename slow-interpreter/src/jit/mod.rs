@@ -135,8 +135,22 @@ impl<'gc_life> MethodResolver<'gc_life> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
+        Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
+    }
+
+    fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc_life>>) -> Option<(MethodId, bool)> {
         let view = rc.view();
-        let method_view = view.lookup_method(name, &desc).unwrap();
+        if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
+            if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()){
+                return Some(res);
+            }
+        }
+        for interface in rc.unwrap_class_class().interfaces.iter() {
+            if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()){
+                return Some(res);
+            }
+        }
+        let method_view = view.lookup_method(name, &desc)?;
         assert!(!method_view.is_static());
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
         Some((method_id, method_view.is_native()))

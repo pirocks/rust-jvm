@@ -566,9 +566,7 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
     }
 
     pub fn runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
-        let guard = jvm.gc.memory_region.lock().unwrap();
-        let allocated_obj_type = guard.find_object_allocated_type(self.handle.ptr).clone();
-        drop(guard);
+        let allocated_obj_type = jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(self.handle.ptr).clone();
         assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
     }
 }

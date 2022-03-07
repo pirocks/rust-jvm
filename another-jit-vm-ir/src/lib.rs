@@ -721,8 +721,8 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.cvtpi2pd(to.to_xmm(), temp.to_mm()).unwrap()
         }
         IRInstr::DoubleToLongConvert { from, temp, to } => {
-            assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
-            assembler.movq(to.to_native_64(), temp.to_mm()).unwrap();
+            assembler.cvttsd2si(to.to_native_64(), from.to_xmm()).unwrap();
+            // assembler.movq(to.to_native_64(), temp.to_mm()).unwrap();
         }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();
@@ -800,7 +800,7 @@ SF = 0;
                 Size::X86DWord => assembler.cmp(value1.to_native_32(), value2.to_native_32()).unwrap(),
                 Size::X86QWord => assembler.cmp(value1.to_native_64(), value2.to_native_64()).unwrap(),
             }
-            assembler.sub(res.to_native_64(), res.to_native_64()).unwrap();
+            assembler.mov(res.to_native_64(), 0u64).unwrap();
             assembler.mov(temp1.to_native_64(), 1u64).unwrap();
             assembler.mov(temp2.to_native_64(), 0u64).unwrap();
             assembler.mov(temp3.to_native_64(), -1i64).unwrap();

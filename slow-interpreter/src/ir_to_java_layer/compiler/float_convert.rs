@@ -48,7 +48,7 @@ pub fn d2l(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
     array_into_iter([
         IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: DoubleRegister(1) },
         IRInstr::DoubleToLongConvert { to: Register(1), temp: MMRegister(1), from: DoubleRegister(1) },
-        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
     ])
 }
 

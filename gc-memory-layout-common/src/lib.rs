@@ -161,7 +161,8 @@ impl MemoryRegions {
         match self.types_reverse.get(type_) {
             None => {
                 self.types.push(type_.clone());
-                let region_to_use = RegionToUse::smallest_which_fits(object_size);
+                dbg!(type_);
+                let region_to_use = RegionToUse::smallest_which_fits(dbg!(object_size));
                 self.current_region_type.push(region_to_use);
                 self.current_region_index.push(None);
                 self.type_to_region_datas.push(vec![]);
@@ -269,6 +270,11 @@ impl MemoryRegions {
             let region_index = ((ptr.as_ptr() as u64 & mask) / LARGE_REGION_SIZE as u64) as usize;
             let region_data = &self.large_region_types[region_index];
             region_data.region_type
+        } else if region_base_masked_ptr == self.early_mmaped_regions.extra_large_regions as u64 {
+            todo!();
+            /*let region_index = ((ptr.as_ptr() as u64 & mask) / LARGE_REGION_SIZE as u64) as usize;
+            let region_data = &self.extra_large_region_types[region_index];
+            region_data.region_type*/
         } else {
             dbg!(self.early_mmaped_regions.large_regions);
             dbg!(&self.early_mmaped_regions);
