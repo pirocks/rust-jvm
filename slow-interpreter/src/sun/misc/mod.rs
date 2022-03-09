@@ -53,14 +53,21 @@ pub mod launcher {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
     pub struct Launcher<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
-    impl<'gc_life> JavaValue<'gc_life> {
-        pub fn cast_launcher(&self) -> Launcher<'gc_life> {
+    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
+        pub fn cast_launcher(self) -> Launcher<'gc_life> {
+            Launcher { normal_object: self }
+        }
+    }
+
+    impl<'gc_life> NewJavaValueHandle<'gc_life> {
+        pub fn cast_launcher(self) -> Launcher<'gc_life> {
             Launcher { normal_object: self.unwrap_object_nonnull() }
         }
     }
@@ -68,15 +75,14 @@ pub mod launcher {
     impl<'gc_life> Launcher<'gc_life> {
         pub fn get_launcher(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<Launcher<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
-            run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getLauncher(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_launcher())
+            let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getLauncher(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), vec![])?.unwrap();
+            Ok(res.cast_launcher())
         }
 
         pub fn get_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<ClassLoader<'gc_life>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_class_loader())
+            let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), vec![self.normal_object.new_java_value()])?.unwrap();
+            Ok(res.cast_class_loader())
         }
 
         as_object_or_java_value!();

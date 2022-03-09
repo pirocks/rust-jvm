@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
+use std::intrinsics::offset;
 use std::iter;
 use std::mem::size_of;
 use std::sync::{Arc, RwLock};
@@ -20,7 +21,7 @@ use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::{Atype, Code, IInc, LookupSwitch};
+use rust_jvm_common::classfile::{Atype, Code, IInc, LookupSwitch, TableSwitch};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -32,11 +33,11 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, irem, isub, ladd, lcmp, lsub};
-use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, laload};
+use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl};
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType};
+use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
@@ -629,6 +630,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::aaload => {
                 this_function_ir.extend(aaload(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::iaload => {
+                this_function_ir.extend(iaload(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::laload => {
                 this_function_ir.extend(laload(method_frame_data, current_instr_data))
             }
@@ -790,8 +794,8 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
                     CompressedLdcW::String { str } => {
                         this_function_ir.extend(ldc_string(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, resolver.get_commpressed_version_of_wtf8(str)))
                     }
-                    CompressedLdcW::Class { .. } => {
-                        todo!()
+                    CompressedLdcW::Class { type_ } => {
+                        this_function_ir.extend(ldc_class(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, type_))
                     }
                     CompressedLdcW::Float { .. } => {
                         todo!()
@@ -813,6 +817,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default }) => {
                 this_function_ir.extend(lookup_switch(method_frame_data, current_instr_data, pairs, default));
             }
+            CompressedInstructionInfo::tableswitch(box TableSwitch { default, low, high, offsets }) => {
+                this_function_ir.extend(tableswitch(method_frame_data, current_instr_data, default, low, high, offsets));
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -831,6 +838,7 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
     }
     final_ir
 }
+
 
 
 pub mod float_convert;

@@ -362,7 +362,7 @@ pub enum IRVMExitType {
         object_ref: FramePointerOffset,
         method_shape_id: MethodShapeID,
         native_restart_point: RestartPointID,
-        native_return_offset: FramePointerOffset,
+        native_return_offset: Option<FramePointerOffset>,
     },
     InvokeInterfaceResolve {
         object_ref: FramePointerOffset,
@@ -489,7 +489,15 @@ impl IRVMExitType {
                 assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(InvokeVirtualResolve::METHOD_SHAPE_ID.to_native_64(), method_shape_id.0).unwrap();
                 assembler.mov(InvokeVirtualResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
-                assembler.lea(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
+                match native_return_offset {
+                    None => {
+                        assembler.mov(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), u64::MAX).unwrap();
+                    }
+                    Some(native_return_offset) => {
+                        assembler.lea(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
+                    }
+                }
+
             }
             IRVMExitType::MonitorEnter { obj } => {
                 assembler.mov(rax, RawVMExitType::MonitorEnter as u64).unwrap();

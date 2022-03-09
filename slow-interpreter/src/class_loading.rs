@@ -121,7 +121,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
             let res = match loader {
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.classes.read().unwrap().lookup_class_loader(loader_idx).clone();
-                    let class_loader: ClassLoader = NewJavaValue::AllocObject(loader_obj.clone().into()).to_jv().cast_class_loader();
+                    let class_loader: ClassLoader = loader_obj.handle.duplicate_discouraged().cast_class_loader();
                     match ptype.clone() {
                         CPDType::ByteType => Arc::new(RuntimeClass::Byte),
                         CPDType::CharType => Arc::new(RuntimeClass::Char),
@@ -132,8 +132,7 @@ pub(crate) fn check_loaded_class_force_loader(jvm: &'gc_life JVMState<'gc_life>,
                         CPDType::Ref(ref_) => match ref_ {
                             CPRefType::Class(class_name) => {
                                 let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
-                                let res = todo!()/*class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)*/;
-                                res
+                                class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                             }
                             CPRefType::Array { base_type: sub_type, num_nested_arrs } => {
                                 drop(jvm.classes.write().unwrap());

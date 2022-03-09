@@ -19,6 +19,11 @@ pub fn baload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     array_load_impl(method_frame_data, current_instr_data, &CPDType::ByteType)
 }
 
+
+pub fn iaload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_load_impl(method_frame_data, current_instr_data, &CPDType::IntType)
+}
+
 pub fn aaload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_load_impl(method_frame_data, current_instr_data, &CPDType::Ref(CClassName::object().into()))
 }

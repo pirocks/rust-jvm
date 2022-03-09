@@ -8,7 +8,7 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntry};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
@@ -175,7 +175,7 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
             }
             Some(class) => class,
         };
-        let ptype = todo!()/*jclass.as_runtime_class(jvm).cpdtype()*/;
+        let ptype = jclass.as_runtime_class(jvm).cpdtype();
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
@@ -190,8 +190,7 @@ fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut 
         //todo not really sure what to do here, for now nothing
         None
     } else if &mangled == "Java_sun_misc_Perf_createLong" {
-        /*Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.java_value())*/
-        todo!()
+        Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.new_java_value_handle())
         //todo this is incorrect and should be implemented properly.
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
         Some(NewJavaValueHandle::Int(4096)) //todo actually get page size

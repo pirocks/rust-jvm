@@ -222,6 +222,14 @@ impl<'gc_life> ThreadState<'gc_life> {
             jvm,
             current_exited_pc: None
         };
+        dbg!(match &mut new_int_state {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => {
+                todo!()
+            }
+            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
+                int_state.current_rbp
+            }
+        });
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
@@ -233,6 +241,14 @@ impl<'gc_life> ThreadState<'gc_life> {
             }
         }
         let frame = StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");
+        dbg!(match &mut new_int_state {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => {
+                todo!()
+            }
+            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
+                int_state.current_rbp
+            }
+        });
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
         let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());

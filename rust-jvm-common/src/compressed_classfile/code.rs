@@ -550,8 +550,8 @@ impl CompressedInstructionInfo {
                     CompressedLdcW::String { str } => {
                         format!("ldc:string:\"{}\"", str.to_string_lossy().to_string())
                     }
-                    CompressedLdcW::Class { .. } => {
-                        todo!()
+                    CompressedLdcW::Class { type_ } => {
+                        format!("ldc:class:\"{}\"", type_.jvm_representation(string_pool))
                     }
                     CompressedLdcW::Float { .. } => {
                         todo!()

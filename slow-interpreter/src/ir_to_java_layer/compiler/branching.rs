@@ -1,5 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::ByteCodeOffset;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
@@ -147,4 +148,52 @@ pub fn lookup_switch(method_frame_data: &JavaCompilerMethodAndFrameData, current
     res.push(IRInstr::BranchToLabel { label: default_target_label });
     let iter = res.into_iter();
     iter
+}
+
+
+pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, default: &i32, low: &i32, high: &i32, offsets: &Vec<i32>) -> impl Iterator<Item=IRInstr> {
+    let index = Register(1);
+    let low_register = Register(2);
+    let high_register = Register(3);
+    let current_test = Register(4);
+    let default_target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + *default) as u16);
+    let default_label = current_instr_data.compiler_labeler.label_at(default_target_offset);
+    let mut res = vec![];
+    res.push(IRInstr::LoadFPRelative {
+        from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
+        to: index,
+        size: Size::int()
+    });
+    res.push(IRInstr::Const32bit { to: low_register, const_: *low as u32 });
+    res.push(IRInstr::Const32bit { to: high_register, const_: *high as u32 });
+    res.push(IRInstr::BranchAGreaterB {
+        a: low_register,
+        b: index,
+        label: default_label,
+        size: Size::int()
+    });
+    res.push(IRInstr::BranchAGreaterB {
+        a: index,
+        b: high_register,
+        label: default_label,
+        size: Size::int()
+    });
+    res.push(IRInstr::Sub {
+        res: index,
+        to_subtract: low_register,
+        size: Size::int()
+    });
+    for (i, offset) in offsets.iter().enumerate() {
+        res.push(IRInstr::Const32bit { to: current_test, const_: i as u32 });
+        let current_target_offset = ByteCodeOffset((current_instr_data.current_offset.0 as i32 + *offset) as u16);
+        let current_label = current_instr_data.compiler_labeler.label_at(current_target_offset);
+        res.push(IRInstr::BranchEqual {
+            a: index,
+            b: current_test,
+            label: current_label,
+            size: Size::int()
+        });
+    }
+    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo });
+    res.into_iter()
 }

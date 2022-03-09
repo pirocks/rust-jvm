@@ -752,12 +752,21 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
                 let method_id = frame_view.ir_ref.method_id().expect("local vars should have method id probably");
                 let num_args = self.num_vars();
                 assert!(i < num_args);
-                if let Some(pc) = *pc {
-                    let function_frame_data_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
-                    let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
-                    let frame = function_frame_data.get(&pc).unwrap();
-                    let verification_data_expected_frame_data = frame.locals[i as usize].to_runtime_type();
-                    assert_eq!(verification_data_expected_frame_data, expected_type);
+                if jvm.is_native_by_method_id(method_id) {
+                    if let Some(pc) = *pc {
+                        let function_frame_data_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+                        let function_frame_data = match function_frame_data_guard.get(&method_id) {
+                            Some(function_frame_data) => {
+                                let frame = function_frame_data.get(&pc).unwrap();
+                                let verification_data_expected_frame_data = frame.locals[i as usize].to_runtime_type();
+                                assert_eq!(verification_data_expected_frame_data, expected_type);
+                            },
+                            None => {
+
+                            },
+                        };
+
+                    }
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
                 let native_jv = NativeJavaValue { as_u64: data };

@@ -272,7 +272,11 @@ pub fn invokevirtual(
                 object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                 method_shape_id: resolver.lookup_method_shape(MethodShape { name: method_name, desc: descriptor.clone() }),
                 native_restart_point: after_call_restart_point_id,
-                native_return_offset: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                native_return_offset: if descriptor.return_type.is_void() {
+                    None
+                } else {
+                    Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                },
             }
         },
         IRInstr::IRCall {

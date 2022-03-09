@@ -24,7 +24,7 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::ClassStatus;
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
@@ -35,7 +35,8 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    let loader_obj = int_state.previous_frame().unwrap().local_vars(jvm).get(0, RuntimeType::object()).to_jv().cast_class_loader();
+    int_state.debug_print_stack_trace(jvm);
+    let loader_obj = int_state.current_frame().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
@@ -54,7 +55,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
         Some(runtime_class) => runtime_class.clone(),
     };
     let mut guard = jvm.classes.write().unwrap();
-    to_object(guard.get_class_obj_from_runtime_class(runtime_class.clone()).clone().to_gc_managed().into())
+    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).into())
 }
 
 #[no_mangle]
@@ -73,9 +74,9 @@ unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const 
 unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject, name: jstring) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_str = match JavaValue::Object(from_object(jvm, name)).cast_string() {
+    let name_str = match from_object_new(jvm, name) {
         None => return throw_npe(jvm, int_state),
-        Some(name_str) => name_str,
+        Some(name_str) => name_str.cast_string(),
     }
         .to_rust_string(jvm);
     assert_ne!(&name_str, "int");
@@ -88,7 +89,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         Some(view) => {
             // todo what if name is long/int etc.
             let res = get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Class(class_name)), int_state).unwrap(); //todo handle exception
-            new_local_ref_public(res.to_gc_managed().into(), int_state)
+            new_local_ref_public_new(res.into(), int_state)
         }
     }
 }

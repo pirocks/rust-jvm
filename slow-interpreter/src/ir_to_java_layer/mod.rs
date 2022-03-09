@@ -315,7 +315,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("NewString");
                 }
+                int_state.debug_print_stack_trace(jvm);
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
+                dbg!(&wtf8buf);
                 drop(exit_guard);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
                 let jv = jstring.new_java_value_handle();
@@ -447,6 +449,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("GetStatic");
                 }
+                int_state.debug_print_stack_trace(jvm);
                 let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
                 let name = cpd_type.unwrap_class_type();
                 let static_var = get_static_impl(jvm, int_state, name, *field_name).unwrap().unwrap();
@@ -463,11 +466,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("InstanceOf");
                 }
-                let type_table_guard = jvm.cpdtype_table.read().unwrap();
-                let cpdtype = type_table_guard.get_cpdtype(*cpdtype_id);
+                let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
+                check_initing_or_inited_class(jvm,int_state,cpdtype).unwrap();
                 let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
                 unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
                 drop(exit_guard);

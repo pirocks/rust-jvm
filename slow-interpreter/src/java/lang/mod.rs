@@ -60,9 +60,9 @@ pub mod stack_trace_element {
         }
     }
 
-    impl <'gc_life> AllocatedObjectHandle<'gc_life> {
+    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         pub fn cast_stack_trace_element(self) -> StackTraceElement<'gc_life> {
-            StackTraceElement{ normal_object: self }
+            StackTraceElement { normal_object: self }
         }
     }
 
@@ -299,7 +299,7 @@ pub mod class {
 
     impl<'gc_life> JClass<'gc_life> {
         pub fn gc_lifeify(&self) -> JClass<'gc_life> {
-            JClass{ normal_object: self.normal_object.duplicate_discouraged() }//todo there should be a better way to do this b/c class objects live forever
+            JClass { normal_object: self.normal_object.duplicate_discouraged() }//todo there should be a better way to do this b/c class objects live forever
         }
 
         pub fn get_class_loader(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Option<ClassLoader<'gc_life>>, WasException> {
@@ -377,7 +377,7 @@ pub mod class_loader {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
     pub struct ClassLoader<'gc_life> {
@@ -411,23 +411,39 @@ pub mod class_loader {
     impl<'gc_life> ClassLoader<'gc_life> {
         pub fn to_jvm_loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
             let mut classes_guard = jvm.classes.write().unwrap();
-            classes_guard.lookup_or_add_classloader(todo!()/*self.normal_object.clone()*/)
+            let gc_lifefied_obj = Box::leak(box self.normal_object.duplicate_discouraged()).as_allocated_obj();
+            classes_guard.lookup_or_add_classloader(gc_lifefied_obj)
         }
 
         pub fn load_class(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: JString<'gc_life>) -> Result<JClass<'gc_life>, WasException> {
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(name.java_value());
             let class_loader = assert_inited_or_initing_class(jvm, CClassName::classloader().into());
-            run_static_or_virtual(jvm, int_state, &class_loader, MethodName::method_loadClass(), &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() }, todo!())?;
+            let res = run_static_or_virtual(
+                jvm,
+                int_state,
+                &class_loader,
+                MethodName::method_loadClass(),
+                &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() },
+                vec![self.new_java_value(), name.new_java_value()],
+            )?.unwrap();
             assert!(int_state.throw().is_none());
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap())
+            Ok(res.cast_class().unwrap()/*int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap()*/)
         }
 
         pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc_life, 'gc_life> {
             todo!()
         }
 
-        as_object_or_java_value!();
+        /*as_object_or_java_value!();*/
+    }
+
+    impl<'gc_life> NewAsObjectOrJavaValue<'gc_life> for ClassLoader<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> AllocatedObject<'gc_life, '_> {
+            self.normal_object.as_allocated_obj()
+        }
     }
 }
 
@@ -491,6 +507,7 @@ pub mod string {
             let string_object = new_object(jvm, int_state, &string_class);
 
             let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
+            dbg!(elems.len());
             let array_object = UnAllocatedObjectArray {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
                 elems,
@@ -510,7 +527,7 @@ pub mod string {
                 &string_class,
                 MethodName::method_intern(),
                 &CMethodDescriptor::empty_args(CClassName::string().into()),
-                args
+                args,
             )?.unwrap();
             Ok(res.cast_string().expect("error interning strinng"))
         }
@@ -704,7 +721,7 @@ pub mod thread {
 
         pub fn name(&self, jvm: &'gc_life JVMState<'gc_life>) -> JString<'gc_life> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.as_allocated_obj().lookup_field(&thread_class,FieldName::field_name()).cast_string().unwrap()
+            self.normal_object.as_allocated_obj().lookup_field(&thread_class, FieldName::field_name()).cast_string().unwrap()
         }
 
         pub fn priority(&self, jvm: &'gc_life JVMState<'gc_life>) -> i32 {
@@ -769,7 +786,7 @@ pub mod thread {
                 &thread_class,
                 MethodName::method_getContextClassLoader(),
                 &CompressedMethodDescriptor::empty_args(CClassName::classloader().into()),
-                args
+                args,
             )?.unwrap();
             if res.as_njv().unwrap_object().is_none() {
                 return Ok(None);

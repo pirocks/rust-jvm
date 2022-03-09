@@ -29,8 +29,8 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use crate::class_loading::assert_inited_or_initing_class;
 
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::reflect::method::Method;
@@ -87,16 +87,16 @@ impl<'gc_life> MethodResolver<'gc_life> {
     pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
-        assert_eq!(loader_name, self.loader);
+        // assert_eq!(loader_name, self.loader);
         let view = rc.view();
         let string_pool = &self.jvm.string_pool;
         let method_view = match view.lookup_method(name, &desc) {
             Some(x) => x,
             None => {
-                let super_name =  view.super_name().unwrap();
-                assert_inited_or_initing_class(self.jvm,super_name.clone().into());
-                return self.lookup_static(super_name.into(),name,desc);
-            },
+                let super_name = view.super_name().unwrap();
+                assert_inited_or_initing_class(self.jvm, super_name.clone().into());
+                return self.lookup_static(super_name.into(), name, desc);
+            }
         };
         assert!(method_view.is_static());
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
@@ -107,23 +107,23 @@ impl<'gc_life> MethodResolver<'gc_life> {
         self.jvm.method_shapes.lookup_method_shape_id(MethodShape { name, desc })
     }
 
-    pub fn lookup_native_virtual(&self, on:CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId> {
+    pub fn lookup_native_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         assert_eq!(loader_name, self.loader);
-        if name == MethodName::method_clone(){
-            let object= assert_inited_or_initing_class(self.jvm,CPDType::object());
+        if name == MethodName::method_clone() {
+            let object = assert_inited_or_initing_class(self.jvm, CPDType::object());
             let view = object.view();
             let method_views = view.lookup_method_name(MethodName::method_clone());
             let method_view = method_views.into_iter().next().unwrap();
             let method_id = self.jvm.method_table.write().unwrap().get_method_id(object, method_view.method_i());
             Some(method_id)
-        }else {
+        } else {
             let view = rc.view();
             let method_view = view.lookup_method(name, &desc)?;
             assert!(!method_view.is_static());
-            if !method_view.is_native(){
-                return None
+            if !method_view.is_native() {
+                return None;
             }
             let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
             Some(method_id)
@@ -131,22 +131,22 @@ impl<'gc_life> MethodResolver<'gc_life> {
     }
 
 
-    pub fn lookup_interface(&self, on:&CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    pub fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
-        assert_eq!(loader_name, self.loader);
+        // assert_eq!(loader_name, self.loader);
         Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
     }
 
     fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc_life>>) -> Option<(MethodId, bool)> {
         let view = rc.view();
         if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
-            if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()){
+            if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()) {
                 return Some(res);
             }
         }
         for interface in rc.unwrap_class_class().interfaces.iter() {
-            if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()){
+            if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()) {
                 return Some(res);
             }
         }
@@ -159,11 +159,31 @@ impl<'gc_life> MethodResolver<'gc_life> {
     pub fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
-        assert_eq!(loader_name, self.loader);
-        let view = rc.view();
+        // assert_eq!(loader_name, self.loader);
+        self.lookup_special_impl(name, &desc, rc)
+        /*let view = rc.view();
+        let string_pool = &self.jvm.string_pool;
+        dbg!(view.name().jvm_representation(string_pool));
+        dbg!(name.0.to_str(string_pool));
+        dbg!(desc.jvm_representation(string_pool));
         let method_view = view.lookup_method(name, &desc).unwrap();
         let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-        Some((method_id, method_view.is_native()))
+        Some((method_id, method_view.is_native()))*/
+    }
+
+    fn lookup_special_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc_life>>) -> Option<(MethodId, bool)> {
+        let view = rc.view();
+        if let Some(method_view) = view.lookup_method(name, &desc) {
+            assert!(!method_view.is_static());
+            let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+            return Some((method_id, method_view.is_native()))
+        }
+        if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
+            if let Some(res) = self.lookup_special_impl(name, desc, parent_rc.clone()) {
+                return Some(res);
+            }
+        }
+        panic!()
     }
 
     pub fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
@@ -232,11 +252,11 @@ impl<'gc_life> MethodResolver<'gc_life> {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
     }
 
-    pub fn known_addresses_for_type(&self, cpd_type: &CPDType) -> Vec<BaseAddressAndMask>{
+    pub fn known_addresses_for_type(&self, cpd_type: &CPDType) -> Vec<BaseAddressAndMask> {
         self.jvm.known_addresses.known_addresses_for_type(cpd_type)
     }
 
-    pub fn debug_checkcast_assertions(&self) -> bool{
+    pub fn debug_checkcast_assertions(&self) -> bool {
         self.jvm.checkcast_debug_assertions
     }
 }

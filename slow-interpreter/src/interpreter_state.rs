@@ -258,7 +258,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 }
                 let (prev_method_id, prev_pc) = jvm.java_vm_state.lookup_ip(current.prev_rip())?;
                 let prev_ir_frame = int_state.previous_frame_ref();
-                assert_eq!(prev_ir_frame.method_id(), Some(prev_method_id));
+                // assert_eq!(prev_ir_frame.method_id(), Some(prev_method_id));
                 Some(StackEntryRef {
                     frame_view: RuntimeJavaStackFrameRef {
                         ir_ref: prev_ir_frame,
@@ -476,7 +476,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm), stack_entry.pc.map(|offset|offset.0 as i32).unwrap_or(-1));
+                    println!("{:?}.{} {} {} {} {} {:?}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm), stack_entry.pc.map(|offset|offset.0 as i32).unwrap_or(-1),stack_entry.frame_view.ir_ref.frame_ptr());
                     if full {
                         if stack_entry.pc.is_some() {
                             dump_frame_contents_impl(jvm, stack_entry);

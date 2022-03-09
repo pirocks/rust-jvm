@@ -657,7 +657,7 @@ impl CompressedMethodDescriptor {
     }
 
     pub fn jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
-        format!("({}){}", self.arg_types.iter().map(|arg| arg.jvm_representation(string_pool)).join(";"), self.return_type.jvm_representation(string_pool))
+        format!("({}){}", self.arg_types.iter().map(|arg| arg.jvm_representation(string_pool)).join(""), self.return_type.jvm_representation(string_pool))
     }
 
 

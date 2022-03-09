@@ -13,6 +13,7 @@ use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
 use crate::java_values::JavaValue;
+use crate::jit::MethodResolver;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
@@ -70,6 +71,8 @@ pub fn invoke_static_impl(
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
+        let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
+        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: interpreter_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut function_call_frame) {
