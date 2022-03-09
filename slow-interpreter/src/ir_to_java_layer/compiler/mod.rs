@@ -32,11 +32,11 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, irem, isub, ladd, lcmp, lsub};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, lsub};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl};
+use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
@@ -576,6 +576,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             CompressedInstructionInfo::lshl => {
                 this_function_ir.extend(lshl(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::lshr => {
+                this_function_ir.extend(lshr(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::land => {
                 this_function_ir.extend(land(method_frame_data, current_instr_data))
             }
@@ -773,6 +776,9 @@ pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, met
             }
             CompressedInstructionInfo::idiv => {
                 this_function_ir.extend(idiv(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::ineg => {
+                this_function_ir.extend(ineg(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::lstore_0 => {
                 this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 0))

@@ -71,6 +71,17 @@ pub fn idiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     ])
 }
 
+pub fn ineg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let integer_to_neg = Register(6);
+    let zero = Register(5);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: integer_to_neg, size: Size::int() },
+        IRInstr::Const32bit { to: zero, const_: 0 },
+        IRInstr::Sub { res: zero, to_subtract: integer_to_neg, size: Size::int() },
+        IRInstr::StoreFPRelative { from: zero, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
+    ])
+}
+
 pub fn imul(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value2 = Register(6);
     let value1 = Register(5);

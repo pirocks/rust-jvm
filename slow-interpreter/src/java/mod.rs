@@ -1,7 +1,7 @@
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::java::lang::class::JClass;
-use crate::{InterpreterStateGuard, JavaValue, JVMState, NewJavaValue, WasException};
+use crate::{InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
 use crate::instructions::invoke::virtual_::invoke_virtual;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
 
@@ -36,6 +36,15 @@ pub trait NewAsObjectOrJavaValue<'gc_life>: Sized {
         let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::IntType };
         let res = invoke_virtual(jvm, int_state, MethodName::method_hashCode(), &desc, vec![self.new_java_value()])?;
         Ok(res.unwrap().as_njv().unwrap_int_strict())
+    }
+
+    fn to_string(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<Option<JString<'gc_life>>, WasException> {
+        let desc = CMethodDescriptor {
+            arg_types: vec![],
+            return_type: CPDType::Ref(CPRefType::Class(CClassName::string())),
+        };
+        let res = invoke_virtual(jvm, int_state, MethodName::method_toString(), &desc, vec![self.new_java_value()])?.unwrap();
+        Ok(res.cast_string())
     }
 }
 

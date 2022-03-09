@@ -9,27 +9,44 @@ pub mod throwable {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+    use crate::NewAsObjectOrJavaValue;
     use crate::utils::run_static_or_virtual;
 
-    #[derive(Clone)]
     pub struct Throwable<'gc_life> {
-        pub(crate) normal_object: GcManagedObject<'gc_life>,
+        pub(crate) normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
     impl<'gc_life> JavaValue<'gc_life> {
         pub fn cast_throwable(&self) -> Throwable<'gc_life> {
-            Throwable { normal_object: self.unwrap_object_nonnull() }
+            Throwable { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
+        }
+    }
+
+    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
+        pub fn cast_throwable(self) -> Throwable<'gc_life> {
+            Throwable { normal_object: self }
         }
     }
 
     impl<'gc_life> Throwable<'gc_life> {
         pub fn print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
+            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
             run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), todo!())?;
             Ok(())
         }
-        as_object_or_java_value!();
+        // as_object_or_java_value!();
+    }
+
+    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for Throwable<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> AllocatedObject<'gc_life, '_> {
+            self.normal_object.as_allocated_obj()
+        }
     }
 }
 
@@ -507,7 +524,6 @@ pub mod string {
             let string_object = new_object(jvm, int_state, &string_class);
 
             let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
-            dbg!(elems.len());
             let array_object = UnAllocatedObjectArray {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
                 elems,

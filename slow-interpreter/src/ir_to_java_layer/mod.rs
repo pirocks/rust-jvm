@@ -315,9 +315,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("NewString");
                 }
-                int_state.debug_print_stack_trace(jvm);
                 let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-                dbg!(&wtf8buf);
                 drop(exit_guard);
                 let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
                 let jv = jstring.new_java_value_handle();
@@ -449,7 +447,6 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("GetStatic");
                 }
-                int_state.debug_print_stack_trace(jvm);
                 let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
                 let name = cpd_type.unwrap_class_type();
                 let static_var = get_static_impl(jvm, int_state, name, *field_name).unwrap().unwrap();
@@ -561,10 +558,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("Throw");
                 }
+                eprintln!("THROW AT:");
                 int_state.debug_print_stack_trace(jvm);
                 let exception_obj_native_value = unsafe { (*exception_obj_ptr).cast::<NativeJavaValue<'gc_life>>().read() };
                 let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
                 let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
+                let throwable = exception_object_handle.cast_throwable();
+                let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
+                dbg!(exception_as_string.to_rust_string(jvm));
+                let exception_object_handle = throwable.normal_object;
                 let exception_obj = exception_object_handle.as_allocated_obj();
                 let exception_obj_rc = exception_obj.runtime_class(jvm);
                 for current_frame in int_state.frame_iter() {

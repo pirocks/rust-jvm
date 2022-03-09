@@ -234,7 +234,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
     let jvm = get_state(env);
-    match from_object(jvm, obj) {
+    match from_object_new(jvm, obj) {
         None => {
             let field_id = offset as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);

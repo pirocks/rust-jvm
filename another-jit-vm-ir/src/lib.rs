@@ -206,9 +206,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
             let exiting_stack_pointer = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rsp;
-            if ir_method_id == self.get_top_level_return_ir_method_id(){
+            if ir_method_id == self.get_top_level_return_ir_method_id() {
                 assert!(exiting_frame_position_rbp >= exiting_stack_pointer);
-            }else {
+            } else {
                 assert!(exiting_frame_position_rbp > exiting_stack_pointer);
             }
             let function_start = self.lookup_ir_method_id_pointer(ir_method_id);
@@ -892,10 +892,22 @@ fn div_rem_common(assembler: &mut CodeAssembler, res: &Register, divisor: &Regis
     match signed {
         Signed::Signed => {
             match size {
-                Size::Byte => assembler.idiv(divisor.to_native_8()).unwrap(),
-                Size::X86Word => assembler.idiv(divisor.to_native_16()).unwrap(),
-                Size::X86DWord => assembler.idiv(divisor.to_native_32()).unwrap(),
-                Size::X86QWord => assembler.idiv(divisor.to_native_64()).unwrap(),
+                Size::Byte => {
+                    // assembler.idiv(divisor.to_native_8()).unwrap()
+                    todo!()
+                }
+                Size::X86Word => {
+                    // assembler.idiv(divisor.to_native_16()).unwrap()
+                    todo!()
+                }
+                Size::X86DWord => {
+                    assembler.cdq().unwrap();
+                    assembler.idiv(divisor.to_native_32()).unwrap()
+                }
+                Size::X86QWord => {
+                    assembler.cqo().unwrap();
+                    assembler.idiv(divisor.to_native_64()).unwrap()
+                }
             }
         }
         Signed::Unsigned => {
