@@ -19,7 +19,7 @@ pub fn resolve_invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>,
     resolve_virtual_impl(jvm, int_state, member_name, true)
 }
 
-fn resolve_virtual_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, member_name: MemberName<'gc_life>, include_interfaces: bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
+fn resolve_virtual_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, member_name: MemberName<'gc_life>, include_interfaces: bool) -> Result<Result<(Method<'gc_life>, u16, Arc<RuntimeClass<'gc_life>>), ResolutionError>, WasException> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);

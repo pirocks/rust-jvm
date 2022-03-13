@@ -46,7 +46,7 @@ pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size {
     }
 }
 
-pub fn putfield(
+pub fn putfield<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     mut current_instr_data: CurrentInstructionCompilerData,
@@ -119,7 +119,7 @@ pub fn putfield(
 }
 
 
-pub fn getfield(
+pub fn getfield<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     mut current_instr_data: CurrentInstructionCompilerData,
@@ -188,7 +188,7 @@ pub fn getfield(
     }
 }
 
-fn recursively_find_field_number_and_type(rc: &'l RuntimeClassClass, name: FieldName) -> &'l (FieldNumber, CPDType) {
+fn recursively_find_field_number_and_type<'l>(rc: &'l RuntimeClassClass, name: FieldName) -> &'l (FieldNumber, CPDType) {
     match rc.field_numbers.get(&name) {
         Some(x) => x,
         None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),

@@ -69,11 +69,15 @@ fn get_modifiers(method_view: &MethodView) -> jint {
     method_view.access_flags() as i32
 }
 
-fn get_signature(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<JString<'gc_life>, WasException> {
+fn get_signature<'gc_life, 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    method_view: &MethodView
+) -> Result<JString<'gc_life>, WasException> {
     Ok(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.desc_str().to_str(&jvm.string_pool)))?.intern(jvm, int_state)?)
 }
 
-fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+fn exception_types_table<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
     let class_type: CPDType = CClassName::class().into();
     let empty_vec = vec![];
     let types_iter = method_view
@@ -99,7 +103,7 @@ fn exception_types_table(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     }))))
 }
 
-fn parameters_type_objects(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+fn parameters_type_objects<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
     let class_type: CPDType = CClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -158,7 +162,7 @@ pub mod method {
     }
 
     impl<'gc_life> Method<'gc_life> {
-        pub fn method_object_from_method_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Method<'gc_life>, WasException> {
+        pub fn method_object_from_method_view<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Method<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -189,7 +193,7 @@ pub mod method {
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 
-        pub fn new_method(
+        pub fn new_method<'l>(
             jvm: &'gc_life JVMState<'gc_life>,
             int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
             clazz: JClass<'gc_life>,
@@ -350,7 +354,7 @@ pub mod constructor {
     }
 
     impl<'gc_life> Constructor<'gc_life> {
-        pub fn constructor_object_from_method_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Constructor<'gc_life>, WasException> {
+        pub fn constructor_object_from_method_view<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method_view: &MethodView) -> Result<Constructor<'gc_life>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -366,7 +370,7 @@ pub mod constructor {
             Constructor::new_constructor(jvm, int_state, clazz, parameter_types.as_njv(), exception_types.as_njv(), modifiers, slot, signature)
         }
 
-        pub fn new_constructor(
+        pub fn new_constructor<'l>(
             jvm: &'gc_life JVMState<'gc_life>,
             int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
             clazz: JClass<'gc_life>,
@@ -505,7 +509,7 @@ pub mod field {
     }
 
     impl<'gc_life> Field<'gc_life> {
-        pub fn init(
+        pub fn init<'l>(
             jvm: &'gc_life JVMState<'gc_life>,
             int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
             clazz: JClass<'gc_life>,
@@ -592,7 +596,7 @@ pub mod constant_pool {
     }
 
     impl<'gc_life> ConstantPool<'gc_life> {
-        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
+        pub fn new<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JClass<'gc_life>) -> Result<ConstantPool<'gc_life>, WasException> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
             let constant_pool_object = new_object(jvm, int_state, &constant_pool_classfile).to_jv();
             let res = constant_pool_object.cast_constant_pool();

@@ -20,7 +20,7 @@ use rust_jvm_common::MethodId;
 use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 
-pub fn invokespecial(
+pub fn invokespecial<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
@@ -114,7 +114,7 @@ pub fn invokespecial(
     }
 }
 
-pub fn invokestatic(
+pub fn invokestatic<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
@@ -215,7 +215,7 @@ pub fn invokestatic(
 }
 
 
-pub fn invokevirtual(
+pub fn invokevirtual<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
@@ -362,7 +362,7 @@ pub fn invoke_interface(
     }
 }
 
-fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+fn virtual_and_special_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
     // let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
@@ -388,7 +388,7 @@ fn virtual_and_special_arg_offsets(resolver: &MethodResolver<'vm_life>, method_f
 }
 
 
-fn static_arg_offsets(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+fn static_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
     let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];

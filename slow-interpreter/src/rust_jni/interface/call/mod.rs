@@ -69,7 +69,7 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     })
 }
 
-unsafe fn push_params_onto_frame_new(
+unsafe fn push_params_onto_frame_new<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     l: &mut VarargProvider,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
@@ -82,7 +82,7 @@ unsafe fn push_params_onto_frame_new(
     args
 }
 
-unsafe fn push_params_onto_frame(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: &CMethodDescriptor) {
+unsafe fn push_params_onto_frame<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: &CMethodDescriptor) {
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }

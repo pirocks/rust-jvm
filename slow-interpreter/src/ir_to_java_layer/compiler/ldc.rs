@@ -15,12 +15,12 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
 
-pub fn ldc_string(resolver: &MethodResolver<'vm_life>,
-                  method_frame_data: &JavaCompilerMethodAndFrameData,
-                  current_instr_data: &CurrentInstructionCompilerData,
-                  restart_point_generator: &mut RestartPointGenerator,
-                  recompile_conditions: &mut MethodRecompileConditions,
-                  str: CompressedWtf8String) -> impl Iterator<Item=IRInstr> {
+pub fn ldc_string<'vm_life>(resolver: &MethodResolver<'vm_life>,
+                            method_frame_data: &JavaCompilerMethodAndFrameData,
+                            current_instr_data: &CurrentInstructionCompilerData,
+                            restart_point_generator: &mut RestartPointGenerator,
+                            recompile_conditions: &mut MethodRecompileConditions,
+                            str: CompressedWtf8String) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let string_class_cpdtype = CClassName::string().into();
@@ -47,12 +47,12 @@ pub fn ldc_string(resolver: &MethodResolver<'vm_life>,
     }
 }
 
-pub fn ldc_class(resolver: &MethodResolver<'vm_life>,
-                 method_frame_data: &JavaCompilerMethodAndFrameData,
-                 current_instr_data: &CurrentInstructionCompilerData,
-                 restart_point_generator: &mut RestartPointGenerator,
-                 recompile_conditions: &mut MethodRecompileConditions,
-                 type_: &CPDType) -> impl Iterator<Item=IRInstr> {
+pub fn ldc_class<'vm_life>(resolver: &MethodResolver<'vm_life>,
+                           method_frame_data: &JavaCompilerMethodAndFrameData,
+                           current_instr_data: &CurrentInstructionCompilerData,
+                           restart_point_generator: &mut RestartPointGenerator,
+                           recompile_conditions: &mut MethodRecompileConditions,
+                           type_: &CPDType) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let to_load_cpdtype = type_.clone();

@@ -9,7 +9,7 @@ use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::utils::throw_npe;
 
-pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
+pub fn putstatic<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let mut stack = entry_mut.operand_stack_mut();
@@ -17,7 +17,7 @@ pub fn putstatic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpret
     target_classfile.static_vars(jvm).set(field_name, todo!()/*field_value.to_new()*/);
 }
 
-pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
+pub fn putfield<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
     let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
@@ -42,7 +42,7 @@ pub fn putfield(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interprete
     }
 }
 
-pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_descriptor: &CFieldDescriptor) {
+pub fn get_static<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_descriptor: &CFieldDescriptor) {
     //todo make sure class pointer is updated correctly
     let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name) {
         Ok(val) => val,
@@ -56,7 +56,7 @@ pub fn get_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     int_state.push_current_operand_stack(field_value.to_jv());
 }
 
-pub(crate) fn get_static_impl(
+pub(crate) fn get_static_impl<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
     field_class_name: CClassName,
@@ -86,7 +86,7 @@ pub(crate) fn get_static_impl(
     panic!()
 }
 
-pub fn get_field(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {
+pub fn get_field<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {
     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
     let object_ref = int_state.current_frame_mut().pop(Some(RuntimeType::object()));
     match object_ref {

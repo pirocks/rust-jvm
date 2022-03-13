@@ -637,7 +637,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         self.to_ref().class_pointer(jvm).clone()
     }
 
-    pub fn local_vars_mut(&'k mut self) -> LocalVarsMut<'gc_life, 'l, 'k> {
+    pub fn local_vars_mut<'k>(&'k mut self) -> LocalVarsMut<'gc_life, 'l, 'k> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry } => {
                 LocalVarsMut::LegacyInterpreter { vars: entry.local_vars_mut(jvm) }
@@ -647,7 +647,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn local_vars(&'k self) -> LocalVarsRef<'gc_life, 'l, 'k> {
+    pub fn local_vars<'k>(&'k self) -> LocalVarsRef<'gc_life, 'l, 'k> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry } => {
                 LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut(jvm) }
@@ -676,7 +676,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn operand_stack_mut(&'k mut self) -> OperandStackMut<'gc_life, 'l> {
+    pub fn operand_stack_mut<'k>(&'k mut self) -> OperandStackMut<'gc_life, 'l> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
@@ -686,7 +686,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn operand_stack_ref(&'k mut self, _jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
+    pub fn operand_stack_ref<'k>(&'k mut self, _jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
         /*match self {
             /*StackEntryMut::LegacyInterpreter { entry, .. } => {
                 OperandStackRef::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
@@ -696,7 +696,7 @@ impl<'gc_life, 'l> StackEntryMut<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn debug_extract_raw_frame_view(&'k mut self) -> &'k mut FrameView<'gc_life, 'l> {
+    pub fn debug_extract_raw_frame_view<'k>(&'k mut self) -> &'k mut FrameView<'gc_life, 'l> {
         /*match self {
             StackEntryMut::Jit { frame_view, .. } => frame_view,
         }*/
@@ -725,7 +725,7 @@ pub enum LocalVarsMut<'gc_life, 'l, 'k> {
 }
 
 impl<'gc_life, 'l, 'k> LocalVarsMut<'gc_life, 'l, 'k> {
-    pub fn set(&mut self, i: u16, to: NewJavaValue<'gc_life, 'irrelevant>) {
+    pub fn set<'irrelevant>(&mut self, i: u16, to: NewJavaValue<'gc_life, 'irrelevant>) {
         match self {
             /*LocalVarsMut::LegacyInterpreter { .. } => todo!(),*/
             LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to.to_jv()),
@@ -902,7 +902,7 @@ pub struct OperandStackMut<'gc_life, 'l> {
     pub(crate) frame_view: RuntimeJavaStackFrameMut<'l, 'gc_life>,
 }
 
-impl OperandStackMut<'gc_life, 'l> {
+impl <'gc_life, 'l> OperandStackMut<'gc_life, 'l> {
     pub fn push(&mut self, j: JavaValue<'gc_life>) {
         /*match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
@@ -997,7 +997,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }
 
-    pub fn operand_stack(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
+    pub fn operand_stack<'k>(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> OperandStackRef<'gc_life, 'l, 'k> {
         /*match self {
             /*StackEntryRef::LegacyInterpreter { .. } => todo!(),*/
             StackEntryRef::Jit { frame_view, .. } => OperandStackRef::Jit { frame_view, jvm },
@@ -1033,7 +1033,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         todo!()
     }
 
-    pub fn local_vars(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> LocalVarsRef<'gc_life, 'l, 'k> {
+    pub fn local_vars<'k>(&'k self, jvm: &'gc_life JVMState<'gc_life>) -> LocalVarsRef<'gc_life, 'l, 'k> {
         /*match self {
             /*            StackEntryRef::LegacyInterpreter { entry } => {
                             LocalVarsRef::LegacyInterpreter { vars: entry.local_vars(jvm) }

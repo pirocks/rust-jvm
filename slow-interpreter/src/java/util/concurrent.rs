@@ -23,10 +23,10 @@ pub mod concurrent_hash_map {
     }
 
     impl<'gc_life> ConcurrentHashMap<'gc_life> {
-        pub fn new(jvm: &JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'_,'gc_life>) -> Self{
+        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>) -> Self{
             let concurrent_hash_map_class = check_initing_or_inited_class(jvm, int_state, CClassName::concurrent_hash_map().into()).unwrap();
             let concurrent_hash_map = new_object(jvm, int_state, &concurrent_hash_map_class);
-            run_constructor(jvm, int_state, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
+            run_constructor(jvm, int_state, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
 

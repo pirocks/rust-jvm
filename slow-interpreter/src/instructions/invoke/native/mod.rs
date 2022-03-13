@@ -23,7 +23,7 @@ use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method(
+pub fn run_native_method<'gc_life, 'l, 'k>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
     class: Arc<RuntimeClass<'gc_life>>,
@@ -148,7 +148,7 @@ pub fn run_native_method(
     }
 }
 
-fn special_call_overrides(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+fn special_call_overrides<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {

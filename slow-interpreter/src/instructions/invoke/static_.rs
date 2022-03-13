@@ -19,7 +19,7 @@ use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn run_invoke_static<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
@@ -40,7 +40,7 @@ pub fn run_invoke_static(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut I
     );
 }
 
-pub fn invoke_static_impl(
+pub fn invoke_static_impl<'l, 'gc_life>(
     jvm: &'gc_life JVMState<'gc_life>,
     interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
     expected_descriptor: &CMethodDescriptor,

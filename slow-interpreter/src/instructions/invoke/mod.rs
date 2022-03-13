@@ -43,11 +43,11 @@ pub mod dynamic {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
 
-    pub fn invoke_dynamic(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) {
+    pub fn invoke_dynamic<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) {
         let _ = invoke_dynamic_impl(jvm, int_state, cp);
     }
 
-    fn invoke_dynamic_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<(), WasException> {
+    fn invoke_dynamic_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<(), WasException> {
         let method_handle_class = check_initing_or_inited_class(jvm, int_state, CClassName::method_handle().into())?;
         let _method_type_class = check_initing_or_inited_class(jvm, int_state, CClassName::method_type().into())?;
         let _call_site_class = check_initing_or_inited_class(jvm, int_state, CClassName::call_site().into())?;
@@ -145,13 +145,13 @@ pub mod dynamic {
     }
 
     //todo this should go in MethodType or something.
-    fn desc_from_rust_str(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, desc_str: String) -> Result<JavaValue<'gc_life>, WasException> {
+    fn desc_from_rust_str<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, desc_str: String) -> Result<JavaValue<'gc_life>, WasException> {
         let desc_str = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str))?;
         let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
         Ok(method_type.java_value())
     }
 
-    fn method_handle_from_method_view(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc_life>, WasException> {
+    fn method_handle_from_method_view<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc_life>, WasException> {
         let methodref_view = method_ref.clone();
         Ok(match methodref_view.get_reference_data() {
             ReferenceInvokeKind::InvokeStatic(is) => {
@@ -188,7 +188,7 @@ pub mod dynamic {
     }
 }
 
-fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, MethodName, CMethodDescriptor)>, WasException> {
+fn resolved_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, MethodName, CMethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(&jvm.string_pool, cp as usize, &*view);
     let class_name_ = match class_name_type {
@@ -220,6 +220,6 @@ fn resolved_class(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut Interpre
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 
-pub fn find_target_method(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_method_name: MethodName, parsed_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>) -> (u16, Arc<RuntimeClass<'gc_life>>) {
+pub fn find_target_method<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_method_name: MethodName, parsed_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>) -> (u16, Arc<RuntimeClass<'gc_life>>) {
     lookup_method_parsed(jvm, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

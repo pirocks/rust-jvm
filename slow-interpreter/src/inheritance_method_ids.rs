@@ -37,7 +37,7 @@ impl InheritanceMethodIDs {
         res
     }
 
-    pub fn register_impl(&mut self, rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
+    pub fn register_impl<'gc_life>(&mut self, rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
         return match rc.deref() {
             RuntimeClass::Object(class_class) => {
                 match &class_class.parent {
@@ -89,7 +89,7 @@ impl InheritanceMethodIDs {
         };
     }
 
-    pub fn register(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: &Arc<RuntimeClass<'gc_life>>) {
+    pub fn register<'gc_life>(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: &Arc<RuntimeClass<'gc_life>>) {
         let _ = self.register_impl(rc);
     }
 
@@ -103,7 +103,7 @@ impl InheritanceMethodIDs {
         }
     }
 
-    pub fn lookup(&self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId) -> InheritanceMethodID {
+    pub fn lookup<'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId) -> InheritanceMethodID {
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = rc.view();
         let name = class_view.name().unwrap_name();

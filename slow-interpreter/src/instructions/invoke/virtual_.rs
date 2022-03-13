@@ -28,7 +28,7 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn invoke_virtual_instruction<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //let the main instruction check intresstate inste
     let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor,todo!());
 }
@@ -106,7 +106,7 @@ fn invoke_virtual_method_i_impl<'gc_life, 'l>(
     }
 }
 
-pub fn call_vmentry(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, vmentry: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn call_vmentry<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, vmentry: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
     assert_eq!(vmentry.clone().java_value().to_type(), CClassName::member_name().into());
     let flags = vmentry.get_flags(jvm) as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
@@ -187,7 +187,7 @@ pub fn setup_virtual_args2<'gc_life, 'l, 'k>(int_state: &'_ mut InterpreterState
 /*
 args should be on the stack
 */
-pub fn invoke_virtual(
+pub fn invoke_virtual<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
     method_name: MethodName,
@@ -237,7 +237,7 @@ pub fn invoke_virtual(
     invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args)
 }
 
-pub fn virtual_method_lookup(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {
+pub fn virtual_method_lookup<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {
     let all_methods = get_all_methods(jvm, int_state, c.clone(), false)?;
     let (final_target_class, new_i) = all_methods
         .iter()

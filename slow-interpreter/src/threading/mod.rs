@@ -141,7 +141,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         main_send
     }
 
-    fn debug_assertions(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>){
+    fn debug_assertions<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>){
         let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
         let res = jstring.hash_code(jvm, int_state).unwrap();
         assert_eq!(res, 111607186);
@@ -151,7 +151,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         //print sizeCtl after put if absent
     }
 
-    fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
+    fn jvm_init_from_main_thread<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
@@ -204,7 +204,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         })
     }
 
-    pub fn bootstrap_main_thread(jvm: &'vm_life JVMState<'vm_life>, threads: &'vm_life Threads<'vm_life>) -> Arc<JavaThread<'vm_life>> {
+    pub fn bootstrap_main_thread<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, threads: &'vm_life Threads<'vm_life>) -> Arc<JavaThread<'vm_life>> {
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -303,7 +303,7 @@ impl<'gc_life> ThreadState<'gc_life> {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
+    pub fn start_thread_from_obj<'l>(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, obj: JThread<'gc_life>, invisible_to_java: bool) -> Arc<JavaThread<'gc_life>> {
         let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
 
         let (send, recv) = channel();
@@ -454,7 +454,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -464,7 +464,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+    pub fn unpark<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -473,7 +473,7 @@ impl<'gc_life> JavaThread<'gc_life> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }

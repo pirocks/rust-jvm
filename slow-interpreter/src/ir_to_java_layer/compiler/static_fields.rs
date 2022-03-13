@@ -9,7 +9,7 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 use crate::jit::MethodResolver;
 use crate::runtime_class::RuntimeClass;
 
-pub fn putstatic(
+pub fn putstatic<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
@@ -46,7 +46,7 @@ pub fn putstatic(
 }
 
 
-pub fn getstatic(
+pub fn getstatic<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,

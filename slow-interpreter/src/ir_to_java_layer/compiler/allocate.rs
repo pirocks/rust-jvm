@@ -12,12 +12,12 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 use crate::jit::MethodResolver;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 
-pub fn new(resolver: &MethodResolver<'vm_life>,
-           method_frame_data: &JavaCompilerMethodAndFrameData,
-           current_instr_data: &CurrentInstructionCompilerData,
-           restart_point_generator: &mut RestartPointGenerator,
-           recompile_conditions: &mut MethodRecompileConditions,
-           ccn: CClassName) -> impl Iterator<Item=IRInstr> {
+pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
+                     method_frame_data: &JavaCompilerMethodAndFrameData,
+                     current_instr_data: &CurrentInstructionCompilerData,
+                     restart_point_generator: &mut RestartPointGenerator,
+                     recompile_conditions: &mut MethodRecompileConditions,
+                     ccn: CClassName) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let cpd_type_id = resolver.get_cpdtype_id(&ccn.clone().into());
@@ -44,7 +44,7 @@ pub fn new(resolver: &MethodResolver<'vm_life>,
 }
 
 
-pub fn anewarray(
+pub fn anewarray<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
@@ -87,7 +87,7 @@ pub fn anewarray(
 }
 
 
-pub fn newarray(
+pub fn newarray<'vm_life>(
     resolver: &MethodResolver<'vm_life>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,

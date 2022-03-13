@@ -617,7 +617,7 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         AllocatedObject { handle: self }
     }
 
-    pub fn to_jv(&'any self) -> JavaValue<'gc_life> {
+    pub fn to_jv<'any>(&'any self) -> JavaValue<'gc_life> {
         todo!()
     }
 

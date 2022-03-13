@@ -72,7 +72,7 @@ pub mod properties {
     }
 
     impl<'gc_life> Properties<'gc_life> {
-        pub fn set_property(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+        pub fn set_property<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![NewJavaValue::AllocObject(self.normal_object.as_allocated_obj()), key.new_java_value(), value.new_java_value()];
             let desc = CMethodDescriptor {
@@ -83,7 +83,7 @@ pub mod properties {
             Ok(res.unwrap())
         }
 
-        pub fn get_property(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>) -> Result<Option<JString<'gc_life>>, WasException> {
+        pub fn get_property<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>) -> Result<Option<JString<'gc_life>>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![NewJavaValue::AllocObject(self.normal_object.as_allocated_obj()), key.new_java_value()];
             let desc = CMethodDescriptor {

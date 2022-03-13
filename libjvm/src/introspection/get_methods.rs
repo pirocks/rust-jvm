@@ -44,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc_life>) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredMethods_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc_life>) -> Result<jobjectArray, WasException> {
     let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -85,7 +85,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredConstructors_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()

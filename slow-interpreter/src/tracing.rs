@@ -99,37 +99,37 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn trace_monitor_lock<'gc_life>(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_lock {
             println!("Monitor lock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn trace_monitor_unlock<'gc_life>(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_unlock {
             println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(jvm), Monitor::get_tid(jvm));
         }
     }
 
-    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn trace_monitor_wait<'gc_life>(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_wait {
             println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn trace_monitor_notify<'gc_life>(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_notify {
             println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn trace_monitor_notify_all<'gc_life>(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
         if self.trace_monitor_notify_all {
             println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_jdwp_function_enter(&self, jvm: &'gc_life JVMState<'gc_life>, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
+    pub fn trace_jdwp_function_enter<'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
         let current_thread = std::thread::current();
         let thread_name = if jvm.vm_live() { current_thread.name().unwrap_or("unknown thread") } else { "VM not live" }.to_string();
         if self.trace_jdwp_function_enter && function_name != "Deallocate" && function_name != "Allocate" && function_name != "RawMonitorNotify" && function_name != "RawMonitorExit" && function_name != "RawMonitorWait" && function_name != "RawMonitorEnter" {
@@ -143,7 +143,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue<'gc_life>) {
+    pub fn function_exit_guard<'gc_life>(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue<'gc_life>) {
         // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
         //     && !guard.meth_name.contains("hashCode")
         //     && !guard.meth_name.contains("equals"){

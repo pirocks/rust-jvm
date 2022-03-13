@@ -79,7 +79,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> js
     }
 }
 
-pub unsafe fn intern_impl_unsafe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object_new(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),

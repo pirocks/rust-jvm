@@ -118,19 +118,19 @@ fn get_top_local_ref_frame<'l>(interpreter_state: &'l InterpreterStateGuard) -> 
     current_native_local_refs(interpreter_state).pop().unwrap()
 }
 
-fn set_local_refs_top_frame(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, new: HashSet<jobject>) {
+fn set_local_refs_top_frame<'gc_life, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, new: HashSet<jobject>) {
     let data = interpreter_state.current_frame().frame_view.ir_ref.data(0) as usize as *mut NativeFrameInfo;
     unsafe { *data.as_mut().unwrap().native_local_refs.last_mut().unwrap() = new; }
 }
 
-fn pop_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> HashSet<jobject> {
+fn pop_current_native_local_refs<'gc_life, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> HashSet<jobject> {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs(),
     }*/
 }
 
-fn push_current_native_local_refs(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, to_push: HashSet<jobject>) {
+fn push_current_native_local_refs<'gc_life, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, to_push: HashSet<jobject>) {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push),

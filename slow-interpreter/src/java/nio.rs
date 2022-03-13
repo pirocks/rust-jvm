@@ -29,7 +29,7 @@ pub mod heap_byte_buffer {
     }
 
     impl<'gc_life> HeapByteBuffer<'gc_life> {
-        pub fn new(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
+        pub fn new<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
             let object = new_object(jvm, int_state, &heap_byte_buffer_class);
 

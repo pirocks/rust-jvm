@@ -339,7 +339,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }*/
     }
 
-    pub fn push_frame(&mut self, frame: StackEntryPush<'gc_life,'k>) -> FramePushGuard {
+    pub fn push_frame<'k>(&mut self, frame: StackEntryPush<'gc_life,'k>) -> FramePushGuard {
         let frame_push_guard = match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()

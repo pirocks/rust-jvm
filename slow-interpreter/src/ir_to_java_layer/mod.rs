@@ -114,7 +114,7 @@ pub enum VMExitEvent<'vm_life> {
 }
 
 impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
-    fn handle_vm_exit(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput, exiting_pc: ByteCodeOffset) -> IRVMExitAction {
+    fn handle_vm_exit<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, method_id: MethodId, vm_exit_type: &RuntimeVMExitInput, exiting_pc: ByteCodeOffset) -> IRVMExitAction {
         // let current_frame = int_state.current_frame();
         // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         // let view = rc.view();
@@ -633,7 +633,7 @@ pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_
     dump_frame_contents_impl(jvm, current_frame)
 }
 
-pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
+pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
     let local_var_types = current_frame.local_var_types(jvm);
     let local_vars = current_frame.local_vars(jvm);
     eprint!("Local Vars:");
@@ -681,7 +681,7 @@ pub fn dump_frame_contents_impl(jvm: &'gc_life JVMState<'gc_life>, current_frame
     eprintln!()
 }
 
-fn display_obj(jvm: &'gc_life JVMState<'gc_life>, i: usize, obj: AllocatedObjectHandle<'gc_life>) {
+fn display_obj<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i: usize, obj: AllocatedObjectHandle<'gc_life>) {
     let obj_type = obj.as_allocated_obj().runtime_class(jvm).cpdtype();
     if obj_type == CClassName::standard_charsets_cache().into() {
         let ht = obj.duplicate_discouraged().cast_pre_hashed_map().ht(jvm);
@@ -764,7 +764,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-    pub fn run_method(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
+    pub fn run_method<'l>(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, method_id: MethodId) -> u64 {
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);

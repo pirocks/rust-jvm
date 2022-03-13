@@ -68,7 +68,7 @@ thread_local! {
 }
 
 //GetFieldID
-pub fn get_interface(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *mut *const JNINativeInterface_ {
+pub fn get_interface<'gc_life, 'l>(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         if refcell.borrow().is_null() {
@@ -82,7 +82,7 @@ pub fn get_interface(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<
     })
 }
 
-fn get_interface_impl(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> JNINativeInterface_ {
+fn get_interface_impl<'gc_life, 'l>(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
         reserved1: null_mut(),
@@ -616,7 +616,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 }
 
 //shouldn't take class as arg and should be an impl method on Field
-pub fn field_object_from_view(
+pub fn field_object_from_view<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
     class_obj: Arc<RuntimeClass<'gc_life>>,
@@ -671,7 +671,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn define_class_safe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
@@ -742,7 +742,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
 }
 
 #[must_use]
-pub(crate) unsafe fn push_type_to_operand_stack_new(
+pub(crate) unsafe fn push_type_to_operand_stack_new<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
     type_: &CPDType,
@@ -791,7 +791,7 @@ pub(crate) unsafe fn push_type_to_operand_stack_new(
 }
 
 
-pub(crate) unsafe fn push_type_to_operand_stack(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType, l: &mut VarargProvider) {
+pub(crate) unsafe fn push_type_to_operand_stack<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, type_: &CPDType, l: &mut VarargProvider) {
     match type_ {
         CPDType::ByteType => {
             let byte_ = l.arg_byte();

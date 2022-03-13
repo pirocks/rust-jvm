@@ -73,7 +73,7 @@ pub struct JavaCompilerMethodAndFrameData {
 }
 
 impl JavaCompilerMethodAndFrameData {
-    pub fn new(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
+    pub fn new<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
         let function_frame_type_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
         let frames = function_frame_type_guard.get(&method_id).unwrap();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -216,7 +216,7 @@ impl RecompileConditions {
         }
     }
 
-    pub fn should_recompile(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc_life>) -> bool {
+    pub fn should_recompile<'gc_life>(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc_life>) -> bool {
         match self.conditions.get(&method_id) {
             None => {
                 return true;
@@ -266,7 +266,7 @@ pub enum NeedsRecompileIf {
 }
 
 impl NeedsRecompileIf {
-    pub fn should_recompile(&self, method_resolver: &MethodResolver<'gc_life>) -> bool {
+    pub fn should_recompile<'gc_life>(&self, method_resolver: &MethodResolver<'gc_life>) -> bool {
         match self {
             NeedsRecompileIf::FunctionRecompiled { function_method_id, current_ir_method_id } => {
                 let (ir_method_id, _address) = method_resolver.lookup_ir_method_id_and_address(*function_method_id).unwrap();
@@ -282,7 +282,7 @@ impl NeedsRecompileIf {
     }
 }
 
-pub fn compile_to_ir(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions) -> Vec<(ByteCodeOffset, IRInstr)> {
+pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![];
     let mut compiler_labeler = CompilerLabeler {

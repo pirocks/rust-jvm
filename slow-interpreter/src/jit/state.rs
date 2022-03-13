@@ -220,7 +220,12 @@ impl JITedCodeState {
         install_at
     }
 
-    pub fn run_method_safe(jit_state: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub fn run_method_safe<'gc_life, 'l>(
+        jit_state: &RefCell<JITedCodeState>,
+        jvm: &'gc_life JVMState<'gc_life>,
+        int_state: &mut InterpreterStateGuard<'gc_life, 'l>,
+        methodid: MethodId
+    ) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let res = unsafe {
             let jit_state_ = jit_state.borrow();
             let code_id = *jit_state_.method_id_to_code.get_by_left(&methodid).unwrap();
@@ -250,7 +255,7 @@ impl JITedCodeState {
     #[allow(unknown_lints)]
     #[allow(named_asm_labels)]
     #[allow(unaligned_references)]
-    unsafe fn resume_method(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    unsafe fn resume_method<'gc_life, 'l>(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         loop {
             //todo reacrchited pushing/popping of frames storing sp.
             let java_stack: &mut JavaStack = todo!();//int_state.java_stack();
@@ -368,14 +373,14 @@ impl JITedCodeState {
     }
 
     #[allow(named_asm_labels)]
-    pub unsafe fn run_method(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub unsafe fn run_method<'gc_life, 'l>(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
         let target_ip = jitstate.borrow().function_addresses.get_reverse(&compiled_id).unwrap().start;
         drop(jitstate.borrow_mut());
         JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
 
     #[allow(unaligned_references)]
-    fn handle_exit(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
+    fn handle_exit<'gc_life, 'l>(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         // int_state.debug_print_stack_trace(jvm);
         todo!()
         /*        match exit_type {
@@ -791,7 +796,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 }
 
-pub fn setup_args_from_current_frame(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc_life>> {
+pub fn setup_args_from_current_frame<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc_life>> {
     if is_virtual {
         todo!()
     }

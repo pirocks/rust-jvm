@@ -16,7 +16,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
-pub fn invoke_special(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
+pub fn invoke_special<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
     let target_class = match check_initing_or_inited_class(jvm, int_state, method_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return,

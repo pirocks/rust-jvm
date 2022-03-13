@@ -21,7 +21,7 @@ pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, f
     jvmtiError_JVMTI_ERROR_NONE
 }
 
-fn get_field(klass: jclass, field: jfieldID, jvm: &'gc_life JVMState<'gc_life>) -> (Arc<dyn ClassView>, u16) {
+fn get_field<'gc_life>(klass: jclass, field: jfieldID, jvm: &'gc_life JVMState<'gc_life>) -> (Arc<dyn ClassView>, u16) {
     let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
     unsafe {

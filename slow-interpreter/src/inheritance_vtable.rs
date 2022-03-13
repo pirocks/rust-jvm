@@ -42,7 +42,7 @@ impl VTables {
         }
     }
 
-    pub fn notify_load(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: Arc<RuntimeClass<'gc_life>>) {
+    pub fn notify_load<'gc_life>(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: Arc<RuntimeClass<'gc_life>>) {
         if rc.cpdtype().is_array() || rc.cpdtype().is_primitive(){
             return;
         }
@@ -51,7 +51,7 @@ impl VTables {
         self.notify_load_impl(jvm, rc, allocated_object_id)
     }
 
-    fn notify_load_impl(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: Arc<RuntimeClass<'gc_life>>, allocated_object_id: AllocatedTypeID) {
+    fn notify_load_impl<'gc_life>(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: Arc<RuntimeClass<'gc_life>>, allocated_object_id: AllocatedTypeID) {
         let class_view = rc.view();
         for method in class_view.methods(){
             let method_view = class_view.method_view_i(method.method_i());
@@ -67,7 +67,7 @@ impl VTables {
         }
     }
 
-    pub fn notify_compile_or_recompile(&mut self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, resolved: ResolvedInvokeVirtual) {
+    pub fn notify_compile_or_recompile<'gc_life>(&mut self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId, resolved: ResolvedInvokeVirtual) {
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
         let method_view = class_view.method_view_i(method_i);
@@ -91,7 +91,7 @@ impl VTables {
         }
     }
 
-    pub fn lookup_all(&self, jvm: &'gc_life JVMState<'gc_life>, inheritance_method_id: InheritanceMethodID) -> HashSet<String> {
+    pub fn lookup_all<'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, inheritance_method_id: InheritanceMethodID) -> HashSet<String> {
         let mut res = HashSet::new();
         for (_allocated_type_id, resolved) in &self.table {
             if let Some(resolved) = resolved.get(&inheritance_method_id) {

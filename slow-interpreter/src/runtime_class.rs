@@ -131,7 +131,7 @@ impl<'gc_life, 'l> StaticVarGuard<'gc_life, 'l> {
 }
 
 impl<'gc_life> RuntimeClass<'gc_life> {
-    pub fn static_vars(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> StaticVarGuard<'gc_life, 'l> {
+    pub fn static_vars<'l>(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> StaticVarGuard<'gc_life, 'l> {
         match self {
             RuntimeClass::Byte => panic!(),
             RuntimeClass::Boolean => panic!(),
@@ -246,7 +246,7 @@ impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<
     }
 }
 
-pub fn initialize_class(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn initialize_class<'gc_life, 'l>(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first

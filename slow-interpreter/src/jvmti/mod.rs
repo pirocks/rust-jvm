@@ -56,12 +56,12 @@ pub unsafe fn get_interpreter_state<'gc_life,'l, 'k>(env: *mut jvmtiEnv) -> &'k 
     jvm.get_int_state()
 }
 
-pub fn get_jvmti_interface(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *mut jvmtiEnv {
+pub fn get_jvmti_interface<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, _int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *mut jvmtiEnv {
     let new = get_jvmti_interface_impl(jvm);
     Box::leak(box (Box::leak(box new) as *const jvmtiInterface_1_)) as *mut jvmtiEnv
 }
 
-fn get_jvmti_interface_impl(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface_1_ {
+fn get_jvmti_interface_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>) -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
         reserved1: unsafe { transmute(jvm) },
         SetEventNotificationMode: Some(set_event_notification_mode),

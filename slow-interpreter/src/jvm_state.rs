@@ -209,7 +209,7 @@ impl<'gc_life> Classes<'gc_life> {
         self.loaded_classes_by_type.get(loader).unwrap().get(type_).unwrap()
     }
 
-    pub fn object_to_runtime_class(&self, object: AllocatedObject<'gc_life, 'any>) -> Arc<RuntimeClass<'gc_life>> {
+    pub fn object_to_runtime_class<'any>(&self, object: AllocatedObject<'gc_life, 'any>) -> Arc<RuntimeClass<'gc_life>> {
         self.class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(object.raw_ptr_usize())).unwrap().0.clone()
     }
 
@@ -556,7 +556,7 @@ pub struct NativeLibraries<'gc_life> {
 }
 
 impl<'gc_life> NativeLibraries<'gc_life> {
-    pub unsafe fn load(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, path: &OsString, name: String) {
+    pub unsafe fn load<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
@@ -609,7 +609,7 @@ impl<'gc_life> JVMState<'gc_life> {
         Arc::new(LivePoolGetterImpl { jvm: self })
     }
 
-    pub fn get_class_getter(&'l self, loader: LoaderName) -> Arc<dyn ClassFileGetter + 'l> {
+    pub fn get_class_getter<'l>(&'l self, loader: LoaderName) -> Arc<dyn ClassFileGetter + 'l> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         Arc::new(BootstrapLoaderClassGetter { jvm: self })
     }
