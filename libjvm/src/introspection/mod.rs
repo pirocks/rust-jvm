@@ -16,12 +16,12 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, MethodName};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
-use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter::WasException;
@@ -32,7 +32,7 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
-use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
@@ -43,6 +43,7 @@ use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
 use slow_interpreter::utils::throw_npe;
+use itertools::Itertools;
 
 pub mod constant_pool;
 pub mod is_x;
@@ -56,8 +57,8 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
         .view()
         .interfaces()
         .map(|interface| {
-            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?.to_gc_managed();
-            Ok(JavaValue::Object(Some(class_obj)))
+            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
+            Ok(class_obj.handle.duplicate_discouraged())
         })
         .collect::<Result<Vec<_>, WasException>>()
     {
@@ -66,11 +67,10 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             return null_mut();
         }
     };
-    let res = Some(jvm.allocate_object(todo!()/*Array(match ArrayObject::new_array(jvm, int_state, interface_vec, CClassName::class().into(), jvm.thread_state.new_monitor("".to_string())) {
-        Ok(arr) => arr,
-        Err(WasException {}) => return null_mut(),
-    })*/));
-    new_local_ref_public(todo!()/*res*/, int_state)
+    let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CClassName::class().into()));
+    let elems = interface_vec.iter().map(|handle| NewJavaValue::AllocObject(handle.as_allocated_obj())).collect_vec();
+    let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems }));
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -218,7 +218,10 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
     let this_native_fn_frame = stack.next().unwrap();
     assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque());
-    let parent_frame = stack.next().unwrap();
+    let mut parent_frame = stack.next().unwrap();
+    if parent_frame.is_native_method() || parent_frame.is_opaque(){
+        parent_frame = stack.next().unwrap();
+    }
     assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque());
     let possibly_class_pointer = stack.find_map(|entry| {
         let class_pointer = entry.try_class_pointer(jvm)?;

@@ -145,9 +145,31 @@ impl<'gc_life> ThreadState<'gc_life> {
         let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
         let res = jstring.hash_code(jvm, int_state).unwrap();
         assert_eq!(res, 111607186);
-        let hash_map = ConcurrentHashMap::new(jvm,int_state);
-        dbg!(hash_map.size_ctl(jvm));
-        panic!()
+        // let mut hash_map = ConcurrentHashMap::new(jvm, int_state);
+        // dbg!(hash_map.size_ctl(jvm));
+        // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
+        // let first_value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
+        // hash_map.put_if_absent(jvm, int_state, first_key.new_java_value(),first_value.new_java_value());
+        //
+        // let keys = ["test1",
+        //     "test2",
+        //     "test3",
+        //     "test4",
+        //     "test5",
+        //     "test6",
+        //     "test7",
+        //     "test8",
+        //     "test9",
+        //     "test10",
+        //     "test11",
+        // ];
+        // for key in keys{
+        //     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(key.to_string())).unwrap();
+        //     eprintln!("PUT START");
+        //     hash_map.put_if_absent(jvm, int_state, key.new_java_value(),first_value.new_java_value());
+        // }
+        // dbg!(hash_map.size_ctl(jvm));
+        // hash_map.debug_print_table(jvm);
         //print sizeCtl after put if absent
     }
 

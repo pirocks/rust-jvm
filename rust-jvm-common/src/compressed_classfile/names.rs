@@ -361,6 +361,7 @@ enum PredefinedStrings {
     field_and_method_run,
     field_signature,
     field_slot,
+    field_val,
     field_theUnsafe,
     field_threadStatus,
     field_threads,
@@ -412,6 +413,7 @@ enum PredefinedStrings {
     method_start,
     method_toString,
     method_initializeSystemClass,
+    method_putIfAbsent,
 }
 
 impl PredefinedStrings {
@@ -574,7 +576,9 @@ impl PredefinedStrings {
             SUN_NIO_CS_STANDARD_CHARSETS_CACHE => "sun/nio/cs/StandardCharsets$Cache".to_string(),
             SUN_UTIL_PRE_HASHED_MAP => "sun/util/PreHashedMap".to_string(),
             JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP => "java/util/concurrent/ConcurrentHashMap".to_string(),
-            field_sizeCtl => "sizeCtl".to_string()
+            field_sizeCtl => "sizeCtl".to_string(),
+            method_putIfAbsent => "putIfAbsent".to_string(),
+            field_val => "val".to_string()
         }
     }
 }
@@ -679,6 +683,9 @@ impl FieldName {
     }
     pub fn field_key() -> Self {
         Self::from_raw_id(field_key)
+    }
+    pub fn field_val() -> Self {
+        Self::from_raw_id(field_val)
     }
     pub fn field_index() -> Self {
         Self::from_raw_id(field_index)
@@ -959,5 +966,8 @@ impl MethodName {
     }
     pub fn method_methodType() -> Self {
         Self::from_raw_id(field_and_method_methodType)
+    }
+    pub fn method_putIfAbsent() -> Self {
+        Self::from_raw_id(method_putIfAbsent)
     }
 }

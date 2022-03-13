@@ -93,6 +93,10 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         }
     }
 
+    pub fn null() -> NewJavaValueHandle<'gc_life> {
+        NewJavaValueHandle::Null
+    }
+
     pub fn unwrap_object(self) -> Option<AllocatedObjectHandle<'gc_life>> {
         match self {
             NewJavaValueHandle::Object(obj) => { Some(obj) }
@@ -521,7 +525,7 @@ pub struct UnAllocatedObjectArray<'gc_life, 'l> {
 }
 
 pub struct AllocatedObject<'gc_life, 'l> {
-    pub(crate) handle: &'l AllocatedObjectHandle<'gc_life>,//todo put in same module as gc
+    pub handle: &'l AllocatedObjectHandle<'gc_life>,//todo put in same module as gc
 }
 
 impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {

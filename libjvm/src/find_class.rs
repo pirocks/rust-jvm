@@ -35,7 +35,6 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    int_state.debug_print_stack_trace(jvm);
     let loader_obj = int_state.current_frame().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();

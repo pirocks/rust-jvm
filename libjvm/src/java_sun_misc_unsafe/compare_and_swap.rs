@@ -27,7 +27,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
     }
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
     atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
     /*let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {

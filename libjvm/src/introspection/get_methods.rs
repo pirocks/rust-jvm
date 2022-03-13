@@ -8,10 +8,10 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::{LoaderIndex, LoaderName};
-use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
@@ -36,7 +36,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let loader = int_state.current_loader(jvm);
-    let of_class_obj = JavaValue::Object(from_object(jvm, ofClass)).to_new().cast_class().expect("todo");
+    let of_class_obj = from_object_new(jvm, ofClass).unwrap().cast_class();
     let int_state = get_interpreter_state(env);
     match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
         Ok(res) => res,
@@ -54,21 +54,26 @@ fn JVM_GetClassDeclaredMethods_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_li
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
     let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
     let mut object_array = vec![];
-    methods
+    let methods_owned = methods
         .filter(|(c, i)| {
             let c_view = c.view();
             let method_view = c_view.method_view_i(*i);
             let name = method_view.name();
             name != MethodName::constructor_clinit() && name != MethodName::constructor_init() && if publicOnly > 0 { method_view.is_public() } else { true }
         })
-        .for_each(|(c, i)| {
+        .map(|(c, i)| {
             let c_view = c.view();
             let method_view = c_view.method_view_i(i);
-            let method = Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo");
-            object_array.push(method.java_value());
-        });
-    let res = jvm.allocate_object(todo!()/*Object::object_array(jvm, int_state, object_array, method_class.view().type_())?*/);
-    unsafe { Ok(new_local_ref_public(todo!()/*res*/, int_state)) }
+            Method::method_object_from_method_view(jvm, int_state, &method_view).expect("todo")
+        }).collect_vec();
+    for method_owned in methods_owned.iter(){
+        object_array.push(method_owned.new_java_value());
+    }
+    /*object_array(jvm, int_state, object_array, method_class.view().type_())?*/
+    let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CPDType::Ref(CompressedParsedRefType::Class(CClassName::method()))));
+    let res = jvm.allocate_object(UnAllocatedObject::Array(
+    UnAllocatedObjectArray{ whole_array_runtime_class, elems: object_array }));
+    unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }
 }
 
 #[no_mangle]

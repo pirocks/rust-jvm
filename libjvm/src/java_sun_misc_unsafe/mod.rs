@@ -105,7 +105,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     let field_numbers = &clazz.unwrap_class_class().field_numbers;
     let field_number = field_numbers[&name].0;
     let res = field_number.0 as jlong * size_of::<jlong>() as jlong;
-    dbg!(res)
+    res
     /*class_view.fields().enumerate().for_each(|(i, f)| {
         if f.field_name() == name {
             field_i = Some(i);

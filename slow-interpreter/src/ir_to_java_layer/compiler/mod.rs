@@ -697,7 +697,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, 2))
             }
             CompressedInstructionInfo::lload_3 => {
-                this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, 2))
+                this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, 3))
             }
             CompressedInstructionInfo::fload(index) => {
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))

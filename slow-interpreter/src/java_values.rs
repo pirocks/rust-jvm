@@ -85,7 +85,10 @@ impl<'gc_life> GC<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
-            UnAllocatedObject::Array(arr) => runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, LoaderName::BootstrapLoader, Some(arr.elems.len())),//todo loader name nonsense
+            UnAllocatedObject::Array(arr) => {
+                assert!(arr.whole_array_runtime_class.cpdtype().is_array());
+                runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, LoaderName::BootstrapLoader, Some(arr.elems.len()))
+            }//todo loader name nonsense
             UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
         };
         let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
@@ -98,18 +101,18 @@ impl<'gc_life> GC<'gc_life> {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
                 for (i, field) in fields.iter() {
                     unsafe {
-                        assert_eq!(size_of::<NativeJavaValue>(),size_of::<jlong>());
+                        assert_eq!(size_of::<NativeJavaValue>(), size_of::<jlong>());
                         let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(i.0 as isize);
                         field_ptr.write(field.to_native());
                     }
                 }
             }
-            UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems }) => {
+            UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }) => {
                 unsafe {
                     (allocated.as_ptr() as *mut i32).write(elems.len() as i32);
                     let array_base = allocated.as_ptr().offset(size_of::<jlong>() as isize);
                     assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
-                    for (i, elem) in elems.into_iter().enumerate(){
+                    for (i, elem) in elems.into_iter().enumerate() {
                         array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native())
                     }
                 }
@@ -795,12 +798,12 @@ impl<'gc_life> JavaValue<'gc_life> {
             .into()
     }
 
-    pub fn new_vec<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
-        let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
+    pub fn new_vec<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: NewJavaValue<'gc_life,'_>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
+        let mut buf: Vec<NewJavaValue<'gc_life,'_>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Ok(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
+        Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state,CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
     pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
@@ -1198,15 +1201,15 @@ impl<'gc_life> NativeJavaValue<'gc_life> {
                 CPDType::IntType => NewJavaValueHandle::Int(self.int),
                 CPDType::LongType => NewJavaValueHandle::Long(self.long),
                 CPDType::Ref(_) => {
-                    match NonNull::new(self.object){
+                    match NonNull::new(self.object) {
                         None => {
                             NewJavaValueHandle::Null
                         }
                         Some(ptr) => {
-                            NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm,ptr))
+                            NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
                         }
                     }
-                },
+                }
                 CPDType::ShortType => NewJavaValueHandle::Short(self.short),
                 CPDType::BooleanType => NewJavaValueHandle::Boolean(self.boolean),
                 CPDType::VoidType => panic!(),
@@ -1307,8 +1310,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                                                                                }.unwrap() = jv.to_native();*/
+                                                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                                                        }.unwrap() = jv.to_native();*/
         todo!()
     }
 

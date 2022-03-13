@@ -89,7 +89,7 @@ impl JVMOptions {
             store_generated_classes,
             debug_print_exceptions,
             assertions_enabled,
-            instruction_trace_options: InstructionTraceOptions::TraceAll,
+            instruction_trace_options: InstructionTraceOptions::TraceNone,
             exit_trace_options: ExitTracingOptions::TraceNone
         }
     }

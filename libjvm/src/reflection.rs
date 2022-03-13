@@ -25,6 +25,7 @@ use slow_interpreter::java::lang::integer::Integer;
 use slow_interpreter::java::lang::long::Long;
 use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::runtime_class::RuntimeClass;
@@ -44,40 +45,34 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
+unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
     let int_state = get_interpreter_state(env);
-    let jvm = get_state(env);
+    let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
     assert_eq!(obj, std::ptr::null_mut()); //non-static methods not supported atm.
-    let method_obj = match from_object(jvm, method) {
+    let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let args_not_null = match from_object(jvm, args0) {
+    let args_not_null = match from_object_new(jvm, args0) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let args = args_not_null.unwrap_array();
-    let method_name_str = string_obj_to_string(
-        jvm,
-        match method_obj.lookup_field(jvm, FieldName::field_name()).unwrap_object() {
+    let args = args_not_null.unwrap_array(jvm);
+    let method_name_str = match method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
-            Some(method_name) => todo!()/*method_name*/,
-        },
-    );
+            Some(method_name) => method_name.cast_string().to_rust_string(jvm),
+        };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
-    let signature = string_obj_to_string(
-        jvm,
-        match method_obj.lookup_field(jvm, FieldName::field_signature()).unwrap_object() {
+    let signature = match method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
-            Some(method_name) => todo!()/*method_name*/,
-        },
-    );
-    let clazz_java_val = method_obj.lookup_field(jvm, FieldName::field_clazz());
-    let target_class_refcell_borrow = clazz_java_val.to_new().cast_class().expect("todo").as_type(jvm);
+            Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
+        };
+    let clazz_java_val = method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_clazz());
+    let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
         unimplemented!()
@@ -94,27 +89,30 @@ unsafe extern "system" fn JVM_InvokeMethod(env: *mut JNIEnv, method: jobject, ob
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
     };
-    for (arg, type_) in args.array_iterator(jvm).zip(parsed_md.arg_types.iter()) {
+    let mut res_args = vec![];
+    let collected_args_array = args.array_iterator().collect_vec();
+    for (arg, type_) in collected_args_array.iter().zip(parsed_md.arg_types.iter()) {
+        let arg : &NewJavaValueHandle<'gc_life> = arg;
         let arg = match type_ {
-            CompressedParsedDescriptorType::BooleanType => JavaValue::Boolean(arg.cast_boolean().inner_value(jvm)),
-            CompressedParsedDescriptorType::ByteType => JavaValue::Byte(arg.cast_byte().inner_value(jvm)),
-            CompressedParsedDescriptorType::ShortType => JavaValue::Short(arg.cast_short().inner_value(jvm)),
-            CompressedParsedDescriptorType::CharType => JavaValue::Char(arg.cast_char().inner_value(jvm)),
-            CompressedParsedDescriptorType::IntType => JavaValue::Int(arg.cast_int().inner_value(jvm)),
-            CompressedParsedDescriptorType::LongType => JavaValue::Long(arg.cast_long().inner_value(jvm)),
-            CompressedParsedDescriptorType::FloatType => JavaValue::Float(arg.cast_float().inner_value(jvm)),
-            CompressedParsedDescriptorType::DoubleType => JavaValue::Double(arg.cast_double().inner_value(jvm)),
-            _ => arg.clone(),
+            CompressedParsedDescriptorType::BooleanType => NewJavaValue::Boolean(arg.cast_boolean().inner_value(jvm)),
+            CompressedParsedDescriptorType::ByteType => NewJavaValue::Byte(arg.cast_byte().inner_value(jvm)),
+            CompressedParsedDescriptorType::ShortType => NewJavaValue::Short(arg.cast_short().inner_value(jvm)),
+            CompressedParsedDescriptorType::CharType => NewJavaValue::Char(arg.cast_char().inner_value(jvm)),
+            CompressedParsedDescriptorType::IntType => NewJavaValue::Int(arg.cast_int().inner_value(jvm)),
+            CompressedParsedDescriptorType::LongType => NewJavaValue::Long(arg.cast_long().inner_value(jvm)),
+            CompressedParsedDescriptorType::FloatType => NewJavaValue::Float(arg.cast_float().inner_value(jvm)),
+            CompressedParsedDescriptorType::DoubleType => NewJavaValue::Double(arg.cast_double().inner_value(jvm)),
+            _ => arg.as_njv(),
         };
-        int_state.push_current_operand_stack(arg.clone());
+        res_args.push(arg.clone());
     }
 
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     if is_virtual {
-        invoke_virtual(jvm, int_state, method_name, &parsed_md, todo!());
+        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args);
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, todo!());
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args);
     }
 
     new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)

@@ -20,7 +20,7 @@ use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
@@ -101,8 +101,8 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).cpdtype();
-    a_new_array_from_name(jvm, int_state, length, array_type_name);
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
+    let res = a_new_array_from_name(jvm, int_state, length, array_type_name).unwrap();
+    new_local_ref_public_new(res.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj())/*int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object()*/, int_state)
 }
 
 #[no_mangle]

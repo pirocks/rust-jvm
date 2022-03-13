@@ -30,7 +30,7 @@ use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
-use crate::new_java_values::{AllocatedObject, UnAllocatedObject, UnAllocatedObjectObject};
+use crate::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::NewJavaValue;
 use crate::runtime_class::{FieldNumber, initialize_class, MethodNumber, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
@@ -317,8 +317,8 @@ pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, 
 //signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
 pub fn create_class_object<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life, 'gc_life>, WasException> {
     let loader_object = match loader {
-        LoaderName::UserDefinedLoader(idx) => JavaValue::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).clone().to_gc_managed().into()),
-        LoaderName::BootstrapLoader => JavaValue::null(),
+        LoaderName::UserDefinedLoader(idx) => NewJavaValueHandle::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).handle.duplicate_discouraged()),
+        LoaderName::BootstrapLoader => NewJavaValueHandle::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
         let fields_handles = JVMState::get_class_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(&type_))).collect::<Vec<_>>();

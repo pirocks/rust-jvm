@@ -87,8 +87,10 @@ pub fn invoke_static_impl<'l, 'gc_life>(
             }
         }
     } else {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, todo!()) {
-            Ok(_) => todo!(),
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+            Ok(res) => {
+                return Ok(res)
+            },
             Err(_) => todo!(),
         }
     }
