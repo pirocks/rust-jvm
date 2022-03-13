@@ -53,7 +53,7 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+pub fn run_function<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
     if jvm.config.compiled_mode_active {
         let rc = interpreter_state.current_frame().class_pointer(jvm);
         let method_i = interpreter_state.current_method_i(jvm);
@@ -90,14 +90,14 @@ pub fn run_function(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
 }
 
 
-pub fn safepoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
+pub fn safepoint_check<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
     let thread = interpreter_state.thread().clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
 }
 
 
-fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
+fn breakpoint_check<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId) {
     let pc = interpreter_state.current_pc();
     let stop = match jvm.jvmti_state() {
         None => false,
@@ -113,7 +113,7 @@ fn breakpoint_check(jvm: &'gc_life JVMState<'gc_life>, interpreter_state: &'_ mu
     }
 }
 
-pub fn monitor_for_function(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
+pub fn monitor_for_function<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
     if synchronized {
         let monitor: Arc<Monitor2> = if method.is_static() {
             let class_object = get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();

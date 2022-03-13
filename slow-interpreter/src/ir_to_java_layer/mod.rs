@@ -33,7 +33,7 @@ use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -719,7 +719,9 @@ fn display_obj(jvm: &'gc_life JVMState<'gc_life>, i: usize, obj: AllocatedObject
             }
             None => None,
         };
-        eprint!("#{}: {:?}(Class:{:?})\t", i, obj.ptr, class_short_name)
+        let ptr = obj.ptr;
+        let ref_data = obj.as_allocated_obj().get_var_top_level(jvm,FieldName::field_reflectionData());
+        eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe {ref_data.as_njv().to_native().object})
     } else {
         eprint!("#{}: {:?}({})\t", i, obj.ptr, obj_type.short_representation(&jvm.string_pool))
     }

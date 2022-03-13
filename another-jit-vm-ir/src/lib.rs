@@ -1,4 +1,3 @@
-#![feature(in_band_lifetimes)]
 #![feature(step_trait)]
 #![feature(box_syntax)]
 #![feature(once_cell)]
@@ -185,7 +184,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> u64 {
+    pub fn run_method<'g, 'l, 'f>(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> u64 {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something

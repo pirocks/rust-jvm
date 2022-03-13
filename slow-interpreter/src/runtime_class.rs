@@ -162,7 +162,7 @@ pub struct RuntimeClassArray<'gc_life> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FieldNumber(pub(crate) u32);
+pub struct FieldNumber(pub u32);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct MethodNumber(pub(crate) u32);

@@ -158,7 +158,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DebuggingClass{
     public static void main(String[] args) throws IllegalAccessException {
         final ConcurrentHashMap<Object, Object> obj = new ConcurrentHashMap<Object,Object>(16,0.75f,16);
-        obj.put("","");
+        obj.putIfAbsent("test","test");
         System.out.println(obj);
     }
 }

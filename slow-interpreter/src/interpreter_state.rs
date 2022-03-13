@@ -270,7 +270,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn set_throw(&mut self, val: Option<NewJVObject<'gc_life,'irrelevant_for_now>>) {
+    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<NewJVObject<'gc_life,'irrelevant_for_now>>) {
         /*match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();

@@ -81,7 +81,7 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    pub fn allocate_object(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: UnAllocatedObject<'gc_life, 'l>) -> AllocatedObjectHandle<'gc_life> {
+    pub fn allocate_object<'l>(&'gc_life self, jvm: &'gc_life JVMState<'gc_life>, object: UnAllocatedObject<'gc_life, 'l>) -> AllocatedObjectHandle<'gc_life> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
@@ -175,7 +175,7 @@ impl<'gc_life> GC<'gc_life> {
         }
     }
 
-    fn gc_recurse_super(obj: &NormalObject<'gc_life, 'l>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<c_void>>) {
+    fn gc_recurse_super<'l>(obj: &NormalObject<'gc_life, 'l>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<c_void>>) {
         for (_name, (index, rtype)) in class_class.field_numbers.iter() {
             if let CPDType::Ref(_) = rtype {
                 Self::gc_recurse(
@@ -771,7 +771,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             jv => (*jv).clone(),
         }*/
     }
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
+    pub fn empty_byte_array<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
@@ -795,7 +795,7 @@ impl<'gc_life> JavaValue<'gc_life> {
             .into()
     }
 
-    pub fn new_vec(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
+    pub fn new_vec<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: JavaValue<'gc_life>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
         let mut buf: Vec<JavaValue<'gc_life>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -1124,7 +1124,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
         unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
     }
 
-    pub fn array_iterator(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l, '_> {
+    pub fn array_iterator<'l>(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayIterator<'gc_life, 'l, '_> {
         ArrayIterator { elems: self, jvm, i: 0 }
     }
 
@@ -1132,7 +1132,7 @@ impl<'gc_life> ArrayObject<'gc_life, '_> {
         self.len
     }
 
-    pub fn new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
+    pub fn new_array<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, elems: Vec<JavaValue<'gc_life>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
         check_resolved_class(jvm, int_state, CPDType::array(type_/*CPRefType::Array(box type_.clone())*/))?;
         Ok(Self {
             whole_array_runtime_class: todo!(),
@@ -1453,7 +1453,7 @@ impl<'gc_life> Debug for NormalObject<'gc_life, '_> {
     }
 }
 
-pub fn default_value(type_: &CPDType) -> NewJavaValueHandle<'gc_life> {
+pub fn default_value<'gc_life>(type_: &CPDType) -> NewJavaValueHandle<'gc_life> {
     match type_ {
         CPDType::ByteType => NewJavaValueHandle::Byte(0),
         CPDType::CharType => NewJavaValueHandle::Char('\u{000000}' as u16),
@@ -1468,7 +1468,7 @@ pub fn default_value(type_: &CPDType) -> NewJavaValueHandle<'gc_life> {
     }
 }
 
-pub fn default_value_njv(type_: &CPDType) -> NewJavaValue<'gc_life, 'any> {
+pub fn default_value_njv<'gc_life, 'any>(type_: &CPDType) -> NewJavaValue<'gc_life, 'any> {
     match type_ {
         CPDType::ByteType => NewJavaValue::Byte(0),
         CPDType::CharType => NewJavaValue::Char('\u{000000}' as u16),

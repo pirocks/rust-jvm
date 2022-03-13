@@ -236,6 +236,10 @@ impl CompressedClassName {
         Self::from_raw_id(SUN_UTIL_PRE_HASHED_MAP as AddOnlyVecIDType)
     }
 
+    pub const fn concurrent_hash_map() -> Self {
+        Self::from_raw_id(JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP as AddOnlyVecIDType)
+    }
+
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -278,6 +282,7 @@ enum PredefinedStrings {
     JAVA_LANG_REFLECT_FIELD,
     JAVA_UTIL_PROPERTIES,
     JAVA_UTIL_HASHTABLE,
+    JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
     JAVA_LANG_THREAD,
     JAVA_LANG_THREADGROUP,
     JAVA_LANG_REFLECT_CONSTRUCTOR,
@@ -360,6 +365,7 @@ enum PredefinedStrings {
     field_threadStatus,
     field_threads,
     field_table,
+    field_sizeCtl,
     field_tid,
     field_and_method_type,
     field_and_method_value,
@@ -566,7 +572,9 @@ impl PredefinedStrings {
             field_ht => "ht".to_string(),
             SUN_NIO_CS_STANDARD_CHARSETS => "sun/nio/cs/StandardCharsets".to_string(),
             SUN_NIO_CS_STANDARD_CHARSETS_CACHE => "sun/nio/cs/StandardCharsets$Cache".to_string(),
-            SUN_UTIL_PRE_HASHED_MAP => "sun/util/PreHashedMap".to_string()
+            SUN_UTIL_PRE_HASHED_MAP => "sun/util/PreHashedMap".to_string(),
+            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP => "java/util/concurrent/ConcurrentHashMap".to_string(),
+            field_sizeCtl => "sizeCtl".to_string()
         }
     }
 }
@@ -764,6 +772,9 @@ impl FieldName {
     }
     pub fn field_table() -> Self {
         Self::from_raw_id(field_table)
+    }
+    pub fn field_sizeCtl() -> Self {
+        Self::from_raw_id(field_sizeCtl)
     }
     pub fn field_tid() -> Self {
         Self::from_raw_id(field_tid)

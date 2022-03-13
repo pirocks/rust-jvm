@@ -1,7 +1,9 @@
 pub mod concurrent_hash_map {
-    use rust_jvm_common::compressed_classfile::names::FieldName;
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::JVMState;
+    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState};
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
 
     pub struct ConcurrentHashMap<'gc_life> {
@@ -21,8 +23,19 @@ pub mod concurrent_hash_map {
     }
 
     impl<'gc_life> ConcurrentHashMap<'gc_life> {
+        pub fn new(jvm: &JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'_,'gc_life>) -> Self{
+            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, int_state, CClassName::concurrent_hash_map().into()).unwrap();
+            let concurrent_hash_map = new_object(jvm, int_state, &concurrent_hash_map_class);
+            run_constructor(jvm, int_state, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
+            NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
+        }
+
         pub fn table(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
             self.normal_object.as_allocated_obj().get_var_top_level(jvm, FieldName::field_table())
+        }
+
+        pub fn size_ctl(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+            self.normal_object.as_allocated_obj().get_var_top_level(jvm, FieldName::field_sizeCtl())
         }
     }
 
@@ -46,9 +59,7 @@ pub mod concurrent_hash_map {
             pub fn key(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm, FieldName::field_key())
             }
-        }
 
-        impl<'gc_life> Node<'gc_life> {
             pub fn value(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm, FieldName::field_value())
             }

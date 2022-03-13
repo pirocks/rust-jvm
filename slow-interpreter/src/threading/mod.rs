@@ -35,6 +35,7 @@ use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
+use crate::java::util::concurrent::concurrent_hash_map::ConcurrentHashMap;
 use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::JavaStatus;
@@ -144,6 +145,10 @@ impl<'gc_life> ThreadState<'gc_life> {
         let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
         let res = jstring.hash_code(jvm, int_state).unwrap();
         assert_eq!(res, 111607186);
+        let hash_map = ConcurrentHashMap::new(jvm,int_state);
+        dbg!(hash_map.size_ctl(jvm));
+        panic!()
+        //print sizeCtl after put if absent
     }
 
     fn jvm_init_from_main_thread(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
@@ -222,14 +227,6 @@ impl<'gc_life> ThreadState<'gc_life> {
             jvm,
             current_exited_pc: None
         };
-        dbg!(match &mut new_int_state {
-            InterpreterStateGuard::RemoteInterpreterState { .. } => {
-                todo!()
-            }
-            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
-                int_state.current_rbp
-            }
-        });
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
@@ -241,14 +238,6 @@ impl<'gc_life> ThreadState<'gc_life> {
             }
         }
         let frame = StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");
-        dbg!(match &mut new_int_state {
-            InterpreterStateGuard::RemoteInterpreterState { .. } => {
-                todo!()
-            }
-            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
-                int_state.current_rbp
-            }
-        });
         let frame_for_bootstrapping = new_int_state.push_frame(frame);
         let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());

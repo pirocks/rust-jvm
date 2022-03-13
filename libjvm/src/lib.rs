@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 #![feature(in_band_lifetimes)]
+#![feature(core_intrinsics)]
 //#![feature(asm)]
 #![allow(non_snake_case)]
 #![allow(unused)]

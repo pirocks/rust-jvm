@@ -1,7 +1,6 @@
 #![feature(asm_const)]
 #![feature(backtrace)]
 #![feature(trait_alias)]
-#![feature(in_band_lifetimes)]
 #![feature(generic_associated_types)]
 // save all registers when entering and exiting vm -
 // methodid to code id mapping is handled seperately
@@ -310,7 +309,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm(&'l self, stack: &'stack_life OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm_life, 'extra_data, 'l, T, ExtraData> {
+    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm_life, 'extra_data, 'l, T, ExtraData> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;

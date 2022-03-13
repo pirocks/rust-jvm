@@ -22,7 +22,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_at(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l> {
+    pub unsafe fn frame_at<'l>(&'l self, frame_pointer: *const c_void) -> IRFrameRef<'l> {
         self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameRef {
@@ -31,7 +31,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_at_mut(&'l mut self, frame_pointer: *mut c_void) -> IRFrameMut<'l> {
+    pub unsafe fn frame_at_mut<'l>(&'l mut self, frame_pointer: *mut c_void) -> IRFrameMut<'l> {
         self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameMut {
@@ -40,7 +40,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter<ExtraData>(&'_ self, start_frame: *mut c_void, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'_, 'h, 'vm_life, ExtraData> {
+    pub unsafe fn frame_iter<'h, 'vm_life, ExtraData>(&'_ self, start_frame: *mut c_void, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'_, 'h, 'vm_life, ExtraData> {
         IRFrameIterRef {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -94,7 +94,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn push_frame<ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
+    pub fn push_frame<'vm_lfe, ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
         unsafe {
             //todo assert stack frame sizes
             if self.current_rsp != self.owned_ir_stack.native.mmaped_top {
@@ -125,7 +125,7 @@ impl<'l, 'k> IRStackMut<'l> {
         assert_eq!(frame_guard.return_to_rsp, self.current_rsp);
     }
 
-    pub fn debug_print_stack_strace<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
+    pub fn debug_print_stack_strace<'vm_life, ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) {
         let frame_iter = self.frame_iter(ir_vm_state);
         eprintln!("Start IR stacktrace:");
         for frame in frame_iter {
@@ -139,7 +139,7 @@ impl<'l, 'k> IRStackMut<'l> {
         eprintln!("End IR stacktrace");
     }
 
-    pub fn frame_iter<ExtraData>(&'l self, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
+    pub fn frame_iter<'h, 'vm_life, ExtraData>(&'l self, ir_vm_state: &'h IRVMState<'vm_life, ExtraData>) -> IRFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
         unsafe { self.owned_ir_stack.frame_iter(self.current_rbp, ir_vm_state) }
     }
 
@@ -159,7 +159,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn previous_frame_ir_instr<ExtraData>(&self, ir_vm_state: &IRVMState<'vm_life, ExtraData>) -> IRInstructIndex {
+    pub fn previous_frame_ir_instr<'vm_life, ExtraData>(&self, ir_vm_state: &IRVMState<'vm_life, ExtraData>) -> IRInstructIndex {
         let current = self.current_frame_ref();
         let prev_rip = current.prev_rip();
         let (ir_method_id_from_ip, ir_instruct) = ir_vm_state.lookup_ip(prev_rip);
@@ -289,7 +289,7 @@ impl IRFrameRef<'_> {
         unsafe { data_raw_ptr.read() }
     }
 
-    pub fn all_data<ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) -> Vec<u64> {
+    pub fn all_data<'vm_life, ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm_life, ExtraData>) -> Vec<u64> {
         let _frame_size = self.frame_size(ir_vm_state);
         todo!()
     }
@@ -317,7 +317,7 @@ impl<'l> IRFrameMut<'l> {
         }
     }
 
-    pub fn downgrade(&'new_l self) -> IRFrameRef<'new_l> {
+    pub fn downgrade<'new_l>(&'new_l self) -> IRFrameRef<'new_l> {
         IRFrameRef {
             ptr: self.ptr,
             _ir_stack: self.ir_stack,

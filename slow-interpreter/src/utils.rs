@@ -29,11 +29,11 @@ use crate::java_values::{ExceptionReturn, GcManagedObject, JavaValue};
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
 use crate::runtime_class::RuntimeClass;
 
-pub fn lookup_method_parsed(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     lookup_method_parsed_impl(jvm, class, name, descriptor)
 }
 
-pub fn lookup_method_parsed_impl(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
+pub fn lookup_method_parsed_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, class: Arc<RuntimeClass<'gc_life>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc_life>>)> {
     let view = class.view();
     let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| if m.is_signature_polymorphic() { true } else { m.desc() == descriptor }).collect::<Vec<_>>();
@@ -58,12 +58,12 @@ pub fn string_obj_to_string<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, str_obj
     //todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
-pub fn throw_npe_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<T, WasException> {
+pub fn throw_npe_res<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<T, WasException> {
     let _ = throw_npe::<T>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_npe<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> T {
+pub fn throw_npe<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> T {
     todo!()
     /*let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
@@ -78,12 +78,12 @@ pub fn throw_npe<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_stat
     T::invalid_default()*/
 }
 
-pub fn throw_array_out_of_bounds_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, index: jint) -> Result<T, WasException> {
+pub fn throw_array_out_of_bounds_res<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, index: jint) -> Result<T, WasException> {
     let _ = throw_array_out_of_bounds::<T>(jvm, int_state, index);
     Err(WasException)
 }
 
-pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, index: jint) -> T {
+pub fn throw_array_out_of_bounds<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, index: jint) -> T {
     /*let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
@@ -98,12 +98,12 @@ pub fn throw_array_out_of_bounds<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc
     todo!()
 }
 
-pub fn throw_illegal_arg_res<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<T, WasException> {
+pub fn throw_illegal_arg_res<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<T, WasException> {
     let _ = throw_illegal_arg::<T>(jvm, int_state);
     Err(WasException)
 }
 
-pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> T {
+pub fn throw_illegal_arg<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> T {
     /*let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(npe) => npe,
         Err(WasException {}) => {
@@ -118,7 +118,7 @@ pub fn throw_illegal_arg<T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, 
     todo!()
 }
 
-pub fn java_value_to_boxed_object(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life, 'static>>, WasException> {
+pub fn java_value_to_boxed_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life, 'static>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
@@ -155,7 +155,7 @@ pub fn run_static_or_virtual<'gc_life, 'l>(
     }
 }
 
-pub fn unwrap_or_npe<T>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, to_unwrap: Option<T>) -> Result<T, WasException> {
+pub fn unwrap_or_npe<'gc_life, 'l, T>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, to_unwrap: Option<T>) -> Result<T, WasException> {
     match to_unwrap {
         None => {
             throw_npe_res(jvm, int_state)?;

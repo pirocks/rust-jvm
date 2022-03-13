@@ -1,6 +1,10 @@
+use std::intrinsics::atomic_cxchg;
 use std::mem::transmute;
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
+use std::sync::atomic::AtomicPtr;
+use libc::c_void;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
@@ -18,7 +22,14 @@ use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
+    if target_obj == null_mut(){
+        todo!()
+    }
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    int_state.debug_print_stack_trace(jvm);
+    atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
+    /*let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
@@ -29,12 +40,16 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
         1
     } else {
         0
-    }) as jboolean
+    }) as jboolean*/
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jlong, new: jlong) -> jboolean {
-    let jvm = get_state(env);
+    if target_obj == null_mut(){
+        todo!()
+    }
+    atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jlong, old, new).1 as jboolean
+    /*let jvm = get_state(env);
     let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
         Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
         Err(WasException {}) => return jboolean::MAX,
@@ -47,7 +62,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
         1
     } else {
         0
-    }) as jboolean
+    }) as jboolean*/
 }
 
 
@@ -55,7 +70,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 #[no_mangle]
 unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
     //todo make these intrinsics
-    let jvm = get_state(env);
+    if target_obj == null_mut(){
+        todo!()
+    }
+    let target = (target_obj as *mut c_void).offset(offset as isize) as *mut jobject;
+    atomic_cxchg(target, expected, new).1 as jboolean
+    /*let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
@@ -82,7 +102,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
         //todo make this a real compare and swap
         notnull.as_allocated_obj().set_var(&rc, field_name, new);
         should_replace
-    }
+    }*/
 }
 
 pub fn do_swap<'l, 'gc_life>(curval: NewJavaValue<'gc_life, 'l>, expected: Option<AllocatedObjectHandle<'gc_life>>, new: NewJavaValue<'gc_life, 'l>) -> (jboolean, NewJavaValue<'gc_life, 'l>) {
