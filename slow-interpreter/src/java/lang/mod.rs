@@ -64,7 +64,7 @@ pub mod stack_trace_element {
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
-    use crate::NewJavaValue;
+    use crate::{NewJavaValue, StackEntry};
 
     pub struct StackTraceElement<'gc_life> {
         normal_object: AllocatedObjectHandle<'gc_life>,
@@ -93,7 +93,17 @@ pub mod stack_trace_element {
             Ok(res.cast_stack_trace_element())
         }
 
-        as_object_or_java_value!();
+        // as_object_or_java_value!();
+    }
+
+    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for StackTraceElement<'gc_life> {
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> AllocatedObject<'gc_life, '_> {
+            self.normal_object.as_allocated_obj()
+        }
     }
 }
 
@@ -966,25 +976,37 @@ pub mod class_not_found_exception {
     use crate::java::lang::string::JString;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct ClassNotFoundException<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+        normal_object: AllocatedObjectHandle<'gc_life>,
     }
 
-    impl<'gc_life> JavaValue<'gc_life> {
-        pub fn cast_class_not_found_exception(&self) -> ClassNotFoundException<'gc_life> {
-            ClassNotFoundException { normal_object: self.unwrap_object_nonnull() }
+    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
+        pub fn cast_class_not_found_exception(self) -> ClassNotFoundException<'gc_life> {
+            ClassNotFoundException { normal_object: self }
         }
     }
 
     impl<'gc_life> ClassNotFoundException<'gc_life> {
-        as_object_or_java_value!();
+        // as_object_or_java_value!();
 
         pub fn new<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: JString<'gc_life>) -> Result<ClassNotFoundException<'gc_life>, WasException> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::class_not_found_exception().into())?;
-            let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
-            run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), class.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
+            let this = new_object(jvm, int_state, &class_not_found_class);
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_class_not_found_exception())
+        }
+    }
+
+    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for ClassNotFoundException<'gc_life>{
+        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> AllocatedObject<'gc_life, '_> {
+            self.normal_object.as_allocated_obj()
         }
     }
 }

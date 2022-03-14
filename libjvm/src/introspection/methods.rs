@@ -202,7 +202,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
         .into_iter()
         .map(|byte| JavaValue::Byte(byte as i8))
         .collect_vec();
-    let res = JavaValue::new_vec_from_vec(jvm, bytes_vec, CPDType::ByteType);
+    let res = JavaValue::new_vec_from_vec(jvm, todo!()/*bytes_vec*/, CPDType::ByteType);
     new_local_ref_public(todo!()/*res.unwrap_object()*/, get_interpreter_state(env))
 }
 

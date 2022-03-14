@@ -30,7 +30,7 @@ use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jit_common::java_stack::{JavaStack, JavaStatus};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, NewJVObject};
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJVObject};
 use crate::rust_jni::native_util::{from_object, to_object};
 use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryPush, StackEntryRef, StackIter};
 use crate::threading::JavaThread;
@@ -65,6 +65,7 @@ pub enum InterpreterStateGuard<'vm_life, 'l> {
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
         current_exited_pc: Option<ByteCodeOffset>,
+        throw: Option<AllocatedObjectHandle<'vm_life>>
     },
 }
 
@@ -270,7 +271,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<NewJVObject<'gc_life,'irrelevant_for_now>>) {
+    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<AllocatedObjectHandle<'gc_life>>) {
         /*match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();
@@ -290,7 +291,12 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
                 }
             }
         }*/
-        todo!()
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState {  throw,.. } => {
+                *throw = val;
+            }
+        }
     }
 
     pub fn function_return(&mut self) -> bool {
@@ -317,8 +323,13 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn throw(&self) -> Option<GcManagedObject<'gc_life>> {
-        None
+    pub fn throw(&self) -> Option<AllocatedObject<'gc_life,'_>> {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { throw,.. } => {
+                throw.as_ref().map(|handle|handle.as_allocated_obj())
+            }
+        }
         /*match self.int_state.as_ref() {
             None => {
                 match self.thread.interpreter_state.read().unwrap().deref() {
@@ -491,8 +502,18 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn cloned_stack_snapshot(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<StackEntry<'gc_life>> {
-        todo!()
+    pub fn cloned_stack_snapshot(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<StackEntry> {
+        self.frame_iter().map(|frame|{
+            if frame.is_opaque(){
+                StackEntry::Opaque { opaque_id:OpaqueFrameIdOrMethodID::from_native(frame.frame_view.ir_ref.raw_method_id()).unwrap_opaque().unwrap() }
+            }else if frame.is_native_method() {
+                StackEntry::Native {
+                    method_id: frame.frame_view.ir_ref.method_id().unwrap(),
+                }
+            }else {
+                StackEntry::Java { method_id: frame.frame_view.ir_ref.method_id().unwrap() }
+            }
+        }).collect_vec()
     }
 
     pub fn depth(&self) -> usize {
@@ -540,7 +561,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     pub fn frame_state_assert_save_from(&self, from_inclusive: *const c_void) -> SavedAssertState {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
-            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc } => {
+            InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc, .. } => {
                 let mmaped_top = int_state.owned_ir_stack.native.mmaped_top;
                 let curent_rsp = int_state.current_rsp;
                 let curent_rbp = int_state.current_rbp;

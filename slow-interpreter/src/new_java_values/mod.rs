@@ -120,8 +120,8 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         }
     }
 
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, empty_byte_array: Arc<RuntimeClass<'gc_life>>) -> Self{
-        Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class: empty_byte_array, elems: vec![] })))
+    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, empty_byte_array: Arc<RuntimeClass<'gc_life>>) -> Self {
+        Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: empty_byte_array, elems: vec![] })))
     }
 
     pub fn try_unwrap_object_alloc(self) -> Option<Option<AllocatedObjectHandle<'gc_life>>> {
@@ -514,8 +514,8 @@ impl<'gc_life, 'l> UnAllocatedObject<'gc_life, 'l> {
 
 #[derive(Clone)]
 pub struct UnAllocatedObjectObject<'gc_life, 'l> {
-    pub(crate) object_rc: Arc<RuntimeClass<'gc_life>>,
-    pub(crate) fields: HashMap<FieldNumber, NewJavaValue<'gc_life, 'l>>,
+    pub object_rc: Arc<RuntimeClass<'gc_life>>,
+    pub fields: HashMap<FieldNumber, NewJavaValue<'gc_life, 'l>>,
 }
 
 #[derive(Clone)]
@@ -546,9 +546,13 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
 
     pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
         let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
+        self.raw_get_var(jvm, *field_number, *desc_type)
+    }
+
+    pub fn raw_get_var(&self, jvm: &'gc_life JVMState<'gc_life>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc_life> {
         unsafe {
-            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).read();
-            native_jv.to_new_java_value(desc_type, jvm)
+            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(number.0 as isize).read();
+            native_jv.to_new_java_value(&cpdtype, jvm)
         }
     }
 
@@ -663,15 +667,13 @@ impl Hash for AllocatedObjectHandleByAddress<'_> {
     }
 }
 
-impl PartialEq for AllocatedObjectHandleByAddress<'_>{
+impl PartialEq for AllocatedObjectHandleByAddress<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.ptr == other.0.ptr
     }
 }
 
-impl Eq for AllocatedObjectHandleByAddress<'_>{
-
-}
+impl Eq for AllocatedObjectHandleByAddress<'_> {}
 
 pub enum AllocatedObjectCOW<'gc_life, 'k> {
     Handle(AllocatedObjectHandle<'gc_life>),

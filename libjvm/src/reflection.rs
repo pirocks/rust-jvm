@@ -109,13 +109,13 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: j
 
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
-    if is_virtual {
-        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args);
+    let res = if is_virtual {
+        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args).unwrap().unwrap()
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args);
-    }
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
+    };
 
-    new_local_ref_public(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object(), int_state)
+    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]

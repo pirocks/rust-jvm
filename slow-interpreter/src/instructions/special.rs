@@ -127,6 +127,11 @@ pub fn instance_of_exit_impl_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
                     if actual_base_type == expected_class_type && actual_num_nested_arrs == expected_num_nested_arrs {
                         1
                     } else {
+                        if actual_num_nested_arrs == expected_num_nested_arrs{
+                            if inherits_from_cpdtype(jvm,&assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()),&expected_class_type.to_cpdtype()){
+                                return 1
+                            }
+                        }
                         dbg!(actual_base_type.to_cpdtype().jvm_representation(&jvm.string_pool));
                         dbg!(expected_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
                         todo!()
@@ -137,9 +142,8 @@ pub fn instance_of_exit_impl_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let instanceof_class = assert_inited_or_initing_class(jvm, (instance_of_class_name).into());
                     let object_class = assert_inited_or_initing_class(jvm,(object).into());
-                    if inherits_from(jvm, &object_class, &instanceof_class) {
+                    if inherits_from_cpdtype(jvm, &object_class, &instance_of_class_name.into()) {
                         1
                     } else {
                         0
@@ -211,6 +215,38 @@ fn runtime_interface_class<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i: Inter
     assert_inited_or_initing_class(jvm, intf_name.into())
 }
 
+//todo this really shouldn't need state or Arc<RuntimeClass>
+pub fn inherits_from_cpdtype<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &CPDType) -> bool {
+    //todo it is questionable whether this logic should be here:
+    if let RuntimeClass::Array(arr) = inherits.deref() {
+        if parent == &CClassName::object().into() || parent == &CClassName::cloneable().into() || parent == &CClassName::serializable().into() {
+            return true;
+        }
+        if let Some(parent_arr) = parent.try_unwrap_array_type() {
+            return inherits_from_cpdtype(jvm, &arr.sub_class, &parent_arr);
+        }
+    }
+    if inherits.cpdtype().is_primitive() {
+        return false;
+    }
+
+    if &CPDType::Ref(inherits.view().name()) == parent {
+        return true;
+    }
+    let mut interfaces_match = false;
+
+    for (_, i) in inherits.view().interfaces().enumerate() {
+        let interface = runtime_interface_class(jvm, i);
+        interfaces_match |= inherits_from_cpdtype(jvm,  &interface, parent);
+    }
+
+    (match runtime_super_class(jvm, inherits) {
+        None => false,
+        Some(super_) => &CPDType::Ref(super_.view().name()) == parent || inherits_from_cpdtype(jvm, &super_, parent),
+    }) || interfaces_match
+}
+
+//todo dup
 //todo this really shouldn't need state or Arc<RuntimeClass>
 pub fn inherits_from<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> bool {
     //todo it is questionable whether this logic should be here:

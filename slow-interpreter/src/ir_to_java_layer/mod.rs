@@ -40,7 +40,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::vtype::VType;
 use verification::verifier::filecorrectness::is_bootstrap_loader;
 
-use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue};
+use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
 use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
 use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::fields::get_static_impl;
@@ -163,7 +163,15 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
                 let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
                 drop(exit_guard);
-                let res = run_native_method(jvm, int_state, rc, method_i, args_new_jv).unwrap();
+                let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
+                    Ok(x) => x,
+                    Err(WasException{}) => {
+                        let expception_obj_handle = int_state.throw().unwrap().handle.duplicate_discouraged();
+                        int_state.set_throw(None);
+                        return Self::throw_impl(jvm,int_state,NewJavaValueHandle::Object(expception_obj_handle));
+                    },
+                };
+                assert!(int_state.throw().is_none());
                 if let Some(res) = res {
                     unsafe { (*res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
                 };
@@ -522,10 +530,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 }
                 IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
-            RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, object_ref, target_method_id } => {
+            RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, target_method_id } => {
                 if jvm.exit_trace_options.tracing_enabled() {
                     eprintln!("InvokeInterfaceResolve");
                 }
+                let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
                 let obj_jv_handle = unsafe { (*object_ref).cast::<NativeJavaValue>().read() }.to_new_java_value(&CPDType::object(), jvm);
                 let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
                 let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(*target_method_id).unwrap();
@@ -534,22 +543,42 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_name = method_view.name();
                 let method_desc = method_view.desc();
                 let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc, method_name, method_desc).unwrap();
-                let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, resolved_method_i);
-                let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-                jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
-                let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
-                let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
-                let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-                let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-                start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, resolved_method_id as *mut c_void);
-                start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
-                drop(exit_guard);
-                IRVMExitAction::RestartWithRegisterState {
-                    diff: SavedRegistersWithIPDiff {
-                        rip: Some(*return_to_ptr),
-                        saved_registers_without_ip: start_diff,
+                let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
+                if jvm.is_native_by_method_id(resolved_method_id){
+                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(resolved_method_id, &jvm.string_pool));
+                    let args_jv_handle = Self::virtual_args_extract(jvm, method_desc.arg_types.as_slice(), *object_ref);
+                    match run_native_method(jvm,int_state,resolved_rc,resolved_method_i,args_jv_handle.iter().map(|handle|handle.as_njv()).collect_vec()){
+                        Ok(res) => {
+                            if let Some(res) = res {
+                                unsafe { ((*native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
+                            };
+                            if !jvm.instruction_trace_options.partial_tracing() {
+                                jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                            }
+                            let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, *native_method_restart_point);
+                            return IRVMExitAction::RestartAtPtr { ptr: restart_address };
+                        }
+                        Err(WasException{}) => {
+                            todo!()
+                        }
+                    }
+                }else {
+                    let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                    jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
+                    let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
+                    let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
+                    let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
+                    let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
+                    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
+                    start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
+                    start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, resolved_method_id as *mut c_void);
+                    start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
+                    drop(exit_guard);
+                    IRVMExitAction::RestartWithRegisterState {
+                        diff: SavedRegistersWithIPDiff {
+                            rip: Some(*return_to_ptr),
+                            saved_registers_without_ip: start_diff,
+                        }
                     }
                 }
             }
@@ -562,56 +591,60 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 int_state.debug_print_stack_trace(jvm);
                 let exception_obj_native_value = unsafe { (*exception_obj_ptr).cast::<NativeJavaValue<'gc_life>>().read() };
                 let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
-                let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
-                let throwable = exception_object_handle.cast_throwable();
-                let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
-                dbg!(exception_as_string.to_rust_string(jvm));
-                let exception_object_handle = throwable.normal_object;
-                let exception_obj = exception_object_handle.as_allocated_obj();
-                let exception_obj_rc = exception_obj.runtime_class(jvm);
-                for current_frame in int_state.frame_iter() {
-                    let rc = current_frame.class_pointer(jvm);
-                    let view = rc.view();
-                    let method_i = current_frame.method_i(jvm);
-                    let method_view = view.method_view_i(method_i);
-                    if let Some(code) = method_view.code_attribute() {
-                        let current_pc = current_frame.pc(jvm);
-                        for CompressedExceptionTableElem {
-                            start_pc,
-                            end_pc,
-                            handler_pc,
-                            catch_type
-                        } in &code.exception_table {
-                            let matches_class = match catch_type {
-                                None => true,
-                                Some(class_name) => {
-                                    instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
-                                }
-                            };
-                            if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
-                                let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
-                                let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
-                                let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
-                                let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
-                                let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
-                                let mut start_diff = SavedRegistersWithIPDiff::no_change();
-                                start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);
-                                start_diff.saved_registers_without_ip.rsp = Some(handler_rsp);
-                                start_diff.rip = Some(handler_address);
-                                return IRVMExitAction::RestartWithRegisterState {
-                                    diff: start_diff
-                                };
-                            }
-                        }
-                    }
-                }
-                jvm.perf_metrics.display();
-                todo!()
+                return Self::throw_impl(&jvm, int_state, exception_obj_handle)
             }
         }
     }
 
-    fn virtual_args_extract(jvm: &'gc_life JVMState<'gc_life>, arg_types: &Vec<CompressedParsedDescriptorType>, mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc_life>> {
+    fn throw_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, exception_obj_handle: NewJavaValueHandle<'gc_life>) -> IRVMExitAction {
+        let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
+        let throwable = exception_object_handle.cast_throwable();
+        let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
+        dbg!(exception_as_string.to_rust_string(jvm));
+        let exception_object_handle = throwable.normal_object;
+        let exception_obj = exception_object_handle.as_allocated_obj();
+        let exception_obj_rc = exception_obj.runtime_class(jvm);
+        for current_frame in int_state.frame_iter() {
+            let rc = current_frame.class_pointer(jvm);
+            let view = rc.view();
+            let method_i = current_frame.method_i(jvm);
+            let method_view = view.method_view_i(method_i);
+            if let Some(code) = method_view.code_attribute() {
+                let current_pc = current_frame.pc(jvm);
+                for CompressedExceptionTableElem {
+                    start_pc,
+                    end_pc,
+                    handler_pc,
+                    catch_type
+                } in &code.exception_table {
+                    let matches_class = match catch_type {
+                        None => true,
+                        Some(class_name) => {
+                            instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
+                        }
+                    };
+                    if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
+                        let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
+                        let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
+                        let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
+                        let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
+                        let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
+                        let mut start_diff = SavedRegistersWithIPDiff::no_change();
+                        start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);
+                        start_diff.saved_registers_without_ip.rsp = Some(handler_rsp);
+                        start_diff.rip = Some(handler_address);
+                        return IRVMExitAction::RestartWithRegisterState {
+                            diff: start_diff
+                        };
+                    }
+                }
+            }
+        }
+        jvm.perf_metrics.display();
+        todo!()
+    }
+
+    fn virtual_args_extract(jvm: &'gc_life JVMState<'gc_life>, arg_types: &[CompressedParsedDescriptorType], mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc_life>> {
         let obj_ref_native = unsafe { arg_start.cast::<NativeJavaValue>().read() };
         let obj_ref = obj_ref_native.to_new_java_value(&CClassName::object().into(), jvm);
         let mut args_jv_handle = vec![];
@@ -882,6 +915,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     registered: false,
                     jvm,
                     current_exited_pc: Some(exiting_pc),
+                    throw: None
                 };
                 let old_intstate = int_state.register_interpreter_state_guard(jvm);
                 unsafe {

@@ -591,9 +591,9 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
     int_state.set_throw(
-        Some(match from_object(jvm, obj) {
+        Some(match from_object_new(jvm, obj) {
             None => return -3,
-            Some(res) => res.to_allocated_object(),
+            Some(res) => res,
         }
             .into()),
     );

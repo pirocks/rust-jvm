@@ -1,11 +1,12 @@
 use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jthrowable};
 
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(int_state.throw(), int_state)
+    let throw = int_state.throw().map(|obj|obj.handle.duplicate_discouraged());
+    new_local_ref_public_new(throw.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv) {

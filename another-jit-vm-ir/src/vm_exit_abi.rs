@@ -255,6 +255,8 @@ impl InvokeInterfaceResolve {
     pub const METHOD_ID_RES: Register = Register(6);
     pub const NEW_FRAME_SIZE_RES: Register = Register(7);
     pub const TARGET_METHOD_ID: Register = Register(8);
+    pub const NATIVE_RESTART_POINT: Register = Register(9);
+    pub const NATIVE_RETURN_PTR: Register = Register(5);
 }
 
 pub struct MonitorEnter;
@@ -367,6 +369,8 @@ pub enum IRVMExitType {
     InvokeInterfaceResolve {
         object_ref: FramePointerOffset,
         target_method_id: MethodId,
+        native_restart_point: RestartPointID,
+        native_return_offset: Option<FramePointerOffset>,
     },
     MonitorEnter {
         obj: FramePointerOffset
@@ -483,22 +487,6 @@ impl IRVMExitType {
                 assembler.lea(NewClass::RES.to_native_64(), rbp - res.0).unwrap();
                 assembler.lea(NewClass::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, native_restart_point, native_return_offset } => {
-                assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
-                assembler.lea(InvokeVirtualResolve::OBJECT_REF_PTR.to_native_64(), rbp - object_ref.0).unwrap();
-                assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
-                assembler.mov(InvokeVirtualResolve::METHOD_SHAPE_ID.to_native_64(), method_shape_id.0).unwrap();
-                assembler.mov(InvokeVirtualResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
-                match native_return_offset {
-                    None => {
-                        assembler.mov(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), u64::MAX).unwrap();
-                    }
-                    Some(native_return_offset) => {
-                        assembler.lea(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
-                    }
-                }
-
-            }
             IRVMExitType::MonitorEnter { obj } => {
                 assembler.mov(rax, RawVMExitType::MonitorEnter as u64).unwrap();
                 assembler.mov(MonitorEnter::OBJ_ADDR.to_native_64(), rbp - obj.0).unwrap();
@@ -564,11 +552,36 @@ impl IRVMExitType {
                 assembler.mov(RunNativeSpecial::METHODID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
-            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_id } => {
+            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_id, native_restart_point, native_return_offset } => {
                 assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.mov(InvokeInterfaceResolve::TARGET_METHOD_ID.to_native_64(), *target_method_id as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+                assembler.mov(InvokeInterfaceResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
+                match native_return_offset {
+                    None => {
+                        assembler.mov(InvokeInterfaceResolve::NATIVE_RETURN_PTR.to_native_64(), u64::MAX).unwrap();
+                    }
+                    Some(native_return_offset) => {
+                        assembler.lea(InvokeInterfaceResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
+                    }
+                }
+            }
+            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, native_restart_point, native_return_offset } => {
+                assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
+                assembler.lea(InvokeVirtualResolve::OBJECT_REF_PTR.to_native_64(), rbp - object_ref.0).unwrap();
+                assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+                assembler.mov(InvokeVirtualResolve::METHOD_SHAPE_ID.to_native_64(), method_shape_id.0).unwrap();
+                assembler.mov(InvokeVirtualResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
+                match native_return_offset {
+                    None => {
+                        assembler.mov(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), u64::MAX).unwrap();
+                    }
+                    Some(native_return_offset) => {
+                        assembler.lea(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), rbp - native_return_offset.0).unwrap();
+                    }
+                }
+
             }
         }
     }
@@ -710,6 +723,8 @@ pub enum RuntimeVMExitInput {
     },
     InvokeInterfaceResolve {
         return_to_ptr: *const c_void,
+        native_method_restart_point: RestartPointID,
+        native_method_res: *mut c_void,
         object_ref: *const c_void,
         target_method_id: MethodId,
     },
@@ -919,6 +934,8 @@ impl RuntimeVMExitInput {
             RawVMExitType::InvokeInterfaceResolve => {
                 RuntimeVMExitInput::InvokeInterfaceResolve {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::RESTART_IP) as *const c_void,
+                    native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::NATIVE_RESTART_POINT)),
+                    native_method_res: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::OBJECT_REF) as *const c_void,
                     target_method_id: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::TARGET_METHOD_ID) as MethodId,
                 }

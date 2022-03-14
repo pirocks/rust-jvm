@@ -16,7 +16,7 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::throw_npe;
@@ -79,7 +79,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
             match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer(jvm)?.clone())) {
                 None => None,
                 Some(domain) => {
-                    JavaValue::Object(todo!() /*domain.clone().0.into()*/).cast_protection_domain().into()
+                    NewJavaValueHandle::Object(domain.owned_inner_ref().handle.duplicate_discouraged()).cast_protection_domain().into()
                 }
             }
         })

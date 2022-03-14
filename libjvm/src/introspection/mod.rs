@@ -131,7 +131,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     let res_jv = JavaValue::new_vec_from_vec(
         jvm,
         match res_array {
-            Ok(obj_array) => obj_array,
+            Ok(obj_array) => todo!()/*obj_array*/,
             Err(WasException {}) => return null_mut(),
         },
         CClassName::class().into(),
@@ -185,11 +185,15 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer()?.cpdtype())).map(|ptype| get_or_create_class_object(jvm, ptype, int_state).map(|elem| JavaValue::Object(elem.to_gc_managed().into()))).collect::<Result<Vec<_>, WasException>>() {
+    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
+        .map(|ptype| get_or_create_class_object(jvm, ptype, int_state)
+            .map(|elem| NewJavaValue::AllocObject(elem))
+        )
+        .collect::<Result<Vec<_>, WasException>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public(todo!()/*JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).unwrap_object()*/, int_state)
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]

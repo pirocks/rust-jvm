@@ -31,7 +31,7 @@ use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObjec
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
-use crate::NewJavaValue;
+use crate::{NewAsObjectOrJavaValue, NewJavaValue};
 use crate::runtime_class::{FieldNumber, initialize_class, MethodNumber, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 
 //todo only use where spec says
@@ -149,8 +149,7 @@ pub(crate) fn check_loaded_class_force_loader<'gc_life, 'l>(jvm: &'gc_life JVMSt
                     }
                 }
                 LoaderName::BootstrapLoader => {
-                    let res = bootstrap_load(jvm, int_state, ptype.clone())?;
-                    res
+                    bootstrap_load(jvm, int_state, ptype.clone())?
                 }
             };
             let mut guard = jvm.classes.write().unwrap();
@@ -218,12 +217,14 @@ pub fn bootstrap_load<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state
                 let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                     Ok(x) => x,
                     Err(_) => {
+                        int_state.debug_print_stack_trace(jvm);
                         let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
-                        let class_name_string = todo!()/*JString::from_rust(jvm, int_state, class_name_wtf8)?*/;
+                        let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
 
-                        let exception = todo!()/*ClassNotFoundException::new(jvm, int_state, class_name_string)?.object()*/;
-                        int_state.set_throw(Some(todo!()/*exception.into()*/));
-                        return Err(WasException);
+                        let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.object();
+                        int_state.set_throw(Some(exception.as_allocated_obj().handle.duplicate_discouraged()));
+                        // panic!();
+                        return Err(WasException{});
                     }
                 };
                 let class_view = Arc::new(ClassBackedView::from(classfile.clone(), &jvm.string_pool));

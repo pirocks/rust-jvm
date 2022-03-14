@@ -870,6 +870,43 @@ SF = 0;
                 }
             };
         }
+        IRInstr::ZeroExtend { from, to, from_size, to_size } => {
+            match from_size {
+                Size::Byte => match to_size {
+                    Size::Byte => {
+                        todo!()
+                    }
+                    Size::X86Word => assembler.movzx(to.to_native_16(), from.to_native_8()).unwrap(),
+                    Size::X86DWord => assembler.movzx(to.to_native_32(), from.to_native_8()).unwrap(),
+                    Size::X86QWord => assembler.movzx(to.to_native_64(), from.to_native_8()).unwrap(),
+                },
+                Size::X86Word => match to_size {
+                    Size::Byte => {
+                        todo!()
+                    }
+                    Size::X86Word => {
+                        todo!()
+                    }
+                    Size::X86DWord => assembler.movzx(to.to_native_32(), from.to_native_16()).unwrap(),
+                    Size::X86QWord => assembler.movzx(to.to_native_64(), from.to_native_16()).unwrap()
+                },
+                Size::X86DWord => match to_size {
+                    Size::Byte => {
+                        todo!()
+                    }
+                    Size::X86Word => {
+                        todo!()
+                    }
+                    Size::X86DWord => {
+                        todo!()
+                    }
+                    Size::X86QWord => assembler.mov(to.to_native_32(), from.to_native_32()).unwrap()//mov zeros the upper in register
+                },
+                Size::X86QWord => {
+                    todo!()
+                }
+            };
+        }
     }
 }
 

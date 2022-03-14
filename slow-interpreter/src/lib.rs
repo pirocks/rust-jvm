@@ -40,6 +40,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::NewAsObjectOrJavaValue;
+use crate::java::util::properties::Properties;
 use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
 use crate::jvm_state::JVMState;
@@ -90,6 +91,7 @@ pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 
 pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
+
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);

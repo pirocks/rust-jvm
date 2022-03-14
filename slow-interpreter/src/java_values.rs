@@ -31,7 +31,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::check_initing_or_inited_class;
-use crate::class_loading::check_resolved_class;
+use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
@@ -310,6 +310,13 @@ impl<'gc_life, 'l> ByAddressAllocatedObject<'gc_life, 'l> {
     pub fn owned_inner(self) -> AllocatedObject<'gc_life, 'l> {
         match self {
             ByAddressAllocatedObject::Owned(owned) => owned,
+            ByAddressAllocatedObject::LookupOnly(_) => panic!()
+        }
+    }
+
+    pub fn owned_inner_ref(&self) -> AllocatedObject<'gc_life, 'l> {
+        match self {
+            ByAddressAllocatedObject::Owned(owned) => owned.clone(),
             ByAddressAllocatedObject::LookupOnly(_) => panic!()
         }
     }
@@ -806,8 +813,9 @@ impl<'gc_life> JavaValue<'gc_life> {
         Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state,CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<JavaValue<'gc_life>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
-        jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
+    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<NewJavaValue<'gc_life,'_>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
+        let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(elem_type));
+        jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems: vals })/*Object::Array(ArrayObject {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
             len: todo!(),

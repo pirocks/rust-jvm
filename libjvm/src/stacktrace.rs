@@ -15,8 +15,9 @@ use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::new_java_values::AllocatedObjectHandleByAddress;
 use slow_interpreter::runtime_class::RuntimeClass;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 
 struct OwnedStackEntry<'gc_life>{
     declaring_class: Arc<RuntimeClass<'gc_life>>,
@@ -111,22 +112,24 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match match jvm.stacktraces_by_throwable.read().unwrap().get(&AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
+    let guard = jvm.stacktraces_by_throwable.read().unwrap();
+    let throwable_not_null = match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
-    })) {
+    };
+    let stack_traces: &Vec<StackTraceElement> = match guard.get(&AllocatedObjectHandleByAddress(throwable_not_null)) {
         Some(x) => x,
         None => {
             return throw_illegal_arg(jvm, int_state);
         }
-    }
-        .get(index as usize)
+    };
+    match stack_traces.get(index as usize)
     {
         None => {
             return throw_array_out_of_bounds(jvm, int_state, index);
         }
-        Some(element) => to_object(todo!()/*element.clone().object().to_gc_managed().into()*/),
+        Some(element) => { to_object_new(Some(element.object_ref()))},
     }
 }

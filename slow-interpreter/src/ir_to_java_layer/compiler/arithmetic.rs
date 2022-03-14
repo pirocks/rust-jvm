@@ -60,6 +60,17 @@ pub fn irem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     ])
 }
 
+pub fn lrem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = Register(6);
+    let value1 = Register(5);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::long() },
+        IRInstr::Mod { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3), size: Size::long(), signed: Signed::Signed },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
+    ])
+}
+
 pub fn idiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value2 = Register(6);
     let value1 = Register(5);
@@ -70,6 +81,18 @@ pub fn idiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
     ])
 }
+
+pub fn ldiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = Register(6);
+    let value1 = Register(5);
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::long() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::long() },
+        IRInstr::Div { res: value1, divisor: value2, must_be_rax: Register(0), must_be_rbx: Register(1), must_be_rcx: Register(2), must_be_rdx: Register(3), size: Size::long(), signed: Signed::Signed },
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
+    ])
+}
+
 
 pub fn ineg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let integer_to_neg = Register(6);

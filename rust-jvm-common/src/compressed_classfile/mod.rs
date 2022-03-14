@@ -357,14 +357,18 @@ impl CompressedParsedDescriptorType {
         }
     }
 
-    pub fn unwrap_array_type(&self) -> CPDType {
+    pub fn try_unwrap_array_type(&self) -> Option<CPDType> {
         match self {
             CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array { base_type, num_nested_arrs } => CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1),
-                CompressedParsedRefType::Class(_) => panic!(),
+                CompressedParsedRefType::Array { base_type, num_nested_arrs } => Some(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
+                CompressedParsedRefType::Class(_) => None,
             },
-            _ => panic!(),
+            _ => None,
         }
+    }
+
+    pub fn unwrap_array_type(&self) -> CPDType {
+        self.try_unwrap_array_type().unwrap()
     }
 
     pub fn to_verification_type(&self, loader: LoaderName) -> VType {

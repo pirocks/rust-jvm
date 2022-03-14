@@ -32,19 +32,19 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, lsub};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lrem, lsub};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
-use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup_x1};
+use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup2_x1, dup_x1};
 use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
 use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dmul, fadd, fcmpg, fcmpl, fdiv, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
-use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l, l2i};
+use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
 use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, fload_n, iload_n, lload_n};
@@ -518,6 +518,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::i2c => {
                 this_function_ir.extend(i2c(method_frame_data, &current_instr_data));
             }
+            CompressedInstructionInfo::i2s => {
+                this_function_ir.extend(i2s(method_frame_data, &current_instr_data));
+            }
             CompressedInstructionInfo::i2b => {
                 this_function_ir.extend(i2b(method_frame_data, &current_instr_data));
             }
@@ -708,6 +711,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::pop => {
                 this_function_ir.extend(array_into_iter([]))
             }
+            CompressedInstructionInfo::pop2 => {
+                this_function_ir.extend(array_into_iter([]))
+            }
             CompressedInstructionInfo::iadd => {
                 this_function_ir.extend(iadd(method_frame_data, current_instr_data))
             }
@@ -719,6 +725,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             }
             CompressedInstructionInfo::dup2 => {
                 this_function_ir.extend(dup2(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::dup2_x1 => {
+                this_function_ir.extend(dup2_x1(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::fcmpg => {
                 this_function_ir.extend(fcmpg(method_frame_data, &current_instr_data))
@@ -774,8 +783,14 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::irem => {
                 this_function_ir.extend(irem(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::lrem => {
+                this_function_ir.extend(lrem(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::idiv => {
                 this_function_ir.extend(idiv(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::ldiv => {
+                this_function_ir.extend(ldiv(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::ineg => {
                 this_function_ir.extend(ineg(method_frame_data, current_instr_data))
@@ -806,8 +821,8 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                     CompressedLdcW::Float { .. } => {
                         todo!()
                     }
-                    CompressedLdcW::Integer { .. } => {
-                        todo!()
+                    CompressedLdcW::Integer { integer } => {
+                        this_function_ir.extend(ldc_integer(method_frame_data, &current_instr_data,*integer))
                     }
                     CompressedLdcW::MethodType { .. } => {
                         todo!()

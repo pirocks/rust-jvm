@@ -323,7 +323,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         Self::write_target(target, to_set)
     }
 
-    pub fn as_stack_entry_partially_correct(&self, jvm: &'gc_life JVMState<'gc_life>) -> StackEntry<'gc_life> {
+    pub fn as_stack_entry_partially_correct(&self, jvm: &'gc_life JVMState<'gc_life>) -> StackEntry {
         match self.operand_stack_length(jvm) {
             Ok(_) => {}
             Err(_) => {
@@ -468,7 +468,7 @@ impl<'l, 'k> StackIter<'l, 'k> {
 }
 
 impl<'vm_life> Iterator for StackIter<'vm_life, '_> {
-    type Item = StackEntry<'vm_life>;
+    type Item = StackEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_frame != self.top && self.current_ip != Some(0x0000010080000000 as *mut c_void) {
@@ -572,22 +572,16 @@ impl<'gc_life, 'k> StackEntryPush<'gc_life, 'k> {
 
 
 #[derive(Debug, Clone)]
-pub enum StackEntry<'gc_life> {
+pub enum StackEntry {
     Java {
         method_id: MethodId,
-        local_vars: Vec<JavaValue<'gc_life>>,
-        operand_stack: Vec<JavaValue<'gc_life>>,
     },
     Native {
         // a native function call frame
         method_id: MethodId,
-        native_local_refs: Vec<HashSet<jobject>>,
-        local_vars: Vec<JavaValue<'gc_life>>,
-        operand_stack: Vec<JavaValue<'gc_life>>,
     },
     Opaque {
         opaque_id: OpaqueID,
-        native_local_refs: Vec<HashSet<jobject>>,
     },
 }
 //
@@ -1081,7 +1075,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
     }
 }
 
-impl<'gc_life> StackEntry<'gc_life> {
+impl<'gc_life> StackEntry {
     pub fn pop(&mut self) -> JavaValue<'gc_life> {
         todo!()
         /*self.operand_stack.pop().unwrap_or_else(|| {
@@ -1109,9 +1103,15 @@ impl<'gc_life> StackEntry<'gc_life> {
             .class_pointer*/
     }
 
-    pub fn try_class_pointer(&self) -> Option<&Arc<RuntimeClass<'gc_life>>> {
-        todo!()
-        /*Some(&self.opaque_frame_optional.as_ref()?.class_pointer)*/
+    pub fn try_class_pointer(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<Arc<RuntimeClass<'gc_life>>> {
+        match self {
+            StackEntry::Native { method_id } |
+                StackEntry::Java { method_id } => {
+                let (rc, method_id )= jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+                return Some(rc);
+            }
+            StackEntry::Opaque { .. } => None,
+        }
     }
 
     pub fn local_vars(&self) -> &Vec<JavaValue<'gc_life>> {
@@ -1199,8 +1199,8 @@ impl<'gc_life> StackEntry<'gc_life> {
         todo!()
     }
 
-    pub fn is_opaque_frame(&self) -> bool {
-        self.try_class_pointer().is_none() || self.try_method_i().is_none() || self.is_native()
+    pub fn is_opaque_frame(&self, jvm : &'gc_life JVMState<'gc_life>) -> bool {
+        self.try_class_pointer(jvm).is_none() || self.try_method_i().is_none() || self.is_native()
     }
 
     pub fn current_method_id(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<MethodId> {

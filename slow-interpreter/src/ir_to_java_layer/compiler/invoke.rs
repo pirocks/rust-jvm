@@ -315,6 +315,8 @@ pub fn invoke_interface(
     let cpdtype_id = resolver.get_cpdtype_id(&target_class_cpdtype);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let after_call_restart_point_id = restart_point_generator.new_restart_point();
+    let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
     match resolver.lookup_interface(&target_class_cpdtype, *method_name, descriptor.clone()) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_cpdtype });//todo this could be part of method resolver so that stuff always gets recompiled as needed
@@ -325,7 +327,7 @@ pub fn invoke_interface(
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
                     },
-                }]))
+                },after_call_restart_point]))
         }
         Some((target_method_id, is_native)) => {
             if is_native {
@@ -337,6 +339,12 @@ pub fn invoke_interface(
                         exit_type: IRVMExitType::InvokeInterfaceResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
                             target_method_id,
+                            native_restart_point: after_call_restart_point_id,
+                            native_return_offset: if descriptor.return_type.is_void() {
+                                None
+                            } else {
+                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                            }
                         }
                     },
                     IRInstr::IRCall {
@@ -356,7 +364,7 @@ pub fn invoke_interface(
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }
-                ]))
+                ,after_call_restart_point]))
             }
         }
     }

@@ -109,7 +109,8 @@ impl<'gc_life> ThreadState<'gc_life> {
                     thread: main_thread.clone(),
                     registered: false,
                     jvm,
-                    current_exited_pc: None
+                    current_exited_pc: None,
+                    throw: None
                 }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
                 main_thread.notify_alive(jvm); //is this too early?
                 int_state.register_interpreter_state_guard(jvm);
@@ -207,6 +208,11 @@ impl<'gc_life> ThreadState<'gc_life> {
         let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
+
+        System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
+
         //todo should handle excpetions here
         int_state.pop_frame(jvm, init_frame_guard, false);
         if !jvm.config.compiled_mode_active {
@@ -247,7 +253,8 @@ impl<'gc_life> ThreadState<'gc_life> {
             thread: jvm.thread_state.get_current_thread(),
             registered: false,
             jvm,
-            current_exited_pc: None
+            current_exited_pc: None,
+            throw: None
         };
         new_int_state.register_interpreter_state_guard(jvm);
         unsafe {

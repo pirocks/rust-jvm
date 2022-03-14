@@ -70,6 +70,15 @@ impl OpaqueFrameIdOrMethodID {
             OpaqueFrameIdOrMethodID::Method { .. } => false
         }
     }
+
+    pub fn unwrap_opaque(&self) -> Option<OpaqueID>{
+        match self {
+            OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
+                return Some(*opaque_id)
+            },
+            OpaqueFrameIdOrMethodID::Method { .. } => panic!()
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
