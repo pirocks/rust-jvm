@@ -182,7 +182,7 @@ impl CompressedClassName {
     }
 
     pub const fn constant_pool() -> Self {
-        Self::from_raw_id(JAVA_LANG_REFLECT_CONSTANT_POOL as AddOnlyVecIDType)
+        Self::from_raw_id(SUN_REFLECT_CONSTANT_POOL as AddOnlyVecIDType)
     }
 
     pub const fn call_site() -> Self {
@@ -292,7 +292,7 @@ enum PredefinedStrings {
     JAVA_LANG_NULL_POINTER_EXCEPTION,
     JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION,
     JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION,
-    JAVA_LANG_REFLECT_CONSTANT_POOL,
+    SUN_REFLECT_CONSTANT_POOL,
     JAVA_SECURITY_ACCESS_CONTROL_CONTEXT,
     JAVA_SECURITY_PROTECTION_DOMAIN,
     SUN_MISC_LAUNCHER,
@@ -455,7 +455,7 @@ impl PredefinedStrings {
             JAVA_LANG_NULL_POINTER_EXCEPTION => "java/lang/NullPointerException".to_string(),
             JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION => "java/lang/IllegalArgumentException".to_string(),
             JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION => "java/lang/ClassNotFoundException".to_string(),
-            JAVA_LANG_REFLECT_CONSTANT_POOL => "java/lang/reflect/ConstantPool".to_string(),
+            SUN_REFLECT_CONSTANT_POOL => "sun/reflect/ConstantPool".to_string(),
             JAVA_SECURITY_ACCESS_CONTROL_CONTEXT => "java/security/AccessControlContext".to_string(),
             JAVA_SECURITY_PROTECTION_DOMAIN => "java/security/ProtectionDomain".to_string(),
             SUN_MISC_LAUNCHER => "sun/misc/Launcher".to_string(),

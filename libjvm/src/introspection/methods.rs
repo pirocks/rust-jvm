@@ -15,8 +15,9 @@ use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
-use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue, NativeJavaValue, Object};
+use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
@@ -200,10 +201,10 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
         }
     }
         .into_iter()
-        .map(|byte| JavaValue::Byte(byte as i8))
+        .map(|byte| NewJavaValue::Byte(byte as i8))
         .collect_vec();
-    let res = JavaValue::new_vec_from_vec(jvm, todo!()/*bytes_vec*/, CPDType::ByteType);
-    new_local_ref_public(todo!()/*res.unwrap_object()*/, get_interpreter_state(env))
+    let res = JavaValue::new_vec_from_vec(jvm, bytes_vec, CPDType::ByteType);
+    new_local_ref_public_new(Some(res.as_allocated_obj()), get_interpreter_state(env))
 }
 
 #[no_mangle]

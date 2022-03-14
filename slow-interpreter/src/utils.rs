@@ -8,7 +8,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-use crate::{JVMState, NewJavaValue};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -104,18 +104,15 @@ pub fn throw_illegal_arg_res<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JV
 }
 
 pub fn throw_illegal_arg<'gc_life, 'l, T: ExceptionReturn>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> T {
-    /*let bounds_object = match IllegalArgumentException::new(jvm, int_state) {
-        Ok(npe) => npe,
+    let illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
+        Ok(illegal_arg) => illegal_arg,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating illegal arg exception");
             return T::invalid_default();
         }
-    }
-        .object()
-        .into();
-    int_state.set_throw(Some(bounds_object));
-    T::invalid_default()*/
-    todo!()
+    }.object();
+    int_state.set_throw(Some(illegal_arg_object));
+    T::invalid_default()
 }
 
 pub fn java_value_to_boxed_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, java_value: JavaValue<'gc_life>) -> Result<Option<AllocatedObject<'gc_life, 'static>>, WasException> {

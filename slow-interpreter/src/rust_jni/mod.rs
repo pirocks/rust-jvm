@@ -61,7 +61,11 @@ pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
         }
     };
 
-    Ok(if method_view.is_static() { Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?) } else { Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?) })
+    Ok(if method_view.is_static() {
+        Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
+    } else {
+        Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
+    })
 }
 
 pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<NewJavaValue<'gc_life, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
@@ -84,7 +88,11 @@ pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state:
     //todo inconsistent use of class and/pr arc<RuntimeClass>
 
     let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object()))];
-    let args_and_type = if suppress_runtime_class { args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>() } else { args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>() };
+    let args_and_type = if suppress_runtime_class {
+        args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>()
+    } else {
+        args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>()
+    };
     for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
         unsafe {

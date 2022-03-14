@@ -14,6 +14,7 @@ use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::method::Method;
 use crate::java_values::JavaValue;
+use crate::java::NewAsObjectOrJavaValue;
 
 pub fn MHN_init<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, args: Vec<JavaValue<'gc_life>>) -> Result<(), WasException> {
     //two params, is a static function.

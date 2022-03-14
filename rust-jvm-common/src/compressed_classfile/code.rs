@@ -556,8 +556,8 @@ impl CompressedInstructionInfo {
                     CompressedLdcW::Float { .. } => {
                         todo!()
                     }
-                    CompressedLdcW::Integer { .. } => {
-                        todo!()
+                    CompressedLdcW::Integer { integer } => {
+                        format!("ldc_w:integer:\"{}\"", *integer)
                     }
                     CompressedLdcW::MethodType { .. } => {
                         todo!()
@@ -689,7 +689,7 @@ impl CompressedInstructionInfo {
                 format!("{:?}", self)
             }
             CompressedInstructionInfo::tableswitch(_) => {
-                todo!()
+                format!("{:?}", self)
             }
             CompressedInstructionInfo::wide(wide) => {
                 match wide {

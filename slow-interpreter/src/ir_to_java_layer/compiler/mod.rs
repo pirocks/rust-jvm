@@ -32,7 +32,7 @@ use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lrem, lsub};
+use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
@@ -720,6 +720,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::imul => {
                 this_function_ir.extend(imul(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::lmul => {
+                this_function_ir.extend(lmul(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::dup_x1 => {
                 this_function_ir.extend(dup_x1(method_frame_data, current_instr_data))
             }
@@ -794,6 +797,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             }
             CompressedInstructionInfo::ineg => {
                 this_function_ir.extend(ineg(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::lneg => {
+                this_function_ir.extend(lneg(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::lstore_0 => {
                 this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 0))

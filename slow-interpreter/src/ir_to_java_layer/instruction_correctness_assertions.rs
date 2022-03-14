@@ -28,7 +28,7 @@ pub struct AssertionState<'gc_life> {
 
 impl<'gc_life> AssertionState<'gc_life> {
     pub fn handle_trace_after(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>){
-        let current_assertion_check  = self.current_before.last_mut().unwrap().take().unwrap();
+        /*let current_assertion_check  = self.current_before.last_mut().unwrap().take().unwrap();
         match current_assertion_check{
             NoValidate => {}
             BeforeState::TopOfOperandStackIs { native_jv, rtype } => {
@@ -37,11 +37,11 @@ impl<'gc_life> AssertionState<'gc_life> {
                     assert_eq!(actual_value.as_njv().to_native().object, native_jv.object);
                 }
             }
-        }
+        }*/
     }
 
     pub fn handle_trace_before(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
-        assert!(self.current_before.last().unwrap().is_none() || matches!(self.current_before.last().unwrap().as_ref().unwrap(), NoValidate));
+/*        assert!(self.current_before.last().unwrap().is_none() || matches!(self.current_before.last().unwrap().as_ref().unwrap(), NoValidate));
         let before_state = match &code.info {
             CompressedInstructionInfo::aaload => {
                 NoValidate
@@ -684,7 +684,7 @@ impl<'gc_life> AssertionState<'gc_life> {
             }
         };
         *self.current_before.last_mut().unwrap() = Some(before_state);
-    }
+*/    }
 
 }
 

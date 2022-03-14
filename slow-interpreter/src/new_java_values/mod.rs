@@ -7,6 +7,7 @@ use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
 use iced_x86::CC_b::c;
+use iced_x86::CC_be::na;
 use iced_x86::code_asm::ch;
 use iced_x86::ConditionCode::p;
 use iced_x86::OpCodeOperandKind::al;
@@ -544,6 +545,11 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         }
     }
 
+    pub fn set_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName, val: NewJavaValue<'gc_life, 'any>) {
+        let current_class_pointer = self.runtime_class(jvm);
+        self.set_var(&current_class_pointer, field_name, val)
+    }
+
     pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
         let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
         self.raw_get_var(jvm, *field_number, *desc_type)
@@ -558,11 +564,7 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
 
     pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
         let current_class_pointer = self.runtime_class(jvm);
-        let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
-        unsafe {
-            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).read();
-            native_jv.to_new_java_value(desc_type, jvm)
-        }
+        self.get_var(jvm, &current_class_pointer, field_name)
     }
 
     pub fn lookup_field(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
