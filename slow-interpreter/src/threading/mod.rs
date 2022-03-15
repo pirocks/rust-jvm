@@ -211,6 +211,9 @@ impl<'gc_life> ThreadState<'gc_life> {
         let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
         let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
 
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(" log4j.rootLogger".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("OFF".to_string())).expect("todo");
+
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
         //todo should handle excpetions here

@@ -32,6 +32,10 @@ pub fn laload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     array_load_impl(method_frame_data, current_instr_data, &CPDType::LongType)
 }
 
+pub fn saload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_load_impl(method_frame_data, current_instr_data, &CPDType::ShortType)
+}
+
 
 fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, arr_type: &CPDType) -> impl Iterator<Item=IRInstr> {
     let index = Register(1);

@@ -21,7 +21,6 @@ use slow_interpreter::sun::misc::unsafe_::Unsafe;
 unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
     let to_clone = from_object_new(jvm, obj);
     match to_clone {
         None => unimplemented!(),

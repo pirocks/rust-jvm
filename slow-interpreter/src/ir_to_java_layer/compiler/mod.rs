@@ -33,8 +33,8 @@ use verification::verifier::Frame;
 use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
-use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload};
-use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore};
+use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
+use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore, sastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
 use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
@@ -115,6 +115,9 @@ pub struct YetAnotherLayoutImpl {
 
 impl YetAnotherLayoutImpl {
     pub fn new(frames_no_top: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
+        for (offset, _) in code.instructions.iter() {
+            assert!(frames_no_top.contains_key(&offset));
+        }
         let stack_depth = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
             assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
             frame.stack_map.len() as u16
@@ -154,6 +157,9 @@ impl YetAnotherLayoutImpl {
     }
 
     pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
+        if index.0 as usize >= self.stack_depth_by_index.len(){
+            dbg!(&self.code_by_index[index.0 as usize]);
+        }
         FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals + self.stack_depth_by_index[index.0 as usize] - from_end - 1) as usize * size_of::<u64>())//-1 b/c stack depth is a len
     }
 
@@ -644,6 +650,12 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             }
             CompressedInstructionInfo::castore => {
                 this_function_ir.extend(castore(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::sastore => {
+                this_function_ir.extend(sastore(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::saload => {
+                this_function_ir.extend(saload(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::bastore => {
                 this_function_ir.extend(bastore(method_frame_data, current_instr_data))

@@ -18,7 +18,7 @@ pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
     jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle<File>>>>,
-    class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>, //todo deal with multiple entries with same name
+    pub class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>, //todo deal with multiple entries with same name
 }
 
 impl Classpath {

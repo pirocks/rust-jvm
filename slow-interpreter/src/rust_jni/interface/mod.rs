@@ -4,18 +4,23 @@ use std::ffi::{c_void, CStr};
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
+use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
+use iced_x86::CC_p::p;
 use itertools::Itertools;
+use libc::rand;
 use wtf8::Wtf8Buf;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
+use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use rust_jvm_common::classfile::Classfile;
+use rust_jvm_common::classnames::class_name;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
@@ -25,7 +30,7 @@ use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
-use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_field_numbers};
+use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_field_numbers, get_method_numbers, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
@@ -671,15 +676,25 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
     return 0x00010008;
 }
 
-pub fn define_class_safe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: Arc<Classfile>, current_loader: LoaderName, class_view: ClassBackedView) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn define_class_safe<'gc_life, 'l>(
+    jvm: &'gc_life JVMState<'gc_life>,
+    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    parsed: Arc<Classfile>,
+    current_loader: LoaderName,
+    class_view: ClassBackedView
+) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+    int_state.debug_print_stack_trace(jvm);
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
+    let (_recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &super_class);
+    let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new(class_view.clone(), field_numbers, todo!(), recursive_num_fields, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), todo!())
+        RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), static_var_types)
     ));
+    jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(),parsed.clone());
     let mut class_view_cache = HashMap::new();
     class_view_cache.insert(ClassWithLoader { class_name, loader: current_loader }, class_view.clone() as Arc<dyn ClassView>);
     let mut vf = VerifierContext {
@@ -695,6 +710,7 @@ pub fn define_class_safe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_st
     match verify(&mut vf, class_name, LoaderName::BootstrapLoader /*todo*/) {
         Ok(_) => {}
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
+            dbg!(class_name);
             let class = todo!()/*JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?*/;
             let to_throw = todo!()/*ClassNotFoundException::new(jvm, int_state, class)?.object().into()*/;
             int_state.set_throw(Some(to_throw));
@@ -718,26 +734,30 @@ pub fn define_class_safe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_st
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(JavaValue::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().to_gc_managed().into()))
+    Ok(NewJavaValueHandle::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().handle.duplicate_discouraged()))
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let _name_string = CStr::from_ptr(name).to_str().unwrap(); //todo unused?
-    let loader_name = JavaValue::Object(from_object(jvm, loader)).cast_class_loader().to_jvm_loader(jvm);
+    let loader_name = match from_object_new(jvm, loader) {
+        Some(loader_obj) => NewJavaValueHandle::Object(loader_obj).cast_class_loader().to_jvm_loader(jvm),
+        None => LoaderName::BootstrapLoader,
+    };
     let slice = std::slice::from_raw_parts(buf as *const u8, len as usize);
-    if jvm.config.store_generated_classes {
-        File::create("unsafe_define_class").unwrap().write_all(slice).unwrap();
-    }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
+    let view = Arc::new(ClassBackedView::from(parsed.clone(),&jvm.string_pool));
+    if jvm.config.store_generated_classes {
+        File::create(format!("{}{:?}",PTypeView::from_compressed(&CPDType::Ref(view.name()), &jvm.string_pool).class_name_representation(),rand())).unwrap().write_all(slice).unwrap();
+    }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
-    to_object(
+    to_object_new(
         match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(class_) => class_,
             Err(_) => todo!(),
         }
-            .unwrap_object(),
+            .unwrap_object().unwrap().as_allocated_obj().into(),
     )
 }
 

@@ -225,16 +225,22 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
+            res.push('e' as u8);
             res.extend_from_slice(&type_name_index.to_be_bytes());
             res.extend_from_slice(&const_name_index.to_be_bytes());
         }
         ElementValue::Class(ClassInfoIndex { class_info_index }) => {
+            res.push('c' as u8);
             res.extend_from_slice(&class_info_index.to_be_bytes());
         }
         ElementValue::AnnotationType(AnnotationValue { annotation }) => {
+            res.push('@' as u8);
             res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
         }
         ElementValue::ArrayType(ArrayValue { values }) => {
+            res.push('[' as u8);
+            let num_bytes = values.len() as u16;
+            res.extend_from_slice(&num_bytes.to_be_bytes());
             for value in values {
                 res.extend_from_slice(element_value_to_bytes(value).as_slice());
             }
@@ -284,6 +290,16 @@ fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Anno
         annotations.push(parse_annotation(p)?);
     }
     Ok(annotations)
+}
+
+pub fn runtime_annotations_to_bytes(annotations: Vec<Annotation>) -> Vec<u8>{
+    let mut res = vec![];
+    let num_annotations = annotations.len() as u16;
+    res.extend_from_slice(&num_annotations.to_be_bytes());
+    for annotation in annotations{
+        res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
+    }
+    res
 }
 
 fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {

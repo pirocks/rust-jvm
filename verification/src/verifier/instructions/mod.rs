@@ -1,7 +1,10 @@
+use std::collections::vec_deque::VecDeque;
+use std::iter;
 use std::rc::Rc;
-use rust_jvm_common::ByteCodeOffset;
 
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
@@ -46,16 +49,54 @@ pub enum FrameResult {
 pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0]; //infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
+    if env.debug {
+        dbg!(first);
+    }
     match first {
         MergedCodeInstruction::Instruction(i) => {
             let f = match after_frame {
                 FrameResult::Regular(f) => f,
-                FrameResult::AfterGoto => {
-                    match i.info {
-                        CInstructionInfo::EndOfCode => return Result::Ok(()),
-                        _ => return Result::Ok(()), /*return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()))*///todo deal with java 5 bs
-                    }
-                }
+                FrameResult::AfterGoto => match i.info {
+                    CInstructionInfo::EndOfCode => return Result::Ok(()),
+                    _ => {
+                        let class = env.method.class;
+                        let class_view = get_class(&env.vf, &class).unwrap();
+                        let method_view = class_view.method_view_i(env.method.method_index as u16);
+                        let string_pool = env.vf.string_pool;
+                        let sketch_class_name = CPDType::Ref(class_view.name()).jvm_representation(string_pool);
+                        if sketch_class_name.contains("com/sun/proxy/$Proxy") /*|| sketch_class_name.contains("sun/reflect/GeneratedConstructorAccessor1")*/{
+                            if true/*[MethodName::constructor_clinit(),
+                                MethodName::method_equals(),
+                                MethodName::method_toString(),
+                                MethodName::method_annotationType(),
+                                MethodName::method_hashCode(),
+                                MethodName::method_value(),
+                                MethodName::method_name(),
+                                MethodName::method_printObject()
+
+                            ].contains(&method_view.name())*/ {
+                                //hack to work around jank sun codegen
+                                let mut stack_deque: VecDeque<VType> = Default::default();
+                                stack_deque.push_front(VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }));
+                                Frame {
+                                    locals: Rc::new(iter::repeat(VType::TopType).take(env.max_locals as usize).collect()),
+                                    stack_map: OperandStack { data: stack_deque },
+                                    flag_this_uninit: false,
+                                }
+                            } else {
+                                dbg!(method_view.name().0.to_str(string_pool));
+                                dbg!(class_view.name().unwrap_name().0.to_str(string_pool));
+                                panic!()
+                                // return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()));
+                            }
+                        } else {
+                            dbg!(method_view.name().0.to_str(string_pool));
+                            dbg!(class_view.name().unwrap_name().0.to_str(string_pool));
+                            panic!()
+                            // return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()));
+                        }
+                    } /**///todo deal with java 5 bs
+                },
             };
             match instruction_is_type_safe(&i, env, i.offset, f)? {
                 InstructionTypeSafe::Safe(s) => {
@@ -64,7 +105,13 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(next_frame))
                 }
                 InstructionTypeSafe::AfterGoto(ag) => {
+                    if env.debug {
+                        dbg!("here 1");
+                    }
                     let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame)?;
+                    if env.debug {
+                        dbg!("here 2");
+                    }
                     merged_code_is_type_safe(env, rest, FrameResult::AfterGoto)
                 }
             }

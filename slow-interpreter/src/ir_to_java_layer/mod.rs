@@ -143,7 +143,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 to_recompile,
                 restart_point
             } => {
-                Self::compile_function_and_recompile_current(jvm, int_state, current_method_id, to_recompile, restart_point)
+                Self::compile_function_and_recompile_current(jvm, int_state, *current_method_id, *to_recompile, *restart_point)
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr } => {
                 if jvm.exit_trace_options.tracing_enabled() {
@@ -551,14 +551,14 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         }
     }
 
-    fn compile_function_and_recompile_current(jvm: &JVMState, int_state: &mut InterpreterStateGuard, current_method_id: &MethodId, to_recompile: &MethodId, restart_point: &RestartPointID) -> IRVMExitAction {
+    fn compile_function_and_recompile_current(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
         if jvm.exit_trace_options.tracing_enabled() {
             eprintln!("CompileFunctionAndRecompileCurrent");
         }
         let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *to_recompile);
-        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *current_method_id);
-        let restart_point = jvm.java_vm_state.lookup_restart_point(*current_method_id, *restart_point);
+        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile);
+        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
+        let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
         IRVMExitAction::RestartAtPtr { ptr: restart_point }
     }
 
@@ -634,7 +634,10 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         let exception_obj = exception_object_handle.as_allocated_obj();
         let exception_obj_rc = exception_obj.runtime_class(jvm);
         for current_frame in int_state.frame_iter() {
-            let rc = current_frame.class_pointer(jvm);
+            let rc = match current_frame.try_class_pointer(jvm){
+                None => continue,
+                Some(rc) => rc
+            };
             let view = rc.view();
             let method_i = current_frame.method_i(jvm);
             let method_view = view.method_view_i(method_i);
@@ -658,6 +661,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
                         let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
                         let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
+                        //todo need to set caught exception in stack
                         let mut start_diff = SavedRegistersWithIPDiff::no_change();
                         start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);
                         start_diff.saved_registers_without_ip.rsp = Some(handler_rsp);

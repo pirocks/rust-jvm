@@ -188,7 +188,23 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__J(env: *mut JNIEnv, the_
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
-    todo!("update for new offset")
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match from_object_new(jvm, obj) {
+        Some(notnull) => {
+            return volatile_load(obj.offset(offset as isize) as *const jlong);
+            /*let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            notnull.as_allocated_obj().get_var_top_level(jvm, field_name).as_njv().unwrap_int()*/
+        }
+        None => {
+            //static
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let static_vars = rc.static_vars(jvm);
+            static_vars.get(field_name).to_jv().unwrap_long()
+        }
+    }
     /*Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env, the_unsafe, obj, offset)*/
 }
 

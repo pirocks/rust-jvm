@@ -339,9 +339,12 @@ impl<'gc_life> JVMState<'gc_life> {
 
     pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc_life>>) {
         let mut method_table = self.method_table.write().unwrap();
+        let view = rc.view();
         for (method_i, verification_types) in verification_types {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
-            let verification_types_without_top = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
+            let method_view = view.method_view_i(*method_i);
+            let code = method_view.code_attribute().unwrap();
+            let verification_types_without_top: HashMap<ByteCodeOffset, Frame> = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
                 let stack_without_top = stack_map.data.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
                 let locals_without_top = locals.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
                 (*offset, Frame {
@@ -349,8 +352,11 @@ impl<'gc_life> JVMState<'gc_life> {
                     stack_map: OperandStack { data: stack_without_top },
                     flag_this_uninit: *flag_this_uninit,
                 })
-            });
-            self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top.collect());
+            }).collect();
+            for (offset, _) in code.instructions.iter() {
+                assert!(verification_types_without_top.contains_key(offset));
+            }
+            self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top);
             self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.clone());
         }
     }

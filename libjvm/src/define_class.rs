@@ -10,7 +10,7 @@ use jvmti_jni_bindings::{jbyte, jclass, JNIEnv, jobject, jsize};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::define_class_safe;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object, to_object_new};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject) -> jclass {
@@ -30,13 +30,13 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
         File::create("withsource").unwrap().write_all(slice).unwrap();
     }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
-    to_object(
+    to_object_new(
         match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(res) => res,
             Err(WasException {}) => {
                 return null_mut();
             }
         }
-            .unwrap_object(),
+            .unwrap_object().unwrap().as_allocated_obj().into(),
     )
 }

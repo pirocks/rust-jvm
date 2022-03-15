@@ -189,7 +189,7 @@ pub mod method {
             let empty_byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
             let annotations = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc.clone());
             let parameter_annotations = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc.clone());//todo fix this
-            let annotation_default = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc);//todo fix this
+            let annotation_default = NewJavaValueHandle::Null;//todo fix this
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 

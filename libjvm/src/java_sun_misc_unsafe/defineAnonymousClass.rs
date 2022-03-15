@@ -66,7 +66,7 @@ pub fn defineAnonymousClass<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int
         File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
-        Ok(res) => res,
+        Ok(res) => res.to_jv(),
         Err(_) => todo!(),
     }
 }

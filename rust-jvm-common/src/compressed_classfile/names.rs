@@ -240,6 +240,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP as AddOnlyVecIDType)
     }
 
+    pub const fn deprecated() -> Self {
+        Self::from_raw_id(JAVA_LANG_DEPRECATED as AddOnlyVecIDType)
+    }
+
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -283,6 +287,7 @@ enum PredefinedStrings {
     JAVA_UTIL_PROPERTIES,
     JAVA_UTIL_HASHTABLE,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
+    JAVA_LANG_DEPRECATED,
     JAVA_LANG_THREAD,
     JAVA_LANG_THREADGROUP,
     JAVA_LANG_REFLECT_CONSTRUCTOR,
@@ -308,7 +313,7 @@ enum PredefinedStrings {
     SUN_NIO_CS_STANDARD_CHARSETS_CACHE,
     SUN_UTIL_PRE_HASHED_MAP,
     field_annotationData,
-    field_annotationType,
+    method_and_field_annotationType,
     field_argCounts,
     field_argToSlotTable,
     field_arguments,
@@ -343,7 +348,7 @@ enum PredefinedStrings {
     field_methodHandles,
     field_and_method_methodType,
     field_modifiers,
-    field_name,
+    field_and_method_name,
     field_names,
     field_newInstanceCallerCache,
     field_ordinal,
@@ -380,6 +385,7 @@ enum PredefinedStrings {
     constructor_init,
     constructor_clinit,
     method_clone,
+    method_equals,
     method_findSpecial,
     method_findStatic,
     method_findVirtual,
@@ -468,7 +474,7 @@ impl PredefinedStrings {
             JAVA_LANG_INVOKE_INVOKERS => "java/lang/invoke/Invokers".to_string(),
             JAVA_UTIL_HASHTABLE => "java/util/Hashtable".to_string(),
             field_annotationData => "annotationData".to_string(),
-            field_annotationType => "annotationType".to_string(),
+            method_and_field_annotationType => "annotationType".to_string(),
             field_argCounts => "argCounts".to_string(),
             field_argToSlotTable => "argToSlotTable".to_string(),
             field_arguments => "arguments".to_string(),
@@ -500,7 +506,7 @@ impl PredefinedStrings {
             field_methodHandles => "methodHandles".to_string(),
             field_and_method_methodType => "methodType".to_string(),
             field_modifiers => "modifiers".to_string(),
-            field_name => "name".to_string(),
+            field_and_method_name => "name".to_string(),
             field_names => "names".to_string(),
             field_newInstanceCallerCache => "newInstanceCallerCache".to_string(),
             field_ordinal => "ordinal".to_string(),
@@ -578,7 +584,9 @@ impl PredefinedStrings {
             JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP => "java/util/concurrent/ConcurrentHashMap".to_string(),
             field_sizeCtl => "sizeCtl".to_string(),
             method_putIfAbsent => "putIfAbsent".to_string(),
-            field_val => "val".to_string()
+            field_val => "val".to_string(),
+            JAVA_LANG_DEPRECATED => "java/lang/Deprecated".to_string(),
+            method_equals => "equals".to_string(),
         }
     }
 }
@@ -607,7 +615,7 @@ impl FieldName {
         Self::from_raw_id(field_annotationData)
     }
     pub fn field_annotationType() -> Self {
-        Self::from_raw_id(field_annotationType)
+        Self::from_raw_id(method_and_field_annotationType)
     }
     pub fn field_argCounts() -> Self {
         Self::from_raw_id(field_argCounts)
@@ -715,7 +723,7 @@ impl FieldName {
         Self::from_raw_id(field_modifiers)
     }
     pub fn field_name() -> Self {
-        Self::from_raw_id(field_name)
+        Self::from_raw_id(field_and_method_name)
     }
     pub fn field_names() -> Self {
         Self::from_raw_id(field_names)
@@ -841,6 +849,9 @@ impl MethodName {
     pub fn method_clone() -> Self {
         Self::from_raw_id(method_clone)
     }
+    pub fn method_equals() -> Self {
+        Self::from_raw_id(method_equals)
+    }
     pub fn method_findSpecial() -> Self {
         Self::from_raw_id(method_findSpecial)
     }
@@ -943,11 +954,17 @@ impl MethodName {
     pub fn method_toString() -> Self {
         Self::from_raw_id(method_toString)
     }
+    pub fn method_annotationType() -> Self {
+        Self::from_raw_id(method_and_field_annotationType)
+    }
     pub fn method_type() -> Self {
         Self::from_raw_id(field_and_method_type)
     }
     pub fn method_value() -> Self {
         Self::from_raw_id(field_and_method_value)
+    }
+    pub fn method_name() -> Self {
+        Self::from_raw_id(field_and_method_name)
     }
     pub fn method_exit() -> Self {
         Self::from_raw_id(field_and_method_exit)

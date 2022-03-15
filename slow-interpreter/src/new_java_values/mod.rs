@@ -242,7 +242,12 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 
     pub fn unwrap_byte_strict(&self) -> jbyte {
-        todo!()
+        match self {
+            NewJavaValue::Byte(byte) => {
+                *byte
+            }
+            _ => panic!()
+        }
     }
 
     pub fn unwrap_char_strict(&self) -> jchar {

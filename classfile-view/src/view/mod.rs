@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
 
-use classfile_parser::attribute_infos::annotation_to_bytes;
+use classfile_parser::attribute_infos::{runtime_annotations_to_bytes};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -192,7 +192,7 @@ impl ClassView for ClassBackedView {
 
     fn annotations(&self) -> Option<Vec<u8>> {
         self.underlying_class.attributes.iter().find_map(|attr| match &attr.attribute_type {
-            AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(annotations.iter().flat_map(|annotation| annotation_to_bytes(annotation.clone())).collect_vec()),
+            AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(runtime_annotations_to_bytes(annotations.clone())),
             _ => None,
         })
     }

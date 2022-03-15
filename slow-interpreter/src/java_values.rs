@@ -1606,6 +1606,12 @@ impl<'gc_life> ExceptionReturn for JavaValue<'gc_life> {
     }
 }
 
+impl<'gc_life> ExceptionReturn for NewJavaValueHandle<'gc_life> {
+    fn invalid_default() -> Self {
+        NewJavaValueHandle::Top
+    }
+}
+
 impl ExceptionReturn for () {
     fn invalid_default() -> Self {
         ()

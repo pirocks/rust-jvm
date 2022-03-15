@@ -153,25 +153,15 @@
 //    }
 //}
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 
 public class DebuggingClass{
-    public static void main(String[] args) throws IllegalAccessException {
-        final ConcurrentHashMap<Object, Object> obj = new ConcurrentHashMap<Object,Object>();
-        obj.putIfAbsent("test","test");
-        System.out.println(obj);
-        obj.putIfAbsent("test1","test");
-        obj.putIfAbsent("test2","test");
-        obj.putIfAbsent("test3","test");
-        obj.putIfAbsent("test4","test");
-        obj.putIfAbsent("test5","test");
-        obj.putIfAbsent("test6","test");
-        obj.putIfAbsent("test7","test");
-        obj.putIfAbsent("test8","test");
-        obj.putIfAbsent("test9","test");
-        obj.putIfAbsent("test10","test");
-        obj.putIfAbsent("test11","test");
-//        obj.putIfAbsent("test12","test");
-        System.out.println(obj);
+    public static void main(String[] args) {
+//        for (Annotation annotation : Deprecated.class.getAnnotations()) {
+//            System.out.println(annotation);
+//        }
+        final Method method = DebuggingClass.class.getDeclaredMethods()[0];
+        System.out.println(method.getDefaultValue());
     }
 }

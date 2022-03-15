@@ -181,6 +181,7 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, &class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
     let (frame, return_type) = method_initial_stack_frame(vf, &class, &method, frame_size)?;
+    let debug = vf.debug && method_info.name() == MethodName::constructor_clinit();
     let mut env = Environment {
         method,
         max_stack,
@@ -190,6 +191,8 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
         handlers,
         return_type,
         vf,
+        debug,
+        max_locals: frame_size as u16
     };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
@@ -238,10 +241,12 @@ pub struct Environment<'l, 'k> {
     pub return_type: VType,
     pub frame_size: u16,
     pub max_stack: u16,
+    pub max_locals: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
     pub class_loader: LoaderName,
     pub handlers: Vec<Handler>,
     pub vf: &'l mut VerifierContext<'k>,
+    pub debug: bool
 }
 
 #[derive(Debug)]

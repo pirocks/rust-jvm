@@ -9,9 +9,10 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
@@ -193,17 +194,21 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(env: *mut JNIEnv, cb: 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
+    dbg!(CPDType::Ref(rc.view().name()).jvm_representation(&jvm.string_pool));
     let bytes_vec = match rc.unwrap_class_class().class_view.annotations() {
         Some(x) => x,
         None => {
-            vec![]
+            return null_mut()
         }
-    }
+    };
+    // assert_eq!(bytes_vec.as_slice(),&[0, 2, 0, 34, 0, 2, 0, 35, 115, 0, 36, 0, 37, 115, 0, 38, 0, 39, 0, 1, 0, 40, 91, 0, 1, 115, 0, 36]);
+    let java_bytes_vec = bytes_vec
         .into_iter()
         .map(|byte| NewJavaValue::Byte(byte as i8))
         .collect_vec();
-    let res = JavaValue::new_vec_from_vec(jvm, bytes_vec, CPDType::ByteType);
+    let res = JavaValue::new_vec_from_vec(jvm, java_bytes_vec, CPDType::ByteType);
     new_local_ref_public_new(Some(res.as_allocated_obj()), get_interpreter_state(env))
 }
 
