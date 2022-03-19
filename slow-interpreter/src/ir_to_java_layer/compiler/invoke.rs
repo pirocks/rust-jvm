@@ -15,9 +15,9 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedD
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{ByteCodeIndex, MethodId};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, ByteCodeIndex, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 
 pub fn invokespecial<'vm_life>(

@@ -21,16 +21,16 @@ use crate::verifier::filecorrectness::is_assignable;
 use crate::verifier::instructions::{AfterGotoFrames, exception_stack_frame, InstructionTypeSafe, ResultFrames, target_is_type_safe};
 use crate::verifier::passes_protected_check;
 use crate::verifier::TypeSafetyError;
-
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
         VType::VoidType => {}
         _ => {
-            return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
         }
     };
     if stack_frame.flag_this_uninit {
-        return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
     }
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
@@ -54,12 +54,13 @@ pub fn instruction_is_type_safe_goto(target: ByteCodeOffset, env: &Environment, 
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo is ireturn used for shorts etc?
     //what should a method return type be?
     match env.return_type {
         VType::IntType => {}
-        _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())),
+        _ => return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())*/),
     }
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -90,6 +91,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: ByteCodeOffset, env: &Environm
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference])
 }
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, &env.method.class)?;
     let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
@@ -97,7 +99,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
         _ => panic!(),
     };
     if call_site_name == MethodName::constructor_init() || call_site_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string())*/);
     }
     let operand_arg_list: Vec<VType> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
@@ -108,9 +110,10 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     standard_exception_frame(locals, flag, next_frame)
 }
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: &CMethodDescriptor, ref_type: &CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string())*/);
     }
     let mut operand_arg_list: Vec<_> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
@@ -241,9 +244,10 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
     }
 }
 
+#[allow(unreachable_code)]
 fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string())*/);
     }
     let current_class_name = env.method.class.class_name.clone();
     let current_loader = env.method.class.loader.clone();

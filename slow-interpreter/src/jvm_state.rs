@@ -66,6 +66,7 @@ use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
+use crate::verifier_frames::SunkVerifierFrames;
 
 
 pub static mut JVM: Option<&'static JVMState> = None;
@@ -108,8 +109,8 @@ pub struct JVMState<'gc_life> {
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc_life>, Vec<StackTraceElement<'gc_life>>>>,
-    pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
-    pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, Frame>>>,
+    pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
+    pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
     pub static_breakpoints: StaticBreakpoints,
@@ -344,20 +345,22 @@ impl<'gc_life> JVMState<'gc_life> {
             let method_id = method_table.get_method_id(rc.clone(), *method_i);
             let method_view = view.method_view_i(*method_i);
             let code = method_view.code_attribute().unwrap();
-            let verification_types_without_top: HashMap<ByteCodeOffset, Frame> = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
+            let verification_types_without_top: HashMap<ByteCodeOffset, SunkVerifierFrames> = verification_types.iter().map(|(offset, Frame { locals, stack_map, flag_this_uninit })| {
                 let stack_without_top = stack_map.data.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
                 let locals_without_top = locals.iter().filter(|type_| !matches!(type_,VType::TopType)).cloned().collect();
-                (*offset, Frame {
+                (*offset, SunkVerifierFrames::FullFrame(Frame {
                     locals: Rc::new(locals_without_top),
                     stack_map: OperandStack { data: stack_without_top },
                     flag_this_uninit: *flag_this_uninit,
-                })
+                }))
             }).collect();
             for (offset, _) in code.instructions.iter() {
                 assert!(verification_types_without_top.contains_key(offset));
             }
             self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top);
-            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.clone());
+            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.iter().map(|(offset, frame)|{
+                (*offset, SunkVerifierFrames::FullFrame(frame.clone()))
+            }).collect());
         }
     }
 
@@ -370,7 +373,8 @@ impl<'gc_life> JVMState<'gc_life> {
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
             debug: false,
-            perf_metrics: &self.perf_metrics
+            perf_metrics: &self.perf_metrics,
+            permissive_types_workaround: false
         };
         let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
         verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");

@@ -22,6 +22,7 @@ another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 add-only-static-vec = { path = "../add-only-static-vec" }
 perf-metrics = { path = "../perf-metrics" }
+java5-verifier = { path = "../java5-verifier" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git', branch = "updated", features = ["system"] }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }

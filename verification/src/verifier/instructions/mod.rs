@@ -1,15 +1,13 @@
-use std::collections::vec_deque::VecDeque;
-use std::iter;
 use std::rc::Rc;
 
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 
 use crate::OperandStack;
+use crate::TypeSafetyError::Java5Maybe;
 use crate::verifier::{Frame, get_class, standard_exception_frame};
 use crate::verifier::codecorrectness::{Environment, frame_is_assignable, Handler, handler_exception_class, init_handler_is_legal, MergedCodeInstruction, operand_stack_has_legal_length, push_operand_stack, size_of, valid_type_transition};
 use crate::verifier::codecorrectness::MergedCodeInstruction::{Instruction, StackMap};
@@ -49,9 +47,6 @@ pub enum FrameResult {
 pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCodeInstruction], after_frame: FrameResult) -> Result<(), TypeSafetyError> {
     let first = &merged_code[0]; //infinite recursion will not occur becuase we stop when we reach EndOfCode
     let rest = &merged_code[1..merged_code.len()];
-    if env.debug {
-        dbg!(first);
-    }
     match first {
         MergedCodeInstruction::Instruction(i) => {
             let f = match after_frame {
@@ -59,12 +54,13 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                 FrameResult::AfterGoto => match i.info {
                     CInstructionInfo::EndOfCode => return Result::Ok(()),
                     _ => {
-                        let class = env.method.class;
+                        return Err(Java5Maybe)
+                        /*let class = env.method.class;
                         let class_view = get_class(&env.vf, &class).unwrap();
                         let method_view = class_view.method_view_i(env.method.method_index as u16);
                         let string_pool = env.vf.string_pool;
                         let sketch_class_name = CPDType::Ref(class_view.name()).jvm_representation(string_pool);
-                        if sketch_class_name.contains("com/sun/proxy/$Proxy") /*|| sketch_class_name.contains("sun/reflect/GeneratedConstructorAccessor1")*/{
+                        if sketch_class_name.contains("com/sun/proxy/$Proxy") {
                             if true/*[MethodName::constructor_clinit(),
                                 MethodName::method_equals(),
                                 MethodName::method_toString(),
@@ -76,6 +72,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
 
                             ].contains(&method_view.name())*/ {
                                 //hack to work around jank sun codegen
+                                // env.vf.permissive_types_workaround = true;
                                 let mut stack_deque: VecDeque<VType> = Default::default();
                                 stack_deque.push_front(VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }));
                                 Frame {
@@ -89,12 +86,22 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                                 panic!()
                                 // return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()));
                             }
+                        } else if sketch_class_name.contains("sun/reflect/GeneratedConstructorAccessor1") {
+                            //hack to work around jank sun codegen
+                            let mut stack_deque: VecDeque<VType> = Default::default();
+                            stack_deque.push_front(VType::NullType/*Class(ClassWithLoader { class_name: CClassName::object(), loader: LoaderName::BootstrapLoader })*/);
+                            stack_deque.push_front(VType::UninitializedThis);
+                            Frame {
+                                locals: Rc::new(vec![VType::NullType/*Class(ClassWithLoader { class_name: CClassName::object(), loader: LoaderName::BootstrapLoader })*/, VType::ArrayReferenceType(CPDType::object())]),
+                                stack_map: OperandStack { data: stack_deque },
+                                flag_this_uninit: false,
+                            }
                         } else {
                             dbg!(method_view.name().0.to_str(string_pool));
                             dbg!(class_view.name().unwrap_name().0.to_str(string_pool));
                             panic!()
                             // return Result::Err(TypeSafetyError::NotSafe("No stack frame after unconditional branch".to_string()));
-                        }
+                        }*/
                     } /**///todo deal with java 5 bs
                 },
             };
@@ -189,6 +196,7 @@ fn class_to_type(vf: &VerifierContext, class: &ClassWithLoader) -> Result<VType,
     Ok(class_name.to_verification_type(class.loader))
 }
 
+#[allow(unreachable_code)]
 fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, handler: &Handler) -> Result<(), TypeSafetyError> {
     let target = handler.target;
     let _class_loader = &env.class_loader;
@@ -201,7 +209,7 @@ fn instruction_satisfies_handler(env: &Environment, exc_stack_frame: &Frame, han
     if operand_stack_has_legal_length(env, &stack_map) {
         target_is_type_safe(env, &true_exc_stack_frame, target)
     } else {
-        Result::Err(TypeSafetyError::NotSafe("operand stack does not have legal length".to_string()))
+        Result::Err(todo!()/*TypeSafetyError::NotSafe("operand stack does not have legal length".to_string())*/)
     }
 }
 
@@ -225,7 +233,7 @@ pub fn start_is_member_of(start: ByteCodeOffset, merged_instructs: &[MergedCodeI
         StackMap(s) => s.offset == start,
     })
 }
-
+#[allow(unreachable_code)]
 pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafetyError> {
     if h.start < h.end {
         if start_is_member_of(h.start, env.merged_code.unwrap()) {
@@ -239,13 +247,13 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
                 is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }), &VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }))?;
                 init_handler_is_legal(env, h)
             } else {
-                Result::Err(TypeSafetyError::NotSafe("Instructions do not include handler end".to_string()))
+                Result::Err(todo!()/*TypeSafetyError::NotSafe("Instructions do not include handler end".to_string())*/)
             }
         } else {
-            Result::Err(TypeSafetyError::NotSafe("No instruction found at handler start.".to_string()))
+            Result::Err(todo!()/*TypeSafetyError::NotSafe("No instruction found at handler start.".to_string())*/)
         }
     } else {
-        Result::Err(TypeSafetyError::NotSafe("Handler start not less than end".to_string()))
+        Result::Err(todo!()/*TypeSafetyError::NotSafe("Handler start not less than end".to_string())*/)
     }
 }
 

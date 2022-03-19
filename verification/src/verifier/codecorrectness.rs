@@ -19,6 +19,8 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::verifier::stackmapframes::get_stack_map_frames;
 use crate::verifier::TypeSafetyError;
 
+
+#[allow(unreachable_code)]
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
@@ -26,7 +28,7 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VTy
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
-        Result::Err(TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string()))
+        Result::Err(todo!()/*TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string())*/)
     }
 }
 
@@ -246,7 +248,7 @@ pub struct Environment<'l, 'k> {
     pub class_loader: LoaderName,
     pub handlers: Vec<Handler>,
     pub vf: &'l mut VerifierContext<'k>,
-    pub debug: bool
+    pub debug: bool,
 }
 
 #[derive(Debug)]

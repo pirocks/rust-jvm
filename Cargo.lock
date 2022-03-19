@@ -652,6 +652,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "java5-verifier"
+version = "0.1.0"
+dependencies = [
+ "classfile-view",
+ "itertools",
+ "rust-jvm-common",
+]
+
+[[package]]
 name = "jmm-bindings"
 version = "0.1.0"
 dependencies = [
@@ -1321,6 +1330,7 @@ dependencies = [
  "early-startup",
  "itertools",
  "jar-manipulation",
+ "java5-verifier",
  "jvm",
  "jvmti-jni-bindings",
  "ntest",
@@ -1436,6 +1446,7 @@ dependencies = [
  "iced-x86",
  "itertools",
  "jar-manipulation",
+ "java5-verifier",
  "jvmti-jni-bindings",
  "lazy_static",
  "libc",

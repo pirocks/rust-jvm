@@ -137,7 +137,10 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         },
         VType::TopType => match to {
             VType::TopType => Result::Ok(()),
-            _ => panic!("This might be a bug. It's a weird edge case"),
+            vtype => {
+                dbg!(&vtype);
+                panic!("This might be a bug. It's a weird edge case")
+            }
         },
         VType::UninitializedEmpty => match to {
             VType::UninitializedEmpty => Result::Ok(()),

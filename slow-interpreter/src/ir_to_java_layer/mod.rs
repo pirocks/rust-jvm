@@ -52,7 +52,7 @@ use crate::instructions::invoke::virtual_::virtual_method_lookup;
 use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl, instance_of_impl, invoke_instanceof};
 use crate::interpreter::FrameToRunOn;
 use crate::interpreter_state::FramePushGuard;
-use crate::ir_to_java_layer::compiler::{ByteCodeIndex, compile_to_ir, JavaCompilerMethodAndFrameData, RecompileConditions, YetAnotherLayoutImpl};
+use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData, RecompileConditions, YetAnotherLayoutImpl};
 use crate::ir_to_java_layer::instruction_correctness_assertions::AssertionState;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
 use crate::java::lang::class::JClass;

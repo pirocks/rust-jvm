@@ -89,6 +89,7 @@ pub mod inheritance_vtable;
 pub mod static_breakpoints;
 pub mod new_java_values;
 pub mod known_type_to_address_mappings;
+pub mod verifier_frames;
 
 pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
 

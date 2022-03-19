@@ -139,7 +139,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         let function_frame_type = jvm.function_frame_type_data_no_tops.read().unwrap();
         let this_function = function_frame_type.get(&methodid).unwrap();
         //todo issue here is that we can't use instruct pointer b/c we might have iterated up through vm call and instruct pointer will be saved.
-        Ok(this_function.get(&pc).unwrap().stack_map.len() as u16)
+        Ok(this_function.get(&pc).unwrap().unwrap_full_frame().stack_map.len() as u16)
     }
 
     pub fn stack_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Result<Vec<RuntimeType>, Opaque> {
@@ -149,7 +149,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data_no_tops.read().unwrap();
-        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().stack_map;
+        let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().unwrap_full_frame().stack_map;
         let mut res = vec![];
         for vtype in &stack_map.data {
             res.push(vtype.to_runtime_type());
@@ -172,7 +172,7 @@ impl<'gc_life, 'l> FrameView<'gc_life, 'l> {
         }
         let pc = self.pc(jvm)?;
         let function_frame_type = jvm.function_frame_type_data_with_tops.read().unwrap();
-        let locals = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().locals;
+        let locals = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().unwrap_full_frame().locals;
         Ok(locals.len() as u16)
     }
 
@@ -752,7 +752,7 @@ impl<'gc_life> LocalVarsRef<'gc_life, '_, '_> {
                         let function_frame_data = match function_frame_data_guard.get(&method_id) {
                             Some(function_frame_data) => {
                                 let frame = function_frame_data.get(&pc).unwrap();
-                                let verification_data_expected_frame_data = frame.locals[i as usize].to_runtime_type();
+                                let verification_data_expected_frame_data = frame.unwrap_full_frame().locals[i as usize].to_runtime_type();
                                 assert_eq!(verification_data_expected_frame_data, expected_type);
                             },
                             None => {
@@ -880,7 +880,7 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
                 let function_frame_data_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
                 let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
                 let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
-                frame.stack_map.data.iter().map(|vtype| vtype.to_runtime_type()).rev().collect()
+                frame.unwrap_full_frame().stack_map.data.iter().map(|vtype| vtype.to_runtime_type()).rev().collect()
             }
         }
     }
@@ -1048,7 +1048,7 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
         let pc = self.pc(jvm);
         let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
         let function_frame_type = read_guard.get(&method_id).unwrap();
-        function_frame_type.get(&pc).unwrap().locals.deref().clone()
+        function_frame_type.get(&pc).unwrap().unwrap_full_frame().locals.deref().clone()
     }
 
     pub fn opaque_frame_ptr(&self) -> *mut OpaqueFrameInfo {

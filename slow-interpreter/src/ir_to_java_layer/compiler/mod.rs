@@ -20,7 +20,7 @@ use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, IRVMExitType};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jlong, jvalue};
-use rust_jvm_common::{ByteCodeOffset, MethodId};
+use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{Atype, Code, IInc, LookupSwitch, TableSwitch};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
@@ -60,9 +60,8 @@ use crate::jit::state::{Labeler, NaiveStackframeLayout};
 use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::FrameView;
+use crate::verifier_frames::SunkVerifierFrames;
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct ByteCodeIndex(pub u16);
 
 // all metadata needed to compile to ir, excluding resolver stuff
 pub struct JavaCompilerMethodAndFrameData {
@@ -114,17 +113,18 @@ pub struct YetAnotherLayoutImpl {
 }
 
 impl YetAnotherLayoutImpl {
-    pub fn new(frames_no_top: &HashMap<ByteCodeOffset, Frame>, code: &CompressedCode) -> Self {
+    pub fn new(frames_no_top: &HashMap<ByteCodeOffset, SunkVerifierFrames>, code: &CompressedCode) -> Self {
         for (offset, _) in code.instructions.iter() {
             assert!(frames_no_top.contains_key(&offset));
         }
         let stack_depth = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
-            assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
-            frame.stack_map.len() as u16
+            // assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
+            frame.stack_depth_no_tops()/*stack_map.len()*/ as u16
         }).collect();
         let computational_type = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
-            assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
-            frame.stack_map.iter().map(|vtype| Self::is_type_2_computational_type(vtype)).collect()
+            /*assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
+            frame.stack_map.iter().map(|vtype| Self::is_type_2_computational_type(vtype)).collect()*/
+            frame.is_category_2_no_tops()
         }).collect();
         Self {
             max_locals: code.max_locals,
@@ -135,26 +135,7 @@ impl YetAnotherLayoutImpl {
         }
     }
 
-    fn is_type_2_computational_type(vtype: &VType) -> bool {
-        match vtype {
-            VType::DoubleType => true,
-            VType::FloatType => false,
-            VType::IntType => false,
-            VType::LongType => true,
-            VType::Class(_) => false,
-            VType::ArrayReferenceType(_) => false,
-            VType::VoidType => false,
-            VType::TopType => false,
-            VType::NullType => false,
-            VType::Uninitialized(_) => false,
-            VType::UninitializedThis => false,
-            VType::UninitializedThisOrClass(_) => false,
-            VType::TwoWord => true,
-            VType::OneWord => false,
-            VType::Reference => false,
-            VType::UninitializedEmpty => false
-        }
-    }
+
 
     pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
         if index.0 as usize >= self.stack_depth_by_index.len(){

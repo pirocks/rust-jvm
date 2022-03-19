@@ -7,7 +7,6 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 
-use crate::ir_to_java_layer::compiler::ByteCodeIndex;
 
 pub struct StaticBreakpoints {
     points: HashSet<(CClassName, LoaderName, MethodName, CMethodDescriptor, ByteCodeOffset)>,

@@ -101,22 +101,22 @@ impl From<ClassLoadingError> for TypeSafetyError {
         TypeSafetyError::ClassNotFound(err)
     }
 }
-
+#[allow(unreachable_code)]
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == CClassName::object() {
         if !is_bootstrap_loader(&class.loader) {
-            return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string())*/);
         }
     } else {
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
         if chain.is_empty() {
-            return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("No superclass but object is not Object".to_string())*/);
         }
         let super_class_name = get_class(vf, class)?.super_name();
         let super_class = loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
         if class_is_final(vf, &super_class)? {
-            return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("Superclass is final".to_string())*/);
         }
     }
     let methods = get_class_methods(vf, class.clone())?;
