@@ -36,10 +36,10 @@ use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore, sastore};
 use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr};
+use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
 use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
-use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup2_x1, dup_x1};
+use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
 use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dmul, fadd, fcmpg, fcmpl, fdiv, fmul};
 use crate::ir_to_java_layer::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
@@ -608,6 +608,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::ixor => {
                 this_function_ir.extend(ixor(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::lxor => {
+                this_function_ir.extend(lxor(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::ior => {
                 this_function_ir.extend(ior(method_frame_data, current_instr_data))
             }
@@ -840,6 +843,15 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::tableswitch(box TableSwitch { default, low, high, offsets }) => {
                 this_function_ir.extend(tableswitch(method_frame_data, current_instr_data, default, low, high, offsets));
             }
+            CompressedInstructionInfo::swap => {
+                this_function_ir.extend(swap(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::lushr => {
+                this_function_ir.extend(lushr(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::dup_x2 => {
+                this_function_ir.extend(dup_x2(method_frame_data, current_instr_data));
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -859,6 +871,18 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
     final_ir
 }
 
+fn swap(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value1_register = Register(1);
+    let value2_register = Register(2);
+
+    let iter = array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1_register, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value2_register, size: Size::int() },
+        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), from: value2_register, size: Size::int() },
+        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1), from: value1_register, size: Size::int() },
+    ]);
+    iter
+}
 
 
 pub mod float_convert;

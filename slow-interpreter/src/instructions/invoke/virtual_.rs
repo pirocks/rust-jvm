@@ -263,10 +263,10 @@ pub fn virtual_method_lookup<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, in
                 }
         })
         .unwrap_or_else(|| {
+            int_state.debug_print_stack_trace(jvm);
             dbg!(method_name.0.to_str(&jvm.string_pool));
             dbg!(md);
             dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
-            int_state.debug_print_stack_trace(jvm);
             // dbg!(int_state.current_frame().operand_stack_types());
             // dbg!(int_state.current_frame().local_vars_types());
             // dbg!(int_state.previous_frame().operand_stack_types());

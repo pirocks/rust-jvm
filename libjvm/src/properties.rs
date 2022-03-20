@@ -27,8 +27,8 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
         // add_prop(env, p0, "org.slf4j.simpleLogger.defaultLogLevel ".to_string(), "off".to_string())?;
         add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string());
-        add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
-        add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
+        // add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
+        // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
         Ok(add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())?)
     })() {
         Err(WasException {}) => return null_mut(),

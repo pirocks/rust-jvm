@@ -132,6 +132,8 @@ pub fn instance_of_exit_impl_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
                                 return 1
                             }
                         }
+                        dbg!(actual_num_nested_arrs);
+                        dbg!(expected_num_nested_arrs);
                         dbg!(actual_base_type.to_cpdtype().jvm_representation(&jvm.string_pool));
                         dbg!(expected_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
                         todo!()

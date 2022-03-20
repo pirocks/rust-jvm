@@ -67,6 +67,7 @@ use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object, to_object_new};
 use crate::utils::throw_npe;
+use crate::verifier_frames::SunkVerifierFrames;
 
 //todo this should be in state impl
 thread_local! {
@@ -731,10 +732,15 @@ pub fn define_class_safe<'gc_life, 'l>(
                 let code = method_view.code_attribute().unwrap();
                 let instructs = code.instructions.iter().sorted_by_key(|(offset,instruct)|*offset).map(|(_, instruct)|instruct.clone()).collect_vec();
                 let res = type_infer(&method_view);
-                // jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, todo!());
-                // jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, todo!());
+                let frames_tops = res.inferred_frames().iter().map(|(offset, frame)|{
+                    (*offset,SunkVerifierFrames::PartialInferredFrame(frame.clone()))
+                }).collect::<HashMap<_,_>>();
+                let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)|{
+                    (*offset,SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
+                }).collect::<HashMap<_,_>>();
+                jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, frames_no_tops);
+                jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, frames_tops);
             }
-            todo!()
         },
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),

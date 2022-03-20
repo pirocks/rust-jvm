@@ -445,6 +445,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                     let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
                     if res_int == 0 {
                         dbg!(cpdtype.jvm_representation(&jvm.string_pool));
+                        dbg!(handle.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
                         int_state.debug_print_stack_trace(jvm);
                         todo!()
                     }
@@ -700,6 +701,28 @@ pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_
 }
 
 pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
+    if !current_frame.full_frame_available(jvm){
+        let local_vars = current_frame.local_var_simplified_types(jvm);
+        eprint!("Local Vars:");
+        unsafe {
+            for (i, local_var_type) in local_vars.into_iter().enumerate() {
+                let jv = current_frame.local_vars(jvm).raw_get(i as u16);
+                eprint!("#{}: {:?}\t", i, jv as *const c_void)
+            }
+        }
+        eprintln!();
+        eprint!("Operand Stack:");
+        let operand_stack_ref = current_frame.operand_stack(jvm);
+        let operand_stack_types = operand_stack_ref.simplified_types();
+        unsafe {
+            for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+                let jv = operand_stack_ref.raw_get(i as u16);
+                eprint!("#{}: {:?}\t", i, jv.object)
+            }
+        }
+        eprintln!();
+        return;
+    }
     let local_var_types = current_frame.local_var_types(jvm);
     let local_vars = current_frame.local_vars(jvm);
     eprint!("Local Vars:");

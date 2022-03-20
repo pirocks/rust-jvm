@@ -16,6 +16,7 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::CPIndex;
@@ -884,6 +885,21 @@ impl<'gc_life, 'l, 'k> OperandStackRef<'gc_life, 'l, 'k> {
             }
         }
     }
+
+
+    pub fn simplified_types(&self) -> Vec<SimplifiedVType> {
+        match self {
+            OperandStackRef::Jit { frame_view, jvm, pc } => {
+                let method_id = frame_view.ir_ref.method_id().expect("local vars should have method id probably");
+                let pc = pc.unwrap();
+                let function_frame_data_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
+                let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
+                let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
+                frame.unwrap_partial_inferred_frame().operand_stack.iter().map(|vtype| *vtype).collect()
+            }
+        }
+    }
+
     pub fn types_vals(&self) -> Vec<JavaValue<'gc_life>> {
         todo!()
         /*match self {
@@ -1041,6 +1057,23 @@ impl<'gc_life, 'l> StackEntryRef<'gc_life, 'l> {
             jvm,
             pc: self.pc,
         }
+    }
+
+    pub fn full_frame_available(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool{
+        let method_id = self.frame_view.ir_ref.method_id().unwrap();
+        let pc = self.pc(jvm);
+        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let function_frame_type = read_guard.get(&method_id).unwrap();
+        let frame = function_frame_type.get(&pc).unwrap();
+        frame.try_unwrap_full_frame().is_some()
+    }
+
+    pub fn local_var_simplified_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<SimplifiedVType>{
+        let method_id = self.frame_view.ir_ref.method_id().unwrap();
+        let pc = self.pc(jvm);
+        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let function_frame_type = read_guard.get(&method_id).unwrap();
+        function_frame_type.get(&pc).unwrap().unwrap_partial_inferred_frame().local_vars.clone()
     }
 
     pub fn local_var_types(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<VType> {

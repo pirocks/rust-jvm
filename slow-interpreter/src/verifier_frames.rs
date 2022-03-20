@@ -1,4 +1,4 @@
-use java5_verifier::SimplifiedVType;
+use java5_verifier::{InferredFrame, SimplifiedVType};
 use rust_jvm_common::classfile::InstructionInfo::fadd;
 use rust_jvm_common::vtype::VType;
 use verification::verifier::Frame;
@@ -9,11 +9,27 @@ pub enum SunkVerifierFrames {
 }
 
 impl SunkVerifierFrames {
-    pub fn unwrap_full_frame(&self) -> &Frame {
+
+    pub fn try_unwrap_full_frame(&self) -> Option<&Frame> {
         match self {
-            SunkVerifierFrames::FullFrame(full_frame) => full_frame,
-            SunkVerifierFrames::PartialInferredFrame(_) => panic!()
+            SunkVerifierFrames::FullFrame(full_frame) => Some(full_frame),
+            SunkVerifierFrames::PartialInferredFrame(_) => None
         }
+    }
+
+    pub fn unwrap_full_frame(&self) -> &Frame {
+        self.try_unwrap_full_frame().unwrap()
+    }
+
+    pub fn try_unwrap_partial_inferred_frame(&self) -> Option<&InferredFrame>{
+        match self {
+            SunkVerifierFrames::FullFrame(_) => None,
+            SunkVerifierFrames::PartialInferredFrame(inferred_frame) => Some(inferred_frame)
+        }
+    }
+
+    pub fn unwrap_partial_inferred_frame(&self) -> &InferredFrame{
+        self.try_unwrap_partial_inferred_frame().unwrap()
     }
 
     pub fn stack_depth_no_tops(&self) -> usize {

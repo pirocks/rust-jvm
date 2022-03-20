@@ -12,6 +12,8 @@ use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, 
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::FieldId;
+use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
@@ -52,6 +54,16 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
 unsafe extern "system" fn Java_sun_misc_Unsafe_addressSize(env: *mut JNIEnv, obj: jobject) -> jint {
     64
     //officially speaking unimplemented but can't return nothing, and should maybe return something reasonable todo
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_allocateInstance(env: *mut JNIEnv, the_unsafe: jobject, cls: jclass) -> jobject {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let jclass = from_jclass(jvm, cls);
+    let rc = check_initing_or_inited_class(jvm, int_state, jclass.as_type(jvm)).unwrap();
+    let obj_handle = new_object(jvm,int_state,&rc);
+    to_object_new(Some(obj_handle.as_allocated_obj()))
 }
 
 #[no_mangle]

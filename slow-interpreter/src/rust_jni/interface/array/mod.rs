@@ -5,8 +5,9 @@ use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jch
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::{JavaValue, Object};
+use crate::NewJavaValue;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use crate::utils::{throw_illegal_arg, throw_npe};
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
@@ -68,19 +69,18 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     //todo handle JNI_COMMIT
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object(jvm, array) {
+    let not_null = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let array = not_null.unwrap_array();
-    let array_type = &array.elem_type;
+    let array = not_null.unwrap_array(jvm);
+    let array_type = &array.elem_cpdtype();
     for i in 0..array.len() {
         match array_type {
             CPDType::ByteType => {
-                // array.set_i(jvm, i, JavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
-                todo!()
+                array.set_i( i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
             }
             CPDType::CharType => {
                 // array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
@@ -124,52 +124,52 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
 pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object(jvm, array) {
+    let not_null = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let array = not_null.unwrap_array();
+    let array = not_null.unwrap_array(jvm);
     if !is_copy.is_null() {
         is_copy.write(true as jboolean);
     }
     //dup but difficult to make into template so ehh
-    match &array.elem_type {
+    match &array.elem_cpdtype() {
         CPDType::ByteType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_byte()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_byte_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::CharType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_char()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_char_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::DoubleType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_double()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_double_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::FloatType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_float()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_float_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::IntType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_int()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_int_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::LongType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_long()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_long_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::ShortType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_short()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_short_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::BooleanType => {
-            let res = array.array_iterator(jvm).map(|elem| elem.unwrap_boolean()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_bool_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::Ref(_) => {
-            let res = array.array_iterator(jvm).map(|elem| to_object(elem.unwrap_object())).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| to_object_new(elem.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()))).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         _ => panic!(),

@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Either, Itertools};
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
-use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
+use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 use jvmti_jni_bindings::{jlong, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -302,8 +302,13 @@ impl MemoryRegions {
                 base_address: (ptr.as_ptr() as u64 & region_mask) as *mut c_void
             }
         } else if region_base_masked_ptr == self.early_mmaped_regions.large_regions as u64 {
-            let region_index = ((ptr.as_ptr() as u64 & top_level_mask) / LARGE_REGION_SIZE as u64) as usize;
-            todo!()
+            let region_mask = 1 << LARGE_REGION_SIZE_SIZE;
+            BaseAddressAndMask{
+                mask: region_mask,
+                base_address: (ptr.as_ptr() as u64 & region_mask) as *mut c_void
+            }
+            // let region_index = ((ptr.as_ptr() as u64 & top_level_mask) / LARGE_REGION_SIZE as u64) as usize;
+            // todo!()
         } else {
             dbg!(self.early_mmaped_regions.large_regions);
             dbg!(&self.early_mmaped_regions);

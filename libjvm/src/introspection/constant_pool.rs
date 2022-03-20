@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
     let jvm = get_state(env);
-    let runtime_class = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let runtime_class = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = runtime_class.view();
     view.constant_pool_size() as jint
 }
@@ -105,7 +105,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
     }
 }
 
-fn get_class_from_type_maybe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
+fn get_class_from_type_maybe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc_life>>>, WasException> {
     Ok(if load_class {
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {
@@ -119,7 +119,7 @@ fn get_class_from_type_maybe<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, in
 unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
@@ -167,7 +167,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, 
 unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
@@ -183,7 +183,7 @@ unsafe fn get_field(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load
             let view = field_rc.view();
             let field_view = view.fields().find(|f| f.field_name() == FieldName(name)).unwrap();
             let method_obj = field_object_from_view(jvm, int_state, field_rc, field_view)?;
-            Ok(new_local_ref_public_new(method_obj.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state))
+            Ok(new_local_ref_public_new(method_obj.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), int_state))
         }
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
@@ -211,7 +211,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, c
 unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
@@ -260,7 +260,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
 unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
@@ -277,7 +277,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoo
 unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jlong {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
@@ -294,7 +294,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
 unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jfloat {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
@@ -311,7 +311,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
 unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jdouble {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         return throw_array_out_of_bounds(jvm, int_state, index);
@@ -335,7 +335,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constant
 unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _jobject, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
@@ -350,17 +350,16 @@ unsafe fn ConstantPoolGetStringAt_impl(env: *mut JNIEnv, constantPoolOop: *mut _
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jstring {
-    match ConstantPoolGetUTF8At_impl(env, jcpool, index) {
+    match ConstantPoolGetUTF8At_impl(env, jcpool, jcpool, index) {
         Ok(res) => res,
         Err(WasException {}) => null_mut(),
     }
 }
 
-unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject, index: i32) -> Result<jobject, WasException> {
+unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jclass, index: i32) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
-    let rc = from_jclass(jvm, constantPoolOop).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;

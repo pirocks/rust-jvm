@@ -267,7 +267,9 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
     let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name, true))));
 
-    let loader_name = from_object(jvm, loader).map(|loader_obj| JavaValue::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+    let loader_name = from_object_new(jvm, loader)
+        .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
+        .unwrap_or(LoaderName::BootstrapLoader);
 
     let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type.clone(), int_state, loader_name);
     match class_lookup_result {
