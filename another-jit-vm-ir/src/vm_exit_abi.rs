@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::num::NonZeroU8;
 use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
 
@@ -57,6 +58,17 @@ impl AllocateObjectArray {
     pub const TYPE: Register = Register(3);
     pub const RES_PTR: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
+}
+
+
+pub struct MultiAllocateArray;
+
+impl MultiAllocateArray {
+    pub const LEN_START: Register = Register(2);
+    pub const ELEM_TYPE: Register = Register(3);
+    pub const NUM_ARRAYS: Register = Register(4);
+    pub const RES_PTR: Register = Register(5);
+    pub const RESTART_IP: Register = Register(6);
 }
 
 pub struct AllocateObject;
@@ -278,6 +290,12 @@ pub enum IRVMExitType {
     AllocateObjectArray_ {
         array_type: CPDTypeID,
         arr_len: FramePointerOffset,
+        arr_res: FramePointerOffset,
+    },
+    MultiAllocateObjectArray_ {
+        array_elem_type: CPDTypeID,
+        num_arrays: NonZeroU8,
+        arr_len_start: FramePointerOffset,
         arr_res: FramePointerOffset,
     },
     AllocateObject {
@@ -583,6 +601,14 @@ impl IRVMExitType {
                 }
 
             }
+            IRVMExitType::MultiAllocateObjectArray_ { array_elem_type, num_arrays, arr_len_start, arr_res } => {
+                assembler.mov(rax, RawVMExitType::MultiAllocateObjectArray as u64).unwrap();
+                assembler.lea(MultiAllocateArray::LEN_START.to_native_64(), rbp - arr_len_start.0).unwrap();
+                assembler.lea(MultiAllocateArray::RES_PTR.to_native_64(), rbp - arr_res.0).unwrap();
+                assembler.mov(MultiAllocateArray::ELEM_TYPE.to_native_64(), array_elem_type.0 as u64).unwrap();
+                assembler.mov(MultiAllocateArray::NUM_ARRAYS.to_native_64(), num_arrays.get() as u64).unwrap();
+                assembler.lea(MultiAllocateArray::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+            }
         }
     }
 }
@@ -598,6 +624,7 @@ pub enum VMExitTypeWithArgs {
 #[repr(u64)]
 pub enum RawVMExitType {
     AllocateObjectArray = 1,
+    MultiAllocateObjectArray,
     AllocateObject,
     LoadClassAndRecompile,
     InitClassAndRecompile,
@@ -628,6 +655,13 @@ pub enum RawVMExitType {
 
 #[derive(Debug)]
 pub enum RuntimeVMExitInput {
+    MultiAllocateArray {
+        elem_type: CPDTypeID,
+        num_arrays: u8,
+        len_start: *const i64,
+        return_to_ptr: *const c_void,
+        res_address: *mut NonNull<c_void>,
+    },
     AllocateObjectArray {
         type_: CPDTypeID,
         len: i32,
@@ -938,6 +972,15 @@ impl RuntimeVMExitInput {
                     native_method_res: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::OBJECT_REF) as *const c_void,
                     target_method_id: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::TARGET_METHOD_ID) as MethodId,
+                }
+            }
+            RawVMExitType::MultiAllocateObjectArray => {
+                RuntimeVMExitInput::MultiAllocateArray {
+                    elem_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(MultiAllocateArray::ELEM_TYPE) as u32),
+                    len_start: register_state.saved_registers_without_ip.get_register(MultiAllocateArray::LEN_START) as *const i64,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MultiAllocateArray::RESTART_IP) as *const c_void,
+                    res_address: register_state.saved_registers_without_ip.get_register(MultiAllocateArray::RES_PTR) as *mut NonNull<c_void>,
+                    num_arrays: register_state.saved_registers_without_ip.get_register(MultiAllocateArray::NUM_ARRAYS) as u8
                 }
             }
         }

@@ -165,6 +165,13 @@ impl CompressedParsedRefType {
         }
     }
 
+    pub fn recursively_unwrap_array_type(&self) -> NonArrayCompressedParsedDescriptorType {
+        match self {
+            CompressedParsedRefType::Array { base_type, num_nested_arrs:_ } => *base_type,
+            CompressedParsedRefType::Class(_) => panic!(),
+        }
+    }
+
     pub fn java_source_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
         match self {
             CompressedParsedRefType::Array { base_type, num_nested_arrs } => {

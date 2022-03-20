@@ -254,6 +254,9 @@ impl IRInstr {
                     IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
                     IRVMExitType::RunNativeSpecial { .. } => { "RunNativeSpecial" }
                     IRVMExitType::InvokeInterfaceResolve { .. } => { "InvokeInterfaceResolve" }
+                    IRVMExitType::MultiAllocateObjectArray_ { .. } => {
+                        "MultiAllocateObjectArray_"
+                    }
                 })
             }
             IRInstr::NPECheck { .. } => {

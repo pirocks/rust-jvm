@@ -29,7 +29,7 @@ pub fn dup_x1(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
 pub fn dup_x2(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(2);
     let value2 = Register(3);
-    let value3 = Register(3);
+    let value3 = Register(4);
     let value_2_is_category_2 = method_frame_data.is_category_2(current_instr_data.current_index, 1);
     if value_2_is_category_2 {
         Either::Left(array_into_iter([

@@ -99,6 +99,7 @@ impl RegionData {
     pub fn get_allocation(&mut self) -> NonNull<c_void> {
         let region_base = self.region_base;
         let current_index = self.num_current_elements.fetch_add(1, Ordering::SeqCst);
+        assert!(current_index < self.region_max_elements);
         let res = unsafe { region_base.offset((current_index * self.region_elem_size) as isize) };
         unsafe { libc::memset(res, 0, self.region_elem_size); }
         NonNull::new(res).unwrap()

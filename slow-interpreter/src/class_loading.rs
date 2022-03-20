@@ -10,6 +10,7 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use java5_verifier::type_infer;
 use rust_jvm_common::classfile::InstructionInfo::drem;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
@@ -33,6 +34,7 @@ use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::runtime_class::{FieldNumber, initialize_class, MethodNumber, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use crate::verifier_frames::SunkVerifierFrames;
 
 //todo only use where spec says
 pub fn check_initing_or_inited_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
@@ -228,29 +230,6 @@ pub fn bootstrap_load<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state
                     }
                 };
                 let class_view = Arc::new(ClassBackedView::from(classfile.clone(), &jvm.string_pool));
-                let mut verifier_context = VerifierContext {
-                    live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
-                    classfile_getter: Arc::new(DefaultClassfileGetter { jvm }) as Arc<dyn ClassFileGetter>,
-                    string_pool: &jvm.string_pool,
-                    class_view_cache: Mutex::new(Default::default()),
-                    current_loader: LoaderName::BootstrapLoader,
-                    verification_types: Default::default(),
-                    debug: class_name == CClassName::string(),
-                    perf_metrics: &jvm.perf_metrics,
-                    permissive_types_workaround: false,
-                };
-                match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
-                    Ok(_) => {}
-                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(_))) => {
-                        return Err(WasException);
-                    }
-                    Err(TypeSafetyError::NotSafe(_)) => panic!(),
-                    Err(TypeSafetyError::Java5Maybe) => panic!(),
-                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => {
-                        panic!()
-                    }
-                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
-                };
                 let parent = match class_view.super_name() {
                     Some(super_name) => Some(check_loaded_class(jvm, int_state, super_name.into())?),
                     None => None,
@@ -263,10 +242,55 @@ pub fn bootstrap_load<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state
                 let (_recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &parent);
                 let static_var_types = get_static_var_types(class_view.deref());
                 let res = Arc::new(RuntimeClass::Object(
-                    RuntimeClassClass::new(class_view, field_numbers, method_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
+                    RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
                 );
-                let verification_types = verifier_context.verification_types;
-                jvm.sink_function_verification_date(&verification_types, res.clone());
+                let mut verifier_context = VerifierContext {
+                    live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
+                    classfile_getter: Arc::new(DefaultClassfileGetter { jvm }) as Arc<dyn ClassFileGetter>,
+                    string_pool: &jvm.string_pool,
+                    class_view_cache: Mutex::new(Default::default()),
+                    current_loader: LoaderName::BootstrapLoader,
+                    verification_types: Default::default(),
+                    debug: class_name == CClassName::string(),
+                    perf_metrics: &jvm.perf_metrics,
+                    permissive_types_workaround: false,
+                };
+
+
+                match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
+                    Ok(verfied) => {
+                        let verification_types = verifier_context.verification_types;
+                        jvm.sink_function_verification_date(&verification_types, res.clone());
+                    }
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(_))) => {
+                        return Err(WasException);
+                    }
+                    Err(TypeSafetyError::NotSafe(_)) => panic!(),
+                    Err(TypeSafetyError::Java5Maybe) => {
+                        //todo major dup
+                        for method_view in class_view.clone().methods() {
+                            let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method_view.method_i());
+                            let code = match method_view.code_attribute() {
+                                Some(x) => x,
+                                None => continue,
+                            };
+                            let instructs = code.instructions.iter().sorted_by_key(|(offset,instruct)|*offset).map(|(_, instruct)|instruct.clone()).collect_vec();
+                            let res = type_infer(&method_view);
+                            let frames_tops = res.inferred_frames().iter().map(|(offset, frame)|{
+                                (*offset,SunkVerifierFrames::PartialInferredFrame(frame.clone()))
+                            }).collect::<HashMap<_,_>>();
+                            let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)|{
+                                (*offset,SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
+                            }).collect::<HashMap<_,_>>();
+                            jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, frames_no_tops);
+                            jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, frames_tops);
+                        }
+                    }
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => {
+                        panic!()
+                    }
+                    Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
+                };
                 let method_resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
                 // for method in class_view.methods() {
                 //     if method.code_attribute().is_some() {

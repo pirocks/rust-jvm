@@ -772,7 +772,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     let view = Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool));
     if jvm.config.store_generated_classes {
-        File::create(format!("{}{:?}", PTypeView::from_compressed(&CPDType::Ref(view.name()), &jvm.string_pool).class_name_representation(), rand())).unwrap().write_all(slice).unwrap();
+        File::create(format!("{}{:?}.class", PTypeView::from_compressed(&CPDType::Ref(view.name()), &jvm.string_pool).class_name_representation(), rand())).unwrap().write_all(slice).unwrap();
     }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object_new(

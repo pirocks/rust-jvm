@@ -5,8 +5,9 @@ use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jch
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::java_values::{JavaValue, Object};
+use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use crate::utils::{throw_illegal_arg, throw_npe};
 
@@ -33,29 +34,28 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
 pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let notnull = match from_object(jvm, array) {
+    let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
     let int_state = get_interpreter_state(env);
-    let array = notnull.unwrap_array();
-    new_local_ref_public(array.get_i(jvm, index).unwrap_object(), int_state)
+    let array = notnull.unwrap_array(jvm);
+    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let notnull = match from_object(jvm, array) {
+    let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
-    let array = notnull.unwrap_array();
-    todo!()
-    // array.set_i(jvm, index, from_object(jvm, val).into());
+    let array = notnull.unwrap_array(jvm);
+    array.set_i(index as usize, NewJavaValueHandle::from_optional_object(from_object_new(jvm, val)).as_njv());
 }
 
 pub mod array_region;

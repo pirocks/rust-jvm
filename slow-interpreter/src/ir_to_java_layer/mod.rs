@@ -3,6 +3,7 @@ use std::ffi::c_void;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
+use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 use std::sync::{Arc, Mutex, RwLock};
@@ -12,6 +13,7 @@ use bimap::BiHashMap;
 use iced_x86::CC_b::c;
 use iced_x86::CC_be::na;
 use iced_x86::CC_g::g;
+use iced_x86::CC_le::le;
 use iced_x86::CC_np::po;
 use iced_x86::ConditionCode::{o, s};
 use iced_x86::CpuidFeature::UDBG;
@@ -58,7 +60,7 @@ use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMeth
 use crate::java::lang::class::JClass;
 use crate::java::lang::int::Int;
 use crate::java::NewAsObjectOrJavaValue;
-use crate::java_values::{ByAddressAllocatedObject, GcManagedObject, NativeJavaValue, StackNativeJavaValue};
+use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, NativeJavaValue, StackNativeJavaValue};
 use crate::jit::{MethodResolver, ToIR};
 use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
 use crate::jit_common::java_stack::JavaStack;
@@ -330,12 +332,12 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                         drop(exit_guard);
                         let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
                             Ok(x) => x,
-                            Err(WasException{}) => {
+                            Err(WasException {}) => {
                                 let allocate_obj = int_state.throw().unwrap().handle.duplicate_discouraged();
                                 int_state.set_throw(None);
                                 dbg!(allocate_obj.cast_throwable().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
                                 todo!()
-                            },
+                            }
                         };
                         if let Some(res) = res {
                             unsafe { ((*native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
@@ -423,7 +425,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
                 let value = value.to_new_java_value(&CClassName::object().into(), jvm);
                 let value = value.unwrap_object();
-                check_initing_or_inited_class(jvm,int_state,cpdtype).unwrap();
+                check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
                 let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
                 unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
                 drop(exit_guard);
@@ -472,11 +474,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 drop(exit_guard);
                 let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
                     Ok(x) => x,
-                    Err(WasException{}) => {
+                    Err(WasException {}) => {
                         let expception_obj_handle = int_state.throw().unwrap().handle.duplicate_discouraged();
                         int_state.set_throw(None);
                         return Self::throw_impl(jvm, int_state, NewJavaValueHandle::Object(expception_obj_handle));
-                    },
+                    }
                 };
                 if let Some(res) = res {
                     unsafe { ((*res_ptr) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
@@ -500,10 +502,9 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let method_desc = method_view.desc();
                 let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc, method_name, method_desc).unwrap();
                 let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
-                if jvm.is_native_by_method_id(resolved_method_id){
-                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(resolved_method_id, &jvm.string_pool));
+                if jvm.is_native_by_method_id(resolved_method_id) {
                     let args_jv_handle = Self::virtual_args_extract(jvm, method_desc.arg_types.as_slice(), *object_ref);
-                    match run_native_method(jvm,int_state,resolved_rc,resolved_method_i,args_jv_handle.iter().map(|handle|handle.as_njv()).collect_vec()){
+                    match run_native_method(jvm, int_state, resolved_rc, resolved_method_i, args_jv_handle.iter().map(|handle| handle.as_njv()).collect_vec()) {
                         Ok(res) => {
                             if let Some(res) = res {
                                 unsafe { ((*native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
@@ -514,11 +515,11 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                             let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, *native_method_restart_point);
                             return IRVMExitAction::RestartAtPtr { ptr: restart_address };
                         }
-                        Err(WasException{}) => {
+                        Err(WasException {}) => {
                             todo!()
                         }
                     }
-                }else {
+                } else {
                     let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
                     jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
                     let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
@@ -547,12 +548,57 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 int_state.debug_print_stack_trace(jvm);
                 let exception_obj_native_value = unsafe { (*exception_obj_ptr).cast::<NativeJavaValue<'gc_life>>().read() };
                 let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
-                return Self::throw_impl(&jvm, int_state, exception_obj_handle)
+                return Self::throw_impl(&jvm, int_state, exception_obj_handle);
+            }
+            RuntimeVMExitInput::MultiAllocateArray {
+                elem_type,
+                num_arrays,
+                len_start,
+                return_to_ptr,
+                res_address
+            } => {
+                let elem_type = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*elem_type);
+                let elem_type = elem_type.to_non_array();
+                let array_type = CPDType::Ref(CompressedParsedRefType::Array { base_type: elem_type, num_nested_arrs: NonZeroU8::new(*num_arrays).unwrap() });
+                let mut lens = vec![];
+                unsafe {
+                    for len_index in 0..*num_arrays {
+                        let offsetted_ptr = len_start.sub(len_index as usize);
+                        lens.push(offsetted_ptr.cast::<i32>().read());
+                    }
+                }
+                let mut current_value = NativeJavaValue { as_u64: u64::MAX };
+                assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
+                current_value = default_value(&elem_type.to_cpdtype()).as_njv().to_native();
+                //iterates from innermost to outermost
+                for (depth, len) in lens.into_iter().rev().enumerate() {
+                    let rc = match NonZeroU8::new(depth as u8 + 1) {
+                        None => {
+                            panic!()
+                        }
+                        Some(depth) => {
+                            assert_inited_or_initing_class(jvm, CPDType::Ref(CompressedParsedRefType::Array { base_type: elem_type, num_nested_arrs: depth }))
+                        }
+                    };
+                    let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
+                    let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+                    let array_size = array.size();
+                    let region_data = memory_region_guard.find_or_new_region_for(array);
+                    let mut allocated_object = region_data.get_allocation();
+                    unsafe { allocated_object.as_ptr().cast::<jlong>().write(len as jlong); }
+                    for i in 0..len {
+                        unsafe { allocated_object.as_ptr().cast::<NativeJavaValue<'gc_life>>().offset((i + 1) as isize).write(current_value) };
+                    }
+                    current_value = NativeJavaValue { object: allocated_object.as_ptr() };
+                }
+
+                unsafe { res_address.cast::<NativeJavaValue<'gc_life>>().write(current_value) }
+                IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
     }
 
-    fn compile_function_and_recompile_current(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
+    fn compile_function_and_recompile_current(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
         if jvm.exit_trace_options.tracing_enabled() {
             eprintln!("CompileFunctionAndRecompileCurrent");
         }
@@ -570,7 +616,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         IRVMExitAction::ExitVMCompletely { return_data: return_value }
     }
 
-    fn run_static_native(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, method_id: MethodId, arg_start: *mut c_void, num_args: u16, res_ptr: *mut c_void, return_to_ptr: *mut c_void) -> IRVMExitAction {
+    fn run_static_native(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, method_id: MethodId, arg_start: *mut c_void, num_args: u16, res_ptr: *mut c_void, return_to_ptr: *mut c_void) -> IRVMExitAction {
         if jvm.exit_trace_options.tracing_enabled() {
             eprintln!("RunStaticNative");
         }
@@ -594,7 +640,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
                 let expception_obj_handle = int_state.throw().unwrap().handle.duplicate_discouraged();
                 int_state.set_throw(None);
                 return Self::throw_impl(jvm, int_state, NewJavaValueHandle::Object(expception_obj_handle));
-            },
+            }
         };
         assert!(int_state.throw().is_none());
         if let Some(res) = res {
@@ -606,7 +652,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
     }
 
-    fn allocate_object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, type_: CPDTypeID, len: i32, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
+    fn allocate_object_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, type_: CPDTypeID, len: i32, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
         if jvm.exit_trace_options.tracing_enabled() {
             eprintln!("AllocateObjectArray");
         }
@@ -626,7 +672,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
     }
 
-    fn throw_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'_>, exception_obj_handle: NewJavaValueHandle<'gc_life>) -> IRVMExitAction {
+    fn throw_impl(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, exception_obj_handle: NewJavaValueHandle<'gc_life>) -> IRVMExitAction {
         let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
         let throwable = exception_object_handle.cast_throwable();
         let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
@@ -635,7 +681,7 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
         let exception_obj = exception_object_handle.as_allocated_obj();
         let exception_obj_rc = exception_obj.runtime_class(jvm);
         for current_frame in int_state.frame_iter() {
-            let rc = match current_frame.try_class_pointer(jvm){
+            let rc = match current_frame.try_class_pointer(jvm) {
                 None => continue,
                 Some(rc) => rc
             };
@@ -701,7 +747,7 @@ pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_
 }
 
 pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
-    if !current_frame.full_frame_available(jvm){
+    if !current_frame.full_frame_available(jvm) {
         let local_vars = current_frame.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
         unsafe {
@@ -809,8 +855,8 @@ fn display_obj<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i: usize, obj: Alloc
             None => None,
         };
         let ptr = obj.ptr;
-        let ref_data = obj.as_allocated_obj().get_var_top_level(jvm,FieldName::field_reflectionData());
-        eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe {ref_data.as_njv().to_native().object})
+        let ref_data = obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_reflectionData());
+        eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe { ref_data.as_njv().to_native().object })
     } else {
         eprint!("#{}: {:?}({})\t", i, obj.ptr, obj_type.short_representation(&jvm.string_pool))
     }
@@ -971,7 +1017,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     registered: false,
                     jvm,
                     current_exited_pc: Some(exiting_pc),
-                    throw: None
+                    throw: None,
                 };
                 let old_intstate = int_state.register_interpreter_state_guard(jvm);
                 unsafe {

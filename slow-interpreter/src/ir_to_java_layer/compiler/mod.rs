@@ -31,7 +31,7 @@ use verification::verifier::codecorrectness::method_is_type_safe;
 use verification::verifier::Frame;
 
 use crate::instructions::invoke::native::mhn_temp::init;
-use crate::ir_to_java_layer::compiler::allocate::{anewarray, new, newarray};
+use crate::ir_to_java_layer::compiler::allocate::{anewarray, multianewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
 use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, iastore, lastore, sastore};
@@ -61,7 +61,6 @@ use crate::JVMState;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::FrameView;
 use crate::verifier_frames::SunkVerifierFrames;
-
 
 // all metadata needed to compile to ir, excluding resolver stuff
 pub struct JavaCompilerMethodAndFrameData {
@@ -136,9 +135,8 @@ impl YetAnotherLayoutImpl {
     }
 
 
-
     pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
-        if index.0 as usize >= self.stack_depth_by_index.len(){
+        if index.0 as usize >= self.stack_depth_by_index.len() {
             dbg!(&self.code_by_index[index.0 as usize]);
         }
         FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals + self.stack_depth_by_index[index.0 as usize] - from_end - 1) as usize * size_of::<u64>())//-1 b/c stack depth is a len
@@ -189,7 +187,6 @@ impl<'l> CompilerLabeler<'l> {
         let labeler = self.labeler;
         labeler.new_label(labels_vec)
     }
-
 }
 
 pub struct RecompileConditions {
@@ -824,7 +821,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                         todo!()
                     }
                     CompressedLdcW::Integer { integer } => {
-                        this_function_ir.extend(ldc_integer(method_frame_data, &current_instr_data,*integer))
+                        this_function_ir.extend(ldc_integer(method_frame_data, &current_instr_data, *integer))
                     }
                     CompressedLdcW::MethodType { .. } => {
                         todo!()
@@ -851,6 +848,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             }
             CompressedInstructionInfo::dup_x2 => {
                 this_function_ir.extend(dup_x2(method_frame_data, current_instr_data));
+            }
+            CompressedInstructionInfo::multianewarray { type_, dimensions } => {
+                this_function_ir.extend(multianewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, type_, *dimensions));
             }
             other => {
                 dbg!(other);

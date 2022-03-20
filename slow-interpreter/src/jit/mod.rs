@@ -158,7 +158,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
 
     pub fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(on)?;
         // assert_eq!(loader_name, self.loader);
         self.lookup_special_impl(name, &desc, rc)
         /*let view = rc.view();
@@ -183,7 +183,16 @@ impl<'gc_life> MethodResolver<'gc_life> {
                 return Some(res);
             }
         }
-        panic!()
+        for interface in rc.unwrap_class_class().interfaces.iter() {
+            if let Some(res) = self.lookup_special_impl(name, desc, interface.clone()) {
+                return Some(res);
+            }
+        }
+        // let string_pool = &self.jvm.string_pool;
+        // dbg!(name.0.to_str(string_pool));
+        // dbg!(desc.jvm_representation(string_pool));
+        // dbg!(rc.cpdtype().jvm_representation(string_pool));
+        None
     }
 
     pub fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {

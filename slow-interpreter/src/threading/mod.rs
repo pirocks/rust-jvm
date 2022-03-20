@@ -22,7 +22,10 @@ use another_jit_vm_ir::ir_stack::IRStackMut;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::{ByteCodeOffset, JavaThreadId};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::ptype::{PType, ReferenceType};
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, run_main, set_properties};
@@ -56,6 +59,7 @@ impl <T: Clone + Default> FakeLocalKey<T> {
     }
 
     pub fn get(&self) -> Rc<T>{
+        //todo this is slow
         let thread_id = nix::unistd::gettid();
         self.inner.lock().unwrap().entry(thread_id).or_default().clone()
     }
@@ -143,9 +147,11 @@ impl<'gc_life> ThreadState<'gc_life> {
     }
 
     fn debug_assertions<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>){
-        let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
-        let res = jstring.hash_code(jvm, int_state).unwrap();
-        assert_eq!(res, 111607186);
+        // let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
+        // let res = jstring.hash_code(jvm, int_state).unwrap();
+        // assert_eq!(res, 111607186);
+        // let ptype = PType::Ref(ReferenceType::Class(ClassName::new("com/sun/org/apache/xerces/internal/dom/CoreDocumentImpl")));
+        // let _ = check_initing_or_inited_class(jvm,int_state,CPDType::from_ptype(&ptype, &jvm.string_pool)).unwrap();
         // let mut hash_map = ConcurrentHashMap::new(jvm, int_state);
         // dbg!(hash_map.size_ctl(jvm));
         // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();

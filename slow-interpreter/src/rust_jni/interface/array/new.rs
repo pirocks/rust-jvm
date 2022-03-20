@@ -2,28 +2,29 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
-use crate::{check_initing_or_inited_class, check_loaded_class};
+use crate::{check_initing_or_inited_class, check_loaded_class, NewJavaValue};
 use crate::class_loading::assert_inited_or_initing_class;
 
 use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject, default_value, default_value_njv, JavaValue, Object};
-use crate::new_java_values::UnAllocatedObject;
+use crate::new_java_values::{NewJavaValueHandle, UnAllocatedObject};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    int_state.debug_print_stack_trace(jvm);
     let type_ = from_jclass(jvm, clazz).as_type(jvm);
     let res = new_array(env, len, type_);
-    let res_safe = match from_object(jvm, res) {
+    let res_safe = match from_object_new(jvm, res) {
         Some(x) => x,
-        None => return throw_npe(jvm, get_interpreter_state(env)),
+        None => return throw_npe(jvm, int_state),
     };
-    let array = res_safe.unwrap_array();
+    let array = res_safe.unwrap_array(jvm);
     for i in 0..array.len() {
-        todo!()
-        // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, init)));
+        array.set_i(i, NewJavaValueHandle::from_optional_object(from_object_new(jvm, init)).as_njv());
     }
     res
 }

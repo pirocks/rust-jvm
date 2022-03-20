@@ -653,7 +653,7 @@ impl CompressedInstructionInfo {
                 format!("{:?}", self)
             }
             CompressedInstructionInfo::multianewarray { .. } => {
-                todo!()
+                format!("{:?}", self)
             }
             CompressedInstructionInfo::new(a_type) => {
                 format!("new/{}", a_type.0.to_str(string_pool))

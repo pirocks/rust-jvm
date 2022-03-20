@@ -79,7 +79,7 @@ pub fn run_native_method<'gc_life, 'l, 'k>(
         .into_iter()
         .collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
-        int_state.debug_print_stack_trace(jvm);
+        // int_state.debug_print_stack_trace(jvm);
     }
     let parsed = method.desc();
     /*let mut args = vec![];

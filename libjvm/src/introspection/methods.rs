@@ -196,7 +196,6 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
-    dbg!(CPDType::Ref(rc.view().name()).jvm_representation(&jvm.string_pool));
     let bytes_vec = match rc.unwrap_class_class().class_view.annotations() {
         Some(x) => x,
         None => {
