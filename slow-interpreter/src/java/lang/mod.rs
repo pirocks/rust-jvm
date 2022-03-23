@@ -373,10 +373,8 @@ pub mod class {
             Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))
         }
 
-        pub fn set_name_(&self, name: JString<'gc_life>) {
-            let temp = self.normal_object.as_allocated_obj().to_gc_managed();
-            let normal_object = temp.unwrap_normal_object();
-            normal_object.set_var_top_level(FieldName::field_name(), name.java_value());
+        pub fn set_name_(&self, jvm: &'gc_life JVMState<'gc_life>, name: JString<'gc_life>) {
+            self.normal_object.as_allocated_obj().set_var_top_level(jvm, FieldName::field_name(), name.new_java_value())
         }
 
         pub fn object_gc_life(self, jvm: &JVMState<'gc_life>) -> AllocatedObject<'gc_life, 'gc_life> {

@@ -359,7 +359,7 @@ pub fn create_class_object<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_
     }?;
     if let Some(name) = name {
         if jvm.include_name_field.load(Ordering::SeqCst) {
-            class_object.set_name_(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.replace("/", ".").to_string()))?)
+            class_object.set_name_(jvm, JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.replace("/", ".").to_string()))?)
         }
     }
     Ok(class_object.object_gc_life(jvm))

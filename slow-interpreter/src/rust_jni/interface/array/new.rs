@@ -15,7 +15,6 @@ use crate::utils::throw_npe;
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
     let type_ = from_jclass(jvm, clazz).as_type(jvm);
     let res = new_array(env, len, type_);
     let res_safe = match from_object_new(jvm, res) {

@@ -1,3 +1,4 @@
+use classfile_parser::attribute_infos::{annotation_default_to_bytes, parameter_annotations_to_bytes, runtime_annotations_to_bytes};
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
@@ -117,6 +118,20 @@ impl MethodView<'_> {
 
     pub fn method_shape_id(&self, method_shapes: &MethodShapeIDs) -> MethodShapeID{
         method_shapes.lookup_method_shape_id(self.method_shape())
+    }
+
+    pub fn get_annotation_bytes(&self) -> Option<Vec<u8>>{
+        self.method_info().runtime_visible_annotations().map(|annotations|runtime_annotations_to_bytes(annotations.annotations.clone()))
+    }
+
+    pub fn get_parameter_annotation_bytes(&self) -> Option<Vec<u8>>{
+        self.method_info().parameter_annotations().map(|annotations|{
+            parameter_annotations_to_bytes(annotations.clone().parameter_annotations)
+        })
+    }
+
+    pub fn get_annotation_default_bytes(&self) -> Option<Vec<u8>>{
+        self.method_info().annotation_default().map(|annotations|annotation_default_to_bytes(annotations.clone()))
     }
 }
 

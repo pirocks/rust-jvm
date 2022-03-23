@@ -72,6 +72,15 @@ impl<'gc_life> MethodTable<'gc_life> {
         format!("{}/{}/{}", class_name, method_name, method_desc)
     }
 
+    pub fn lookup_method_string_no_desc(&self, method_id: MethodId, string_pool: &CompressedClassfileStringPool) -> String {
+        let (rc, method_i) = self.try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let method_name = method_view.name().0.to_str(string_pool);
+        let class_name = view.name().unwrap_name().0.to_str(string_pool);
+        format!("{}/{}", class_name, method_name)
+    }
+
     pub fn new() -> Self {
         Self { table: vec![], index: HashMap::new() }
     }

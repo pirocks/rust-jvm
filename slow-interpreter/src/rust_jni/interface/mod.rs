@@ -685,7 +685,6 @@ pub fn define_class_safe<'gc_life, 'l>(
     current_loader: LoaderName,
     class_view: ClassBackedView,
 ) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
-    int_state.debug_print_stack_trace(jvm);
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());

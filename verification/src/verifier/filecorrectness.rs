@@ -239,6 +239,7 @@ fn is_java_assignable_array_types(vf: &VerifierContext, left: CPDType, right: CP
 fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(vf, to.class_name.clone(), to.loader.clone())?;
     if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() })? {
+        //todo bug should check actually has interface
         return Result::Ok(());
     }
     is_java_sub_class_of(vf, from, to)

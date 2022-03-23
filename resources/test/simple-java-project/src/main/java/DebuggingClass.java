@@ -154,14 +154,18 @@
 //}
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 
 public class DebuggingClass{
-    public static void main(String[] args) {
-//        for (Annotation annotation : Deprecated.class.getAnnotations()) {
-//            System.out.println(annotation);
-//        }
-        final Method method = DebuggingClass.class.getDeclaredMethods()[0];
-        System.out.println(method.getDefaultValue());
+    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+
     }
+
+    static {
+        System.out.println("foo");
+    }
+
 }

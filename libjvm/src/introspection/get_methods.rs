@@ -70,7 +70,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_li
         object_array.push(method_owned.new_java_value());
     }
     /*object_array(jvm, int_state, object_array, method_class.view().type_())?*/
-    let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CPDType::Ref(CompressedParsedRefType::Class(CClassName::method()))));
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::Ref(CompressedParsedRefType::Class(CClassName::method())))).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
     UnAllocatedObjectArray{ whole_array_runtime_class, elems: object_array }));
     unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }

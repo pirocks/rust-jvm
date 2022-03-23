@@ -991,7 +991,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
-            eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             //todo need some mechanism for detecting recompile necessary
             //todo unify resolver and recompile_conditions
             let is_native = jvm.is_native_by_method_id(method_id);

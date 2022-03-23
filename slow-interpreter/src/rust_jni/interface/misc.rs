@@ -9,7 +9,7 @@ use by_address::ByAddress;
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CCString, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CCString, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
@@ -17,6 +17,7 @@ use verification::VerifierContext;
 
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
+use crate::instructions::special::{inherits_from_cpdtype, instance_of_exit_impl_impl};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -77,8 +78,21 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         None => return throw_npe(jvm, int_state),
     };
 
-    let sub_type = NewJavaValueHandle::Object(sub_not_null.into()).cast_class().unwrap().as_type(jvm);
-    let sup_type = NewJavaValueHandle::Object(sup_not_null.into()).cast_class().unwrap().as_type(jvm);
+    let sub_class = NewJavaValueHandle::Object(sub_not_null.into()).cast_class().unwrap();
+    let sub_type = sub_class.as_type(jvm);
+    let sup_class = NewJavaValueHandle::Object(sup_not_null.into()).cast_class().unwrap();
+    let sup_type = sup_class.as_type(jvm);
+    check_initing_or_inited_class(jvm,int_state,sup_type).unwrap();
+    check_initing_or_inited_class(jvm,int_state,sub_type).unwrap();
+    dbg!(sub_type.jvm_representation(&jvm.string_pool));
+    dbg!(sup_type.jvm_representation(&jvm.string_pool));
+    if let CPDType::Ref(CompressedParsedRefType::Class(sup_type)) = sup_type {
+        if let CPDType::Ref(CompressedParsedRefType::Class(sub_type)) = sub_type {
+            let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), &CPDType::Ref(CompressedParsedRefType::Class(sup_type)));
+            dbg!(instance_of);
+            return (instance_of) as jboolean
+        }
+    }
 
     let loader = &int_state.current_loader(jvm);
     let sub_vtype = sub_type.to_verification_type(*loader);
@@ -94,7 +108,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         verification_types: Default::default(),
         debug: false,
         perf_metrics: &jvm.perf_metrics,
-        permissive_types_workaround: false
+        permissive_types_workaround: false,
     };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
     res as jboolean
@@ -187,13 +201,13 @@ fn register_native_with_lib_java_loading<'gc_life>(jni_context: &NativeLibraries
     }
 }
 
-pub fn get_all_methods<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, WasException> {
+pub fn get_all_methods<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, WasException> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_methods_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, include_interface: bool) -> Result<(), WasException> {
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
@@ -222,13 +236,13 @@ fn get_all_methods_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     Ok(())
 }
 
-pub fn get_all_fields<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, WasException> {
+pub fn get_all_fields<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, WasException> {
     let mut res = vec![];
     get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_fields_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });

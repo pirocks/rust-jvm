@@ -72,7 +72,7 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 fn get_signature<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
     int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
-    method_view: &MethodView
+    method_view: &MethodView,
 ) -> Result<JString<'gc_life>, WasException> {
     Ok(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_view.desc_str().to_str(&jvm.string_pool)))?.intern(jvm, int_state)?)
 }
@@ -118,6 +118,7 @@ fn parameters_type_objects<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_
 }
 
 pub mod method {
+    use itertools::Itertools;
     use wtf8::Wtf8Buf;
 
     use classfile_view::view::ClassView;
@@ -186,10 +187,16 @@ pub mod method {
             //todo what does slot do?
             let slot = -1;
             let signature = get_signature(jvm, int_state, &method_view)?;
-            let empty_byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
-            let annotations = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc.clone());
-            let parameter_annotations = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc.clone());//todo fix this
-            let annotation_default = NewJavaValueHandle::Null;//todo fix this
+            let byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
+            let annotations =NewJavaValueHandle::from_optional_object(method_view.get_annotation_bytes().map(|param_annotations|{
+                JavaValue::byte_array(jvm,int_state,param_annotations).unwrap()
+            }));
+            let parameter_annotations = NewJavaValueHandle::from_optional_object(method_view.get_parameter_annotation_bytes().map(|param_annotations|{
+                JavaValue::byte_array(jvm,int_state,param_annotations).unwrap()
+            }));
+            let annotation_default = NewJavaValueHandle::from_optional_object(method_view.get_annotation_default_bytes().map(|default_annotation_bytes| {
+                JavaValue::byte_array(jvm, int_state, default_annotation_bytes).unwrap()
+            }));
             Ok(Method::new_method(jvm, int_state, clazz, name, parameter_types, return_type, exception_types, modifiers, slot, signature, annotations, parameter_annotations, annotation_default)?)
         }
 

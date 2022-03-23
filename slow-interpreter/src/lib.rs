@@ -12,6 +12,7 @@
 #![feature(generic_associated_types)]
 #![feature(never_type)]
 #![feature(box_patterns)]
+extern crate core;
 extern crate errno;
 extern crate libc;
 extern crate libloading;
@@ -20,7 +21,6 @@ extern crate nix;
 extern crate parking_lot;
 extern crate regex;
 extern crate va_list;
-extern crate core;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -28,6 +28,8 @@ use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use std::time::Duration;
 
+use itertools::Itertools;
+use libffi::high::arg;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -43,8 +45,9 @@ use crate::java::NewAsObjectOrJavaValue;
 use crate::java::util::properties::Properties;
 use crate::java_values::{ArrayObject, JavaValue};
 use crate::java_values::Object::Array;
+use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::NewJavaValue;
+use crate::new_java_values::{AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
@@ -92,7 +95,6 @@ pub mod known_type_to_address_mappings;
 pub mod verifier_frames;
 
 pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
-
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -105,10 +107,13 @@ pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_lif
     let main_thread = jvm.thread_state.get_main_thread();
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
-    let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, vec![todo!()/*JavaValue::Top*/; num_vars as usize]);
+    let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver { jvm, loader: main_loader }, main_method_id);
+    let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
+    let local_var_array = setup_program_args(&jvm, int_state, args);
+    initial_local_var_array[0] = local_var_array.new_java_value();
+    let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
     let mut main_frame_guard = int_state.push_frame(stack_entry);
-
-    setup_program_args(&jvm, int_state, args);
     jvm.include_name_field.store(true, Ordering::SeqCst);
     match run_function(&jvm, int_state, &mut main_frame_guard) {
         Ok(_) => {
@@ -125,15 +130,16 @@ pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_lif
     Result::Ok(())
 }
 
-fn setup_program_args<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) {
-    let mut arg_strings: Vec<JavaValue<'gc_life>> = vec![];
+fn setup_program_args<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) -> AllocatedObjectHandle<'gc_life> {
+    let mut arg_strings: Vec<NewJavaValueHandle<'gc_life>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle().to_jv());
+        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
     }
-    let arg_array = NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Array(ArrayObject::new_array(jvm, int_state, arg_strings, CPDType::Ref(CPRefType::Class(CClassName::string())), jvm.thread_state.new_monitor("arg array monitor".to_string())).expect("todo"))*/)*/);
-    let mut current_frame_mut = int_state.current_frame_mut();
-    let mut local_vars = current_frame_mut.local_vars_mut();
-    local_vars.set(0, arg_array);
+    let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
+    jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::string().into())).unwrap(),
+        elems,
+    }))
 }
 
 fn set_properties<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {

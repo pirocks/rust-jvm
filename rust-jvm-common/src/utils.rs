@@ -1,6 +1,6 @@
 use wtf8::Wtf8Buf;
 
-use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo};
+use crate::classfile::{ACC_STATIC, AnnotationDefault, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations};
 use crate::classfile::ACC_ABSTRACT;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -156,6 +156,33 @@ impl MethodInfo {
         for attr in self.attributes.iter() {
             if let AttributeType::Exceptions(exceptions) = &attr.attribute_type {
                 return Some(exceptions);
+            }
+        }
+        None
+    }
+
+    pub fn runtime_visible_annotations(&self) -> Option<& RuntimeVisibleAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleAnnotations(annotations) = &attr.attribute_type {
+                return Some(annotations);
+            }
+        }
+        None
+    }
+
+    pub fn annotation_default(&self) -> Option<&AnnotationDefault> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::AnnotationDefault(annotation) = &attr.attribute_type {
+                return Some(annotation);
+            }
+        }
+        None
+    }
+
+    pub fn parameter_annotations(&self) -> Option<&RuntimeVisibleParameterAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleParameterAnnotations(annotation) = &attr.attribute_type {
+                return Some(annotation);
             }
         }
         None

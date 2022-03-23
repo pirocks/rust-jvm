@@ -202,7 +202,6 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
             return null_mut()
         }
     };
-    // assert_eq!(bytes_vec.as_slice(),&[0, 2, 0, 34, 0, 2, 0, 35, 115, 0, 36, 0, 37, 115, 0, 38, 0, 39, 0, 1, 0, 40, 91, 0, 1, 115, 0, 36]);
     let java_bytes_vec = bytes_vec
         .into_iter()
         .map(|byte| NewJavaValue::Byte(byte as i8))

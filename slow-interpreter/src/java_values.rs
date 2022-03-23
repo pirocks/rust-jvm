@@ -786,6 +786,12 @@ impl<'gc_life> JavaValue<'gc_life> {
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
+    pub fn byte_array<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, bytes: Vec<u8>) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
+        let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
+        let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
+        Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
+    }
+
     fn new_object_impl(runtime_class: &Arc<RuntimeClass<'gc_life>>) -> ObjectFieldsAndClass<'gc_life, 'gc_life> {
         let fields = repeat_n(JavaValue::Top, runtime_class.unwrap_class_class().num_vars()).map(|jv| UnsafeCell::new(jv.to_native())).collect_vec();
         ObjectFieldsAndClass { fields: todo!(), class_pointer: runtime_class.clone() }

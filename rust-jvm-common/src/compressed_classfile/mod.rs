@@ -2,15 +2,15 @@ use std::cmp::Ordering;
 use std::iter;
 use std::num::NonZeroU8;
 use std::ops::Deref;
+
 #[allow(unreachable_code)]
 #[allow(dead_code)]
-
 use itertools::{Either, Itertools};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
 use crate::classfile::{AppendFrame, AttributeType, BootstrapMethods, ChopFrame, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, FullFrame, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, String_, UninitializedVariableInfo};
-use crate::classnames::class_name;
+use crate::classnames::{class_name, ClassName};
 use crate::compressed_classfile::code::{CInstructionInfo, CompressedAppendFrame, CompressedChopFrame, CompressedCode, CompressedExceptionTableElem, CompressedFullFrame, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
 use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
@@ -167,7 +167,7 @@ impl CompressedParsedRefType {
 
     pub fn recursively_unwrap_array_type(&self) -> NonArrayCompressedParsedDescriptorType {
         match self {
-            CompressedParsedRefType::Array { base_type, num_nested_arrs:_ } => *base_type,
+            CompressedParsedRefType::Array { base_type, num_nested_arrs: _ } => *base_type,
             CompressedParsedRefType::Class(_) => panic!(),
         }
     }
@@ -263,7 +263,7 @@ impl NonArrayCompressedParsedDescriptorType {
 }
 
 impl CompressedParsedDescriptorType {
-    pub fn to_non_array(&self) -> NonArrayCompressedParsedDescriptorType{
+    pub fn to_non_array(&self) -> NonArrayCompressedParsedDescriptorType {
         match self {
             CompressedParsedDescriptorType::BooleanType => NonArrayCompressedParsedDescriptorType::BooleanType,
             CompressedParsedDescriptorType::ByteType => NonArrayCompressedParsedDescriptorType::ByteType,
@@ -456,7 +456,7 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::VoidType => NonArrayCompressedParsedDescriptorType::VoidType,
             CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
                 CompressedParsedRefType::Array { base_type, num_nested_arrs } => {
-                    return Self::Ref(CompressedParsedRefType::Array { base_type, num_nested_arrs: NonZeroU8::new(num_nested_arrs.get() + 1).unwrap() })
+                    return Self::Ref(CompressedParsedRefType::Array { base_type, num_nested_arrs: NonZeroU8::new(num_nested_arrs.get() + 1).unwrap() });
                 }
                 CompressedParsedRefType::Class(class_name) => {
                     NonArrayCompressedParsedDescriptorType::Class(class_name)
@@ -484,7 +484,7 @@ impl CompressedParsedDescriptorType {
             PType::LongType => Self::LongType,
             PType::Ref(ref_) => Self::Ref(match ref_ {
                 ReferenceType::Class(class_name) => CompressedParsedRefType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string(), true))),
-                ReferenceType::Array(arr) => CPDType::array(Self::from_ptype(arr.deref(),pool)).unwrap_ref_type(),
+                ReferenceType::Array(arr) => CPDType::array(Self::from_ptype(arr.deref(), pool)).unwrap_ref_type(),
             }),
             PType::ShortType => Self::ShortType,
             PType::BooleanType => Self::BooleanType,
@@ -637,7 +637,7 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                             }
                         }
                         CompressedParsedRefType::Class(this_ccn) => match other {
-                            CompressedParsedRefType::Array{ .. } => {
+                            CompressedParsedRefType::Array { .. } => {
                                 Ordering::Less
                             }
                             CompressedParsedRefType::Class(other_ccn) => {
@@ -1146,7 +1146,12 @@ impl CompressedClassfile {
             ConstantKind::Double(Double { low_bytes, high_bytes }) => Either::Right(CompressedLdc2W::Double(f64::from_ne_bytes((((high_bytes as u64) << 32) | low_bytes as u64).to_ne_bytes()))),
             ConstantKind::Class(Class { name_index }) => {
                 let name = constant_pool[name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
-                let type_ = CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool);
+                let type_ = if name.starts_with("[") {
+                    CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool)
+                } else {
+                    CPDType::from_ptype(&PType::Ref(ReferenceType::Class(ClassName::Str(name))), pool)
+                };
+
                 Either::Left(CompressedLdcW::Class { type_ })
             }
             ConstantKind::String(String_ { string_index }) => {

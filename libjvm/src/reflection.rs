@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
-    assert_eq!(obj, std::ptr::null_mut()); //non-static methods not supported atm.
+    // assert_eq!(obj, std::ptr::null_mut()); //non-static methods not supported atm.
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
@@ -89,7 +89,12 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: j
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
     };
-    let mut res_args = vec![];
+    let invoke_virtual_obj = NewJavaValueHandle::from_optional_object(from_object_new(jvm,obj));
+    let mut res_args = if obj  == null_mut(){
+        vec![]
+    }else {
+        vec![invoke_virtual_obj.as_njv()]
+    };
     let collected_args_array = args.array_iterator().collect_vec();
     for (arg, type_) in collected_args_array.iter().zip(parsed_md.arg_types.iter()) {
         let arg : &NewJavaValueHandle<'gc_life> = arg;

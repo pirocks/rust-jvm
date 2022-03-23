@@ -238,7 +238,7 @@ pub fn invoke_virtual<'gc_life, 'l>(
 }
 
 pub fn virtual_method_lookup<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc_life>>) -> Result<(Arc<RuntimeClass<'gc_life>>, u16), WasException> {
-    let all_methods = get_all_methods(jvm, int_state, c.clone(), false)?;
+    let all_methods = get_all_methods(jvm, int_state, c.clone(), true)?;
     let (final_target_class, new_i) = all_methods
         .iter()
         .find(|(c, i)| {

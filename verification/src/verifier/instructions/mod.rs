@@ -112,13 +112,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                     merged_code_is_type_safe(env, rest, FrameResult::Regular(next_frame))
                 }
                 InstructionTypeSafe::AfterGoto(ag) => {
-                    if env.debug {
-                        dbg!("here 1");
-                    }
                     let _exception_stack_frame1 = instruction_satisfies_handlers(env, i.offset, &ag.exception_frame)?;
-                    if env.debug {
-                        dbg!("here 2");
-                    }
                     merged_code_is_type_safe(env, rest, FrameResult::AfterGoto)
                 }
             }

@@ -326,6 +326,17 @@ fn parse_runtime_parameter_annotations_impl(p: &mut dyn ParsingContext) -> Resul
     Ok(parameter_annotations)
 }
 
+pub fn parameter_annotations_to_bytes(param_annotations: Vec<Vec<Annotation>>) -> Vec<u8>{
+    let mut res = vec![];
+    let num_parameters = param_annotations.len() as u8;
+    res.push(num_parameters);
+    for annotations in param_annotations {
+        res.extend_from_slice(runtime_annotations_to_bytes(annotations).as_slice());
+    }
+    res
+}
+
+
 fn parse_runtime_visible_parameter_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let parameter_annotations = parse_runtime_parameter_annotations_impl(p)?;
     Ok(AttributeType::RuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations { parameter_annotations }))
@@ -412,6 +423,10 @@ fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfilePars
 fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let default_value = parse_element_value(p)?;
     Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
+}
+
+pub fn annotation_default_to_bytes(annotations: AnnotationDefault) -> Vec<u8>{
+    element_value_to_bytes(annotations.default_value)
 }
 
 fn parse_method_parameters(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {

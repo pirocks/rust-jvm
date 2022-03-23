@@ -79,7 +79,7 @@ impl JavaCompilerMethodAndFrameData {
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         Self {
-            should_trace_instructions: jvm.instruction_trace_options.should_trace(method_id),
+            should_trace_instructions: jvm.instruction_trace_options.should_trace(method_id, jvm),
             layout: YetAnotherLayoutImpl::new(frames, code),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
