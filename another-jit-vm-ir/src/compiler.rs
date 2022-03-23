@@ -106,6 +106,7 @@ pub enum IRInstr {
     LoadRBP { to: Register },
     WriteRBP { from: Register },
     FloatCompare { value1: FloatRegister, value2: FloatRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
+    DoubleCompare { value1: DoubleRegister, value2: DoubleRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
     BranchEqual { a: Register, b: Register, label: LabelName, size: Size },
     BranchNotEqual { a: Register, b: Register, label: LabelName, size: Size },
     BranchAGreaterB { a: Register, b: Register, label: LabelName, size: Size },
@@ -375,6 +376,9 @@ impl IRInstr {
             }
             IRInstr::ZeroExtend { .. } => {
                 "ZeroExtend".to_string()
+            }
+            IRInstr::DoubleCompare { .. } => {
+                "DoubleCompare".to_string()
             }
         }
     }

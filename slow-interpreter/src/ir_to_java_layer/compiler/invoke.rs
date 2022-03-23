@@ -330,10 +330,26 @@ pub fn invoke_interface(
                 },after_call_restart_point]))
         }
         Some((target_method_id, is_native)) => {
-            if is_native {
-                todo!()
-            } else {
+            Either::Left(if is_native {
+                let string_pool = &resolver.jvm.string_pool;
                 Either::Left(array_into_iter([
+                    restart_point,
+                    IRInstr::VMExit2 {
+                        exit_type: IRVMExitType::RunNativeSpecial {
+                            method_id: target_method_id,
+                            arg_start_frame_offset: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
+                            res_pointer_offset: if CompressedParsedDescriptorType::VoidType == descriptor.return_type {
+                                None
+                            } else {
+                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                            },
+                            num_args: num_args as u16,
+                        }
+                    },
+                    after_call_restart_point
+                ]))
+            } else {
+                Either::Right(array_into_iter([
                     restart_point,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeInterfaceResolve {
@@ -365,7 +381,7 @@ pub fn invoke_interface(
                         current_frame_size: method_frame_data.full_frame_size(),
                     }
                 ,after_call_restart_point]))
-            }
+            })
         }
     }
 }

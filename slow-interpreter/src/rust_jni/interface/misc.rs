@@ -84,12 +84,9 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_type = sup_class.as_type(jvm);
     check_initing_or_inited_class(jvm,int_state,sup_type).unwrap();
     check_initing_or_inited_class(jvm,int_state,sub_type).unwrap();
-    dbg!(sub_type.jvm_representation(&jvm.string_pool));
-    dbg!(sup_type.jvm_representation(&jvm.string_pool));
     if let CPDType::Ref(CompressedParsedRefType::Class(sup_type)) = sup_type {
         if let CPDType::Ref(CompressedParsedRefType::Class(sub_type)) = sub_type {
             let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), &CPDType::Ref(CompressedParsedRefType::Class(sup_type)));
-            dbg!(instance_of);
             return (instance_of) as jboolean
         }
     }
