@@ -29,3 +29,5 @@ by_address = "1"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 itertools = "0.10"
 wtf8 = "0.1"
+argparse = "0.2"
+early-startup = { path = "../early-startup" }

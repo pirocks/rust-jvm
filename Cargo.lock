@@ -671,10 +671,12 @@ dependencies = [
 name = "jvm"
 version = "0.1.0"
 dependencies = [
+ "argparse",
  "by_address",
  "classfile-parser",
  "classfile-view",
  "crossbeam",
+ "early-startup",
  "heapsize",
  "itertools",
  "jmm-bindings",
@@ -1322,24 +1324,13 @@ dependencies = [
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
- "argparse",
- "classfile-parser",
- "classfile-view",
  "classfile-writer",
- "crossbeam",
- "early-startup",
- "itertools",
- "jar-manipulation",
- "java5-verifier",
  "jvm",
  "jvmti-jni-bindings",
+ "libloading 0.6.5",
  "ntest",
- "rust-jvm-common",
- "sketch-jvm-version-of-utf8",
  "slow-interpreter",
  "tempdir",
- "type-safe-proc-macro-utils",
- "verification",
  "wtf8",
 ]
 

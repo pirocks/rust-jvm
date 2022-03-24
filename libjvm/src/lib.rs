@@ -93,3 +93,5 @@ unsafe extern "system" fn JVM_CopySwapMemory(env: *mut JNIEnv, srcObj: jobject, 
 unsafe extern "system" fn JVM_KnownToNotExist(env: *mut JNIEnv, loader: jobject, classname: *const ::std::os::raw::c_char) -> jboolean {
     unimplemented!()
 }
+
+pub mod real_main;

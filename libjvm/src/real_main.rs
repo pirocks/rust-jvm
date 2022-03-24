@@ -1,21 +1,10 @@
-#![feature(box_syntax)]
-extern crate argparse;
-extern crate classfile_parser;
-extern crate classfile_view;
-extern crate jar_manipulation;
-extern crate rust_jvm_common;
-extern crate slow_interpreter;
-extern crate verification;
-
 use std::ffi::OsString;
 use std::mem::transmute;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
-
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
-
 use early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
@@ -24,6 +13,11 @@ use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
+
+#[no_mangle]
+unsafe extern "system" fn rust_jvm_real_main(){
+    main_()
+}
 
 pub fn main_<'l>() {
     let mut verbose = false;
@@ -55,7 +49,7 @@ pub fn main_<'l>() {
         ap.refer(&mut properties).add_option(&["--properties"], List, "Set JVM Properties");
         ap.refer(&mut unittest_mode).add_option(&["--unittest-mode"], StoreTrue, "Enable Unittest mode. This causes the main class to be ignored");
         ap.refer(&mut store_generated_options).add_option(&["--store-anon-class"], StoreTrue, "Enables writing out of classes defined with Unsafe.defineClass");
-        ap.refer(&mut debug_print_exceptions).add_option(&["--debug-exceptions"], StoreTrue, "print excpetions even if caught");
+        ap.refer(&mut debug_print_exceptions).add_option(&["--debug-exceptions"], StoreTrue, "print exceptions even if caught");
         ap.refer(&mut assertions_enabled).add_option(&["--ea"], StoreTrue, "enable assertions");
         ap.parse_args_or_exit();
     }
