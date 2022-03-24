@@ -742,12 +742,16 @@ impl<'gc_life> JavaVMStateWrapperInner<'gc_life> {
 }
 
 pub fn dump_frame_contents<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>) {
-    let current_frame = int_state.current_frame();
-    dump_frame_contents_impl(jvm, current_frame)
+    unsafe {
+        if !IN_TO_STRING {
+            dump_frame_contents_impl(jvm, int_state)
+        }
+    }
 }
 
-pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, current_frame: StackEntryRef<'gc_life, '_>) {
-    if !current_frame.full_frame_available(jvm) {
+pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+    if !int_state.current_frame().full_frame_available(jvm) {
+        let current_frame = int_state.current_frame();
         let local_vars = current_frame.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
         unsafe {
@@ -769,22 +773,21 @@ pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, cur
         eprintln!();
         return;
     }
-    let local_var_types = current_frame.local_var_types(jvm);
-    let local_vars = current_frame.local_vars(jvm);
+    let local_var_types = int_state.current_frame().local_var_types(jvm);
     eprint!("Local Vars:");
     unsafe {
         for (i, local_var_type) in local_var_types.into_iter().enumerate() {
             match local_var_type.to_runtime_type() {
                 RuntimeType::TopType => {
-                    let jv = local_vars.raw_get(i as u16);
+                    let jv = int_state.current_frame().local_vars(jvm).raw_get(i as u16);
                     eprint!("#{}: Top: {:?}\t", i, jv as *const c_void)
                 }
                 _ => {
-                    let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
+                    let jv = int_state.current_frame().local_vars(jvm).get(i as u16, local_var_type.to_runtime_type());
                     if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
-                        display_obj(jvm, i, obj);
+                        display_obj(jvm, int_state, i, obj);
                     } else {
-                        let jv = local_vars.get(i as u16, local_var_type.to_runtime_type());
+                        let jv = int_state.current_frame().local_vars(jvm).get(i as u16, local_var_type.to_runtime_type());
                         eprint!("#{}: {:?}\t", i, jv.as_njv())
                     }
                 }
@@ -792,8 +795,7 @@ pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, cur
         }
     }
     eprintln!();
-    let operand_stack_types = current_frame.operand_stack(jvm).types();
-    let operand_stack = current_frame.operand_stack(jvm);
+    let operand_stack_types = int_state.current_frame().operand_stack(jvm).types();
     // current_frame.ir_stack_entry_debug_print();
     eprint!("Operand Stack:");
     unsafe {
@@ -803,11 +805,11 @@ pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, cur
                 /*let jv = operand_stack.raw_get(i as u16);
                 eprint!("#{}: Top: {:?}\t", i, jv.object)*/
             } else {
-                let jv = operand_stack.get(i as u16, operand_stack_type.clone());
+                let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type.clone());
                 if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
-                    display_obj(jvm, i, obj)
+                    display_obj(jvm,int_state, i, obj)
                 } else {
-                    let jv = operand_stack.get(i as u16, operand_stack_type);
+                    let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type);
                     eprint!("#{}: {:?}\t", i, jv.as_njv())
                 }
             }
@@ -816,49 +818,32 @@ pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, cur
     eprintln!()
 }
 
-fn display_obj<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i: usize, obj: AllocatedObjectHandle<'gc_life>) {
+static mut IN_TO_STRING: bool = false;
+
+fn display_obj<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, '_>, i: usize, obj: AllocatedObjectHandle<'gc_life>) {
     let obj_type = obj.as_allocated_obj().runtime_class(jvm).cpdtype();
-    if obj_type == CClassName::standard_charsets_cache().into() {
-        let ht = obj.duplicate_discouraged().cast_pre_hashed_map().ht(jvm);
-        if let Some(ht) = ht {
-            for (i, outer) in ht.into_iter().enumerate() {
-                match outer {
-                    None => eprintln!("#{}:None", i),
-                    Some(outer) => {
-                        eprint!("#{}:", i);
-                        for inner in outer {
-                            match inner {
-                                None => {
-                                    eprint!("None\t")
-                                }
-                                Some(obj) => {
-                                    display_obj(jvm, 0, obj)
-                                }
-                            }
-                        }
-                        eprintln!();
-                    }
+    unsafe {
+        if obj_type == CClassName::string().into() {
+            let ptr = obj.ptr;
+            let string = obj.cast_string();
+            eprint!("#{}: {:?}(String:{:?})\t", i, ptr, string.to_rust_string_better(jvm).unwrap_or("malformed_string".to_string()))
+        } else if obj_type == CClassName::class().into() {
+            let class_short_name = match jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(obj.as_allocated_obj().raw_ptr_usize())) {
+                Some(class) => {
+                    Some(class.cpdtype().jvm_representation(&jvm.string_pool))
                 }
-            }
-            return;
+                None => None,
+            };
+            let ptr = obj.ptr;
+            let ref_data = obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_reflectionData());
+            eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe { ref_data.as_njv().to_native().object })
+        } else {
+            let ptr = obj.ptr;
+            let save = IN_TO_STRING;
+            IN_TO_STRING = true;
+            eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), obj.cast_object().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
+            IN_TO_STRING = save;
         }
-    }
-    if obj_type == CClassName::string().into() {
-        let ptr = obj.ptr;
-        let string = obj.cast_string();
-        eprint!("#{}: {:?}(String:{:?})\t", i, ptr, string.to_rust_string_better(jvm).unwrap_or("malformed_string".to_string()))
-    } else if obj_type == CClassName::class().into() {
-        let class_short_name = match jvm.classes.read().unwrap().class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(obj.as_allocated_obj().raw_ptr_usize())) {
-            Some(class) => {
-                Some(class.cpdtype().jvm_representation(&jvm.string_pool))
-            }
-            None => None,
-        };
-        let ptr = obj.ptr;
-        let ref_data = obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_reflectionData());
-        eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe { ref_data.as_njv().to_native().object })
-    } else {
-        eprint!("#{}: {:?}({})\t", i, obj.ptr, obj_type.short_representation(&jvm.string_pool))
     }
 }
 

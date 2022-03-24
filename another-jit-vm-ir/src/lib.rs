@@ -774,6 +774,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         IRInstr::AddFloat { res, a } => {
             assembler.addss(res.to_xmm(), a.to_xmm()).unwrap();
         }
+        IRInstr::SubFloat { res, a } => {
+            assembler.subss(res.to_xmm(), a.to_xmm()).unwrap();
+        }
         IRInstr::BinaryBitOr { res, a, size } => {
             match size {
                 Size::Byte => assembler.or(res.to_native_8(), a.to_native_8()).unwrap(),

@@ -4,8 +4,8 @@ use std::iter::FromIterator;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;
-use crate::JVMState;
 
+use crate::JVMState;
 use crate::loading::Classpath;
 
 pub struct SharedLibraryPaths {
@@ -51,7 +51,7 @@ impl ExitTracingOptions {
 pub struct MethodToTrace {
     // method_name: String,
     // class_name: String,
-    combined: String
+    combined: String,
 }
 
 pub enum InstructionTraceOptions {
@@ -78,8 +78,8 @@ impl InstructionTraceOptions {
                 false
             }
             InstructionTraceOptions::TraceMethods(methods) => {
-                let method = jvm.method_table.read().unwrap().lookup_method_string_no_desc(method_id,&jvm.string_pool);
-                methods.contains(&MethodToTrace{ combined: method })
+                let method = jvm.method_table.read().unwrap().lookup_method_string_no_desc(method_id, &jvm.string_pool);
+                methods.contains(&MethodToTrace { combined: method })
             }
         }
     }
@@ -87,9 +87,29 @@ impl InstructionTraceOptions {
 
 impl JVMOptions {
     pub fn new(main_class_name: ClassName, classpath: Classpath, args: Vec<String>, libjava: OsString, libjdwp: OsString, enable_tracing: bool, enable_jvmti: bool, properties: Vec<String>, unittest_mode: bool, store_generated_classes: bool, debug_print_exceptions: bool, assertions_enabled: bool) -> Self {
-        let trace_set = HashSet::from_iter(vec![MethodToTrace {
-            combined: "org/apache/logging/log4j/core/config/XMLConfiguration/constructHierarchy".to_string(),
-        }].into_iter());
+        let trace_set = HashSet::from_iter(vec![
+           /* MethodToTrace {
+                combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
+            },*/
+            /*MethodToTrace {
+                combined: "com/google/common/collect/StandardTable/put".to_string(),
+            },*/
+          /* MethodToTrace {
+               combined: "java/util/AbstractMap/hashCode".to_string(),
+           },
+           MethodToTrace {
+               combined: "java/util/HashMap/hash".to_string(),
+           },
+           MethodToTrace {
+               combined: "java/util/LinkedHashMap/get".to_string(),
+           },*/
+            /*MethodToTrace {
+                combined: "beg/a".to_string(),
+            },*/
+           /*MethodToTrace {
+               combined: "beg/b".to_string(),
+           },*/
+        ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {
             main_class_name,
@@ -103,7 +123,7 @@ impl JVMOptions {
             store_generated_classes,
             debug_print_exceptions,
             assertions_enabled,
-            instruction_trace_options: InstructionTraceOptions::TraceNone,
+            instruction_trace_options: trace_options,
             exit_trace_options: ExitTracingOptions::TraceNone,
         }
     }

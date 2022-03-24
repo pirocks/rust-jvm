@@ -12,6 +12,7 @@ use std::thread::{LocalKey, ThreadId};
 use std::time::Duration;
 
 use crossbeam::thread::Scope;
+use lazy_static::lazy_static;
 use libc::{gettid, pid_t};
 use libloading::Symbol;
 use nix::unistd::Pid;
@@ -48,19 +49,25 @@ use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct FakeLocalKey<T: Default>{
+    cache: &'static LocalKey<Pid>,
     inner: Mutex<HashMap<Pid,Rc<T>>>
+}
+thread_local! {
+    static CACHE: Pid = nix::unistd::gettid();
 }
 
 impl <T: Clone + Default> FakeLocalKey<T> {
     pub fn new() -> Self {
         Self{
+            cache: &CACHE,
             inner: Default::default()
         }
     }
 
     pub fn get(&self) -> Rc<T>{
+
         //todo this is slow
-        let thread_id = nix::unistd::gettid();
+        let thread_id = self.cache.with(|pid|*pid);
         self.inner.lock().unwrap().entry(thread_id).or_default().clone()
     }
 }

@@ -82,6 +82,7 @@ pub enum IRInstr {
     Add { res: Register, a: Register, size: Size },
     IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register, size: Size },
     AddFloat { res: FloatRegister, a: FloatRegister },
+    SubFloat { res: FloatRegister, a: FloatRegister },
     AddDouble { res: DoubleRegister, a: DoubleRegister },
     Sub { res: Register, to_subtract: Register, size: Size },
     Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
@@ -379,6 +380,9 @@ impl IRInstr {
             }
             IRInstr::DoubleCompare { .. } => {
                 "DoubleCompare".to_string()
+            }
+            IRInstr::SubFloat { .. } => {
+                "SubFloat".to_string()
             }
         }
     }

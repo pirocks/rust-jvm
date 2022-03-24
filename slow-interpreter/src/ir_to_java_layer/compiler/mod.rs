@@ -41,7 +41,7 @@ use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp,
 use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
-use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dmul, fadd, fcmpg, fcmpl, fdiv, fmul};
+use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dmul, fadd, fcmpg, fcmpl, fdiv, fmul, fsub};
 use crate::ir_to_java_layer::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
@@ -590,6 +590,18 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::fstore(index) => {
                 this_function_ir.extend(fstore_n(method_frame_data, &current_instr_data, *index as u16))
             }
+            CompressedInstructionInfo::fstore_0 => {
+                this_function_ir.extend(fstore_n(method_frame_data, &current_instr_data, 0))
+            }
+            CompressedInstructionInfo::fstore_1 => {
+                this_function_ir.extend(fstore_n(method_frame_data, &current_instr_data, 1))
+            }
+            CompressedInstructionInfo::fstore_2 => {
+                this_function_ir.extend(fstore_n(method_frame_data, &current_instr_data, 2))
+            }
+            CompressedInstructionInfo::fstore_3 => {
+                this_function_ir.extend(fstore_n(method_frame_data, &current_instr_data, 3))
+            }
             CompressedInstructionInfo::iload_2 => {
                 this_function_ir.extend(iload_n(method_frame_data, &current_instr_data, 2))
             }
@@ -680,7 +692,6 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::lconst_1 => {
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, 1))
             }
-
             CompressedInstructionInfo::lload(index) => {
                 this_function_ir.extend(lload_n(method_frame_data, &current_instr_data, *index as u16))
             }
@@ -779,6 +790,9 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             }
             CompressedInstructionInfo::fadd => {
                 this_function_ir.extend(fadd(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::fsub => {
+                this_function_ir.extend(fsub(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::dadd => {
                 this_function_ir.extend(dadd(method_frame_data, &current_instr_data))

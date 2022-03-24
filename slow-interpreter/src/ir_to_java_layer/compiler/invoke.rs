@@ -330,7 +330,7 @@ pub fn invoke_interface(
                 },after_call_restart_point]))
         }
         Some((target_method_id, is_native)) => {
-            Either::Left(if is_native {
+            Either::Left(/*if is_native {
                 let string_pool = &resolver.jvm.string_pool;
                 Either::Left(array_into_iter([
                     restart_point,
@@ -348,8 +348,8 @@ pub fn invoke_interface(
                     },
                     after_call_restart_point
                 ]))
-            } else {
-                Either::Right(array_into_iter([
+            } else {*/
+                array_into_iter([
                     restart_point,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeInterfaceResolve {
@@ -380,8 +380,8 @@ pub fn invoke_interface(
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }
-                ,after_call_restart_point]))
-            })
+                ,after_call_restart_point])
+            /*}*/)
         }
     }
 }
