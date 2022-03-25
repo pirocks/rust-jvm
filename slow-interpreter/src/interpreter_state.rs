@@ -68,7 +68,7 @@ pub static CURRENT_INT_STATE_GUARD :RefCell<Option<*mut InterpreterStateGuard<'s
 
 #[must_use]
 pub struct OldInterpreterState{
-    old: Option<*mut InterpreterStateGuard<'static,'static>>
+    pub old: Option<*mut InterpreterStateGuard<'static,'static>>
 }
 
 impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {

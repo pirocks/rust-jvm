@@ -538,9 +538,8 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
                         lens.push(offsetted_ptr.cast::<i32>().read());
                     }
                 }
-                let mut current_value = NativeJavaValue { as_u64: u64::MAX };
                 assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
-                current_value = default_value(&elem_type.to_cpdtype()).as_njv().to_native();
+                let mut current_value = default_value(&elem_type.to_cpdtype()).as_njv().to_native();
                 //iterates from innermost to outermost
                 for (depth, len) in lens.into_iter().rev().enumerate() {
                     let rc = match NonZeroU8::new(depth as u8 + 1) {

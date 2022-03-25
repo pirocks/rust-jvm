@@ -594,9 +594,9 @@ impl From<libloading::Error> for LookupError {
 
 impl<'gc> LivePoolGetter for LivePoolGetterImpl<'gc> {
     fn elem_type(&self, idx: LiveObjectIndex) -> CPRefType {
-        let classes_guard = self.jvm.classes.read().unwrap();
-        let object = &classes_guard.anon_class_live_object_ldc_pool[idx.0];
-        JavaValue::Object(object.clone().to_gc_managed().into()).to_type().unwrap_ref_type().clone();
+        // let classes_guard = self.jvm.classes.read().unwrap();
+        // let object = &classes_guard.anon_class_live_object_ldc_pool[idx.0];
+        // JavaValue::Object(object.clone().to_gc_managed().into()).to_type().unwrap_ref_type().clone();
         todo!()
     }
 }

@@ -100,7 +100,6 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
     }
     let cif = Cif::new(args_type.into_iter(), Type::usize());
     let fn_ptr = CodePtr::from_fun(*raw);
-    int_state.register_interpreter_state_guard(jvm);
     unsafe { assert!(jvm.get_int_state().registered()); }
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
     let cif_res: *mut c_void = unsafe { cif.call(fn_ptr, c_args.as_slice()) };
@@ -125,11 +124,6 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
                     }
                 }
             })
-        }
-
-        _ => {
-            dbg!(md.return_type); //todo
-            panic!()
         }
     };
     unsafe {

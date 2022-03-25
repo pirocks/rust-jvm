@@ -216,7 +216,7 @@ impl<'gc> SafePoint<'gc> {
             todo!();
             let guard = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
-            let current_thread = todo!();///current_thread.interpreter_state.write().unwrap();
+            let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
 
             todo!();
             // int_state.int_state = todo!();//Some(transmute(current_thread));

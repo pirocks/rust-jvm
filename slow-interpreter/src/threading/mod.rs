@@ -117,7 +117,7 @@ impl<'gc> ThreadState<'gc> {
                     throw: None
                 }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
                 main_thread.notify_alive(jvm); //is this too early?
-                int_state.register_interpreter_state_guard(jvm);
+                let _old = int_state.register_interpreter_state_guard(jvm);
                 jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
                 ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
 
@@ -199,7 +199,7 @@ impl<'gc> ThreadState<'gc> {
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
         let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
-        int_state.register_interpreter_state_guard(jvm);
+        let _old = int_state.register_interpreter_state_guard(jvm);
         Self::debug_assertions(jvm,int_state);
         match run_function(&jvm, int_state, &mut init_frame_guard) {
             Ok(_) => {}
@@ -274,7 +274,7 @@ impl<'gc> ThreadState<'gc> {
             current_exited_pc: None,
             throw: None
         };
-        new_int_state.register_interpreter_state_guard(jvm);
+        let _old = new_int_state.register_interpreter_state_guard(jvm);
         unsafe {
             jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
             {
@@ -373,7 +373,8 @@ impl<'gc> ThreadState<'gc> {
         // let option: Option<RwLockWriteGuard<'_, InterpreterState>> = java_thread.interpreter_state.write().unwrap().into();
         let state = java_thread_clone.interpreter_state.lock().unwrap();
         let mut interpreter_state_guard: InterpreterStateGuard = InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state); // { int_state: , thread: &java_thread };
-        interpreter_state_guard.register_interpreter_state_guard(jvm);
+        let should_be_nothing = interpreter_state_guard.register_interpreter_state_guard(jvm);
+        assert!(should_be_nothing.old.is_none());
 
         if let Some(jvmti) = jvm.jvmti_state() {
             jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())

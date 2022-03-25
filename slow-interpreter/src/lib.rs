@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-#![allow(unused)]
+#![allow(unused_variables)]
+#![allow(unreachable_code)]
 #![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(box_syntax)]

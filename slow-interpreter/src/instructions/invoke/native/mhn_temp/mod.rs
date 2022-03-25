@@ -73,7 +73,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'gc, 'l>(jvm: &'gc J
     //seems to be where to start putting in array
     let skip = args[5].unwrap_int();
     //results arr
-    let mut results = args[6].unwrap_array_mut();
+    let /*mut*/ results = args[6].unwrap_array_mut();
 
     let rc = defc.as_runtime_class(jvm);
     let view = rc.view();

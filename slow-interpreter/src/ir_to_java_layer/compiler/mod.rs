@@ -445,12 +445,6 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::astore_0 => {
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 0))
             }
-            CompressedInstructionInfo::astore_1 => {
-                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 0))
-            }
-            CompressedInstructionInfo::astore_2 => {
-                this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 2))
-            }
             CompressedInstructionInfo::astore_3 => {
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, 3))
             }

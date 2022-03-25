@@ -1170,7 +1170,7 @@ pub struct NormalObject<'gc, 'l> {
 impl<'gc, 'l> NormalObject<'gc, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
-        /**unsafe {
+        /*unsafe {
                                                                                                                                                     /*self.objinfo.fields[*field_index].get().as_mut()*/
                                                                                                                                                 }.unwrap() = jv.to_native();*/
         todo!()
