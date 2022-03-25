@@ -17,7 +17,7 @@ use verification::VerifierContext;
 
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::instructions::special::{inherits_from_cpdtype, instance_of_exit_impl_impl};
+use crate::instructions::special::{inherits_from_cpdtype};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -25,7 +25,7 @@ use crate::java_values::{GcManagedObject};
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 

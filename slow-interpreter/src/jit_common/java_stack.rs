@@ -1,20 +1,13 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Debug;
-use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 
-use itertools::Itertools;
-use nix::sys::mman::{MapFlags, mmap, ProtFlags};
-
 use classfile_view::view::ptype_view::PTypeView;
-use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, StackframeMemoryLayout};
+use gc_memory_layout_common::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use jvmti_jni_bindings::jobject;
-use rust_jvm_common::MethodId;
 
-use crate::jit::state::NaiveStackframeLayout;
 use crate::jit_common::SavedRegisters;
-use crate::jvm_state::JVMState;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]

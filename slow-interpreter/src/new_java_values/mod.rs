@@ -1,19 +1,11 @@
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
-use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
 
-use iced_x86::CC_b::c;
-use iced_x86::CC_be::na;
-use iced_x86::code_asm::ch;
-use iced_x86::ConditionCode::p;
-use iced_x86::OpCodeOperandKind::al;
-use libc::c_void;
 
-use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -22,9 +14,8 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::{JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::{GcManagedObject, NativeJavaValue};
-use crate::jvm_state::Native;
 use crate::new_java_values::array_wrapper::ArrayWrapper;
-use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
+use crate::runtime_class::{FieldNumber, RuntimeClass};
 
 pub mod array_wrapper;
 

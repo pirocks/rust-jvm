@@ -1,15 +1,11 @@
-use iced_x86::CC_l::l;
-use iced_x86::code_asm::ptr;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::{BaseAddressAndMask, FramePointerOffset};
 use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::cpdtype_table::CPDTypeID;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::MethodResolver;
-use crate::jit::state::Labeler;
 
 pub fn checkcast(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, mut current_instr_data: CurrentInstructionCompilerData, cpdtype: &CPDType) -> impl Iterator<Item=IRInstr> {
     let frame_pointer_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);

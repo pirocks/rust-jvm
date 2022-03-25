@@ -1,7 +1,6 @@
 use std::ffi::{VaList, VaListImpl};
 
 use itertools::Itertools;
-use libffi::high::arg;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
@@ -14,13 +13,12 @@ use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::method_table::from_jmethod_id;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state};
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;

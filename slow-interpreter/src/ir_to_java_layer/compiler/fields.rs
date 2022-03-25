@@ -1,22 +1,18 @@
 use std::iter;
 use std::mem::size_of;
+use itertools::Either;
 
-use iced_x86::CC_be::na;
-use itertools::{Either, Itertools};
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::classfile::InstructionInfo::dup;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::class_loading::get_field_numbers;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, checkcast_impl};
-use crate::java::lang::reflect::field::Field;
+use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast_impl};
 use crate::jit::MethodResolver;
 use crate::runtime_class::{FieldNumber, RuntimeClassClass};
 

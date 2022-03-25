@@ -1,19 +1,12 @@
-use std::sync::Arc;
-
-use iced_x86::CC_b::c;
-use wtf8::Wtf8Buf;
-
 use another_jit_vm::{FloatRegister, Register};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::loading::LoaderName;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
-use crate::runtime_class::RuntimeClass;
 
 pub fn ldc_string<'vm_life>(resolver: &MethodResolver<'vm_life>,
                             method_frame_data: &JavaCompilerMethodAndFrameData,

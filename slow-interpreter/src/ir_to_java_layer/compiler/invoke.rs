@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use std::mem::size_of;
 
 use itertools::Either;
@@ -6,18 +5,15 @@ use itertools::Either;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
-use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, InvokeVirtualResolve, IRVMExitType};
 use gc_memory_layout_common::{FramePointerOffset};
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::{ByteCodeIndex, MethodId};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
 
 pub fn invokespecial<'vm_life>(

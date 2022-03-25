@@ -1,13 +1,10 @@
-use std::sync::Arc;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-use rust_jvm_common::loading::LoaderName;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
-use crate::runtime_class::RuntimeClass;
 
 pub fn putstatic<'vm_life>(
     resolver: &MethodResolver<'vm_life>,

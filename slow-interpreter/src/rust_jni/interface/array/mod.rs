@@ -1,15 +1,13 @@
-use std::ops::Deref;
 use std::os::raw::c_void;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
 
-use crate::java_values::{JavaValue, Object};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
-use crate::utils::{throw_illegal_arg, throw_npe};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object_new};
+use crate::utils::{throw_npe};
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);

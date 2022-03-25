@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
-use libc::c_void;
 use gc_memory_layout_common::BaseAddressAndMask;
 use rust_jvm_common::compressed_classfile::CPDType;
 

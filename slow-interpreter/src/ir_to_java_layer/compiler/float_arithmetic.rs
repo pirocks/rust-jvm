@@ -1,6 +1,5 @@
 use another_jit_vm::{DoubleRegister, FloatRegister, Register};
 use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, Size};
-use another_jit_vm_ir::compiler::IRInstr::DoubleCompare;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn fcmpg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {

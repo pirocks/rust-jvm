@@ -10,7 +10,7 @@ use rust_jvm_common::method_shape::MethodShape;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::{default_value, JavaValue, NativeJavaValue};
+use crate::java_values::{default_value, NativeJavaValue};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::NewJavaValueHandle;

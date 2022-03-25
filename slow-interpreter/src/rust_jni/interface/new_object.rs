@@ -8,7 +8,7 @@ use crate::interpreter_util::new_object;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
-use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::interface::{push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut args: VaList) -> jobject {

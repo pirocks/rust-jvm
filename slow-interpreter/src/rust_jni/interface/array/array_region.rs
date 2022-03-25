@@ -2,7 +2,6 @@ use num::NumCast;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
 
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;

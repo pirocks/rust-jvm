@@ -1,9 +1,8 @@
 
 use rust_jvm_common::compressed_classfile::code::{CInstruction,};
-use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::java_values::NativeJavaValue;
 
 #[derive(Debug, Clone)]

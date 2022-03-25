@@ -1,36 +1,19 @@
-use std::collections::{HashMap, HashSet};
-use std::ffi::c_void;
-use std::intrinsics::offset;
-use std::iter;
+use std::collections::{HashMap};
 use std::mem::size_of;
-use std::sync::{Arc, RwLock};
-use std::sync::Mutex;
-use std::vec::IntoIter;
 
-use iced_x86::CC_be::na;
 use itertools::{Either, Itertools};
-use libc::input_absinfo;
 
-use another_jit_vm::{FloatRegister, MMRegister, Register};
-use another_jit_vm_ir::compiler::{FloatCompareMode, IRCallTarget, IRInstr, IRLabel, LabelName, RestartPointGenerator, RestartPointID, Size};
-use another_jit_vm_ir::compiler::IRInstr::{IRCall, VMExit2};
+use another_jit_vm::{Register};
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::IRMethodID;
-use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, IRVMExitType};
-use classfile_view::view::HasAccessFlags;
+use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use gc_memory_layout_common::FramePointerOffset;
-use jvmti_jni_bindings::{jlong, jvalue};
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::{Atype, Code, IInc, LookupSwitch, TableSwitch};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch};
+use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::names::MethodName;
-use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::vtype::VType;
-use verification::verifier::codecorrectness::method_is_type_safe;
-use verification::verifier::Frame;
 
-use crate::instructions::invoke::native::mhn_temp::init;
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, multianewarray, new, newarray};
 use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
 use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
@@ -53,13 +36,9 @@ use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
 use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
-use crate::java::lang::byte::Byte;
-use crate::java_values::NativeJavaValue;
 use crate::jit::MethodResolver;
-use crate::jit::state::{Labeler, NaiveStackframeLayout};
+use crate::jit::state::{Labeler};
 use crate::JVMState;
-use crate::runtime_class::RuntimeClass;
-use crate::stack_entry::FrameView;
 use crate::verifier_frames::SunkVerifierFrames;
 
 // all metadata needed to compile to ir, excluding resolver stuff

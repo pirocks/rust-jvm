@@ -1,6 +1,5 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 

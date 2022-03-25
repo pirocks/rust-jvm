@@ -5,10 +5,9 @@ use std::sync::Arc;
 
 use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{AllocatedObjectType, AllocatedTypeID};
+use gc_memory_layout_common::{AllocatedTypeID};
 use rust_jvm_common::{InheritanceMethodID, MethodId};
 use rust_jvm_common::loading::LoaderName;
-use threads::signal::kill;
 
 use crate::class_loading::assert_loaded_class;
 use crate::jit::state::runtime_class_to_allocated_object_type;

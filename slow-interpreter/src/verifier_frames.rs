@@ -1,5 +1,4 @@
 use java5_verifier::{InferredFrame, SimplifiedVType};
-use rust_jvm_common::classfile::InstructionInfo::fadd;
 use rust_jvm_common::vtype::VType;
 use verification::verifier::Frame;
 

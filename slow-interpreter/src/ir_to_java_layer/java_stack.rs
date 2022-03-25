@@ -1,15 +1,10 @@
-use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::{NonNull, null_mut};
-
-use iced_x86::CC_be::na;
+use std::ptr::{NonNull};
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use another_jit_vm_ir::IRMethodID;
 use gc_memory_layout_common::FramePointerOffset;
-use jvmti_jni_bindings::jobject;
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -51,7 +46,7 @@ impl OpaqueFrameIdOrMethodID {
                 -((opaque_id.0 + 1) as i64)
             }
             OpaqueFrameIdOrMethodID::Method { method_id } => {
-                (*method_id as i64)
+                *method_id as i64
             }
         }
     }

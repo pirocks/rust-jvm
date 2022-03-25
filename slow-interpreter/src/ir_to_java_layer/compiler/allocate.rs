@@ -1,17 +1,14 @@
 use std::num::NonZeroU8;
-use iced_x86::CC_b::c;
 use itertools::Either;
-use libc::exit;
 
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::classfile::Atype;
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
-use crate::jit::state::runtime_class_to_allocated_object_type;
 
 pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
                      method_frame_data: &JavaCompilerMethodAndFrameData,

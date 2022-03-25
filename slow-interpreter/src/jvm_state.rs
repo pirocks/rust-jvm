@@ -43,7 +43,7 @@ use crate::ir_to_java_layer::compiler::{JavaCompilerMethodAndFrameData, Recompil
 use crate::ir_to_java_layer::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
-use crate::java_values::{ByAddressAllocatedObject, default_value, GC, GcManagedObject, JavaValue, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
 use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::known_type_to_address_mappings::KnownAddresses;

@@ -1,8 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 
-use jvmti_jni_bindings::method_size_info;
 use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;

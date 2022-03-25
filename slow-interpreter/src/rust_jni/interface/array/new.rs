@@ -1,15 +1,12 @@
-use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
-use crate::{check_initing_or_inited_class, check_loaded_class, NewJavaValue};
-use crate::class_loading::assert_inited_or_initing_class;
+use crate::{check_initing_or_inited_class};
 
-use crate::interpreter::WasException;
-use crate::java_values::{ArrayObject, default_value, default_value_njv, JavaValue, Object};
+use crate::java_values::{default_value_njv};
 use crate::new_java_values::{NewJavaValueHandle, UnAllocatedObject};
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {

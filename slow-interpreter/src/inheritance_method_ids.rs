@@ -2,11 +2,9 @@ use std::collections::{HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
 
-use itertools::Itertools;
 
-use rust_jvm_common::{InheritanceMethodID, MethodI, MethodId};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor};
+use rust_jvm_common::{InheritanceMethodID, MethodId};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::LoaderName;
 

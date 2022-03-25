@@ -1,74 +1,46 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::Hash;
-use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::num::NonZeroU8;
-use std::ops::Deref;
-use std::ptr::{NonNull, null_mut};
+use std::ptr::{NonNull};
 use std::sync::{Arc, Mutex, RwLock};
-use std::thread::current;
 
-use bimap::BiHashMap;
-use iced_x86::CC_b::c;
-use iced_x86::CC_be::na;
-use iced_x86::CC_g::g;
-use iced_x86::CC_le::le;
-use iced_x86::CC_np::po;
-use iced_x86::ConditionCode::{o, s};
-use iced_x86::CpuidFeature::UDBG;
-use iced_x86::OpCodeOperandKind::al;
-use itertools::{all, Itertools};
-use libc::{memcpy, memset, read};
-use metered::Enter;
-use nix::sys::personality::get;
+use itertools::{Itertools};
+use libc::{memset};
 
-use another_jit_vm::{Method, VMExitAction};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{InvokeVirtualResolve, IRVMExitType, RuntimeVMExitInput, VMExitTypeWithArgs};
-use gc_memory_layout_common::{AllocatedObjectType, BaseAddressAndMask};
+use gc_memory_layout_common::{AllocatedObjectType};
 use jvmti_jni_bindings::{jint, jlong};
-use perf_metrics::VMExitGuard;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
-use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedExceptionTableElem, CompressedInstruction, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::code::{CompressedExceptionTableElem};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
-use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
-use rust_jvm_common::vtype::VType;
-use verification::verifier::filecorrectness::is_bootstrap_loader;
+use rust_jvm_common::runtime_type::{RuntimeType};
 
-use crate::{check_initing_or_inited_class, check_loaded_class_force_loader, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
+use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
+use crate::class_loading::{assert_inited_or_initing_class};
 use crate::inheritance_vtable::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::instructions::fields::get_static_impl;
-use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::virtual_method_lookup;
-use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl, instance_of_impl, invoke_instanceof};
-use crate::interpreter::FrameToRunOn;
-use crate::interpreter_state::FramePushGuard;
-use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData, RecompileConditions, YetAnotherLayoutImpl};
+use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
+use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::instruction_correctness_assertions::AssertionState;
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack};
+use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID};
 use crate::java::lang::class::JClass;
-use crate::java::lang::int::Int;
 use crate::java::NewAsObjectOrJavaValue;
-use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, NativeJavaValue, StackNativeJavaValue};
-use crate::jit::{MethodResolver, ToIR};
-use crate::jit::state::{Labeler, NaiveStackframeLayout, runtime_class_to_allocated_object_type};
-use crate::jit_common::java_stack::JavaStack;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-use crate::runtime_class::RuntimeClass;
-use crate::stack_entry::{StackEntryMut, StackEntryRef};
-use crate::threading::safepoints::Monitor2;
-use crate::utils::{lookup_method_parsed, run_static_or_virtual};
+use crate::java_values::{ByAddressAllocatedObject, default_value, NativeJavaValue};
+use crate::jit::{MethodResolver};
+use crate::jit::state::{Labeler, runtime_class_to_allocated_object_type};
+use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
+use crate::utils::{lookup_method_parsed};
 
 pub mod compiler;
 pub mod java_stack;
@@ -1046,7 +1018,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     ir_method_id,
                     method_id,
                     new_frame_size: java_frame_data.full_frame_size(),
-                })*/;
+                })*/
             drop(write_guard);
         }
     }

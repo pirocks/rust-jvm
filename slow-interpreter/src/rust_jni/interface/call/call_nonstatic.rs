@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, j
 
 use crate::interpreter::WasException;
 use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::get_interpreter_state;
 
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {

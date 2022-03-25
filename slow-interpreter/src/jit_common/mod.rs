@@ -1,5 +1,3 @@
-#![feature(box_syntax)]
-
 use std::ffi::c_void;
 use gc_memory_layout_common::{FramePointerOffset, RegionData};
 
