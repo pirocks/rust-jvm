@@ -219,7 +219,7 @@ impl<'gc_life> Classes<'gc_life> {
     }
 
     pub fn lookup_or_add_classloader(&mut self, obj: AllocatedObject<'gc_life, 'gc_life>) -> LoaderName {
-        let mut loaders_guard = &mut self.class_loaders;
+        let loaders_guard = &mut self.class_loaders;
         let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject::Owned(obj.clone()));
         LoaderName::UserDefinedLoader(match loader_index_lookup {
             Some(x) => *x,
@@ -394,7 +394,7 @@ impl<'gc_life> JVMState<'gc_life> {
         const MAX_LOCAL_VARS: i32 = 100;
         let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
-        let mut fields_map_owned = (0..recursive_num_fields).map(|i| {
+        let fields_map_owned = (0..recursive_num_fields).map(|i| {
             let field_number = FieldNumber(i as u32);
             let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
             let default_jv = default_value(&cpd_type);

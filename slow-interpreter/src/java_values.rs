@@ -1,4 +1,4 @@
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::{UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
@@ -6,26 +6,17 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
-use std::ptr::{NonNull, null, null_mut, slice_from_raw_parts};
+use std::ptr::{NonNull, null, null_mut};
 use std::slice;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread::LocalKey;
 
-use iced_x86::CC_be::na;
-use iced_x86::CC_e::e;
-use iced_x86::CC_le::le;
-use iced_x86::OpCodeOperandKind::al;
 use itertools::{Itertools, repeat_n};
-use lazy_static::lazy_static;
-use num_traits::one;
-use parking_lot::OnceState::New;
 
 use add_only_static_vec::AddOnlyVec;
-use early_startup::Regions;
 use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -37,8 +28,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
-use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
-use crate::rust_jni::native_util::from_object;
+use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc_life> {
@@ -91,7 +81,7 @@ impl<'gc_life> GC<'gc_life> {
             }//todo loader name nonsense
             UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
         };
-        let mut memory_region = guard.find_or_new_region_for(allocated_object_type);
+        let memory_region = guard.find_or_new_region_for(allocated_object_type);
         let allocated = memory_region.get_allocation();
         let allocated_size = memory_region.region_elem_size;
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
@@ -146,137 +136,7 @@ impl<'gc_life> GC<'gc_life> {
         // }
     }
 
-    fn gc_recurse(obj: NonNull<c_void>, visited: &mut HashSet<NonNull<c_void>>) {
-        if visited.contains(&obj) {
-            return;
-        }
-        unsafe {
-            todo!()
-            /*if obj.as_ptr() == transmute(0xDEADDEADDEADDEADusize) {
-                //todo need better handling of top, but is fine for now
-                return;
-            }*/
-        }
-        visited.insert(obj);
-        match todo!()/*unsafe { obj.as_ref() }*/ {
-            Object::Array(arr) => {
-                if let CPDType::Ref(_) = arr.elem_type {
-                    todo!()
-                    /*for elem in unsafe { todo!()/*arr.elems.get().as_ref()*/ }.unwrap() {
-                        unsafe {
-                            Self::gc_recurse(match NonNull::new(todo!()) {
-                                None => continue,
-                                Some(ptr) => ptr
-                            }, visited);
-                        }
-                    }*/
-                }
-            }
-            Object::Object(obj) => {
-                Self::gc_recurse_super(todo!()/*obj*/, obj.objinfo.class_pointer.unwrap_class_class(), visited)
-            }
-        }
-    }
 
-    fn gc_recurse_super<'l>(obj: &NormalObject<'gc_life, 'l>, class_class: &RuntimeClassClass, visited: &mut HashSet<NonNull<c_void>>) {
-        for (_name, (index, rtype)) in class_class.field_numbers.iter() {
-            if let CPDType::Ref(_) = rtype {
-                Self::gc_recurse(
-                    match NonNull::new(todo!() /*unsafe { obj.objinfo.fields[*index].get().as_ref().unwrap().object }*/) {
-                        None => continue,
-                        Some(ptr) => ptr,
-                    },
-                    visited,
-                )
-            }
-        }
-        if let Some(parent) = &class_class.parent {
-            Self::gc_recurse_super(obj, parent.unwrap_class_class(), visited)
-        }
-    }
-
-    fn gc_with_roots(&self, roots: HashSet<NonNull<c_void>>) {
-        let mut visited = HashSet::new();
-        for root in roots.iter() {
-            Self::gc_recurse(*root, &mut visited);
-        }
-        let all_objs = self.all_allocated_object.read().unwrap();
-        let to_frees = all_objs.difference(&visited).cloned().collect_vec();
-        for to_free in to_frees.iter() {
-            // eprintln!("Freeing:{:?}", to_free.as_ptr());
-            drop(unsafe { Box::from_raw(to_free.as_ptr()) })
-        }
-        drop(all_objs);
-        let mut guard = self.all_allocated_object.write().unwrap();
-        for to_free in to_frees {
-            guard.remove(&to_free);
-        }
-    }
-
-    pub fn gc_jvm(&self, jvm: &'gc_life JVMState<'gc_life>) {
-        todo!()
-        /*if !jvm.vm_live() {
-            return;
-        }
-        let interpreter_states = jvm
-            .thread_state
-            .all_java_threads
-            .read()
-            .unwrap()
-            .values()
-            .map(|jt| {
-                unsafe {
-                    jt.gc_suspend();
-                }
-                todo!()
-                /*let guard = InterpreterStateGuard {
-                    int_state: Some(jt.interpreter_state.write().unwrap()),
-                    thread: jt.clone(),
-                    registered: false,
-                };
-                (guard.cloned_stack_snapshot(jvm), guard.throw())*/
-            })
-            .collect_vec();
-        let mut roots = HashSet::new();
-        unsafe {
-            // dbg!(interpreter_states.len());
-            for (stack, throw) in interpreter_states {
-                // dbg!(stack.len());
-                /*if let Some(throw) = throw {
-                    roots.insert(throw.raw_ptr);
-                }*/
-                todo!();
-                for stack_entry in stack {
-                    // dbg!(stack_entry.operand_stack.len());
-                    // dbg!(stack_entry.local_vars().len());
-                    for local_var in stack_entry.local_vars().iter().cloned().chain(stack_entry.operand_stack().iter().cloned()).chain(stack_entry.native_local_refs.iter().flat_map(|hashet| hashet.iter().map(|raw| JavaValue::Object(from_object(jvm, *raw))))) {
-                        if let JavaValue::Object(Some(gc_managed)) = local_var {
-                            // dbg!(gc_managed.raw_ptr);
-                            roots.insert(gc_managed.raw_ptr);
-                        }
-                    }
-                }
-            }
-        }
-        for (root, _) in self.vm_temp_owned_roots.read().unwrap().iter() {
-            roots.insert(todo!() /*root.clone()*/);
-        }
-        let classes_guard = jvm.classes.read().unwrap();
-        for root in jvm
-            .string_internment
-            .read()
-            .unwrap()
-            .strings
-            .values()
-            .cloned()
-            .chain(jvm.thread_state.system_thread_group.read().unwrap().as_ref().map(|thread_group| thread_group.clone().object()).iter().cloned())
-            .chain(jvm.thread_state.all_java_threads.read().unwrap().values().map(|jt| jt.thread_object().object()))
-            .chain(classes_guard.classes_gc_roots())
-        {
-            roots.insert(root.raw_ptr);
-        }
-        self.gc_with_roots(todo!() /*roots*/)*/
-    }
 
     pub fn new(regions: early_startup::Regions) -> Self {
         Self {
@@ -811,17 +671,17 @@ impl<'gc_life> JavaValue<'gc_life> {
             .into()
     }
 
-    pub fn new_vec<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: NewJavaValue<'gc_life,'_>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
-        let mut buf: Vec<NewJavaValue<'gc_life,'_>> = Vec::with_capacity(len);
+    pub fn new_vec<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, len: usize, val: NewJavaValue<'gc_life, '_>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc_life>, WasException> {
+        let mut buf: Vec<NewJavaValue<'gc_life, '_>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
         }
-        Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state,CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
+        Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<NewJavaValue<'gc_life,'_>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
+    pub fn new_vec_from_vec(jvm: &'gc_life JVMState<'gc_life>, vals: Vec<NewJavaValue<'gc_life, '_>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc_life> {
         let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(elem_type));
-        jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems: vals })/*Object::Array(ArrayObject {
+        jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: vals })/*Object::Array(ArrayObject {
             whole_array_runtime_class: todo!(),
             loader: todo!(),
             len: todo!(),
@@ -1296,19 +1156,6 @@ impl<'gc_life> StackNativeJavaValue<'gc_life> {
     }
 }
 
-pub mod native_objects {
-    use std::collections::HashMap;
-    use std::os::raw::c_void;
-    use std::ptr::NonNull;
-    use std::sync::Arc;
-
-    use crate::threading::safepoints::Monitor2;
-
-    pub struct ObjectMetaDataAndMonitors {
-        monitors: HashMap<NonNull<c_void>, Arc<Monitor2>>,
-    }
-}
-
 pub struct ObjectFieldsAndClass<'gc_life, 'l> {
     //ordered by alphabetical and super first
     pub fields: RwLock<&'l mut [NativeJavaValue<'gc_life>]>,
@@ -1324,8 +1171,8 @@ impl<'gc_life, 'l> NormalObject<'gc_life, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc_life>) {
         let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /**unsafe {
-                                                                                                                                            /*self.objinfo.fields[*field_index].get().as_mut()*/
-                                                                                                                                        }.unwrap() = jv.to_native();*/
+                                                                                                                                                    /*self.objinfo.fields[*field_index].get().as_mut()*/
+                                                                                                                                                }.unwrap() = jv.to_native();*/
         todo!()
     }
 

@@ -1,5 +1,4 @@
 pub mod protection_domain {
-    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::NewAsObjectOrJavaValue;
 

@@ -49,7 +49,6 @@ pub mod constant_pool {
     use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 

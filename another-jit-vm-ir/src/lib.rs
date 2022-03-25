@@ -502,31 +502,15 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
                 assert_ne!(temp_register_4.to_native_64(), rax);
                 assembler.mov(rax, return_register.to_native_64()).unwrap();
             }
-            //rsp is now equal is to prev rbp qword, so that we can pop the previous rip in ret
-            // assembler.mov(temp_register_1.to_native_64(), rsp).unwrap();
-            // assembler.sub(temp_register_1.to_native_64(), rbp).unwrap();
-            // assembler.mov(temp_register_2.to_native_64(), *frame_size as u64).unwrap();
-            // assembler.cmp(temp_register_1.to_native_64(), temp_register_2.to_native_64()).unwrap();
-            // let mut skip_assert = assembler.create_label();
-            // assembler.jne(skip_assert).unwrap();
-            //
-            // assembler.int3().unwrap();
-            // assembler.mov(temp_register_2.to_native_64(), 0u64).unwrap();
-            // assembler.mov(temp_register_2.to_native_64(), qword_ptr(temp_register_2.to_native_64())).unwrap();
-
-            // assembler.set_label(&mut skip_assert).unwrap();
             //load prev frame pointer
             assembler.mov(temp_register_1.to_native_64(), rbp - FRAME_HEADER_PREV_RIP_OFFSET).unwrap();
             assembler.mov(rbp, rbp - FRAME_HEADER_PREV_RBP_OFFSET).unwrap();
             assembler.add(rsp, *frame_size as i32).unwrap();
             assembler.jmp(temp_register_1.to_native_64()).unwrap();
-            // todo!("{:?}",frame_size)
         }
         IRInstr::VMExit2 { exit_type } => {
             gen_vm_exit(assembler, exit_type);
         }
-        IRInstr::GrowStack { .. } => todo!(),
-        IRInstr::LoadSP { .. } => todo!(),
         IRInstr::NOP => {
             assembler.nop().unwrap();
         }
@@ -536,14 +520,6 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             assembler.nop().unwrap();
             assembler.set_label(code_label).unwrap();
         }
-        IRInstr::IRNewFrame {
-            current_frame_size: _,
-            temp_register: _,
-            return_to_rip: _
-        } => {
-            todo!()
-        }
-        // IRInstr::VMExit { .. } => panic!("legacy"),
         IRInstr::IRCall {
             temp_register_1,
             temp_register_2,

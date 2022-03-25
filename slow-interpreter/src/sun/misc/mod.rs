@@ -51,7 +51,7 @@ pub mod launcher {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;

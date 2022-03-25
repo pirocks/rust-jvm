@@ -115,18 +115,9 @@ pub enum IRInstr {
     BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
     BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
-    // VMExit { before_exit_label: LabelName, after_exit_label: Option<LabelName>, exit_type: VMExitTypeWithArgs },
     RestartPoint(RestartPointID),
     VMExit2 { exit_type: IRVMExitType },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
-    GrowStack { amount: usize },
-    LoadSP { to: Register },
-    // WithAssembler { function: Box<dyn FnOnce(&mut CodeAssembler) -> ()> },
-    IRNewFrame {
-        current_frame_size: usize,
-        temp_register: Register,
-        return_to_rip: Register,
-    },
     IRCall {
         temp_register_1: Register,
         temp_register_2: Register,
@@ -263,15 +254,6 @@ impl IRInstr {
             }
             IRInstr::NPECheck { .. } => {
                 "NPECheck".to_string()
-            }
-            IRInstr::GrowStack { .. } => {
-                "GrowStack".to_string()
-            }
-            IRInstr::LoadSP { .. } => {
-                "LoadSP".to_string()
-            }
-            IRInstr::IRNewFrame { .. } => {
-                "IRNewFrame".to_string()
             }
             IRInstr::IRCall { .. } => {
                 "IRCall".to_string()

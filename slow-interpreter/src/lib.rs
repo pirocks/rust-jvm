@@ -1,5 +1,5 @@
-#![allow(dead_code)]
-#![allow(unused)]
+// #![allow(dead_code)]
+// #![allow(unused)]
 #![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(box_syntax)]
@@ -29,7 +29,6 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use itertools::Itertools;
-use libffi::high::arg;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -42,9 +41,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::NewAsObjectOrJavaValue;
-use crate::java::util::properties::Properties;
-use crate::java_values::{ArrayObject, JavaValue};
-use crate::java_values::Object::Array;
+use crate::java_values::{ JavaValue};
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};

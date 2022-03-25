@@ -49,7 +49,6 @@ pub fn invoke_static_impl<'l, 'gc_life>(
     target_method: &MethodView,
     args: Vec<NewJavaValue<'gc_life,'_>>
 ) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
-    let mut current_frame = interpreter_state.current_frame_mut();
     let target_class_view = target_class.view();
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);

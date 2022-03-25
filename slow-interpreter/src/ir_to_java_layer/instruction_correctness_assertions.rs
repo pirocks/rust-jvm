@@ -7,7 +7,6 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::assert_loaded_class;
-use crate::instructions::fields::{get_static, get_static_impl};
 use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::{NoValidate, TopOfOperandStackIs};
 use crate::ir_to_java_layer::instruction_correctness_assertions::interpreted_impls::{fcmpg, fcmpl};
 use crate::java_values::NativeJavaValue;

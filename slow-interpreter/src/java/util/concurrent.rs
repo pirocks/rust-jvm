@@ -1,5 +1,4 @@
 pub mod concurrent_hash_map {
-    use iced_x86::ConditionCode::no;
 
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -7,7 +6,6 @@ pub mod concurrent_hash_map {
     use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::java::util::concurrent::concurrent_hash_map::node::Node;
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
@@ -75,7 +73,6 @@ pub mod concurrent_hash_map {
     pub mod node {
         use rust_jvm_common::compressed_classfile::names::FieldName;
 
-        use crate::java::util::concurrent::concurrent_hash_map::ConcurrentHashMap;
         use crate::JVMState;
         use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
 

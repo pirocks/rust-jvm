@@ -7,7 +7,7 @@ pub mod heap_byte_buffer {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
     use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue};

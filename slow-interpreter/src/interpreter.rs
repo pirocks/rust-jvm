@@ -43,9 +43,7 @@ use crate::threading::safepoints::Monitor2;
 #[derive(Debug)]
 pub struct WasException;
 
-static mut INSTRUCTION_COUNT: u64 = 0;
 
-static mut ITERATION_COUNT: u64 = 0;
 
 pub struct FrameToRunOn {
     pub frame_pointer: JavaStackPosition,

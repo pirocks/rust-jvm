@@ -66,57 +66,6 @@ pub fn create_string_on_stack<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, i
     Ok(())
 }
 
-pub fn ldc2_w<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, ldc2w: &CompressedLdc2W) {
-    match ldc2w {
-        CompressedLdc2W::Long(l) => {
-            current_frame.push(JavaValue::Long(*l));
-        }
-        CompressedLdc2W::Double(d) => {
-            current_frame.push(JavaValue::Double(*d));
-        }
-        _ => {}
-    }
-}
-
-pub fn ldc_w<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) {
-    match either {
-        Either::Left(ldcw) => {
-            match &ldcw {
-                CompressedLdcW::String { str } => {
-                    let string_value = intern_safe(jvm, todo!()/*JString::from_rust(jvm, int_state, str.clone()).expect("todo").object().to_gc_managed().into()*/).java_value();
-                    int_state.push_current_operand_stack(string_value)
-                }
-                CompressedLdcW::Class { type_ } => {
-                    if let Err(WasException {}) = load_class_constant(jvm, int_state, type_) {
-                        return;
-                    }
-                }
-                CompressedLdcW::Float { float } => {
-                    let float: f32 = *float;
-                    int_state.push_current_operand_stack(JavaValue::Float(float));
-                }
-                CompressedLdcW::Integer { integer } => {
-                    let int: i32 = *integer;
-                    int_state.push_current_operand_stack(JavaValue::Int(int));
-                }
-                CompressedLdcW::LiveObject(live_object_index) => {
-                    let classes_guard = jvm.classes.read().unwrap();
-                    let obj = classes_guard.lookup_live_object_pool(live_object_index);
-                    int_state.push_current_operand_stack(JavaValue::Object(todo!()/*Some(obj.clone())*/));
-                }
-                _ => {
-                    // dbg!(cp);
-                    int_state.debug_print_stack_trace(jvm);
-                    // dbg!(&pool_entry);
-                    unimplemented!()
-                }
-            }
-        }
-        Either::Right(ldc2w) => {
-            todo!()
-        }
-    }
-}
 
 pub fn from_constant_pool_entry<'gc_life, 'l>(c: &ConstantInfoView, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> NewJavaValueHandle<'gc_life> {
     match &c {

@@ -76,7 +76,6 @@ pub struct JITedCodeState {
     function_addresses: BiRangeMap<*mut c_void, CompiledCodeID>,
     function_starts: HashMap<CompiledCodeID, LabelName>,
     opaque: HashSet<CompiledCodeID>,
-    current_jit_instr: IRInstructionIndex,
     exits: HashMap<*mut c_void, VMExitTypeWithArgs>,
     labels: HashMap<LabelName, *mut c_void>,
     labeler: Labeler,
@@ -104,7 +103,6 @@ impl JITedCodeState {
             method_id_to_code: Default::default(),
             function_addresses: BiRangeMap::new(),
             current_end: res_code_address,
-            current_jit_instr: IRInstructionIndex(0),
             exits: HashMap::new(),
             labels: HashMap::new(),
             labeler: Labeler { current_label: AtomicU32::new(0) },
@@ -179,8 +177,8 @@ impl JITedCodeState {
     pub fn ir_to_native(&self, ir: ToIR, base_address: *mut c_void, method_log_info: String) -> ToNative {
         let ToIR { labels: ir_labels, ir, function_start_label } = ir;
         let mut assembler: CodeAssembler = CodeAssembler::new(64).unwrap();
-        let mut iced_labels = ir_labels.into_iter().map(|label| (label.name, assembler.create_label())).collect::<HashMap<_, _>>();
-        let mut label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
+        let iced_labels = ir_labels.into_iter().map(|label| (label.name, assembler.create_label())).collect::<HashMap<_, _>>();
+        let label_instruction_offsets: Vec<(LabelName, u32)> = vec![];
         let mut instruction_index_to_bytecode_offset_start: HashMap<u32, (ByteCodeOffset, CInstruction)> = HashMap::new();
         for (bytecode_offset, ir_instr, cinstruction) in ir {
             let cinstruction: CInstruction = cinstruction;

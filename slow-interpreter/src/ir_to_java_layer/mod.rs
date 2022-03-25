@@ -87,7 +87,6 @@ pub struct JavaVMStateMethod {
 pub struct JavaVMStateWrapperInner<'gc_life> {
     most_up_to_date_ir_method_id_for_method_id: HashMap<MethodId, IRMethodID>,
     methods: HashMap<IRMethodID, JavaVMStateMethod>,
-    max_exit_number: ExitNumber,
     method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc_life JVMState<'gc_life>, &mut InterpreterStateGuard<'l, 'gc_life>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
 
@@ -798,20 +797,18 @@ pub fn dump_frame_contents_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int
     let operand_stack_types = int_state.current_frame().operand_stack(jvm).types();
     // current_frame.ir_stack_entry_debug_print();
     eprint!("Operand Stack:");
-    unsafe {
-        for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-            if let RuntimeType::TopType = operand_stack_type {
-                panic!()
-                /*let jv = operand_stack.raw_get(i as u16);
-                eprint!("#{}: Top: {:?}\t", i, jv.object)*/
+    for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+        if let RuntimeType::TopType = operand_stack_type {
+            panic!()
+            /*let jv = operand_stack.raw_get(i as u16);
+            eprint!("#{}: Top: {:?}\t", i, jv.object)*/
+        } else {
+            let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type.clone());
+            if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
+                display_obj(jvm, int_state, i, obj)
             } else {
-                let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type.clone());
-                if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
-                    display_obj(jvm,int_state, i, obj)
-                } else {
-                    let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type);
-                    eprint!("#{}: {:?}\t", i, jv.as_njv())
-                }
+                let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type);
+                eprint!("#{}: {:?}\t", i, jv.as_njv())
             }
         }
     }
@@ -836,7 +833,7 @@ fn display_obj<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut Inte
             };
             let ptr = obj.ptr;
             let ref_data = obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_reflectionData());
-            eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, unsafe { ref_data.as_njv().to_native().object })
+            eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, ref_data.as_njv().to_native().object)
         } else {
             let ptr = obj.ptr;
             let save = IN_TO_STRING;
@@ -857,19 +854,16 @@ pub struct JavaVMStateWrapper<'vm_life> {
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn new() -> Self {
-        let mut res = Self {
+        Self {
             ir: IRVMState::new(),
             inner: RwLock::new(JavaVMStateWrapperInner {
                 most_up_to_date_ir_method_id_for_method_id: Default::default(),
                 methods: Default::default(),
-                max_exit_number: ExitNumber(0),
-                // exit_types: Default::default(),
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
             assertion_state: Mutex::new(AssertionState { current_before: vec![] }),
-        };
-        res
+        }
     }
 
     pub fn add_top_level_vm_exit(&'vm_life self) {

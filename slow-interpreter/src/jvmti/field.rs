@@ -25,7 +25,7 @@ fn get_field<'gc_life>(klass: jclass, field: jfieldID, jvm: &'gc_life JVMState<'
     let field_id: FieldId = field as usize;
     let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
     unsafe {
-        Arc::ptr_eq(&from_jclass(jvm, klass as jobject).as_runtime_class(jvm), &runtime_class);
+        assert!(Arc::ptr_eq(&from_jclass(jvm, klass as jobject).as_runtime_class(jvm), &runtime_class));
     }
     let view = runtime_class.view();
     (view.clone(), i)

@@ -207,7 +207,7 @@ impl<'gc_life> SafePoint<'gc_life> {
 }
 
 impl<'gc_life> SafePoint<'gc_life> {
-    pub fn check<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+    pub fn check<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
         let guard = self.state.lock().unwrap();
 
         if guard.gc_suspended {
@@ -218,10 +218,9 @@ impl<'gc_life> SafePoint<'gc_life> {
             let guard = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = todo!();///current_thread.interpreter_state.write().unwrap();
-            unsafe {
-                todo!()
-                // int_state.int_state = todo!();//Some(transmute(current_thread));
-            }
+
+            todo!();
+            // int_state.int_state = todo!();//Some(transmute(current_thread));
             dbg!(&guard.waiting_monitor_notify);
             drop(guard);
             return self.check(jvm, int_state);
@@ -238,10 +237,8 @@ impl<'gc_life> SafePoint<'gc_life> {
             let _ = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
-            unsafe {
-                todo!()
-                // int_state.int_state = todo!();//Some(transmute(current_thread));
-            }
+            todo!();
+            // int_state.int_state = todo!();//Some(transmute(current_thread));
             return self.check(jvm, int_state);
         }
         if guard.parks > 0 {
@@ -310,7 +307,7 @@ impl Monitor2 {
         }
     }
 
-    pub fn lock<'l, 'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+    pub fn lock<'l, 'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if let Some(owner) = guard.owner.as_ref() {
@@ -329,7 +326,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn unlock<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+    pub fn unlock<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if guard.owner == current_thread.java_tid.into() {
@@ -369,7 +366,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn wait<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, wait_duration: Option<Duration>) -> Result<(), WasException> {
+    pub fn wait<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, wait_duration: Option<Duration>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let now = Instant::now();
         let wait_until = wait_duration.map(|wait_duration| match now.checked_add(wait_duration) {
@@ -393,7 +390,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn notify_reacquire<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, prev_count: usize) -> Result<(), WasException> {
+    pub fn notify_reacquire<'gc_life, 'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, prev_count: usize) -> Result<(), WasException> {
         self.lock(jvm, int_state)?;
         let current_thread = jvm.thread_state.get_current_thread();
         let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here

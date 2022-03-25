@@ -1,5 +1,4 @@
 pub mod method_type {
-    use std::cell::UnsafeCell;
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
@@ -15,7 +14,7 @@ pub mod method_type {
     use crate::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
+    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::new_java_values::AllocatedObjectHandle;
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
@@ -165,7 +164,6 @@ pub mod method_type_form {
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::AllocatedObjectHandle;
-    use crate::NewJavaValue;
 
     #[derive(Clone)]
     pub struct MethodTypeForm<'gc_life> {

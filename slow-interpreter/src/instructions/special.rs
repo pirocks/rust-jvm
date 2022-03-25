@@ -20,83 +20,6 @@ use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryMut;
 use crate::utils::throw_npe;
 
-pub fn arraylength<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) {
-    let mut current_frame = int_state.current_frame_mut();
-    let array_o = match current_frame.pop(Some(RuntimeType::object())).unwrap_object() {
-        Some(x) => x,
-        None => {
-            return throw_npe(jvm, int_state);
-        }
-    };
-    let array = array_o.unwrap_array();
-    current_frame.push(JavaValue::Int(array.len() as i32));
-}
-
-pub fn invoke_checkcast<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
-    let possibly_null = int_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object();
-    if possibly_null.is_none() {
-        int_state.current_frame_mut().push(JavaValue::Object(possibly_null));
-        return;
-    }
-    let object = match possibly_null {
-        Some(x) => x,
-        None => {
-            return throw_npe(jvm, int_state);
-        }
-    };
-    match object.deref() {
-        Object(o) => {
-            let instance_of_class_name = cpdtype.unwrap_class_type();
-            let instanceof_class = match check_initing_or_inited_class(jvm, int_state, instance_of_class_name.into()) {
-                Ok(x) => x,
-                Err(WasException {}) => return,
-            };
-            let object_class = o.objinfo.class_pointer.clone();
-            if todo!()/*match inherits_from(jvm, &object_class, &instanceof_class) {
-                Ok(x) => x,
-                Err(WasException {}) => return,
-            }*/ {
-                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
-            } else {
-                int_state.debug_print_stack_trace(jvm);
-                dbg!(object_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
-                dbg!(instanceof_class.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
-                unimplemented!()
-            }
-        }
-        Array(a) => {
-            let expected_type = cpdtype.unwrap_array_type();
-            let cast_succeeds = match &a.elem_type {
-                CPDType::Ref(_) => {
-                    //todo wrong for varying depth arrays?
-                    let actual_runtime_class = match check_initing_or_inited_class(jvm, int_state, a.elem_type.clone()) {
-                        Ok(x) => x,
-                        Err(WasException {}) => return,
-                    };
-                    let expected_runtime_class = match check_initing_or_inited_class(jvm, int_state, expected_type.clone()) {
-                        Ok(x) => x,
-                        Err(WasException {}) => return,
-                    };
-                    todo!()
-                    /*match inherits_from(jvm, &actual_runtime_class, &expected_runtime_class) {
-                        Ok(res) => res,
-                        Err(WasException {}) => return,
-                    }*/
-                }
-                _ => todo!()/*&a.elem_type == expected_type*/,
-            };
-            if cast_succeeds {
-                int_state.push_current_operand_stack(JavaValue::Object(object.clone().into()));
-            } else {
-                dbg!(&a.elem_type);
-                dbg!(expected_type);
-                unimplemented!()
-            }
-        }
-    }
-    //todo dup with instance off
-}
-
 pub fn instance_of_exit_impl<'gc_life, 'any>(jvm: &'gc_life JVMState<'gc_life>, cpdtype: &CPDType, obj: Option<AllocatedObject<'gc_life, 'any>>) -> jint {
     match obj {
         None => {
@@ -278,27 +201,4 @@ pub fn inherits_from<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc
         None => false,
         Some(super_) => super_.view().name() == parent.view().name() || inherits_from(jvm, &super_, parent),
     }) || interfaces_match
-}
-
-pub fn wide<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, w: &Wide) {
-    /*match w {
-        Wide::Iload(WideIload { index }) => iload(jvm, current_frame, *index),
-        Wide::Fload(WideFload { index }) => fload(jvm, current_frame, *index),
-        Wide::Aload(WideAload { index }) => aload(current_frame, *index),
-        Wide::Lload(WideLload { index }) => lload(jvm, current_frame, *index),
-        Wide::Dload(WideDload { index }) => dload(jvm, current_frame, *index),
-        Wide::Istore(WideIstore { index }) => istore(jvm, current_frame, *index),
-        Wide::Fstore(WideFstore { index }) => fstore(jvm, current_frame, *index),
-        Wide::Astore(WideAstore { index }) => astore(current_frame, *index),
-        Wide::Lstore(WideLstore { index }) => lstore(jvm, current_frame, *index),
-        Wide::Ret(WideRet { index }) => ret(jvm, current_frame, *index),
-        Wide::Dstore(WideDstore { index }) => dstore(jvm, current_frame, *index),
-        Wide::IInc(iinc) => {
-            let IInc { index, const_ } = iinc;
-            let mut val = current_frame.local_vars().get(*index, RuntimeType::IntType).unwrap_int();
-            val += *const_ as i32;
-            current_frame.local_vars_mut().set(*index, JavaValue::Int(val));
-        }
-    }*/
-    todo!()
 }

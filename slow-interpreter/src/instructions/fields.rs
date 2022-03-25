@@ -9,52 +9,6 @@ use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::utils::throw_npe;
 
-pub fn putstatic<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
-    let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let mut entry_mut = int_state.current_frame_mut();
-    let mut stack = entry_mut.operand_stack_mut();
-    let field_value = stack.pop(Some(field_descriptor.0.to_runtime_type().unwrap())).unwrap();
-    target_classfile.static_vars(jvm).set(field_name, todo!()/*field_value.to_new()*/);
-}
-
-pub fn putfield<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) {
-    let CompressedFieldDescriptor(field_type) = field_descriptor;
-    let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let mut entry_mut = int_state.current_frame_mut();
-    let stack = &mut entry_mut.operand_stack_mut();
-    let val = stack.pop(Some(field_type.to_runtime_type().unwrap())).unwrap();
-    let object_ref = stack.pop(Some(RuntimeType::object())).unwrap();
-    match object_ref {
-        JavaValue::Object(o) => {
-            match o {
-                Some(x) => x,
-                None => {
-                    return throw_npe(jvm, int_state);
-                }
-            }
-                .unwrap_normal_object()
-                .set_var(target_class, field_name, val);
-        }
-        _ => {
-            dbg!(object_ref);
-            panic!()
-        }
-    }
-}
-
-pub fn get_static<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_descriptor: &CFieldDescriptor) {
-    //todo make sure class pointer is updated correctly
-    let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name) {
-        Ok(val) => val,
-        Err(WasException {}) => return,
-    } {
-        None => {
-            return;
-        }
-        Some(val) => val,
-    };
-    int_state.push_current_operand_stack(field_value.to_jv());
-}
 
 pub(crate) fn get_static_impl<'gc_life, 'l>(
     jvm: &'gc_life JVMState<'gc_life>,
@@ -84,16 +38,4 @@ pub(crate) fn get_static_impl<'gc_life, 'l>(
         }
     }
     panic!()
-}
-
-pub fn get_field<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {
-    let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
-    let object_ref = int_state.current_frame_mut().pop(Some(RuntimeType::object()));
-    match object_ref {
-        JavaValue::Object(o) => {
-            let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name);
-            int_state.current_frame_mut().push(res);
-        }
-        _ => panic!(),
-    }
 }

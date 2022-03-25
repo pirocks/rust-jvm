@@ -38,7 +38,6 @@ pub mod hashtable{
 }
 
 pub mod properties {
-    use std::ptr::hash;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
@@ -47,8 +46,7 @@ pub mod properties {
     use crate::interpreter::WasException;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java::util::concurrent::concurrent_hash_map::ConcurrentHashMap;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 

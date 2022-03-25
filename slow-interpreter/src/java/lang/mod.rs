@@ -7,7 +7,7 @@ pub mod throwable {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
     use crate::NewAsObjectOrJavaValue;
@@ -55,14 +55,14 @@ pub mod stack_trace_element {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::{NewJavaValue, StackEntry};
+    use crate::{NewJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 
@@ -273,7 +273,6 @@ pub mod member_name {
 pub mod class {
     use std::sync::Arc;
 
-    use by_address::ByAddress;
 
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -287,8 +286,8 @@ pub mod class {
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{ByAddressAllocatedObject, GcManagedObject, JavaValue};
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectCOW, AllocatedObjectHandle, NewJavaValueHandle};
+    use crate::java_values::{JavaValue};
+    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
@@ -394,7 +393,6 @@ pub mod class {
 }
 
 pub mod class_loader {
-    use by_address::ByAddress;
 
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -406,7 +404,7 @@ pub mod class_loader {
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
@@ -479,10 +477,7 @@ pub mod class_loader {
 }
 
 pub mod string {
-    use std::cell::UnsafeCell;
-
     use itertools::Itertools;
-    use libc::c_void;
     use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jchar, jint};
@@ -494,7 +489,7 @@ pub mod string {
     use crate::interpreter::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{ArrayObject, GcManagedObject, JavaValue, Object};
+    use crate::java_values::{JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
@@ -635,7 +630,7 @@ pub mod integer {
 }
 
 pub mod object {
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{ JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
     use crate::NewAsObjectOrJavaValue;
 
@@ -667,11 +662,8 @@ pub mod object {
 }
 
 pub mod thread {
-    use std::cell::UnsafeCell;
-    use std::ptr::null_mut;
     use std::sync::Arc;
 
-    use itertools::Itertools;
     use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jboolean, jint};
@@ -688,7 +680,6 @@ pub mod thread {
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
     use crate::java_values::JavaValue;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
@@ -865,7 +856,6 @@ pub mod thread_group {
 
     use jvmti_jni_bindings::{jboolean, jint};
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::interpreter::WasException;
@@ -873,7 +863,7 @@ pub mod thread_group {
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::runtime_class::RuntimeClass;
 
@@ -986,7 +976,7 @@ pub mod class_not_found_exception {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
     use crate::NewAsObjectOrJavaValue;
@@ -1102,7 +1092,7 @@ pub mod illegal_argument_exception {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
     use crate::NewAsObjectOrJavaValue;
@@ -1206,7 +1196,7 @@ pub mod int {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
+    use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
 
     pub struct Int<'gc_life, 'l> {
         normal_object: AllocatedObject<'gc_life, 'l>,
