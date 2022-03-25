@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::intrinsics::size_of;
@@ -14,7 +13,7 @@ use itertools::Itertools;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use java5_verifier::SimplifiedVType;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort, jvalue};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
@@ -181,13 +180,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
     fn get_local_var_base(&self) -> *mut c_void {
         //todo should be based of actual layout instead of this
         unsafe { self.frame_ptr.offset((size_of::<FrameHeader>()) as isize) }
-    }
-
-    pub(crate) fn raw_write_target(target: *mut c_void, jv: jvalue) {
-        unsafe {
-            assert_eq!(size_of::<jvalue>(), size_of::<u64>());
-            (target as *mut u64).write(jv.j as u64);
-        }
     }
 
     pub(crate) fn write_target(target: *mut c_void, j: JavaValue<'gc>) {

@@ -23,14 +23,10 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedD
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedInstruction, CompressedInstructionInfo};
 use rust_jvm_common::loading::LoaderName;
 
-use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::{JavaValue};
 use crate::jit::{CompiledCodeID, ToIR, ToNative};
 use crate::jit::state::birangemap::BiRangeMap;
-use crate::jit_common::{JitCodeContext, RuntimeTypeInfo};
-use crate::jit_common::java_stack::JavaStack;
-use crate::jit_common::SavedRegisters;
+use crate::jit_common::{RuntimeTypeInfo};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::{RuntimeClass};
@@ -193,21 +189,6 @@ impl JITedCodeState {
         install_at
     }
 
-    pub fn run_method_safe<'gc, 'l>(
-        jit_state: &RefCell<JITedCodeState>,
-        jvm: &'gc JVMState<'gc>,
-        int_state: &mut InterpreterStateGuard<'gc, 'l>,
-        methodid: MethodId,
-    ) -> Result<Option<JavaValue<'gc>>, WasException> {
-        let res = unsafe {
-            let jit_state_ = jit_state.borrow();
-            let code_id = *jit_state_.method_id_to_code.get_by_left(&methodid).unwrap();
-            drop(jit_state_);
-            JITedCodeState::run_method(jit_state, jvm, int_state, methodid, code_id)
-        };
-        res
-    }
-
     fn runtime_type_info(memory_region: &MutexGuard<MemoryRegions>) -> RuntimeTypeInfo {
         unsafe {
             RuntimeTypeInfo {
@@ -225,137 +206,6 @@ impl JITedCodeState {
         }
     }
 
-    #[allow(unknown_lints)]
-    #[allow(named_asm_labels)]
-    #[allow(unaligned_references)]
-    unsafe fn resume_method<'gc, 'l>(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc>>, WasException> {
-        loop {
-            //todo reacrchited pushing/popping of frames storing sp.
-            let java_stack: &mut JavaStack = todo!();//int_state.java_stack();
-            let SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: as_ptr, status_register } = java_stack.handle_vm_entry();
-            let rust_stack: u64 = stack_pointer as u64;
-            let rust_frame: u64 = frame_pointer as u64;
-            let memory_region: MutexGuard<MemoryRegions> = jvm.gc.memory_region.lock().unwrap();
-            let mut jit_code_context = JitCodeContext {
-                native_saved: SavedRegisters {
-                    stack_pointer: todo!(),
-                    frame_pointer: todo!(),
-                    instruction_pointer: todo!(),
-                    status_register,
-                },
-                java_saved: SavedRegisters { stack_pointer, frame_pointer, instruction_pointer: target_ip, status_register },
-                exit_handler_ip: null_mut(),
-                runtime_type_info: Self::runtime_type_info(&memory_region),
-            };
-            drop(memory_region);
-            eprint!("going in sp:{:?} fp:{:?} ip: {:?}", jit_code_context.java_saved.stack_pointer, jit_code_context.java_saved.frame_pointer, jit_code_context.java_saved.instruction_pointer);
-            let mut jit_state_ = jit_state.borrow();
-            let compiled_code_id = jit_state_.function_addresses.get(&target_ip).unwrap();
-            let method_id = jit_state_.method_id_to_code.get_by_right(compiled_code_id).unwrap();
-            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
-            let view = rc.view();
-            let method_view = view.method_view_i(method_i);
-            let string_pool = &jvm.string_pool;
-            eprintln!("@ {:?}:{:?}", view.name().unwrap_object_name().0.to_str(string_pool), method_view.name().0.to_str(string_pool));
-            drop(jit_state_);
-            let jit_context_pointer = &jit_code_context as *const JitCodeContext as u64;
-            ///pub struct FrameHeader {
-            //     pub prev_rip: *mut c_void,
-            //     pub prev_rpb: *mut c_void,
-            //     pub frame_info_ptr: *mut FrameInfo,
-            //     pub debug_ptr: *mut c_void,
-            //     pub magic_part_1: u64,
-            //     pub magic_part_2: u64,
-            // }
-            let old_java_ip: *mut c_void = todo!();
-            /*asm!(
-            "push rbx",
-            "push rbp",
-            "push r12",
-            "push r13",
-            "push r14",
-            "push r15",
-            // technically these need only be saved on windows:
-            // "push xmm*",
-            //todo perhaps should use pusha/popa here, b/c this must be really slow
-            "push rsp",
-            // store old stack pointer into context
-            "mov [{0} + {old_stack_pointer_offset}],rsp",
-            // store old frame pointer into context
-            "mov [{0} + {old_frame_pointer_offset}],rbp",
-            // store exit instruction pointer into context
-            "lea r15, [rip+__rust_jvm_internal_after_call]",
-            "mov [{0} + {old_rip_offset}],r15",
-            "mov r15,{0}",
-            // load java frame pointer
-            "mov rbp, [{0} + {new_frame_pointer_offset}]",
-            // load java stack pointer
-            "mov rsp, [{0} + {new_stack_pointer_offset}]",
-            // jump to jitted code
-            "jmp [{0} + {new_rip_offset}]",
-            //
-            "__rust_jvm_internal_after_call:",
-            // gets old java ip from call back to here in java
-            "pop {1}",
-            "pop rsp",
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop rbp",
-            "pop rbx",
-            in(reg) jit_context_pointer,
-            out(reg) old_java_ip,
-            old_stack_pointer_offset = const 0,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,stack_pointer)),
-            old_frame_pointer_offset = const 8,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,frame_pointer)),
-            old_rip_offset = const 16,//(offset_of!(JitCodeContext,native_saved) + offset_of!(SavedRegisters,instruction_pointer)),
-            new_stack_pointer_offset = const 32,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,stack_pointer)),
-            new_frame_pointer_offset = const 40,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,frame_pointer)),
-            new_rip_offset = const 48,//(offset_of!(JitCodeContext,java_saved) + offset_of!(SavedRegisters,instruction_pointer))
-            );*/
-            todo!();
-            jit_code_context.java_saved.instruction_pointer = old_java_ip;
-            //major todo java_stack is mutably borrowed multiple times here b/c recursive exits
-            java_stack.saved_registers = Some(jit_code_context.java_saved.clone());
-            //todo exception handling
-            let exit_type = jit_state.borrow().exits.get(&old_java_ip).unwrap().clone();
-            let (method_name_str, class_name_str) = (|| {
-                let current_frame = int_state.current_frame();
-                let frame_view = current_frame.frame_view(jvm);
-                let methodid = frame_view.method_id().unwrap_or(usize::MAX);
-                let (rc, method_i) = match jvm.method_table.read().unwrap().try_lookup(methodid) {
-                    Some(x) => x,
-                    None => return ("unknown".to_string(), "unknown".to_string()),
-                };
-                let view = rc.view();
-                let method_view = view.method_view_i(method_i);
-                let method_name_str = method_view.name().0.to_str(&jvm.string_pool);
-                let class_name_str = view.name().unwrap_name().0.to_str(&jvm.string_pool);
-                (method_name_str, class_name_str)
-            })();
-
-            let java_stack: &mut JavaStack = todo!()/*int_state.java_stack()*/;
-            eprintln!("going out sp:{:?} fp:{:?} ip:{:?} {} {} {:?}", java_stack.saved_registers.unwrap().stack_pointer, java_stack.saved_registers.unwrap().frame_pointer, java_stack.saved_registers.unwrap().instruction_pointer, class_name_str, method_name_str, todo!()/*exit_type*/);
-            target_ip = match JITedCodeState::handle_exit(jit_state, todo!()/*exit_type*/, jvm, int_state, methodid, old_java_ip) {
-                None => {
-                    return Ok(None);
-                }
-                Some(target_ip) => target_ip,
-            };
-        }
-    }
-
-    #[allow(named_asm_labels)]
-    pub unsafe fn run_method<'gc, 'l>(jitstate: &RefCell<JITedCodeState>, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc>>, WasException> {
-        let target_ip = jitstate.borrow().function_addresses.get_reverse(&compiled_id).unwrap().start;
-        drop(jitstate.borrow_mut());
-        JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
-    }
-
-    #[allow(unaligned_references)]
-    fn handle_exit<'gc, 'l>(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
-        todo!()
-    }
 }
 
 pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {

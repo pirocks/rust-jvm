@@ -555,7 +555,7 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
                     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
                     let array_size = array.size();
                     let region_data = memory_region_guard.find_or_new_region_for(array);
-                    let mut allocated_object = region_data.get_allocation();
+                    let allocated_object = region_data.get_allocation();
                     unsafe { allocated_object.as_ptr().cast::<jlong>().write(len as jlong); }
                     for i in 0..len {
                         unsafe { allocated_object.as_ptr().cast::<NativeJavaValue<'gc>>().offset((i + 1) as isize).write(current_value) };

@@ -24,7 +24,7 @@ use rust_jvm_common::{JavaThreadId};
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, run_main, set_properties};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{InterpreterState};

@@ -10,7 +10,6 @@ use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::{default_value, JavaValue};
 use crate::runtime_class::RuntimeClass;
-use std::convert::AsRef;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 
 //todo jni should really live in interpreter state

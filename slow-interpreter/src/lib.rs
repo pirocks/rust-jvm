@@ -49,13 +49,9 @@ use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
 
-#[macro_use]
 pub mod java_values;
-#[macro_use]
 pub mod java;
-#[macro_use]
 pub mod sun;
-#[macro_use]
 pub mod utils;
 pub mod class_loading;
 pub mod class_objects;
@@ -76,7 +72,6 @@ pub mod rust_jni;
 pub mod stack_entry;
 pub mod threading;
 pub mod tracing;
-#[macro_use]
 pub mod runtime_class;
 pub mod jit;
 pub mod jit_common;

@@ -729,7 +729,6 @@ pub mod thread {
 
     impl<'gc> JThread<'gc> {
         pub fn invalid_thread(jvm: &'gc JVMState<'gc>) -> JThread<'gc> {
-            const NUMBER_OF_LOCAL_VARS_IN_THREAD: i32 = 16;
             todo!()
             /*            JThread {
                 normal_object: NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Object(NormalObject {

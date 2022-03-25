@@ -335,7 +335,6 @@ pub mod constructor {
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
     use crate::NewJavaValue;
 
-    const CONSTRUCTOR_SIGNATURE: &str = "(Ljava/lang/Class;[Ljava/lang/Class;[Ljava/lang/Class;IILjava/lang/String;[B[B)V";
 
     pub struct Constructor<'gc> {
         normal_object: AllocatedObjectHandle<'gc>,
