@@ -40,7 +40,7 @@ use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::ir_to_java_layer::compiler::{JavaCompilerMethodAndFrameData, RecompileConditions};
-use crate::ir_to_java_layer::JavaVMStateWrapper;
+use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};

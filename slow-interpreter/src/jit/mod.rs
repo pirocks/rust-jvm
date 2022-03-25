@@ -29,29 +29,19 @@ use crate::runtime_class::RuntimeClass;
 pub mod ir;
 pub mod state;
 
+#[derive(Clone, Debug)]
+pub struct ResolvedInvokeVirtual {
+    pub address: *const c_void,
+    pub ir_method_id: IRMethodID,
+    pub method_id: MethodId,
+    pub new_frame_size: usize,
+}
 
-/*#[derive(Clone, Eq, PartialEq, Debug, Hash)]
-pub enum VMExitType {
-    ResolveInvokeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
-    RunNativeStatic { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
-    ResolveInvokeSpecial { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
-    InvokeSpecialNative { method_name: MethodName, desc: CMethodDescriptor, target_class: CPDType },
-    InitClass { target_class: CPDType },
-    NeedNewRegion { target_class: AllocatedObjectType },
-    PutStatic { target_class: CPDType, target_type: CPDType, name: FieldName, frame_pointer_offset_of_to_put: FramePointerOffset },
-    Allocate { ptypeview: CPDType, loader: LoaderName, res: FramePointerOffset, bytecode_size: u16 },
-    LoadString { string: Wtf8Buf, res: FramePointerOffset },
-    LoadClass { class_type: CPDType, res: FramePointerOffset, bytecode_size: u16 },
-    Throw { res: FramePointerOffset },
-    MonitorEnter { ref_offset: FramePointerOffset },
-    MonitorExit { ref_offset: FramePointerOffset },
-    Trace { values: Vec<(String, FramePointerOffset)> },
-    TopLevelReturn {},
-    Todo {},
-    NPE {},
-    AllocateVariableSizeArrayANewArray { target_type_sub_type: CPDType, len_offset: FramePointerOffset, res_write_offset: FramePointerOffset },
-}*/
 
+#[derive(Debug, Copy, Clone)]
+pub struct NotCompiledYet {
+    pub needs_compiling: MethodId,
+}
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct CompiledCodeID(pub u32);
 
@@ -67,6 +57,12 @@ pub struct MethodResolver<'gc> {
     pub(crate) jvm: &'gc JVMState<'gc>,
     pub(crate) loader: LoaderName,
 }
+
+
+pub trait MethodResolverAndRecompileConditions{
+
+}
+
 
 impl<'gc> MethodResolver<'gc> {
     pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {

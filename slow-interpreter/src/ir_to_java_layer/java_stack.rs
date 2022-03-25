@@ -10,7 +10,7 @@ use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValue, JVMState};
-use crate::ir_to_java_layer::JavaVMStateWrapper;
+use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java_values::GcManagedObject;
 
 pub struct OwnedJavaStack<'vm_life> {
