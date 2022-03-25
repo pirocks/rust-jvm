@@ -1,5 +1,5 @@
-// #![allow(dead_code)]
-// #![allow(unused)]
+#![allow(dead_code)]
+#![allow(unused)]
 #![feature(c_variadic)]
 #![feature(thread_local)]
 #![feature(box_syntax)]
