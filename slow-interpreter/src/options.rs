@@ -69,7 +69,7 @@ impl InstructionTraceOptions {
         }
     }
 
-    pub fn should_trace<'gc_life>(&self, method_id: MethodId, jvm: &'gc_life JVMState<'gc_life>) -> bool {
+    pub fn should_trace<'gc>(&self, method_id: MethodId, jvm: &'gc JVMState<'gc>) -> bool {
         match self {
             InstructionTraceOptions::TraceAll => {
                 true

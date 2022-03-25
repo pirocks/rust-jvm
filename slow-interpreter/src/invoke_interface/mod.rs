@@ -7,7 +7,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
-pub fn get_invoke_interface<'gc_life, 'l>(jvm: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();
     match guard.as_ref() {
         None => {

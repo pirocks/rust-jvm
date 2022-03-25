@@ -7,21 +7,20 @@ use libffi::middle::Type;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use rust_jvm_common::compressed_classfile::CPDType;
 
-use crate::java_values::JavaValue;
 use crate::NewJavaValue;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref;
-use crate::rust_jni::native_util::{to_object, to_object_new};
+use crate::rust_jni::native_util::{to_object_new};
 
-pub fn runtime_class_to_native<'gc_life>(runtime_class: Arc<RuntimeClass<'gc_life>>) -> Arg {
+pub fn runtime_class_to_native<'gc>(runtime_class: Arc<RuntimeClass<'gc>>) -> Arg {
     let boxed_arc = Box::new(runtime_class);
     let arc_pointer = Box::into_raw(boxed_arc);
     let pointer_ref = Box::leak(Box::new(arc_pointer));
     Arg::new(pointer_ref)
 }
 
-pub unsafe fn native_to_runtime_class<'gc_life>(clazz: jclass) -> Arc<RuntimeClass<'gc_life>> {
-    let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass<'gc_life>>);
+pub unsafe fn native_to_runtime_class<'gc>(clazz: jclass) -> Arc<RuntimeClass<'gc>> {
+    let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass<'gc>>);
     boxed_arc.deref().clone()
 }
 
@@ -40,7 +39,7 @@ pub fn to_native_type(t: &CPDType) -> Type {
     }
 }
 
-pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: NewJavaValue<'gc_life, '_>, t: &CPDType) -> Arg {
+pub unsafe fn to_native<'gc>(env: *mut JNIEnv, j: NewJavaValue<'gc, '_>, t: &CPDType) -> Arg {
     match t {
         CPDType::ByteType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte),
         CPDType::CharType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar),
@@ -58,7 +57,7 @@ pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: NewJavaValue<'gc_life, '_
     }
 }
 
-pub unsafe fn free_native<'gc_life, 'l>(j: NewJavaValue<'gc_life,'l>, t: &CPDType, to_free: &mut Arg) {
+pub unsafe fn free_native<'gc, 'l>(j: NewJavaValue<'gc,'l>, t: &CPDType, to_free: &mut Arg) {
     match t {
         CPDType::ByteType => {
             Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);

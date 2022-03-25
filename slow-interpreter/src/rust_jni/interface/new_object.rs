@@ -2,13 +2,12 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
 use crate::method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 

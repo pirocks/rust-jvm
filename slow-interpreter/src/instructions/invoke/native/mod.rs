@@ -6,30 +6,25 @@ use by_address::ByAddress;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
-use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::instructions::invoke::native::mhn_temp::*;
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
-use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
-use crate::instructions::invoke::native::unsafe_temp::*;
 use crate::interpreter::{monitor_for_function, WasException};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn run_native_method<'gc_life, 'l, 'k>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
-    class: Arc<RuntimeClass<'gc_life>>,
+pub fn run_native_method<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
-    args: Vec<NewJavaValue<'gc_life,'k>>
-) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+    args: Vec<NewJavaValue<'gc,'k>>
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let view = &class.view();
     // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -148,7 +143,7 @@ pub fn run_native_method<'gc_life, 'l, 'k>(
     }
 }
 
-fn special_call_overrides<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc_life,'k>>) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc,'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {

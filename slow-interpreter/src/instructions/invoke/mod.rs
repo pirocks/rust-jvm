@@ -9,7 +9,7 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
-use crate::java_values::{ArrayObject, JavaValue, Object};
+use crate::java_values::{ArrayObject};
 use crate::runtime_class::RuntimeClass;
 use crate::utils::{lookup_method_parsed, throw_npe_res};
 
@@ -20,7 +20,7 @@ pub mod static_;
 pub mod virtual_;
 pub mod dynamic;
 
-fn resolved_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc_life>>, MethodName, CMethodDescriptor)>, WasException> {
+fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc>>, MethodName, CMethodDescriptor)>, WasException> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(&jvm.string_pool, cp as usize, &*view);
     let class_name_ = match class_name_type {
@@ -52,6 +52,6 @@ fn resolved_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 
-pub fn find_target_method<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, expected_method_name: MethodName, parsed_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc_life>>) -> (u16, Arc<RuntimeClass<'gc_life>>) {
+pub fn find_target_method<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, expected_method_name: MethodName, parsed_descriptor: &CMethodDescriptor, target_class: Arc<RuntimeClass<'gc>>) -> (u16, Arc<RuntimeClass<'gc>>) {
     lookup_method_parsed(jvm, target_class, expected_method_name, parsed_descriptor).unwrap()
 }

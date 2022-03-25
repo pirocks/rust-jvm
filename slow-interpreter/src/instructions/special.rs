@@ -1,26 +1,20 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use iced_x86::ConditionCode::e;
-
 use classfile_view::view::interface_view::InterfaceView;
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::classfile::{IInc, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_resolved_class};
+use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::interpreter::WasException;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use crate::new_java_values::AllocatedObject;
 use crate::runtime_class::RuntimeClass;
-use crate::stack_entry::StackEntryMut;
-use crate::utils::throw_npe;
 
-pub fn instance_of_exit_impl<'gc_life, 'any>(jvm: &'gc_life JVMState<'gc_life>, cpdtype: &CPDType, obj: Option<AllocatedObject<'gc_life, 'any>>) -> jint {
+pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: &CPDType, obj: Option<AllocatedObject<'gc, 'any>>) -> jint {
     match obj {
         None => {
             0
@@ -31,7 +25,7 @@ pub fn instance_of_exit_impl<'gc_life, 'any>(jvm: &'gc_life JVMState<'gc_life>, 
     }
 }
 
-pub fn instance_of_exit_impl_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, instance_of_class_type: CompressedParsedRefType, obj: AllocatedObject<'gc_life, '_>) -> jint {
+pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: AllocatedObject<'gc, '_>) -> jint {
     let rc = obj.runtime_class(jvm);
     let actual_cpdtype = rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
@@ -82,7 +76,7 @@ pub fn instance_of_exit_impl_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i
     }
 }
 
-pub fn invoke_instanceof<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, cpdtype: &CPDType) {
+pub fn invoke_instanceof<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, cpdtype: &CPDType) {
     let possibly_null = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
     if let Some(unwrapped) = possibly_null {
         let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
@@ -95,7 +89,7 @@ pub fn invoke_instanceof<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_st
     }
 }
 
-pub fn instance_of_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, unwrapped: GcManagedObject<'gc_life>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
+pub fn instance_of_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -131,17 +125,17 @@ pub fn instance_of_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     Ok(())
 }
 
-fn runtime_super_class<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>) -> Option<Arc<RuntimeClass<'gc_life>>> {
+fn runtime_super_class<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>) -> Option<Arc<RuntimeClass<'gc>>> {
     if inherits.view().super_name().is_some() { Some(assert_inited_or_initing_class(jvm, inherits.view().super_name().unwrap().into())) } else { None }
 }
 
-fn runtime_interface_class<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, i: InterfaceView) -> Arc<RuntimeClass<'gc_life>> {
+fn runtime_interface_class<'gc>(jvm: &'gc JVMState<'gc>, i: InterfaceView) -> Arc<RuntimeClass<'gc>> {
     let intf_name = i.interface_name();
     assert_inited_or_initing_class(jvm, intf_name.into())
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from_cpdtype<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &CPDType) -> bool {
+pub fn inherits_from_cpdtype<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>, parent: &CPDType) -> bool {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
         if parent == &CClassName::object().into() || parent == &CClassName::cloneable().into() || parent == &CClassName::serializable().into() {
@@ -173,7 +167,7 @@ pub fn inherits_from_cpdtype<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inheri
 
 //todo dup
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, inherits: &Arc<RuntimeClass<'gc_life>>, parent: &Arc<RuntimeClass<'gc_life>>) -> bool {
+pub fn inherits_from<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>, parent: &Arc<RuntimeClass<'gc>>) -> bool {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
         if parent.cpdtype() == CClassName::object().into() || parent.cpdtype() == CClassName::cloneable().into() || parent.cpdtype() == CClassName::serializable().into() {

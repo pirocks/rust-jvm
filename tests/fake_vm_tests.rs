@@ -222,7 +222,7 @@ impl TestVMConfig {
     }
 
 
-    pub fn create_vm<'l>(self, _with_vm: impl for<'gc_life> FnOnce(&JVMState<'gc_life>)) {
+    pub fn create_vm<'l>(self, _with_vm: impl for<'gc> FnOnce(&JVMState<'gc>)) {
         // self.write_fake_main_class();
         let fake_classpath = self.fake_classpath();
         let jvm_options = JVMOptions::new(ClassName::Str(self.main_class_name.to_string()), fake_classpath, vec![], OsString::from("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64/libjava.so"), OsString::new(), false, false, vec![], false, false, false, true);

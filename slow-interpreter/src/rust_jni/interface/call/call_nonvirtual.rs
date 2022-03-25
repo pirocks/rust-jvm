@@ -301,7 +301,7 @@ pub unsafe extern "C" fn call_nonvirtual_void_method_a(env: *mut JNIEnv, obj: jo
     };
 }
 
-unsafe fn call_non_virtual<'gc_life>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, method_id: jmethodID, vararg_provider: &mut VarargProvider, is_void: bool) -> Result<JavaValue<'gc_life>, WasException> {
+unsafe fn call_non_virtual<'gc>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, method_id: jmethodID, vararg_provider: &mut VarargProvider, is_void: bool) -> Result<JavaValue<'gc>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_id: MethodId = transmute(method_id);

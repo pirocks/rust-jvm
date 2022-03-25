@@ -1,15 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
-use std::num::NonZeroU8;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-
-use iced_x86::CC_be::na;
-use serde_yaml::to_string;
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::instructions::ldc::from_constant_pool_entry;
@@ -20,10 +15,10 @@ use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::stack_entry::{StackEntry, StackEntryPush};
+use crate::stack_entry::{StackEntryPush};
 
 #[derive(Debug)]
-pub enum RuntimeClass<'gc_life> {
+pub enum RuntimeClass<'gc> {
     Byte,
     Boolean,
     Short,
@@ -33,12 +28,12 @@ pub enum RuntimeClass<'gc_life> {
     Float,
     Double,
     Void,
-    Array(RuntimeClassArray<'gc_life>),
-    Object(RuntimeClassClass<'gc_life>),
+    Array(RuntimeClassArray<'gc>),
+    Object(RuntimeClassClass<'gc>),
     Top,
 }
 
-impl<'gc_life> RuntimeClass<'gc_life> {
+impl<'gc> RuntimeClass<'gc> {
     pub fn cpdtype(&self) -> CPDType {
         match self {
             RuntimeClass::Byte => CPDType::ByteType,
@@ -96,11 +91,11 @@ impl<'gc_life> RuntimeClass<'gc_life> {
         }
     }
 
-    pub fn unwrap_class_class(&self) -> &RuntimeClassClass<'gc_life> {
+    pub fn unwrap_class_class(&self) -> &RuntimeClassClass<'gc> {
         self.try_unwrap_class_class().unwrap()
     }
 
-    pub fn try_unwrap_class_class(&'_ self) -> Option<&'_ RuntimeClassClass<'gc_life>> {
+    pub fn try_unwrap_class_class(&'_ self) -> Option<&'_ RuntimeClassClass<'gc>> {
         match self {
             RuntimeClass::Object(classclass) => Some(classclass),
             _ => None,
@@ -108,30 +103,30 @@ impl<'gc_life> RuntimeClass<'gc_life> {
     }
 }
 
-pub struct StaticVarGuard<'gc_life, 'l> {
-    jvm: &'gc_life JVMState<'gc_life>,
-    data_guard: RwLockWriteGuard<'l, HashMap<FieldName, NativeJavaValue<'gc_life>>>,
+pub struct StaticVarGuard<'gc, 'l> {
+    jvm: &'gc JVMState<'gc>,
+    data_guard: RwLockWriteGuard<'l, HashMap<FieldName, NativeJavaValue<'gc>>>,
     types: &'l HashMap<FieldName, CPDType>,
 }
 
-impl<'gc_life, 'l> StaticVarGuard<'gc_life, 'l> {
-    pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc_life>> {
+impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
+    pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let cpd_type = self.types.get(&name)?;
         Some(self.data_guard.get(&name)?.to_new_java_value(cpd_type, self.jvm))
     }
 
-    pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc_life> {
+    pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {
         self.try_get(name).unwrap()
     }
 
-    pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc_life>) {
+    pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
         let cpd_type = self.types.get(&name).unwrap();
         self.data_guard.insert(name, elem.as_njv().to_native());
     }
 }
 
-impl<'gc_life> RuntimeClass<'gc_life> {
-    pub fn static_vars<'l>(&'l self, jvm: &'gc_life JVMState<'gc_life>) -> StaticVarGuard<'gc_life, 'l> {
+impl<'gc> RuntimeClass<'gc> {
+    pub fn static_vars<'l>(&'l self, jvm: &'gc JVMState<'gc>) -> StaticVarGuard<'gc, 'l> {
         match self {
             RuntimeClass::Byte => panic!(),
             RuntimeClass::Boolean => panic!(),
@@ -156,8 +151,8 @@ impl<'gc_life> RuntimeClass<'gc_life> {
 }
 
 #[derive(Debug)]
-pub struct RuntimeClassArray<'gc_life> {
-    pub sub_class: Arc<RuntimeClass<'gc_life>>,
+pub struct RuntimeClassArray<'gc> {
+    pub sub_class: Arc<RuntimeClass<'gc>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -166,7 +161,7 @@ pub struct FieldNumber(pub u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct MethodNumber(pub(crate) u32);
 
-pub struct RuntimeClassClass<'gc_life> {
+pub struct RuntimeClassClass<'gc> {
     pub class_view: Arc<dyn ClassView>,
     pub field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
     pub field_numbers_reverse: HashMap<FieldNumber, (FieldName, CPDType)>,
@@ -174,17 +169,17 @@ pub struct RuntimeClassClass<'gc_life> {
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
     pub recursive_num_fields: usize,
     pub static_var_types: HashMap<FieldName, CPDType>,
-    pub static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc_life>>>,
-    pub parent: Option<Arc<RuntimeClass<'gc_life>>>,
-    pub interfaces: Vec<Arc<RuntimeClass<'gc_life>>>,
+    pub static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>,
+    pub parent: Option<Arc<RuntimeClass<'gc>>>,
+    pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
 }
 
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
-impl<'gc_life> RuntimeClassClass<'gc_life> {
-    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, method_numbers: HashMap<MethodShape, MethodNumber>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc_life>>>, parent: Option<Arc<RuntimeClass<'gc_life>>>, interfaces: Vec<Arc<RuntimeClass<'gc_life>>>, status: RwLock<ClassStatus>, static_var_types: HashMap<FieldName, CPDType>) -> Self {
+impl<'gc> RuntimeClassClass<'gc> {
+    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, method_numbers: HashMap<MethodShape, MethodNumber>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>, parent: Option<Arc<RuntimeClass<'gc>>>, interfaces: Vec<Arc<RuntimeClass<'gc>>>, status: RwLock<ClassStatus>, static_var_types: HashMap<FieldName, CPDType>) -> Self {
         let field_numbers_reverse = field_numbers.iter()
             .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
             .collect();
@@ -216,7 +211,7 @@ impl<'gc_life> RuntimeClassClass<'gc_life> {
     }
 }
 
-impl<'gc_life> Debug for RuntimeClassClass<'gc_life> {
+impl<'gc> Debug for RuntimeClassClass<'gc> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(f, "{:?}:{:?}", self.class_view.name(), todo!()/*self.static_vars*/)
     }
@@ -239,13 +234,13 @@ pub fn prepare_class<'vm_life, 'l, 'k>(jvm: &'vm_life JVMState<'vm_life>, int_st
     }
 }
 
-impl<'gc_life> std::convert::From<RuntimeClassClass<'gc_life>> for RuntimeClass<'gc_life> {
-    fn from(rcc: RuntimeClassClass<'gc_life>) -> Self {
+impl<'gc> std::convert::From<RuntimeClassClass<'gc>> for RuntimeClass<'gc> {
+    fn from(rcc: RuntimeClassClass<'gc>) -> Self {
         Self::Object(rcc)
     }
 }
 
-pub fn initialize_class<'gc_life, 'l>(runtime_class: Arc<RuntimeClass<'gc_life>>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first

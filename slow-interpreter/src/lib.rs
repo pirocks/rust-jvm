@@ -91,7 +91,7 @@ pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod verifier_frames;
 
-pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>) -> Result<(), Box<dyn Error>> {
+pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -127,8 +127,8 @@ pub fn run_main<'gc_life, 'l>(args: Vec<String>, jvm: &'gc_life JVMState<'gc_lif
     Result::Ok(())
 }
 
-fn setup_program_args<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>, args: Vec<String>) -> AllocatedObjectHandle<'gc_life> {
-    let mut arg_strings: Vec<NewJavaValueHandle<'gc_life>> = vec![];
+fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedObjectHandle<'gc> {
+    let mut arg_strings: Vec<NewJavaValueHandle<'gc>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
     }
@@ -139,7 +139,7 @@ fn setup_program_args<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'
     }))
 }
 
-fn set_properties<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, '_>) -> Result<(), WasException> {
+fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>) -> Result<(), WasException> {
     let frame_for_properties = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame"));
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);

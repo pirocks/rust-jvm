@@ -9,7 +9,6 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::WasException;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::{Classes, JVMState};
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
@@ -120,13 +119,13 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 /// Error 	Description
 /// JVMTI_ERROR_NULL_POINTER	class_count_ptr is NULL.
 /// JVMTI_ERROR_NULL_POINTER	classes_ptr is NULL.
-pub unsafe extern "C" fn get_loaded_classes<'gc_life, 'l>(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
-    let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
+pub unsafe extern "C" fn get_loaded_classes<'gc, 'l>(env: *mut jvmtiEnv, class_count_ptr: *mut jint, classes_ptr: *mut *mut jclass) -> jvmtiError {
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLoadedClasses");
     let mut res_vec = vec![];
 
-    let classes: RwLockReadGuard<'_, Classes<'gc_life>> = jvm.classes.read().unwrap();
+    let classes: RwLockReadGuard<'_, Classes<'gc>> = jvm.classes.read().unwrap();
     let collected = classes.get_loaded_classes();
     for (_loader, ptype) in collected {
         let class_object = get_or_create_class_object(jvm, ptype.clone(), int_state);

@@ -1,11 +1,7 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
+use std::collections::{HashMap};
 use std::ops::Deref;
 use std::sync::Arc;
 
-use iced_x86::CC_b::c;
-use iced_x86::ConditionCode::o;
-use iced_x86::OpCodeOperandKind::cl;
 use itertools::Itertools;
 
 use rust_jvm_common::{InheritanceMethodID, MethodI, MethodId};
@@ -37,7 +33,7 @@ impl InheritanceMethodIDs {
         res
     }
 
-    pub fn register_impl<'gc_life>(&mut self, rc: &Arc<RuntimeClass<'gc_life>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
+    pub fn register_impl<'gc>(&mut self, rc: &Arc<RuntimeClass<'gc>>) -> HashMap<(MethodName, CMethodDescriptor), InheritanceMethodID> {
         return match rc.deref() {
             RuntimeClass::Object(class_class) => {
                 match &class_class.parent {
@@ -89,7 +85,7 @@ impl InheritanceMethodIDs {
         };
     }
 
-    pub fn register<'gc_life>(&mut self, jvm: &'gc_life JVMState<'gc_life>, rc: &Arc<RuntimeClass<'gc_life>>) {
+    pub fn register<'gc>(&mut self, jvm: &'gc JVMState<'gc>, rc: &Arc<RuntimeClass<'gc>>) {
         let _ = self.register_impl(rc);
     }
 
@@ -103,7 +99,7 @@ impl InheritanceMethodIDs {
         }
     }
 
-    pub fn lookup<'gc_life>(&self, jvm: &'gc_life JVMState<'gc_life>, method_id: MethodId) -> InheritanceMethodID {
+    pub fn lookup<'gc>(&self, jvm: &'gc JVMState<'gc>, method_id: MethodId) -> InheritanceMethodID {
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = rc.view();
         let name = class_view.name().unwrap_name();

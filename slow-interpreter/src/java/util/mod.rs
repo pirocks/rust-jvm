@@ -6,30 +6,30 @@ pub mod hashtable{
         use crate::JVMState;
         use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
 
-        pub struct Entry<'gc_life> {
-            normal_object: AllocatedObjectHandle<'gc_life>,
+        pub struct Entry<'gc> {
+            normal_object: AllocatedObjectHandle<'gc>,
         }
 
-        impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-            pub fn cast_entry(self) -> Entry<'gc_life> {
+        impl<'gc> AllocatedObjectHandle<'gc> {
+            pub fn cast_entry(self) -> Entry<'gc> {
                 Entry { normal_object: self }
             }
         }
 
-        impl <'gc_life> Entry<'gc_life> {
-            pub fn key(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+        impl <'gc> Entry<'gc> {
+            pub fn key(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm,FieldName::field_key())
             }
 
-            pub fn value(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+            pub fn value(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm,FieldName::field_value())
             }
 
-            pub fn hash(&self, jvm: &'gc_life JVMState<'gc_life>) -> jint {
+            pub fn hash(&self, jvm: &'gc JVMState<'gc>) -> jint {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm,FieldName::field_hash()).as_njv().unwrap_int_strict()
             }
 
-            pub fn next(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+            pub fn next(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
                 self.normal_object.as_allocated_obj().get_var_top_level(jvm,FieldName::field_next())
             }
 
@@ -50,12 +50,12 @@ pub mod properties {
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
-    pub struct Properties<'gc_life> {
-        normal_object: AllocatedObjectHandle<'gc_life>,
+    pub struct Properties<'gc> {
+        normal_object: AllocatedObjectHandle<'gc>,
     }
 
-    impl<'gc_life> JavaValue<'gc_life> {
-        pub fn cast_properties(&self) -> Properties<'gc_life> {
+    impl<'gc> JavaValue<'gc> {
+        pub fn cast_properties(&self) -> Properties<'gc> {
             todo!()
             /*let res = Properties { normal_object: todo!()/*self.unwrap_object_nonnull()*/ };
             assert_eq!(res.normal_object.unwrap_normal_object().objinfo.class_pointer.view().name(), CClassName::properties().into());
@@ -63,14 +63,14 @@ pub mod properties {
         }
     }
 
-    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-        pub fn cast_properties(self) -> Properties<'gc_life> {
+    impl<'gc> AllocatedObjectHandle<'gc> {
+        pub fn cast_properties(self) -> Properties<'gc> {
             Properties { normal_object: self }
         }
     }
 
-    impl<'gc_life> Properties<'gc_life> {
-        pub fn set_property<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>, value: JString<'gc_life>) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+    impl<'gc> Properties<'gc> {
+        pub fn set_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, key: JString<'gc>, value: JString<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![NewJavaValue::AllocObject(self.normal_object.as_allocated_obj()), key.new_java_value(), value.new_java_value()];
             let desc = CMethodDescriptor {
@@ -81,7 +81,7 @@ pub mod properties {
             Ok(res.unwrap())
         }
 
-        pub fn get_property<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, key: JString<'gc_life>) -> Result<Option<JString<'gc_life>>, WasException> {
+        pub fn get_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, key: JString<'gc>) -> Result<Option<JString<'gc>>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![NewJavaValue::AllocObject(self.normal_object.as_allocated_obj()), key.new_java_value()];
             let desc = CMethodDescriptor {
@@ -92,12 +92,12 @@ pub mod properties {
             Ok(res.unwrap().cast_string())
         }
 
-        pub fn table(&self, jvm: &'gc_life JVMState<'gc_life>) -> NewJavaValueHandle<'gc_life> {
+        pub fn table(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
             let hashtable_rc = assert_inited_or_initing_class(jvm, CClassName::hashtable().into());
             self.normal_object.as_allocated_obj().get_var(jvm,&hashtable_rc, FieldName::field_table())
         }
 
-        /*pub fn map(&self, jvm: &'gc_life JVMState<'gc_life>) -> Option<ConcurrentHashMap<'gc_life>> {
+        /*pub fn map(&self, jvm: &'gc JVMState<'gc>) -> Option<ConcurrentHashMap<'gc>> {
             self.normal_object.as_allocated_obj().get_var_top_level(jvm, FieldName::field_map()).cast_concurrent_hash_map()
         }*/
     }

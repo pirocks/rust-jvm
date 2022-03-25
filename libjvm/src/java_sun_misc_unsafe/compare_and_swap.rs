@@ -104,7 +104,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     }*/
 }
 
-pub fn do_swap<'l, 'gc_life>(curval: NewJavaValue<'gc_life, 'l>, expected: Option<AllocatedObjectHandle<'gc_life>>, new: NewJavaValue<'gc_life, 'l>) -> (jboolean, NewJavaValue<'gc_life, 'l>) {
+pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<AllocatedObjectHandle<'gc>>, new: NewJavaValue<'gc, 'l>) -> (jboolean, NewJavaValue<'gc, 'l>) {
     let should_replace = match curval.unwrap_object() {
         None => match expected {
             None => true,
@@ -125,12 +125,12 @@ pub fn do_swap<'l, 'gc_life>(curval: NewJavaValue<'gc_life, 'l>, expected: Optio
 }
 
 
-pub unsafe fn get_obj_and_name<'gc_life>(
+pub unsafe fn get_obj_and_name<'gc>(
     env: *mut JNIEnv,
     the_unsafe: jobject,
     target_obj: jobject,
     offset: jlong,
-) -> Result<(Arc<RuntimeClass<'gc_life>>, AllocatedObjectHandle<'gc_life>, FieldName), WasException> {
+) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedObjectHandle<'gc>, FieldName), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));

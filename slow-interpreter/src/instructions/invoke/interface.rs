@@ -8,10 +8,9 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 
-pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) {
+pub fn invoke_interface<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) {
     // invoke_interface.count;//todo use this?
     let _target_class = check_initing_or_inited_class(jvm, int_state, CPDType::Ref(cpreftype));
     let desc_len = expected_descriptor.arg_types.len();
@@ -19,7 +18,7 @@ pub fn invoke_interface<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     let current_frame = int_state.current_frame();
     let operand_stack_ref = current_frame.operand_stack(jvm);
     let operand_stack_len = operand_stack_ref.len();
-    let this_pointer_jv: NewJavaValueHandle<'gc_life> = operand_stack_ref.get(operand_stack_len - (desc_len + 1)/*count.get()*/ as u16, RuntimeType::object());
+    let this_pointer_jv: NewJavaValueHandle<'gc> = operand_stack_ref.get(operand_stack_len - (desc_len + 1)/*count.get()*/ as u16, RuntimeType::object());
     let this_pointer_o = this_pointer_jv.as_njv().unwrap_object().unwrap(); //todo handle npe
     let this_pointer = todo!()/*this_pointer_o.unwrap_normal_object()*/;
     let target_class = todo!()/*this_pointer.objinfo.class_pointer.clone()*/;

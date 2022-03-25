@@ -1,16 +1,14 @@
-use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
 
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
-use crate::java_values::{GcManagedObject, JavaValue, Object};
+use crate::java_values::{GcManagedObject};
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
@@ -27,7 +25,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     new_local_ref_public_new(class_object.unwrap().into(), int_state) as jclass
 }
 
-pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_life> {
+pub unsafe fn get_state<'gc>(env: *mut JNIEnv) -> &'gc JVMState<'gc> {
     &(*((**env).reserved0 as *const JVMState))
 }
 
@@ -36,7 +34,7 @@ pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv
     jvm.get_int_state()
 }
 
-pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> jobject {
+pub unsafe fn to_object<'gc>(obj: Option<GcManagedObject<'gc>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => {
@@ -47,7 +45,7 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     }
 }
 
-pub unsafe fn to_object_new<'gc_life>(obj: Option<AllocatedObject<'gc_life, '_>>) -> jobject {
+pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc, '_>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => {
@@ -58,7 +56,7 @@ pub unsafe fn to_object_new<'gc_life>(obj: Option<AllocatedObject<'gc_life, '_>>
     }
 }
 
-pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
+pub unsafe fn from_object<'gc>(jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<GcManagedObject<'gc>> {
     let option = NonNull::new(obj as *mut c_void)?;
     // if !jvm.gc.all_allocated_object.read().unwrap().contains(&option) {
     //     dbg!(option.as_ptr());
@@ -69,18 +67,18 @@ pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobj
     // Some(GcManagedObject::from_native(option, jvm))
 }
 
-pub unsafe fn from_object_new<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<AllocatedObjectHandle> {
+pub unsafe fn from_object_new<'gc>(jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<AllocatedObjectHandle> {
     let ptr = NonNull::new(obj as *mut c_void)?;
     let handle = jvm.gc.register_root_reentrant(jvm, ptr);
     Some(handle)
 }
 
-pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {//all jclasses have life of 'gc_life
+pub unsafe fn from_jclass<'gc>(jvm: &'gc JVMState<'gc>, obj: jclass) -> JClass<'gc> {//all jclasses have life of 'gc
     try_from_jclass(jvm, obj).unwrap()
     //todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> { //all jclasses have life of 'gc_life
+pub unsafe fn try_from_jclass<'gc>(jvm: &'gc JVMState<'gc>, obj: jclass) -> Option<JClass<'gc>> { //all jclasses have life of 'gc
     let possibly_null = from_object_new(jvm, obj);
     let not_null = possibly_null?;
     NewJavaValueHandle::Object(not_null).cast_class()

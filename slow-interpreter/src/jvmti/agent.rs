@@ -11,7 +11,7 @@ use crate::jvm_state::JVMState;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
-use crate::stack_entry::{StackEntry, StackEntryPush};
+use crate::stack_entry::{StackEntryPush};
 use crate::threading::JavaThread;
 
 struct ThreadArgWrapper {
@@ -23,9 +23,9 @@ unsafe impl Send for ThreadArgWrapper {}
 
 unsafe impl Sync for ThreadArgWrapper {}
 
-pub unsafe extern "C" fn run_agent_thread<'gc_life>(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
+pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
-    let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
     let java_thread = JavaThread::new(jvm, thread_object, todo!() /*jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string(jvm).into(),todo!())*/, true);

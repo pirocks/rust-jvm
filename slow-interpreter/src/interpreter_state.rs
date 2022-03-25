@@ -1,48 +1,37 @@
-use std::arch::x86_64::_mm256_testc_pd;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
-use std::ops::{Deref, DerefMut};
-use std::ptr::{null_mut, slice_from_raw_parts};
-use std::sync::{Arc, MutexGuard, RwLockWriteGuard};
+use std::ops::{Deref};
+use std::ptr::{slice_from_raw_parts};
+use std::sync::{Arc, MutexGuard};
 
-use iced_x86::CC_b::c;
-use iced_x86::CC_ne::ne;
 use itertools::Itertools;
 
-use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut, OwnedIRStack};
-use another_jit_vm_ir::IRMethodID;
+use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
-use rust_jvm_common::classfile::InstructionInfo::{ireturn, jsr};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use threads::signal::__pthread_cond_s__bindgen_ty_2;
 
-use crate::interpreter_state::AddFrameNotifyError::{NothingAtDepth, Opaque};
-use crate::ir_to_java_layer::dump_frame_contents_impl;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
-use crate::jit::MethodResolver;
-use crate::jit_common::java_stack::{JavaStack, JavaStatus};
+use crate::java_values::{JavaValue, NativeJavaValue};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJVObject};
-use crate::rust_jni::native_util::{from_object, to_object};
-use crate::stack_entry::{FrameView, NonNativeFrameData, OpaqueFrameOptional, StackEntry, StackEntryMut, StackEntryPush, StackEntryRef, StackIter};
+use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};
 use crate::threading::JavaThread;
 
-pub struct InterpreterState<'gc_life> {
-    pub call_stack: OwnedJavaStack<'gc_life>,
-    jvm: &'gc_life JVMState<'gc_life>,
+pub struct InterpreterState<'gc> {
+    pub call_stack: OwnedJavaStack<'gc>,
+    jvm: &'gc JVMState<'gc>,
     pub current_stack_position: JavaStackPosition,
 }
 
-impl<'gc_life> InterpreterState<'gc_life> {
-    pub(crate) fn new(jvm: &'gc_life JVMState<'gc_life>) -> Self {
+impl<'gc> InterpreterState<'gc> {
+    pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Self {
         InterpreterState {
             call_stack: OwnedJavaStack::new(&jvm.java_vm_state, jvm),
             jvm,
@@ -82,7 +71,7 @@ pub struct OldInterpreterState{
     old: Option<*mut InterpreterStateGuard<'static,'static>>
 }
 
-impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_guard> {
+impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     /*pub fn copy_with_new_stack_position(&self, new_stack_position: JavaStackPosition) -> Self {
         let InterpreterStateGuard {
             int_state: InterpreterState {
@@ -111,14 +100,14 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn thread(&self) -> Arc<JavaThread<'gc_life>> {
+    pub fn thread(&self) -> Arc<JavaThread<'gc>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { thread, .. } => thread.clone(),
             InterpreterStateGuard::LocalInterpreterState { thread, .. } => thread.clone()
         }
     }
 
-    pub fn self_check(&self, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn self_check(&self, jvm: &'gc JVMState<'gc>) {
         todo!()
         /*for stack_entry in self.cloned_stack_snapshot(jvm) {
             for jv in stack_entry.operand_stack.iter().chain(stack_entry.local_vars.iter()) {
@@ -127,8 +116,8 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }*/
     }
 
-    pub fn register_interpreter_state_guard(&mut self, jvm: &'gc_life JVMState<'gc_life>) -> OldInterpreterState {
-        let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc_life, '_>) };
+    pub fn register_interpreter_state_guard(&mut self, jvm: &'gc JVMState<'gc>) -> OldInterpreterState {
+        let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc, '_>) };
         let old = jvm.thread_state.int_state_guard.get().deref().borrow().clone();
         jvm.thread_state.int_state_guard.get().replace(ptr.into());
         jvm.thread_state.int_state_guard_valid.get().replace(true);
@@ -146,29 +135,29 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn deregister_int_state(&mut self, jvm: &'gc_life JVMState<'gc_life>, old: OldInterpreterState) {
+    pub fn deregister_int_state(&mut self, jvm: &'gc JVMState<'gc>, old: OldInterpreterState) {
         jvm.thread_state.int_state_guard.get().replace(old.old);
     }
 
-    pub fn new(jvm: &'gc_life JVMState<'gc_life>, thread: Arc<JavaThread<'gc_life>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc_life>>) -> InterpreterStateGuard<'gc_life, 'interpreter_guard> {
+    pub fn new(jvm: &'gc JVMState<'gc>, thread: Arc<JavaThread<'gc>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc>>) -> InterpreterStateGuard<'gc, 'interpreter_guard> {
         jvm.thread_state.int_state_guard_valid.get().replace(false);
         Self::RemoteInterpreterState { int_state: Some(int_state), thread: thread.clone(), registered: true, jvm }
     }
 
-    pub fn java_stack(&mut self) -> &mut OwnedJavaStack<'gc_life> {
+    pub fn java_stack(&mut self) -> &mut OwnedJavaStack<'gc> {
         todo!()
         // &mut self.int_state.as_mut().unwrap().call_stack
     }
 
-    pub fn current_loader(&self, jvm: &'gc_life JVMState<'gc_life>) -> LoaderName {
+    pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         self.current_frame().loader(jvm)
     }
 
-    pub fn current_class_view(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<dyn ClassView> {
+    pub fn current_class_view(&self, jvm: &'gc JVMState<'gc>) -> Arc<dyn ClassView> {
         self.current_frame().try_class_pointer(jvm).unwrap().view()
     }
 
-    pub fn current_frame(&'_ self) -> StackEntryRef<'gc_life, '_> {
+    pub fn current_frame(&'_ self) -> StackEntryRef<'gc, '_> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
@@ -185,7 +174,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn current_frame_mut(&'_ mut self) -> StackEntryMut<'gc_life, '_> {
+    pub fn current_frame_mut(&'_ mut self) -> StackEntryMut<'gc, '_> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
@@ -199,7 +188,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc_life> {
+    pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc> {
         /*let interpreter_state = self.int_state.as_ref().unwrap().deref();
         match interpreter_state {
             InterpreterState::Jit { call_stack, jvm } => {
@@ -227,15 +216,15 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn push_current_operand_stack(&mut self, jval: JavaValue<'gc_life>) {
+    pub fn push_current_operand_stack(&mut self, jval: JavaValue<'gc>) {
         self.current_frame_mut().push(jval)
     }
 
-    pub fn pop_current_operand_stack(&mut self, expected_type: Option<RuntimeType>) -> JavaValue<'gc_life> {
+    pub fn pop_current_operand_stack(&mut self, expected_type: Option<RuntimeType>) -> JavaValue<'gc> {
         self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
     }
 
-    pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc_life, '_> {
+    pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc, '_> {
         /*match self.int_state.as_mut().unwrap().deref_mut() {
             /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
                 let len = call_stack.len();
@@ -246,7 +235,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn previous_frame(&self) -> Option<StackEntryRef<'gc_life, '_>> {
+    pub fn previous_frame(&self) -> Option<StackEntryRef<'gc, '_>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
@@ -271,7 +260,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<AllocatedObjectHandle<'gc_life>>) {
+    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<AllocatedObjectHandle<'gc>>) {
         /*match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();
@@ -323,7 +312,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         todo!()
     }
 
-    pub fn throw(&self) -> Option<AllocatedObject<'gc_life,'_>> {
+    pub fn throw(&self) -> Option<AllocatedObject<'gc,'_>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { throw,.. } => {
@@ -350,7 +339,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }*/
     }
 
-    pub fn push_frame<'k>(&mut self, frame: StackEntryPush<'gc_life,'k>) -> FramePushGuard {
+    pub fn push_frame<'k>(&mut self, frame: StackEntryPush<'gc,'k>) -> FramePushGuard {
         let frame_push_guard = match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
@@ -408,7 +397,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         frame_push_guard
     }
 
-    pub fn pop_frame(&mut self, jvm: &'gc_life JVMState<'gc_life>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
+    pub fn pop_frame(&mut self, jvm: &'gc JVMState<'gc>, mut frame_push_guard: FramePushGuard, was_exception: bool) {
         frame_push_guard._correctly_exited = true;
         if self.current_frame().is_opaque() {
             unsafe { drop(Box::from_raw(self.current_frame().opaque_frame_ptr())) }
@@ -454,11 +443,11 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         self.current_frame().pc_offset()
     }
 
-    pub fn current_method_i(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPIndex {
+    pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> CPIndex {
         self.current_frame().method_i(jvm)
     }
 
-    pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc_life, ()> {
+    pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc, ()> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
@@ -472,7 +461,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
     }
 
 
-    pub fn debug_print_stack_trace(&self, jvm: &'gc_life JVMState<'gc_life>) {
+    pub fn debug_print_stack_trace(&self, jvm: &'gc JVMState<'gc>) {
         let full = false;
         let pc = self.current_frame().pc;
         let iter = self.frame_iter();
@@ -503,7 +492,7 @@ impl<'gc_life, 'interpreter_guard> InterpreterStateGuard<'gc_life, 'interpreter_
         }
     }
 
-    pub fn cloned_stack_snapshot(&self, jvm: &'gc_life JVMState<'gc_life>) -> Vec<StackEntry> {
+    pub fn cloned_stack_snapshot(&self, jvm: &'gc JVMState<'gc>) -> Vec<StackEntry> {
         self.frame_iter().map(|frame|{
             if frame.is_opaque(){
                 StackEntry::Opaque { opaque_id:OpaqueFrameIdOrMethodID::from_native(frame.frame_view.ir_ref.raw_method_id()).unwrap_opaque().unwrap() }
@@ -636,18 +625,18 @@ impl<'l, 'h, 'vm_life, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm_life
 }
 
 #[derive(Debug, Clone)]
-pub struct OpaqueFrameInfo<'gc_life> {
+pub struct OpaqueFrameInfo<'gc> {
     pub native_local_refs: Vec<HashSet<jobject>>,
-    pub operand_stack: Vec<JavaValue<'gc_life>>,
+    pub operand_stack: Vec<JavaValue<'gc>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeFrameInfo<'gc_life> {
+pub struct NativeFrameInfo<'gc> {
     pub method_id: usize,
     pub loader: LoaderName,
     pub native_local_refs: Vec<HashSet<jobject>>,
-    pub local_vars: Vec<NativeJavaValue<'gc_life>>,
-    pub operand_stack: Vec<NativeJavaValue<'gc_life>>,
+    pub local_vars: Vec<NativeJavaValue<'gc>>,
+    pub operand_stack: Vec<NativeJavaValue<'gc>>,
 }
 
 // fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {

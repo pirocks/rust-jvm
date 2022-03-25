@@ -1,18 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::ffi::c_void;
-use std::mem::size_of;
-use std::panic;
-use std::panic::catch_unwind;
-use std::process::exit;
 use std::sync::Arc;
 
-use iced_x86::{BlockEncoder, InstructionBlock};
-use iced_x86::BlockEncoderOptions;
-use iced_x86::CC_be::na;
-use iced_x86::code_asm::{CodeAssembler, dword_bcst, dword_ptr, qword_ptr, r15, rax, rbp, rdx, rsp};
-use itertools::Itertools;
-use memoffset::offset_of;
-use wtf8::{Wtf8, Wtf8Buf};
+use wtf8::{ Wtf8Buf};
 
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
 use another_jit_vm_ir::IRMethodID;
@@ -78,12 +68,12 @@ pub struct IRInstructionIndex(u32);
 pub struct NotSupported;
 
 #[derive(Clone, Copy)]
-pub struct MethodResolver<'gc_life> {
-    pub(crate) jvm: &'gc_life JVMState<'gc_life>,
+pub struct MethodResolver<'gc> {
+    pub(crate) jvm: &'gc JVMState<'gc>,
     pub(crate) loader: LoaderName,
 }
 
-impl<'gc_life> MethodResolver<'gc_life> {
+impl<'gc> MethodResolver<'gc> {
     pub fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
@@ -138,7 +128,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
     }
 
-    fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc_life>>) -> Option<(MethodId, bool)> {
+    fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
         let view = rc.view();
         if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
             if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()) {
@@ -171,7 +161,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((method_id, method_view.is_native()))*/
     }
 
-    fn lookup_special_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc_life>>) -> Option<(MethodId, bool)> {
+    fn lookup_special_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
         let view = rc.view();
         if let Some(method_view) = view.lookup_method(name, &desc) {
             assert!(!method_view.is_static());
@@ -195,7 +185,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         None
     }
 
-    pub fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc_life>>, LoaderName)> {
+    pub fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc>>, LoaderName)> {
         let read_guard = self.jvm.classes.read().unwrap();
         let rc = read_guard.is_inited_or_initing(cpdtype)?;
         let loader = read_guard.get_initiating_loader(&rc);
@@ -239,7 +229,7 @@ impl<'gc_life> MethodResolver<'gc_life> {
         Some((ir_method_id, ptr))
     }
 
-    pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> FieldId {
+    pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc>>, field_name: FieldName) -> FieldId {
         let view = runtime_class.view();
         let field_view = view.lookup_field(field_name).unwrap();
         self.jvm.field_table.write().unwrap().get_field_id(runtime_class, field_view.field_i())

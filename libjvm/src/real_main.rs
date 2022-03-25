@@ -72,7 +72,7 @@ fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC
     main_run(args, &jvm_ref);
 }
 
-pub fn main_run<'gc_life>(args: Vec<String>, jvm_ref: &'gc_life JVMState<'gc_life>) {
+pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     jvm_ref.java_vm_state.add_top_level_vm_exit();
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object();

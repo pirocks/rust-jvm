@@ -1,4 +1,3 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
@@ -19,11 +18,8 @@ use bimap::BiHashMap;
 use crossbeam::epoch::Atomic;
 use iced_x86::{BlockEncoder, Formatter, InstructionBlock};
 use iced_x86::BlockEncoderOptions;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rsp};
-use iced_x86::ConditionCode::l;
-use iced_x86::IntelFormatter;
-use iced_x86::OpCodeOperandKind::cl;
-use itertools::{Either, Itertools};
+use iced_x86::code_asm::CodeAssembler;
+use itertools::Itertools;
 use memoffset::offset_of;
 use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 use num::Integer;
@@ -218,12 +214,12 @@ impl JITedCodeState {
         install_at
     }
 
-    pub fn run_method_safe<'gc_life, 'l>(
+    pub fn run_method_safe<'gc, 'l>(
         jit_state: &RefCell<JITedCodeState>,
-        jvm: &'gc_life JVMState<'gc_life>,
-        int_state: &mut InterpreterStateGuard<'gc_life, 'l>,
-        methodid: MethodId
-    ) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+        jvm: &'gc JVMState<'gc>,
+        int_state: &mut InterpreterStateGuard<'gc, 'l>,
+        methodid: MethodId,
+    ) -> Result<Option<JavaValue<'gc>>, WasException> {
         let res = unsafe {
             let jit_state_ = jit_state.borrow();
             let code_id = *jit_state_.method_id_to_code.get_by_left(&methodid).unwrap();
@@ -253,7 +249,7 @@ impl JITedCodeState {
     #[allow(unknown_lints)]
     #[allow(named_asm_labels)]
     #[allow(unaligned_references)]
-    unsafe fn resume_method<'gc_life, 'l>(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    unsafe fn resume_method<'gc, 'l>(jit_state: &RefCell<JITedCodeState>, mut target_ip: *mut c_void, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc>>, WasException> {
         loop {
             //todo reacrchited pushing/popping of frames storing sp.
             let java_stack: &mut JavaStack = todo!();//int_state.java_stack();
@@ -371,214 +367,15 @@ impl JITedCodeState {
     }
 
     #[allow(named_asm_labels)]
-    pub unsafe fn run_method<'gc_life, 'l>(jitstate: &RefCell<JITedCodeState>, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc_life>>, WasException> {
+    pub unsafe fn run_method<'gc, 'l>(jitstate: &RefCell<JITedCodeState>, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: MethodId, compiled_id: CompiledCodeID) -> Result<Option<JavaValue<'gc>>, WasException> {
         let target_ip = jitstate.borrow().function_addresses.get_reverse(&compiled_id).unwrap().start;
         drop(jitstate.borrow_mut());
         JITedCodeState::resume_method(jitstate, target_ip, jvm, int_state, methodid, compiled_id)
     }
 
     #[allow(unaligned_references)]
-    fn handle_exit<'gc_life, 'l>(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
-        // int_state.debug_print_stack_trace(jvm);
+    fn handle_exit<'gc, 'l>(jitstate: &RefCell<JITedCodeState>, exit_type: VMExitTypeWithArgs, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, methodid: usize, old_java_ip: *mut c_void) -> Option<*mut c_void> {
         todo!()
-        /*        match exit_type {
-                    VMExitType::ResolveInvokeStatic { method_name, desc, target_class } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
-                        let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
-                        if method_view.is_native() {
-                            match run_native_method(jvm, int_state, inited_class.clone(), method_view.method_i(), todo!()) {
-                                Ok(Some(res)) => int_state.current_frame_mut().push(res),
-                                Ok(None) => {}
-                                Err(WasException {}) => todo!(),
-                            };
-                            return Some(old_java_ip);
-                        } else {
-                            jitstate.borrow_mut().add_function(method_view.code_attribute().unwrap(), to_call_function_method_id, MethodResolver { jvm, loader: int_state.current_loader() });
-                            let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
-                            let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
-                            let code = method_view.code_attribute().unwrap();
-                            Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
-                            todo!()
-                        }
-                    }
-                    VMExitType::TopLevelReturn { .. } => {
-                        int_state.set_function_return(true);
-                        None
-                    }
-                    VMExitType::ResolveInvokeSpecial { method_name, desc, target_class } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let inited_class = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        let method_view = inited_class.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap();
-                        let to_call_function_method_id = jvm.method_table.write().unwrap().get_method_id(inited_class.clone(), method_view.method_i());
-                        jitstate.borrow_mut().add_function(method_view.code_attribute().unwrap(), to_call_function_method_id, MethodResolver { jvm, loader: int_state.current_loader() });
-                        let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
-                        let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
-                        let code = method_view.code_attribute().unwrap();
-                        Self::recompile_method_and_restart(jitstate, methodid, jvm, int_state, code, old_java_ip, TransitionType::ResolveCalls).unwrap();
-                        todo!()
-                    }
-                    VMExitType::Todo { .. } => {
-                        todo!()
-                    }
-                    VMExitType::RunNativeStatic { method_name, desc, target_class } => {
-                        let method_name_str = method_name.0.to_str(&jvm.string_pool);
-                        dbg!(method_name_str);
-                        let args = setup_args_from_current_frame(jvm, int_state, &desc, false);
-                        let save = int_state.java_stack().saved_registers;
-                        let inited = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                        let method_i = inited.unwrap_class_class().class_view.lookup_method(method_name, &desc).unwrap().method_i();
-                        int_state.java_stack().saved_registers = save;
-                        let res = run_native_method(jvm, int_state, inited, method_i, args).unwrap();
-                        match res {
-                            None => {}
-                            Some(_) => {
-                                todo!()
-                            }
-                        }
-                        int_state.java_stack().saved_registers = save;
-                        let jit_state = jitstate.borrow();
-                        let code_id = jit_state.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jit_state.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                        let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3); // call static is 3 bytes
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                    VMExitType::PutStatic { target_type, target_class, name, frame_pointer_offset_of_to_put } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let target_class_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        // let _target_type_rc = assert_loaded_class(jvm, target_type.clone());
-                        target_class_rc.static_vars().insert(name, int_state.raw_read_at_frame_pointer_offset(frame_pointer_offset_of_to_put, target_type.to_runtime_type().unwrap()));
-                        //todo dup
-                        let jitstate_borrow = jitstate.borrow();
-                        let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                        let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3); // put static is 3 bytes
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                    VMExitType::AllocateVariableSizeArrayANewArray { target_type_sub_type, len_offset, res_write_offset } => {
-                        // dbg!(int_state.get_java_stack().saved_registers.unwrap().frame_pointer);
-                        // dbg!(int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
-                        let before_stack = int_state.java_stack().saved_registers.unwrap().stack_pointer;
-                        let save = int_state.java_stack().saved_registers;
-                        let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_type_sub_type).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        assert_eq!(before_stack, int_state.java_stack().saved_registers.unwrap().stack_pointer);
-                        // dbg!(int_state.get_java_stack().saved_registers.unwrap().frame_pointer);
-                        // dbg!(int_state.get_java_stack().saved_registers.unwrap().stack_pointer);
-                        let array_len = int_state.raw_read_at_frame_pointer_offset(len_offset, RuntimeType::IntType).unwrap_int() as usize;
-                        let allocated_object_type = runtime_class_to_allocated_object_type(&inited_target_type_rc, int_state.current_loader(), Some(array_len), jvm.thread_state.get_current_thread().java_tid);
-                        let mut memory_region = jvm.gc.memory_region.lock().unwrap();
-                        let mut region_data = memory_region.find_or_new_region_for(allocated_object_type);
-                        let allocation = region_data.get_allocation();
-                        let to_write = jvalue { l: allocation.as_ptr() as jobject };
-                        int_state.raw_write_at_frame_pointer_offset(res_write_offset, to_write);
-                        let jitstate_borrow = jitstate.borrow();
-                        let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                        let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + 3); // anewarray is 3 bytes
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                    VMExitType::InitClass { target_class } => {
-                        let saved = int_state.java_stack().saved_registers;
-                        let inited_target_type_rc = check_initing_or_inited_class(jvm, int_state, target_class).unwrap();
-                        int_state.java_stack().saved_registers = saved;
-                        let (current_function_rc, current_function_method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
-                        let method_view = current_function_rc.unwrap_class_class().class_view.method_view_i(current_function_method_i);
-                        let code = method_view.code_attribute().unwrap();
-                        let instruct_pointer = int_state.java_stack().saved_registers().instruction_pointer;
-                        assert_eq!(instruct_pointer, old_java_ip);
-                        let mut jit_state = jitstate.borrow_mut();
-                        let compiled_code_id = jit_state.function_addresses.get(&instruct_pointer).unwrap();
-                        let compiled_code = jit_state.address_to_byte_code_offset.get(&compiled_code_id).unwrap();
-                        // problem here is that a function call overwrites the old old ip
-                        let return_to_byte_code_offset = *compiled_code.get(&instruct_pointer).unwrap();
-                        let new_base_address = jit_state.add_function(code, methodid, MethodResolver { jvm, loader: int_state.current_loader() });
-                        let new_code_id = *jit_state.function_addresses.get(&new_base_address).unwrap();
-                        let start_byte_code_addresses = jit_state.address_to_byte_code_offset.get(&new_code_id).unwrap().get_reverse(&return_to_byte_code_offset).unwrap().clone();
-                        let restart_execution_at = start_byte_code_addresses.start;
-                        Some(restart_execution_at)
-                    }
-                    VMExitType::NeedNewRegion { .. } => todo!(),
-                    VMExitType::Allocate { ptypeview, loader, res, bytecode_size } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let rc = check_loaded_class_force_loader(jvm, int_state, &ptypeview, loader).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        let allocated = match rc.deref() {
-                            RuntimeClass::Array(_) => todo!(),
-                            RuntimeClass::Object(obj) => JavaValue::new_object(jvm, rc).unwrap(),
-                            _ => panic!(),
-                        };
-                        int_state.raw_write_at_frame_pointer_offset(res, jvalue { l: allocated.raw_ptr_usize() as jobject });
-                        let jitstate_borrow = jitstate.borrow();
-                        let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                        let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size);
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                    VMExitType::Throw { .. } => todo!(),
-                    VMExitType::LoadString { string, res } => {
-                        let string = JString::from_rust(jvm, int_state, string).unwrap();
-                        todo!()
-                    }
-                    VMExitType::LoadClass { class_type, res, bytecode_size } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let class = JClass::from_type(jvm, int_state, class_type).unwrap();
-                        int_state.java_stack().saved_registers = save;
-                        dbg!(save.unwrap().frame_pointer);
-                        let to_write = jvalue { l: class.object().raw_ptr_usize() as jobject };
-                        unsafe { dbg!(to_write.l) };
-                        int_state.raw_write_at_frame_pointer_offset(res, to_write);
-                        let jitstate_borrow = jitstate.borrow();
-                        let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let bytecode_offset = address_to_bytecode_for_this_method.get(&old_java_ip).unwrap();
-                        let restart_bytecode_offset = ByteCodeOffset(bytecode_offset.0 + bytecode_size); //size of ldc
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                    VMExitType::MonitorEnter { .. } => {
-                        todo!()
-                    }
-                    VMExitType::InvokeSpecialNative { .. } => {
-                        todo!()
-                    }
-                    VMExitType::MonitorExit { .. } => {
-                        todo!()
-                    }
-                    VMExitType::NPE { .. } => {
-                        todo!()
-                    }
-                    VMExitType::Trace { values } => {
-                        let save = int_state.java_stack().saved_registers;
-                        let frame_pointer = save.unwrap().frame_pointer;
-                        unsafe {
-                            for (name, value) in values {
-                                let ptr = frame_pointer.offset(value.0 as isize) as *mut *const c_void;
-                                println!("{} {:?}", name, ptr.read())
-                            }
-                        }
-                        let jitstate_borrow = jitstate.borrow();
-                        let code_id = jitstate_borrow.method_id_to_code.get_by_left(&methodid).unwrap();
-                        let address_to_bytecode_for_this_method = jitstate_borrow.address_to_byte_code_offset.get(&code_id).unwrap();
-                        let next_java_ip: *mut c_void = address_to_bytecode_for_this_method.keys().map(|key| key.start).sorted().filter(|pointer| pointer > &old_java_ip).next().unwrap();
-                        let restart_bytecode_offset = address_to_bytecode_for_this_method.get(&next_java_ip).unwrap();
-                        let restart_address = address_to_bytecode_for_this_method.get_reverse(&restart_bytecode_offset).unwrap().start;
-                        Some(restart_address)
-                    }
-                }
-        */
     }
 }
 
@@ -794,7 +591,7 @@ impl StackframeMemoryLayout for NaiveStackframeLayout {
     }
 }
 
-pub fn setup_args_from_current_frame<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &mut InterpreterStateGuard<'gc_life, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc_life>> {
+pub fn setup_args_from_current_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc>> {
     if is_virtual {
         todo!()
     }

@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
     }
 }
 
-pub fn copy_fields<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: AllocatedObject<'gc_life, '_>, rc: &RuntimeClassClass<'gc_life>) -> HashMap<FieldNumber, NewJavaValueHandle<'gc_life>> {
+pub fn copy_fields<'gc>(jvm: &'gc JVMState<'gc>, obj: AllocatedObject<'gc, '_>, rc: &RuntimeClassClass<'gc>) -> HashMap<FieldNumber, NewJavaValueHandle<'gc>> {
     let mut res = HashMap::new();
     if let Some(parent) = rc.parent.as_ref() {
         res.extend(copy_fields(jvm, obj.clone(), parent.unwrap_class_class()).into_iter());

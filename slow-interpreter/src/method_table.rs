@@ -2,12 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
-use iced_x86::OpCodeOperandKind::cl;
 
 use jvmti_jni_bindings::_jmethodID;
 use rust_jvm_common::{MethodId, MethodTableIndex};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::string_pool::StringPool;
 
 use crate::runtime_class::RuntimeClass;
 
@@ -15,14 +13,14 @@ pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
 }
 
-pub struct MethodTable<'gc_life> {
-    table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
+pub struct MethodTable<'gc> {
+    table: Vec<(Arc<RuntimeClass<'gc>>, u16)>,
     //at a later date will contain compiled code etc.
-    index: HashMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, HashMap<u16, MethodTableIndex>>,
+    index: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, HashMap<u16, MethodTableIndex>>,
 }
 
-impl<'gc_life> MethodTable<'gc_life> {
-    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass<'gc_life>>, index: u16) -> MethodTableIndex {
+impl<'gc> MethodTable<'gc> {
+    pub fn get_method_id(&mut self, rc: Arc<RuntimeClass<'gc>>, index: u16) -> MethodTableIndex {
         assert_ne!(index, u16::max_value());
         match match self.index.get(&ByAddress(rc.clone())) {
             Some(x) => x,
@@ -37,7 +35,7 @@ impl<'gc_life> MethodTable<'gc_life> {
         }
     }
 
-    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, method_index: u16) -> MethodTableIndex {
+    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc>>, method_index: u16) -> MethodTableIndex {
         assert_ne!(method_index, u16::max_value());
         let res = self.table.len();
         self.table.push((rc.clone(), method_index));
@@ -54,7 +52,7 @@ impl<'gc_life> MethodTable<'gc_life> {
         res
     }
 
-    pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass<'gc_life>>, u16)> {
+    pub fn try_lookup(&self, id: MethodId) -> Option<(Arc<RuntimeClass<'gc>>, u16)> {
         if id < self.table.len() {
             self.table[id].clone().into()
         } else {

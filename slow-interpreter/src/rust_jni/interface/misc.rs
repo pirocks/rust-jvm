@@ -21,7 +21,7 @@ use crate::instructions::special::{inherits_from_cpdtype, instance_of_exit_impl_
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use crate::java_values::{GcManagedObject, JavaValue};
+use crate::java_values::{GcManagedObject};
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
@@ -159,13 +159,13 @@ pub unsafe extern "C" fn unregister_natives(env: *mut JNIEnv, clazz: jclass) -> 
     JNI_OK as i32
 }
 
-pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv, clazz: jclass, methods: *const JNINativeMethod, n_methods: jint) -> jint {
+pub unsafe extern "C" fn register_natives<'gc>(env: *mut JNIEnv, clazz: jclass, methods: *const JNINativeMethod, n_methods: jint) -> jint {
     let jvm = get_state(env);
     for to_register_i in 0..n_methods {
         let method = *methods.offset(to_register_i as isize);
         let expected_name = MethodName(jvm.string_pool.add_name(CStr::from_ptr(method.name).to_str().unwrap().to_string().clone(), false));
         let descriptor: CCString = jvm.string_pool.add_name(CStr::from_ptr(method.signature).to_str().unwrap().to_string(), false);
-        let runtime_class: Arc<RuntimeClass<'gc_life>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
+        let runtime_class: Arc<RuntimeClass<'gc>> = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_name = match runtime_class.cpdtype().try_unwrap_class_type() {
             None => {
                 return JNI_ERR;
@@ -186,7 +186,7 @@ pub unsafe extern "C" fn register_natives<'gc_life>(env: *mut JNIEnv, clazz: jcl
     0
 }
 
-fn register_native_with_lib_java_loading<'gc_life>(jni_context: &NativeLibraries<'gc_life>, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc_life>>, method_i: usize) {
+fn register_native_with_lib_java_loading<'gc>(jni_context: &NativeLibraries<'gc>, method: &JNINativeMethod, runtime_class: &Arc<RuntimeClass<'gc>>, method_i: usize) {
     if jni_context.registered_natives.read().unwrap().contains_key(&ByAddress(runtime_class.clone())) {
         unsafe {
             jni_context.registered_natives.read().unwrap().get(&ByAddress(runtime_class.clone())).unwrap().write().unwrap().insert(method_i as CPIndex, transmute(method.fnPtr));
@@ -198,13 +198,13 @@ fn register_native_with_lib_java_loading<'gc_life>(jni_context: &NativeLibraries
     }
 }
 
-pub fn get_all_methods<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, WasException> {
+pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, u16)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException> {
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
@@ -233,13 +233,13 @@ fn get_all_methods_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_sta
     Ok(())
 }
 
-pub fn get_all_fields<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, WasException> {
+pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException> {
     let mut res = vec![];
     get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, class: Arc<RuntimeClass<'gc_life>>, res: &mut Vec<(Arc<RuntimeClass<'gc_life>>, usize)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });

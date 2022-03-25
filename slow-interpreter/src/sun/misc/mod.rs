@@ -10,24 +10,24 @@ pub mod unsafe_ {
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::utils::run_static_or_virtual;
 
-    pub struct Unsafe<'gc_life> {
-        normal_object: GcManagedObject<'gc_life>,
+    pub struct Unsafe<'gc> {
+        normal_object: GcManagedObject<'gc>,
     }
 
-    impl<'gc_life> JavaValue<'gc_life> {
-        pub fn cast_unsafe(&self) -> Unsafe<'gc_life> {
+    impl<'gc> JavaValue<'gc> {
+        pub fn cast_unsafe(&self) -> Unsafe<'gc> {
             Unsafe { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl<'gc_life> Unsafe<'gc_life> {
-        pub fn the_unsafe<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Unsafe<'gc_life> {
+    impl<'gc> Unsafe<'gc> {
+        pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Unsafe<'gc> {
             let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
             let static_vars = unsafe_class.static_vars(jvm);
             static_vars.get(FieldName::field_theUnsafe()).to_jv().cast_unsafe()
         }
 
-        pub fn object_field_offset<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, field: Field<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+        pub fn object_field_offset<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field: Field<'gc>) -> Result<JavaValue<'gc>, WasException> {
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             int_state.push_current_operand_stack(field.java_value());
             let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
@@ -39,7 +39,7 @@ pub mod unsafe_ {
             Ok(res)
         }
 
-        as_object_or_java_value!();
+        //as_object_or_java_value!();
     }
 }
 
@@ -51,41 +51,40 @@ pub mod launcher {
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
-    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
-    pub struct Launcher<'gc_life> {
-        normal_object: AllocatedObjectHandle<'gc_life>,
+    pub struct Launcher<'gc> {
+        normal_object: AllocatedObjectHandle<'gc>,
     }
 
-    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-        pub fn cast_launcher(self) -> Launcher<'gc_life> {
+    impl<'gc> AllocatedObjectHandle<'gc> {
+        pub fn cast_launcher(self) -> Launcher<'gc> {
             Launcher { normal_object: self }
         }
     }
 
-    impl<'gc_life> NewJavaValueHandle<'gc_life> {
-        pub fn cast_launcher(self) -> Launcher<'gc_life> {
+    impl<'gc> NewJavaValueHandle<'gc> {
+        pub fn cast_launcher(self) -> Launcher<'gc> {
             Launcher { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
-    impl<'gc_life> Launcher<'gc_life> {
-        pub fn get_launcher<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<Launcher<'gc_life>, WasException> {
+    impl<'gc> Launcher<'gc> {
+        pub fn get_launcher<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Launcher<'gc>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
             let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getLauncher(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), vec![])?.unwrap();
             Ok(res.cast_launcher())
         }
 
-        pub fn get_loader<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<ClassLoader<'gc_life>, WasException> {
+        pub fn get_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<ClassLoader<'gc>, WasException> {
             let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
             let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), vec![self.normal_object.new_java_value()])?.unwrap();
             Ok(res.cast_class_loader())
         }
 
-        as_object_or_java_value!();
+        //as_object_or_java_value!();
     }
 
     pub mod ext_class_loader {
@@ -99,24 +98,24 @@ pub mod launcher {
         use crate::jvm_state::JVMState;
         use crate::utils::run_static_or_virtual;
 
-        pub struct ExtClassLoader<'gc_life> {
-            normal_object: GcManagedObject<'gc_life>,
+        pub struct ExtClassLoader<'gc> {
+            normal_object: GcManagedObject<'gc>,
         }
 
-        impl<'gc_life> JavaValue<'gc_life> {
-            pub fn cast_ext_class_launcher(&self) -> ExtClassLoader<'gc_life> {
+        impl<'gc> JavaValue<'gc> {
+            pub fn cast_ext_class_launcher(&self) -> ExtClassLoader<'gc> {
                 ExtClassLoader { normal_object: self.unwrap_object_nonnull() }
             }
         }
 
-        impl<'gc_life> ExtClassLoader<'gc_life> {
-            pub fn get_ext_class_loader<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<ExtClassLoader<'gc_life>, WasException> {
+        impl<'gc> ExtClassLoader<'gc> {
+            pub fn get_ext_class_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<ExtClassLoader<'gc>, WasException> {
                 let ext_class_loader = check_initing_or_inited_class(jvm, int_state, CClassName::ext_class_loader().into())?;
                 run_static_or_virtual(jvm, int_state, &ext_class_loader, MethodName::method_getExtClassLoader(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), todo!())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_ext_class_launcher())
             }
 
-            as_object_or_java_value!();
+            //as_object_or_java_value!();
         }
     }
 }

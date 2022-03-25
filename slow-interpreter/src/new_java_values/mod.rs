@@ -29,7 +29,7 @@ use crate::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};
 pub mod array_wrapper;
 
 #[derive(Debug)]
-pub enum NewJavaValueHandle<'gc_life> {
+pub enum NewJavaValueHandle<'gc> {
     Long(i64),
     Int(i32),
     Short(i16),
@@ -39,7 +39,7 @@ pub enum NewJavaValueHandle<'gc_life> {
     Float(f32),
     Double(f64),
     Null,
-    Object(AllocatedObjectHandle<'gc_life>),
+    Object(AllocatedObjectHandle<'gc>),
     Top,
 }
 
@@ -51,12 +51,12 @@ impl PartialEq for NewJavaValueHandle<'_> {
     }
 }
 
-impl<'gc_life> NewJavaValueHandle<'gc_life> {
-    pub fn to_jv(&self) -> JavaValue<'gc_life> {
+impl<'gc> NewJavaValueHandle<'gc> {
+    pub fn to_jv(&self) -> JavaValue<'gc> {
         todo!()
     }
 
-    pub fn as_njv(&self) -> NewJavaValue<'gc_life, '_> {
+    pub fn as_njv(&self) -> NewJavaValue<'gc, '_> {
         match self {
             NewJavaValueHandle::Long(long) => {
                 NewJavaValue::Long(*long)
@@ -94,11 +94,11 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         }
     }
 
-    pub fn null() -> NewJavaValueHandle<'gc_life> {
+    pub fn null() -> NewJavaValueHandle<'gc> {
         NewJavaValueHandle::Null
     }
 
-    pub fn unwrap_object(self) -> Option<AllocatedObjectHandle<'gc_life>> {
+    pub fn unwrap_object(self) -> Option<AllocatedObjectHandle<'gc>> {
         match self {
             NewJavaValueHandle::Object(obj) => { Some(obj) }
             NewJavaValueHandle::Null => { None }
@@ -106,11 +106,11 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         }
     }
 
-    pub fn unwrap_object_nonnull(self) -> AllocatedObjectHandle<'gc_life> {
+    pub fn unwrap_object_nonnull(self) -> AllocatedObjectHandle<'gc> {
         self.unwrap_object().unwrap()
     }
 
-    pub fn from_optional_object(obj: Option<AllocatedObjectHandle<'gc_life>>) -> Self {
+    pub fn from_optional_object(obj: Option<AllocatedObjectHandle<'gc>>) -> Self {
         match obj {
             None => {
                 Self::Null
@@ -121,11 +121,11 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
         }
     }
 
-    pub fn empty_byte_array(jvm: &'gc_life JVMState<'gc_life>, empty_byte_array: Arc<RuntimeClass<'gc_life>>) -> Self {
+    pub fn empty_byte_array(jvm: &'gc JVMState<'gc>, empty_byte_array: Arc<RuntimeClass<'gc>>) -> Self {
         Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: empty_byte_array, elems: vec![] })))
     }
 
-    pub fn try_unwrap_object_alloc(self) -> Option<Option<AllocatedObjectHandle<'gc_life>>> {
+    pub fn try_unwrap_object_alloc(self) -> Option<Option<AllocatedObjectHandle<'gc>>> {
         match self {
             NewJavaValueHandle::Null => Some(None),
             NewJavaValueHandle::Object(obj) => Some(Some(obj)),
@@ -136,7 +136,7 @@ impl<'gc_life> NewJavaValueHandle<'gc_life> {
 
 
 #[derive(Clone)]
-pub enum NewJavaValue<'gc_life, 'l> {
+pub enum NewJavaValue<'gc, 'l> {
     Long(i64),
     Int(i32),
     Short(i16),
@@ -146,12 +146,12 @@ pub enum NewJavaValue<'gc_life, 'l> {
     Float(f32),
     Double(f64),
     Null,
-    UnAllocObject(UnAllocatedObject<'gc_life, 'l>),
-    AllocObject(AllocatedObject<'gc_life, 'l>),
+    UnAllocObject(UnAllocatedObject<'gc, 'l>),
+    AllocObject(AllocatedObject<'gc, 'l>),
     Top,
 }
 
-impl<'gc_life, 'l> Debug for NewJavaValue<'gc_life, 'l> {
+impl<'gc, 'l> Debug for NewJavaValue<'gc, 'l> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             NewJavaValue::Long(elem) => {
@@ -194,12 +194,12 @@ impl<'gc_life, 'l> Debug for NewJavaValue<'gc_life, 'l> {
     }
 }
 
-impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
-    pub fn to_jv(&self) -> JavaValue<'gc_life> {
+impl<'gc, 'l> NewJavaValue<'gc, 'l> {
+    pub fn to_jv(&self) -> JavaValue<'gc> {
         todo!()
     }
 
-    pub fn unwrap_object(&self) -> Option<NewJVObject<'gc_life, 'l>> {
+    pub fn unwrap_object(&self) -> Option<NewJVObject<'gc, 'l>> {
         match self {
             NewJavaValue::Null => None,
             NewJavaValue::UnAllocObject(obj) => {
@@ -214,7 +214,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn try_unwrap_object_alloc(&self) -> Option<Option<AllocatedObject<'gc_life, 'l>>> {
+    pub fn try_unwrap_object_alloc(&self) -> Option<Option<AllocatedObject<'gc, 'l>>> {
         match self {
             NewJavaValue::Null => Some(None),
             NewJavaValue::AllocObject(alloc) => {
@@ -224,11 +224,11 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc_life, 'l>> {
+    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc, 'l>> {
         self.try_unwrap_object_alloc().unwrap()
     }
 
-    pub fn unwrap_object_nonnull(&self) -> NewJVObject<'gc_life, 'l> {
+    pub fn unwrap_object_nonnull(&self) -> NewJVObject<'gc, 'l> {
         todo!()
     }
 
@@ -326,7 +326,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn to_native(&self) -> NativeJavaValue<'gc_life> {
+    pub fn to_native(&self) -> NativeJavaValue<'gc> {
         let mut all_zero = NativeJavaValue { as_u64: 0 };
         match self {
             NewJavaValue::Long(long) => {
@@ -369,7 +369,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         all_zero
     }
 
-    pub fn to_handle_discouraged(&self) -> NewJavaValueHandle<'gc_life> {
+    pub fn to_handle_discouraged(&self) -> NewJavaValueHandle<'gc> {
         match self {
             NewJavaValue::Long(_) => {
                 todo!()
@@ -410,7 +410,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn rtype(&self, jvm: &'gc_life JVMState<'gc_life>) -> RuntimeType {
+    pub fn rtype(&self, jvm: &'gc JVMState<'gc>) -> RuntimeType {
         match self {
             NewJavaValue::Long(_) => {
                 RuntimeType::LongType
@@ -451,7 +451,7 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
         }
     }
 
-    pub fn to_type(&self, jvm: &'gc_life JVMState<'gc_life>) -> CPDType {
+    pub fn to_type(&self, jvm: &'gc JVMState<'gc>) -> CPDType {
         match self {
             NewJavaValue::Long(_) => { CPDType::LongType }
             NewJavaValue::Int(_) => { CPDType::IntType }
@@ -486,13 +486,13 @@ impl<'gc_life, 'l> NewJavaValue<'gc_life, 'l> {
     }
 }
 
-pub enum NewJVObject<'gc_life, 'l> {
-    UnAllocObject(UnAllocatedObject<'gc_life, 'l>),
-    AllocObject(AllocatedObject<'gc_life, 'l>),
+pub enum NewJVObject<'gc, 'l> {
+    UnAllocObject(UnAllocatedObject<'gc, 'l>),
+    AllocObject(AllocatedObject<'gc, 'l>),
 }
 
-impl<'gc_life, 'l> NewJVObject<'gc_life, 'l> {
-    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc_life, 'l> {
+impl<'gc, 'l> NewJVObject<'gc, 'l> {
+    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc, 'l> {
         match self {
             NewJVObject::UnAllocObject(_) => panic!(),
             NewJVObject::AllocObject(alloc_obj) => {
@@ -501,41 +501,41 @@ impl<'gc_life, 'l> NewJVObject<'gc_life, 'l> {
         }
     }
 
-    pub fn to_jv(&self) -> JavaValue<'gc_life> {
+    pub fn to_jv(&self) -> JavaValue<'gc> {
         todo!()
     }
 }
 
 #[derive(Clone)]
-pub enum UnAllocatedObject<'gc_life, 'l> {
-    Object(UnAllocatedObjectObject<'gc_life, 'l>),
-    Array(UnAllocatedObjectArray<'gc_life, 'l>),
+pub enum UnAllocatedObject<'gc, 'l> {
+    Object(UnAllocatedObjectObject<'gc, 'l>),
+    Array(UnAllocatedObjectArray<'gc, 'l>),
 }
 
-impl<'gc_life, 'l> UnAllocatedObject<'gc_life, 'l> {
-    pub fn new_array(whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>, elems: Vec<NewJavaValue<'gc_life, 'l>>) -> Self {
+impl<'gc, 'l> UnAllocatedObject<'gc, 'l> {
+    pub fn new_array(whole_array_runtime_class: Arc<RuntimeClass<'gc>>, elems: Vec<NewJavaValue<'gc, 'l>>) -> Self {
         Self::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems })
     }
 }
 
 #[derive(Clone)]
-pub struct UnAllocatedObjectObject<'gc_life, 'l> {
-    pub object_rc: Arc<RuntimeClass<'gc_life>>,
-    pub fields: HashMap<FieldNumber, NewJavaValue<'gc_life, 'l>>,
+pub struct UnAllocatedObjectObject<'gc, 'l> {
+    pub object_rc: Arc<RuntimeClass<'gc>>,
+    pub fields: HashMap<FieldNumber, NewJavaValue<'gc, 'l>>,
 }
 
 #[derive(Clone)]
-pub struct UnAllocatedObjectArray<'gc_life, 'l> {
-    pub whole_array_runtime_class: Arc<RuntimeClass<'gc_life>>,
-    pub elems: Vec<NewJavaValue<'gc_life, 'l>>,
+pub struct UnAllocatedObjectArray<'gc, 'l> {
+    pub whole_array_runtime_class: Arc<RuntimeClass<'gc>>,
+    pub elems: Vec<NewJavaValue<'gc, 'l>>,
 }
 
-pub struct AllocatedObject<'gc_life, 'l> {
-    pub handle: &'l AllocatedObjectHandle<'gc_life>,//todo put in same module as gc
+pub struct AllocatedObject<'gc, 'l> {
+    pub handle: &'l AllocatedObjectHandle<'gc>,//todo put in same module as gc
 }
 
-impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
-    pub fn to_gc_managed(&self) -> GcManagedObject<'gc_life> {
+impl<'gc, 'any> AllocatedObject<'gc, 'any> {
+    pub fn to_gc_managed(&self) -> GcManagedObject<'gc> {
         todo!()
     }
 
@@ -543,36 +543,36 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         self.handle.ptr.as_ptr() as usize
     }
 
-    pub fn set_var(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName, val: NewJavaValue<'gc_life, 'any>) {
+    pub fn set_var(&self, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName, val: NewJavaValue<'gc, 'any>) {
         let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
         unsafe {
-            self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
+            self.handle.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
         }
     }
 
-    pub fn set_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName, val: NewJavaValue<'gc_life, 'any>) {
+    pub fn set_var_top_level(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName, val: NewJavaValue<'gc, 'any>) {
         let current_class_pointer = self.runtime_class(jvm);
         self.set_var(&current_class_pointer, field_name, val)
     }
 
-    pub fn get_var(&self, jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+    pub fn get_var(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
         let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
         self.raw_get_var(jvm, *field_number, *desc_type)
     }
 
-    pub fn raw_get_var(&self, jvm: &'gc_life JVMState<'gc_life>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc_life> {
+    pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
         unsafe {
-            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc_life>>().as_ptr().offset(number.0 as isize).read();
+            let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
             native_jv.to_new_java_value(&cpdtype, jvm)
         }
     }
 
-    pub fn get_var_top_level(&self, jvm: &'gc_life JVMState<'gc_life>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+    pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
         let current_class_pointer = self.runtime_class(jvm);
         self.get_var(jvm, &current_class_pointer, field_name)
     }
 
-    pub fn lookup_field(&self, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, field_name: FieldName) -> NewJavaValueHandle<'gc_life> {
+    pub fn lookup_field(&self, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
         let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
         let cpdtype = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().1;
         let jvm = self.handle.jvm;
@@ -580,13 +580,13 @@ impl<'gc_life, 'any> AllocatedObject<'gc_life, 'any> {
         native_jv.to_new_java_value(cpdtype, jvm)
     }
 
-    pub fn runtime_class(&self, jvm: &'gc_life JVMState<'gc_life>) -> Arc<RuntimeClass<'gc_life>> {
+    pub fn runtime_class(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
         let allocated_obj_type = jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(self.handle.ptr).clone();
         assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
     }
 }
 
-impl<'gc_life> Clone for AllocatedObject<'gc_life, '_> {
+impl<'gc> Clone for AllocatedObject<'gc, '_> {
     fn clone(&self) -> Self {
         Self {
             handle: self.handle
@@ -594,21 +594,21 @@ impl<'gc_life> Clone for AllocatedObject<'gc_life, '_> {
     }
 }
 
-pub enum NewJVArray<'gc_life, 'l> {
-    UnAlloc(UnAllocatedObjectArray<'gc_life, 'l>),
-    Alloc(AllocatedObject<'gc_life, 'l>),
+pub enum NewJVArray<'gc, 'l> {
+    UnAlloc(UnAllocatedObjectArray<'gc, 'l>),
+    Alloc(AllocatedObject<'gc, 'l>),
 }
 
-impl<'gc_life, 'l> From<AllocatedObject<'gc_life, 'l>> for NewJVObject<'gc_life, 'l> {
-    fn from(_: AllocatedObject<'gc_life, 'l>) -> Self {
+impl<'gc, 'l> From<AllocatedObject<'gc, 'l>> for NewJVObject<'gc, 'l> {
+    fn from(_: AllocatedObject<'gc, 'l>) -> Self {
         todo!()
     }
 }
 
 
-pub struct AllocatedObjectHandle<'gc_life> {
+pub struct AllocatedObjectHandle<'gc> {
     /*pub(in crate::java_values)*/
-    pub(crate) jvm: &'gc_life JVMState<'gc_life>,
+    pub(crate) jvm: &'gc JVMState<'gc>,
     //todo move gc to same crate
     /*pub(in crate::java_values)*/
     pub ptr: NonNull<c_void>,
@@ -617,22 +617,22 @@ pub struct AllocatedObjectHandle<'gc_life> {
 impl Eq for AllocatedObjectHandle<'_> {}
 
 
-impl<'gc_life> PartialEq for AllocatedObjectHandle<'gc_life> {
+impl<'gc> PartialEq for AllocatedObjectHandle<'gc> {
     fn eq(&self, other: &Self) -> bool {
         self.ptr == other.ptr
     }
 }
 
-impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-    pub fn new_java_value(&self) -> NewJavaValue<'gc_life, '_> {
+impl<'gc> AllocatedObjectHandle<'gc> {
+    pub fn new_java_value(&self) -> NewJavaValue<'gc, '_> {
         NewJavaValue::AllocObject(self.as_allocated_obj())
     }
 
-    pub fn as_allocated_obj(&self) -> AllocatedObject<'gc_life, '_> {
+    pub fn as_allocated_obj(&self) -> AllocatedObject<'gc, '_> {
         AllocatedObject { handle: self }
     }
 
-    pub fn to_jv<'any>(&'any self) -> JavaValue<'gc_life> {
+    pub fn to_jv<'any>(&'any self) -> JavaValue<'gc> {
         todo!()
     }
 
@@ -640,12 +640,12 @@ impl<'gc_life> AllocatedObjectHandle<'gc_life> {
         self.jvm.gc.register_root_reentrant(self.jvm, self.ptr)
     }
 
-    pub fn is_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> bool {
+    pub fn is_array(&self, jvm: &'gc JVMState<'gc>) -> bool {
         let rc = self.as_allocated_obj().runtime_class(jvm);
         rc.cpdtype().is_array()
     }
 
-    pub fn unwrap_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayWrapper<'gc_life, '_> {
+    pub fn unwrap_array(&self, jvm: &'gc JVMState<'gc>) -> ArrayWrapper<'gc, '_> {
         assert!(self.is_array(jvm));
         ArrayWrapper {
             allocated_object: self.as_allocated_obj()
@@ -666,7 +666,7 @@ impl Drop for AllocatedObjectHandle<'_> {
 }
 
 
-pub struct AllocatedObjectHandleByAddress<'gc_life>(pub AllocatedObjectHandle<'gc_life>);
+pub struct AllocatedObjectHandleByAddress<'gc>(pub AllocatedObjectHandle<'gc>);
 
 impl Hash for AllocatedObjectHandleByAddress<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -682,13 +682,13 @@ impl PartialEq for AllocatedObjectHandleByAddress<'_> {
 
 impl Eq for AllocatedObjectHandleByAddress<'_> {}
 
-pub enum AllocatedObjectCOW<'gc_life, 'k> {
-    Handle(AllocatedObjectHandle<'gc_life>),
-    Ref(AllocatedObject<'gc_life, 'k>),
+pub enum AllocatedObjectCOW<'gc, 'k> {
+    Handle(AllocatedObjectHandle<'gc>),
+    Ref(AllocatedObject<'gc, 'k>),
 }
 
-impl<'gc_life, 'k> AllocatedObjectCOW<'gc_life, 'k> {
-    pub fn as_allocated_object(&'k self) -> AllocatedObject<'gc_life, 'k> {
+impl<'gc, 'k> AllocatedObjectCOW<'gc, 'k> {
+    pub fn as_allocated_object(&'k self) -> AllocatedObject<'gc, 'k> {
         match self {
             AllocatedObjectCOW::Handle(handle) => {
                 handle.as_allocated_obj()

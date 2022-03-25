@@ -8,7 +8,7 @@ use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::{InvokeInterfaceResolve, InvokeVirtualResolve, IRVMExitType};
-use gc_memory_layout_common::{FramePointerOffset, StackframeMemoryLayout};
+use gc_memory_layout_common::{FramePointerOffset};
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::classfile::InstructionInfo::jsr;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};

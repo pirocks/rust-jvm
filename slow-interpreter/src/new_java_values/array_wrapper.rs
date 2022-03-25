@@ -8,11 +8,11 @@ use crate::{JVMState, NewJavaValue};
 use crate::java_values::NativeJavaValue;
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
 
-pub struct ArrayWrapper<'gc_life, 'l> {
-    pub(crate) allocated_object: AllocatedObject<'gc_life, 'l>,
+pub struct ArrayWrapper<'gc, 'l> {
+    pub(crate) allocated_object: AllocatedObject<'gc, 'l>,
 }
 
-impl<'gc_life, 'l> ArrayWrapper<'gc_life, 'l> {
+impl<'gc, 'l> ArrayWrapper<'gc, 'l> {
     pub fn allocated_type(&self) -> AllocatedObjectType {
         let jvm = self.allocated_object.handle.jvm;
         let ptr = self.allocated_object.handle.ptr;
@@ -49,7 +49,7 @@ impl<'gc_life, 'l> ArrayWrapper<'gc_life, 'l> {
         }
     }
 
-    pub fn get_i(&self, i: usize) -> NewJavaValueHandle<'gc_life> {
+    pub fn get_i(&self, i: usize) -> NewJavaValueHandle<'gc> {
         assert!(i < self.len());
         let jvm = self.allocated_object.handle.jvm;
         let ptr = self.allocated_object.handle.ptr;
@@ -59,7 +59,7 @@ impl<'gc_life, 'l> ArrayWrapper<'gc_life, 'l> {
         native_jv.to_new_java_value(&cpdtype, jvm)
     }
 
-    pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc_life, '_>) {
+    pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
         assert!(i < self.len());
         let jvm = self.allocated_object.handle.jvm;
         let ptr = self.allocated_object.handle.ptr;
@@ -67,7 +67,7 @@ impl<'gc_life, 'l> ArrayWrapper<'gc_life, 'l> {
         unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native()) };
     }
 
-    pub fn array_iterator(&self) -> ArrayIterator<'gc_life, 'l, '_> {
+    pub fn array_iterator(&self) -> ArrayIterator<'gc, 'l, '_> {
         ArrayIterator {
             i: 0,
             array_wrapper: self,
@@ -75,13 +75,13 @@ impl<'gc_life, 'l> ArrayWrapper<'gc_life, 'l> {
     }
 }
 
-pub struct ArrayIterator<'gc_life, 'l, 'k> {
+pub struct ArrayIterator<'gc, 'l, 'k> {
     i: usize,
-    array_wrapper: &'k ArrayWrapper<'gc_life, 'l>,
+    array_wrapper: &'k ArrayWrapper<'gc, 'l>,
 }
 
-impl<'gc_life, 'l, 'k> Iterator for ArrayIterator<'gc_life, 'l, 'k> {
-    type Item = NewJavaValueHandle<'gc_life>;
+impl<'gc, 'l, 'k> Iterator for ArrayIterator<'gc, 'l, 'k> {
+    type Item = NewJavaValueHandle<'gc>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.i >= self.array_wrapper.len() {
@@ -93,11 +93,11 @@ impl<'gc_life, 'l, 'k> Iterator for ArrayIterator<'gc_life, 'l, 'k> {
     }
 }
 
-impl<'gc_life> NewJavaValueHandle<'gc_life> {
-    pub fn unwrap_array(&self, jvm: &'gc_life JVMState<'gc_life>) -> ArrayWrapper<'gc_life, '_> {
+impl<'gc> NewJavaValueHandle<'gc> {
+    pub fn unwrap_array(&self, jvm: &'gc JVMState<'gc>) -> ArrayWrapper<'gc, '_> {
         match self {
             NewJavaValueHandle::Object(obj) => {
-                let allocated_object: AllocatedObject<'gc_life, '_> = obj.as_allocated_obj();
+                let allocated_object: AllocatedObject<'gc, '_> = obj.as_allocated_obj();
                 ArrayWrapper { allocated_object }
             }
             _ => {

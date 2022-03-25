@@ -1,4 +1,3 @@
-use by_address::ByAddress;
 use itertools::Either;
 
 use classfile_view::view::HasAccessFlags;
@@ -10,14 +9,13 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter::WasException;
-use crate::interpreter_util::new_object;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, args: Vec<JavaValue<'gc_life>>) -> Result<JavaValue<'gc_life>, WasException> {
+pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, args: Vec<JavaValue<'gc>>) -> Result<JavaValue<'gc>, WasException> {
     //so as far as I can find this is undocumented.
     //so as far as I can figure out we have a method name and a class
     //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -81,7 +79,7 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, member_name: MemberName<'gc_life>) -> Result<JavaValue<'gc_life>, WasException> {
+fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<JavaValue<'gc>, WasException> {
     let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
@@ -227,7 +225,7 @@ fn resolve_impl<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     Ok(member_name.java_value())
 }
 
-fn throw_linkage_error<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) -> Result<(), WasException> {
+fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<(), WasException> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
     let object = todo!()/*new_object(jvm, int_state, &linkage_error).unwrap_object()*/;
     int_state.set_throw(todo!()/*object*/);

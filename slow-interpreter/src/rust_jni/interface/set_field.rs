@@ -1,12 +1,11 @@
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
-unsafe fn set_field<'gc_life>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: NewJavaValue<'gc_life,'_>) {
+unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: NewJavaValue<'gc,'_>) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
@@ -93,7 +92,7 @@ pub unsafe extern "C" fn set_static_object_field(env: *mut JNIEnv, clazz: jclass
     set_static_field(env, clazz, field_id_raw, NewJavaValueHandle::from_optional_object(value));
 }
 
-unsafe fn set_static_field<'gc_life>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: NewJavaValueHandle<'gc_life>) {
+unsafe fn set_static_field<'gc>(env: *mut JNIEnv, clazz: jclass, field_id_raw: jfieldID, value: NewJavaValueHandle<'gc>) {
     let jvm = get_state(env);
     //todo create a field conversion function.
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);

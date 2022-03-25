@@ -1,17 +1,14 @@
-use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
-use iced_x86::OpCodeOperandKind::cl;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
-use rust_jvm_common::classfile::InstructionInfo::drem;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -22,14 +19,14 @@ use rust_jvm_common::method_shape::{MethodShape, ShapeOrderWrapper};
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
-use crate::{NewAsObjectOrJavaValue, NewJavaValue};
+use crate::{NewAsObjectOrJavaValue};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
-use crate::java_values::{ByAddressAllocatedObject, default_value, GcManagedObject, JavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use crate::java_values::{ByAddressAllocatedObject, default_value};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
@@ -37,7 +34,7 @@ use crate::runtime_class::{FieldNumber, initialize_class, MethodNumber, prepare_
 use crate::verifier_frames::SunkVerifierFrames;
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.deref() {
         RuntimeClass::Byte => {
@@ -105,17 +102,17 @@ pub fn check_initing_or_inited_class<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_l
     }
 }
 
-pub fn assert_loaded_class<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) -> Arc<RuntimeClass<'gc_life>> {
+pub fn assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Arc<RuntimeClass<'gc>> {
     jvm.classes.read().unwrap().is_loaded(&ptype).unwrap()
 }
 
-pub fn check_loaded_class<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_loaded_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     let loader = int_state.current_loader(jvm);
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     // todo cleanup how these guards work
     let is_loaded = jvm.classes.write().unwrap().is_loaded(ptype);
     let res = match is_loaded {
@@ -196,7 +193,7 @@ impl LivePoolGetter for DefaultLivePoolGetter {
 
 static mut BOOTSRAP_LOAD_COUNT: usize = 0;
 
-pub fn bootstrap_load<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     unsafe {
         BOOTSRAP_LOAD_COUNT += 1;
         if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
@@ -341,7 +338,7 @@ pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, 
 }
 
 //signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
-pub fn create_class_object<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc_life, 'gc_life>, WasException> {
+pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, name: Option<String>, loader: LoaderName) -> Result<AllocatedObject<'gc, 'gc>, WasException> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => NewJavaValueHandle::Object(jvm.classes.read().unwrap().lookup_class_loader(idx).handle.duplicate_discouraged()),
         LoaderName::BootstrapLoader => NewJavaValueHandle::null(),
@@ -365,12 +362,12 @@ pub fn create_class_object<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_
     Ok(class_object.object_gc_life(jvm))
 }
 
-pub fn check_resolved_class<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc_life>>, WasException> {
+pub fn check_resolved_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     check_loaded_class(jvm, int_state, ptype)
 }
 
-pub fn assert_inited_or_initing_class<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, ptype: CPDType) -> Arc<RuntimeClass<'gc_life>> {
-    let class: Arc<RuntimeClass<'gc_life>> = assert_loaded_class(jvm, ptype.clone());
+pub fn assert_inited_or_initing_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Arc<RuntimeClass<'gc>> {
+    let class: Arc<RuntimeClass<'gc>> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
         ClassStatus::UNPREPARED => {
             jvm.perf_metrics.display();

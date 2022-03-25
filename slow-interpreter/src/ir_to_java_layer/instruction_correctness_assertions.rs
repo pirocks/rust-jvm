@@ -1,32 +1,27 @@
-use iced_x86::CC_be::be;
 
-use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::code::{CInstruction,};
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
-use crate::class_loading::assert_loaded_class;
-use crate::ir_to_java_layer::instruction_correctness_assertions::BeforeState::{NoValidate, TopOfOperandStackIs};
-use crate::ir_to_java_layer::instruction_correctness_assertions::interpreted_impls::{fcmpg, fcmpl};
 use crate::java_values::NativeJavaValue;
 
 #[derive(Debug, Clone)]
-pub enum BeforeState<'gc_life> {
+pub enum BeforeState<'gc> {
     NoValidate,
     TopOfOperandStackIs{
-        native_jv: NativeJavaValue<'gc_life>,
+        native_jv: NativeJavaValue<'gc>,
         rtype: RuntimeType
     },
 }
 
-pub struct AssertionState<'gc_life> {
-    pub(crate) current_before: Vec<Option<BeforeState<'gc_life>>>,
+pub struct AssertionState<'gc> {
+    pub(crate) current_before: Vec<Option<BeforeState<'gc>>>,
 }
 
 
-impl<'gc_life> AssertionState<'gc_life> {
-    pub fn handle_trace_after(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>){
+impl<'gc> AssertionState<'gc> {
+    pub fn handle_trace_after(&mut self, jvm: &'gc JVMState<'gc>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc, '_>){
         /*let current_assertion_check  = self.current_before.last_mut().unwrap().take().unwrap();
         match current_assertion_check{
             NoValidate => {}
@@ -39,7 +34,7 @@ impl<'gc_life> AssertionState<'gc_life> {
         }*/
     }
 
-    pub fn handle_trace_before(&mut self, jvm: &'gc_life JVMState<'gc_life>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc_life, '_>) {
+    pub fn handle_trace_before(&mut self, jvm: &'gc JVMState<'gc>, code: &CInstruction, int_state: &mut InterpreterStateGuard<'gc, '_>) {
 /*        assert!(self.current_before.last().unwrap().is_none() || matches!(self.current_before.last().unwrap().as_ref().unwrap(), NoValidate));
         let before_state = match &code.info {
             CompressedInstructionInfo::aaload => {

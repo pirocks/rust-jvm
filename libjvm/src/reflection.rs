@@ -45,9 +45,9 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
+unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
     let int_state = get_interpreter_state(env);
-    let jvm: &'gc_life JVMState<'gc_life> = get_state(env);
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     // assert_eq!(obj, std::ptr::null_mut()); //non-static methods not supported atm.
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
@@ -97,7 +97,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc_life>(env: *mut JNIEnv, method: j
     };
     let collected_args_array = args.array_iterator().collect_vec();
     for (arg, type_) in collected_args_array.iter().zip(parsed_md.arg_types.iter()) {
-        let arg : &NewJavaValueHandle<'gc_life> = arg;
+        let arg : &NewJavaValueHandle<'gc> = arg;
         let arg = match type_ {
             CompressedParsedDescriptorType::BooleanType => NewJavaValue::Boolean(arg.cast_boolean().inner_value(jvm)),
             CompressedParsedDescriptorType::ByteType => NewJavaValue::Byte(arg.cast_byte().inner_value(jvm)),

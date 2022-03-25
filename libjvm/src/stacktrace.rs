@@ -19,8 +19,8 @@ use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 
-struct OwnedStackEntry<'gc_life>{
-    declaring_class: Arc<RuntimeClass<'gc_life>>,
+struct OwnedStackEntry<'gc>{
+    declaring_class: Arc<RuntimeClass<'gc>>,
     line_number: jint,
     class_name_wtf8: Wtf8Buf,
     method_name_wtf8: Wtf8Buf,

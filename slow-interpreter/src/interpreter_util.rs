@@ -8,14 +8,14 @@ use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
-use crate::java_values::{default_value, GcManagedObject, JavaValue};
+use crate::java_values::{default_value, JavaValue};
 use crate::runtime_class::RuntimeClass;
 use std::convert::AsRef;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 
 //todo jni should really live in interpreter state
 
-pub fn new_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc_life>>) -> AllocatedObjectHandle<'gc_life> {
+pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedObjectHandle<'gc> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_handle = JavaValue::new_object(jvm, runtime_class.clone());
     let object_jv = object_handle.new_java_value();
@@ -24,7 +24,7 @@ pub fn new_object<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'
     object_handle
 }
 
-fn default_init_fields<'gc_life, 'k>(jvm: &'gc_life JVMState<'gc_life>, current_class_pointer: &Arc<RuntimeClass<'gc_life>>, object_pointer: AllocatedObject<'gc_life,'k>) {
+fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, object_pointer: AllocatedObject<'gc,'k>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
         default_init_fields(jvm, super_, object_pointer.clone());
     }
@@ -47,7 +47,7 @@ fn default_init_fields<'gc_life, 'k>(jvm: &'gc_life JVMState<'gc_life>, current_
     }
 }
 
-pub fn run_constructor<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, target_classfile: Arc<RuntimeClass<'gc_life>>, full_args: Vec<NewJavaValue<'gc_life,'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc,'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();

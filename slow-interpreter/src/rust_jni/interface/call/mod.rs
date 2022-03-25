@@ -25,7 +25,7 @@ use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
-unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -47,7 +47,7 @@ unsafe fn call_nonstatic_method<'gc_life>(env: *mut *const JNINativeInterface_, 
     return Ok(res);
 }
 
-pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+pub unsafe fn call_static_method_impl<'gc>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
@@ -69,12 +69,12 @@ pub unsafe fn call_static_method_impl<'gc_life>(env: *mut *const JNINativeInterf
     })
 }
 
-unsafe fn push_params_onto_frame_new<'gc_life, 'l>(
-    jvm: &'gc_life JVMState<'gc_life>,
+unsafe fn push_params_onto_frame_new<'gc, 'l>(
+    jvm: &'gc JVMState<'gc>,
     l: &mut VarargProvider,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     parsed: &CMethodDescriptor,
-) -> Vec<NewJavaValueHandle<'gc_life>> {
+) -> Vec<NewJavaValueHandle<'gc>> {
     let mut args = vec![];
     for type_ in &parsed.arg_types {
         args.push(push_type_to_operand_stack_new(jvm, int_state, type_, l));
@@ -82,7 +82,7 @@ unsafe fn push_params_onto_frame_new<'gc_life, 'l>(
     args
 }
 
-unsafe fn push_params_onto_frame<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, parsed: &CMethodDescriptor) {
+unsafe fn push_params_onto_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, parsed: &CMethodDescriptor) {
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }

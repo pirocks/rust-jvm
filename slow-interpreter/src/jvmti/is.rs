@@ -42,7 +42,7 @@ pub unsafe extern "C" fn is_array_class(env: *mut jvmtiEnv, klass: jclass, is_ar
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub unsafe fn is_array_impl<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, cls: jclass) -> Result<u8, jvmtiError> {
+pub unsafe fn is_array_impl<'gc>(jvm: &'gc JVMState<'gc>, cls: jclass) -> Result<u8, jvmtiError> {
     let jclass = match try_from_jclass(jvm, cls) {
         None => return Result::Err(jvmtiError_JVMTI_ERROR_INVALID_CLASS),
         Some(jclass) => jclass,

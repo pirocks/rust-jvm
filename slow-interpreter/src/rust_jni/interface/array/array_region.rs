@@ -125,7 +125,7 @@ pub unsafe extern "C" fn set_long_array_region(env: *mut JNIEnv, array: jdoubleA
     set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Long(buf.offset(index).read() as i64))
 }
 
-unsafe fn set_array_region<'gc_life>(env: *mut JNIEnv, array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> NewJavaValueHandle<'gc_life>) {
+unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> NewJavaValueHandle<'gc>) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let non_nullarray = match from_object_new(jvm, array) {

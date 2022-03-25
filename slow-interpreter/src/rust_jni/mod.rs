@@ -23,19 +23,18 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
-use crate::java_values::JavaValue;
 use crate::jvm_state::NativeLibraries;
-use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
+use crate::new_java_values::{NewJavaValueHandle};
 use crate::runtime_class::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
 
 pub mod mangling;
 pub mod value_conversion;
 
-impl<'gc_life> NativeLibraries<'gc_life> {
-    pub fn new(libjava: OsString) -> NativeLibraries<'gc_life> {
+impl<'gc> NativeLibraries<'gc> {
+    pub fn new(libjava: OsString) -> NativeLibraries<'gc> {
         NativeLibraries {
             libjava_path: libjava,
             native_libs: Default::default(),
@@ -44,7 +43,7 @@ impl<'gc_life> NativeLibraries<'gc_life> {
     }
 }
 
-pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classfile: Arc<RuntimeClass<'gc_life>>, method_view: MethodView, args: Vec<NewJavaValue<'gc_life, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc_life>>>, WasException> {
+pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -68,7 +67,7 @@ pub fn call<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ 
     })
 }
 
-pub fn call_impl<'gc_life, 'l, 'k>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, classfile: Arc<RuntimeClass<'gc_life>>, args: Vec<NewJavaValue<'gc_life, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
     assert!(int_state.current_frame().is_native_method());
     unsafe { assert!(jvm.get_int_state().registered()); }

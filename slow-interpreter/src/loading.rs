@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use iced_x86::OpCodeOperandKind::cl;
 
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;

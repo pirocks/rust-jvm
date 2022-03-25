@@ -2,24 +2,22 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::classfile::InstructionInfo::ret;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, StackEntry};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
-use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn run_invoke_static<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
@@ -40,15 +38,15 @@ pub fn run_invoke_static<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_st
     );
 }
 
-pub fn invoke_static_impl<'l, 'gc_life>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+pub fn invoke_static_impl<'l, 'gc>(
+    jvm: &'gc JVMState<'gc>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>,
     expected_descriptor: &CMethodDescriptor,
-    target_class: Arc<RuntimeClass<'gc_life>>,
+    target_class: Arc<RuntimeClass<'gc>>,
     target_method_i: u16,
     target_method: &MethodView,
-    args: Vec<NewJavaValue<'gc_life,'_>>
-) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+    args: Vec<NewJavaValue<'gc,'_>>
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_class_view = target_class.view();
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);

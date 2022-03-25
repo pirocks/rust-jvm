@@ -12,24 +12,24 @@ pub mod heap_byte_buffer {
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
     use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue};
 
-    pub struct HeapByteBuffer<'gc_life> {
-        normal_object: AllocatedObjectHandle<'gc_life>,
+    pub struct HeapByteBuffer<'gc> {
+        normal_object: AllocatedObjectHandle<'gc>,
     }
 
-    impl<'gc_life> JavaValue<'gc_life> {
-        pub fn cast_heap_byte_buffer(&self) -> HeapByteBuffer<'gc_life> {
+    impl<'gc> JavaValue<'gc> {
+        pub fn cast_heap_byte_buffer(&self) -> HeapByteBuffer<'gc> {
             HeapByteBuffer { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
         }
     }
 
-    impl<'gc_life> AllocatedObjectHandle<'gc_life> {
-        pub fn cast_heap_byte_buffer(self) -> HeapByteBuffer<'gc_life> {
+    impl<'gc> AllocatedObjectHandle<'gc> {
+        pub fn cast_heap_byte_buffer(self) -> HeapByteBuffer<'gc> {
             HeapByteBuffer { normal_object: self }
         }
     }
 
-    impl<'gc_life> HeapByteBuffer<'gc_life> {
-        pub fn new<'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
+    impl<'gc> HeapByteBuffer<'gc> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
             let object = new_object(jvm, int_state, &heap_byte_buffer_class);
 
@@ -47,12 +47,12 @@ pub mod heap_byte_buffer {
         // as_object_or_java_value!();
     }
 
-    impl <'gc_life> NewAsObjectOrJavaValue<'gc_life> for HeapByteBuffer<'gc_life>{
-        fn object(self) -> AllocatedObjectHandle<'gc_life> {
+    impl <'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc>{
+        fn object(self) -> AllocatedObjectHandle<'gc> {
             self.normal_object
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc_life, '_> {
+        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
             self.normal_object.as_allocated_obj()
         }
     }

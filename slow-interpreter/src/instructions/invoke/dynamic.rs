@@ -21,11 +21,11 @@ use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
 
-pub fn invoke_dynamic<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) {
+pub fn invoke_dynamic<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, cp: u16) {
     let _ = invoke_dynamic_impl(jvm, int_state, cp);
 }
 
-fn invoke_dynamic_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, cp: u16) -> Result<(), WasException> {
+fn invoke_dynamic_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, cp: u16) -> Result<(), WasException> {
     let method_handle_class = check_initing_or_inited_class(jvm, int_state, CClassName::method_handle().into())?;
     let _method_type_class = check_initing_or_inited_class(jvm, int_state, CClassName::method_type().into())?;
     let _call_site_class = check_initing_or_inited_class(jvm, int_state, CClassName::call_site().into())?;
@@ -99,8 +99,8 @@ fn invoke_dynamic_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_stat
     } else {
         let method_type = target.type__(jvm);
         let args = method_type.get_ptypes_as_types(jvm);
-        let form: LambdaForm<'gc_life> = target.get_form(jvm)?;
-        let member_name: MemberName<'gc_life> = form.get_vmentry(jvm);
+        let form: LambdaForm<'gc> = target.get_form(jvm)?;
+        let member_name: MemberName<'gc> = form.get_vmentry(jvm);
         let static_: bool = member_name.is_static(jvm, int_state)?;
         (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
     }; //todo also sketch
@@ -123,13 +123,13 @@ fn invoke_dynamic_impl<'l, 'gc_life>(jvm: &'gc_life JVMState<'gc_life>, int_stat
 }
 
 //todo this should go in MethodType or something.
-fn desc_from_rust_str<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, desc_str: String) -> Result<JavaValue<'gc_life>, WasException> {
+fn desc_from_rust_str<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, desc_str: String) -> Result<JavaValue<'gc>, WasException> {
     let desc_str = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str))?;
     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
     Ok(method_type.java_value())
 }
 
-fn method_handle_from_method_view<'gc_life, 'l>(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc_life>, WasException> {
+fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc>, WasException> {
     let methodref_view = method_ref.clone();
     Ok(match methodref_view.get_reference_data() {
         ReferenceInvokeKind::InvokeStatic(is) => {

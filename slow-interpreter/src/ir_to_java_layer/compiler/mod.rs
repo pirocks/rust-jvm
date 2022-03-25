@@ -200,7 +200,7 @@ impl RecompileConditions {
         }
     }
 
-    pub fn should_recompile<'gc_life>(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc_life>) -> bool {
+    pub fn should_recompile<'gc>(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc>) -> bool {
         match self.conditions.get(&method_id) {
             None => {
                 return true;
@@ -250,7 +250,7 @@ pub enum NeedsRecompileIf {
 }
 
 impl NeedsRecompileIf {
-    pub fn should_recompile<'gc_life>(&self, method_resolver: &MethodResolver<'gc_life>) -> bool {
+    pub fn should_recompile<'gc>(&self, method_resolver: &MethodResolver<'gc>) -> bool {
         match self {
             NeedsRecompileIf::FunctionRecompiled { function_method_id, current_ir_method_id } => {
                 let (ir_method_id, _address) = method_resolver.lookup_ir_method_id_and_address(*function_method_id).unwrap();

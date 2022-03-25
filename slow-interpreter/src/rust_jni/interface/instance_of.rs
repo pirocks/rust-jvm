@@ -3,8 +3,6 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::instructions::special::{instance_of_exit_impl, instance_of_impl};
-use crate::interpreter::WasException;
-use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_illegal_arg;

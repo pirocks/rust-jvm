@@ -38,7 +38,7 @@ unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> 
     }
 }
 
-unsafe fn get_array<'gc_life>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {

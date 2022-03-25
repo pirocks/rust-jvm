@@ -1,4 +1,4 @@
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::{RefCell};
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -15,36 +15,28 @@ use std::time::Instant;
 use bimap::BiMap;
 use by_address::ByAddress;
 use crossbeam::thread::Scope;
-use iced_x86::CC_le::le;
 use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
-use another_jit_vm_ir::ir_stack::IRStackMut;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject, stat};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use perf_metrics::PerfMetrics;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::classfile::InstructionInfo::ret;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
-use rust_jvm_common::compressed_classfile::descriptors::CompressedMethodDescriptorsPool;
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs, ShapeOrderWrapper};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapper};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
-use sketch_jvm_version_of_utf8::Utf8OrWtf8::Wtf;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
 use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
-use verification::verifier::{Frame, TypeSafetyError};
+use verification::verifier::{Frame};
 
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter, get_static_var_types};
 use crate::field_table::FieldTable;
-use crate::inheritance_method_ids::InheritanceMethodIDs;
-use crate::inheritance_vtable::VTables;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::ir_to_java_layer::compiler::{JavaCompilerMethodAndFrameData, RecompileConditions};
@@ -86,29 +78,29 @@ pub struct Native {
     pub native_interface_allocations: NativeAllocator,
 }
 
-pub struct JVMState<'gc_life> {
+pub struct JVMState<'gc> {
     pub config: JVMConfig,
-    pub java_vm_state: JavaVMStateWrapper<'gc_life>,
-    pub gc: &'gc_life GC<'gc_life>,
+    pub java_vm_state: JavaVMStateWrapper<'gc>,
+    pub gc: &'gc GC<'gc>,
     pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
-    pub native_libaries: NativeLibraries<'gc_life>,
+    pub native_libaries: NativeLibraries<'gc>,
     pub properties: Vec<String>,
     pub string_pool: CompressedClassfileStringPool,
-    pub string_internment: RwLock<StringInternment<'gc_life>>,
+    pub string_internment: RwLock<StringInternment<'gc>>,
     pub start_instant: Instant,
-    pub classes: RwLock<Classes<'gc_life>>,
+    pub classes: RwLock<Classes<'gc>>,
     pub classpath: Arc<Classpath>,
-    pub thread_state: ThreadState<'gc_life>,
-    pub method_table: RwLock<MethodTable<'gc_life>>,
-    pub field_table: RwLock<FieldTable<'gc_life>>,
+    pub thread_state: ThreadState<'gc>,
+    pub method_table: RwLock<MethodTable<'gc>>,
+    pub field_table: RwLock<FieldTable<'gc>>,
     pub wtf8_pool: Wtf8Pool,
     pub cpdtype_table: RwLock<CPDTypeTable>,
     pub opaque_ids: RwLock<OpaqueIDs>,
     pub native: Native,
     pub live: AtomicBool,
-    pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, MethodId>>,
+    pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc, 'gc>, MethodId>>,
     pub include_name_field: AtomicBool,
-    pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc_life>, Vec<StackTraceElement<'gc_life>>>>,
+    pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc>, Vec<StackTraceElement<'gc>>>>,
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
     pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
@@ -124,28 +116,28 @@ pub struct JVMState<'gc_life> {
 }
 
 
-pub struct Classes<'gc_life> {
+pub struct Classes<'gc> {
     //todo needs to be used for all instances of getClass
-    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass<'gc_life>>>>,
-    pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>)>,
-    pub(crate) class_object_pool: BiMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>>,
-    pub anon_classes: Vec<Arc<RuntimeClass<'gc_life>>>,
-    pub anon_class_live_object_ldc_pool: Vec<AllocatedObject<'gc_life, 'gc_life>>,
-    pub(crate) class_class: Arc<RuntimeClass<'gc_life>>,
-    class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc_life, 'gc_life>>,
-    pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, ByAddressAllocatedObject<'gc_life, 'gc_life>>,
+    pub loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass<'gc>>>>,
+    pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>)>,
+    pub(crate) class_object_pool: BiMap<ByAddressAllocatedObject<'gc, 'gc>, ByAddress<Arc<RuntimeClass<'gc>>>>,
+    pub anon_classes: Vec<Arc<RuntimeClass<'gc>>>,
+    pub anon_class_live_object_ldc_pool: Vec<AllocatedObject<'gc, 'gc>>,
+    pub(crate) class_class: Arc<RuntimeClass<'gc>>,
+    class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc, 'gc>>,
+    pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc, 'gc>>,
 }
 
-impl<'gc_life> Classes<'gc_life> {
+impl<'gc> Classes<'gc> {
     pub fn get_loaded_classes(&self) -> Vec<(LoaderName, CPDType)> {
         self.loaded_classes_by_type.iter().flat_map(|(l, rc)| rc.keys().map(move |ptype| (*l, ptype.clone()))).collect_vec()
     }
 
-    pub fn is_loaded(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc_life>>> {
+    pub fn is_loaded(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc>>> {
         self.initiating_loaders.get(&ptype)?.1.clone().into()
     }
 
-    pub fn is_inited_or_initing(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc_life>>> {
+    pub fn is_inited_or_initing(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc>>> {
         let rc = self.initiating_loaders.get(&ptype)?.1.clone();
         Some(match rc.status(){
             ClassStatus::UNPREPARED |
@@ -159,7 +151,7 @@ impl<'gc_life> Classes<'gc_life> {
         })
     }
 
-    pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc_life>>) -> LoaderName {
+    pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc>>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.cpdtype()).unwrap();
         if !Arc::ptr_eq(class_, actual_class) {
             dbg!(class_.cpdtype().unwrap_class_type());
@@ -170,7 +162,7 @@ impl<'gc_life> Classes<'gc_life> {
         *res
     }
 
-    pub fn get_class_obj(&self, ptypeview: CPDType, loader: Option<LoaderName>) -> Option<AllocatedObject<'gc_life, 'gc_life>> {
+    pub fn get_class_obj(&self, ptypeview: CPDType, loader: Option<LoaderName>) -> Option<AllocatedObject<'gc, 'gc>> {
         if loader.is_some() {
             todo!()
         }
@@ -179,7 +171,7 @@ impl<'gc_life> Classes<'gc_life> {
         Some(obj)
     }
 
-    pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc_life>>) -> AllocatedObject<'gc_life, 'gc_life> {
+    pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedObject<'gc, 'gc> {
         self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner()
     }
 
@@ -187,7 +179,7 @@ impl<'gc_life> Classes<'gc_life> {
         todo!()
     }
 
-    pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=AllocatedObject<'gc_life, 'specific_gc_life>> + 'specific_gc_life {
+    pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=AllocatedObject<'gc, 'specific_gc_life>> + 'specific_gc_life {
         self.class_object_pool
             .left_values()
             .map(|by_address| by_address.clone().owned_inner())
@@ -195,8 +187,8 @@ impl<'gc_life> Classes<'gc_life> {
             .chain(self.class_loaders.right_values().map(|by_address| by_address.clone().owned_inner()))
             .chain(self.protection_domains.right_values().map(|by_address| by_address.clone().owned_inner()))
             .chain(self.initiating_loaders.values()
-                .flat_map(|(_loader, class): &(_, Arc<RuntimeClass<'gc_life>>)| class.try_unwrap_class_class())
-                .flat_map(|class: &RuntimeClassClass<'gc_life>| {
+                .flat_map(|(_loader, class): &(_, Arc<RuntimeClass<'gc>>)| class.try_unwrap_class_class())
+                .flat_map(|class: &RuntimeClassClass<'gc>| {
                     let guard = class.static_vars.read().unwrap();
                     /*guard.values().map(|jv| {
                         todo!()
@@ -206,19 +198,19 @@ impl<'gc_life> Classes<'gc_life> {
             )
     }
 
-    pub fn loaded_classes_by_type(&self, loader: &LoaderName, type_: &CPDType) -> &Arc<RuntimeClass<'gc_life>> {
+    pub fn loaded_classes_by_type(&self, loader: &LoaderName, type_: &CPDType) -> &Arc<RuntimeClass<'gc>> {
         self.loaded_classes_by_type.get(loader).unwrap().get(type_).unwrap()
     }
 
-    pub fn object_to_runtime_class<'any>(&self, object: AllocatedObject<'gc_life, 'any>) -> Arc<RuntimeClass<'gc_life>> {
+    pub fn object_to_runtime_class<'any>(&self, object: AllocatedObject<'gc, 'any>) -> Arc<RuntimeClass<'gc>> {
         self.class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(object.raw_ptr_usize())).unwrap().0.clone()
     }
 
-    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> AllocatedObject<'gc_life, 'gc_life> {
+    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> AllocatedObject<'gc, 'gc> {
         self.class_loaders.get_by_left(&loader_name).unwrap().clone().owned_inner()
     }
 
-    pub fn lookup_or_add_classloader(&mut self, obj: AllocatedObject<'gc_life, 'gc_life>) -> LoaderName {
+    pub fn lookup_or_add_classloader(&mut self, obj: AllocatedObject<'gc, 'gc>) -> LoaderName {
         let loaders_guard = &mut self.class_loaders;
         let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject::Owned(obj.clone()));
         LoaderName::UserDefinedLoader(match loader_index_lookup {
@@ -233,11 +225,11 @@ impl<'gc_life> Classes<'gc_life> {
         })
     }
 
-    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> &AllocatedObject<'gc_life, 'gc_life> {
+    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> &AllocatedObject<'gc, 'gc> {
         &self.anon_class_live_object_ldc_pool[idx.0]
     }
 
-    pub fn get_loader_and_runtime_class(&self, cpdtype: &CPDType) -> Option<(LoaderName, Arc<RuntimeClass<'gc_life>>)> {
+    pub fn get_loader_and_runtime_class(&self, cpdtype: &CPDType) -> Option<(LoaderName, Arc<RuntimeClass<'gc>>)> {
         Some(self.initiating_loaders.get(cpdtype)?.clone())
     }
 }
@@ -250,8 +242,8 @@ pub enum ClassStatus {
     INITIALIZED,
 }
 
-impl<'gc_life> JVMState<'gc_life> {
-    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc_life>, gc: &'gc_life GC<'gc_life>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
+impl<'gc> JVMState<'gc> {
+    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
         let JVMOptions {
             main_class_name,
             classpath,
@@ -338,7 +330,7 @@ impl<'gc_life> JVMState<'gc_life> {
         (args, jvm)
     }
 
-    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc_life>>) {
+    pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc>>) {
         let mut method_table = self.method_table.write().unwrap();
         let view = rc.view();
         for (method_i, verification_types) in verification_types {
@@ -364,7 +356,7 @@ impl<'gc_life> JVMState<'gc_life> {
         }
     }
 
-    pub fn verify_class_and_object(&self, object_runtime_class: Arc<RuntimeClass<'gc_life>>, class_runtime_class: Arc<RuntimeClass<'gc_life>>) {
+    pub fn verify_class_and_object(&self, object_runtime_class: Arc<RuntimeClass<'gc>>, class_runtime_class: Arc<RuntimeClass<'gc>>) {
         let mut context = VerifierContext {
             live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
             classfile_getter: Arc::new(DefaultClassfileGetter { jvm: self }) as Arc<dyn ClassFileGetter>,
@@ -385,13 +377,12 @@ impl<'gc_life> JVMState<'gc_life> {
         self.sink_function_verification_date(&context.verification_types, class_runtime_class);
     }
 
-    pub fn add_class_class_class_object(&'gc_life self) {
+    pub fn add_class_class_class_object(&'gc self) {
         let mut classes = self.classes.write().unwrap();
         //todo desketchify this
-        let mut fields: HashMap<String, JavaValue<'gc_life>, RandomState> = Default::default();
+        let mut fields: HashMap<String, JavaValue<'gc>, RandomState> = Default::default();
         fields.insert("name".to_string(), JavaValue::null());
         fields.insert("classLoader".to_string(), JavaValue::null());
-        const MAX_LOCAL_VARS: i32 = 100;
         let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
         let fields_map_owned = (0..recursive_num_fields).map(|i| {
@@ -411,7 +402,7 @@ impl<'gc_life> JVMState<'gc_life> {
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 
-    fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc_life>> {
+    fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
@@ -446,9 +437,9 @@ impl<'gc_life> JVMState<'gc_life> {
             status,
             class_class_static_var_types
         )));
-        let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc_life>>), RandomState> = Default::default();
+        let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
-        let class_object_pool: BiMap<ByAddressAllocatedObject<'gc_life, 'gc_life>, ByAddress<Arc<RuntimeClass<'gc_life>>>> = Default::default();
+        let class_object_pool: BiMap<ByAddressAllocatedObject<'gc, 'gc>, ByAddress<Arc<RuntimeClass<'gc>>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
             initiating_loaders,
@@ -501,7 +492,7 @@ impl<'gc_life> JVMState<'gc_life> {
         res
     }
 
-    pub fn get_loader_obj(&self, loader: LoaderName) -> Option<ClassLoader<'gc_life>> {
+    pub fn get_loader_obj(&self, loader: LoaderName) -> Option<ClassLoader<'gc>> {
         match loader {
             LoaderName::UserDefinedLoader(loader_idx) => {
                 let classes_guard = self.classes.read().unwrap();
@@ -512,7 +503,7 @@ impl<'gc_life> JVMState<'gc_life> {
         }
     }
 
-    pub fn allocate_object(&'gc_life self, object: UnAllocatedObject<'gc_life, '_>) -> AllocatedObjectHandle<'gc_life> {
+    pub fn allocate_object(&'gc self, object: UnAllocatedObject<'gc, '_>) -> AllocatedObjectHandle<'gc> {
         self.gc.allocate_object(self, object)
     }
 
@@ -548,9 +539,9 @@ pub struct JVMTIState {
     pub tags: RwLock<HashMap<jobject, jlong>>,
 }
 
-struct LivePoolGetterImpl<'gc_life> {
-    jvm: &'gc_life JVMState<'gc_life>,
-    // anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc_life>>>>,
+struct LivePoolGetterImpl<'gc> {
+    jvm: &'gc JVMState<'gc>,
+    // anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc>>>>,
 }
 
 #[derive(Debug)]
@@ -559,14 +550,14 @@ pub struct NativeLib {
 }
 
 #[derive(Debug)]
-pub struct NativeLibraries<'gc_life> {
+pub struct NativeLibraries<'gc> {
     pub libjava_path: OsString,
     pub native_libs: RwLock<HashMap<String, NativeLib>>,
-    pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
+    pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
 }
 
-impl<'gc_life> NativeLibraries<'gc_life> {
-    pub unsafe fn load<'l>(&self, jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life, 'l>, path: &OsString, name: String) {
+impl<'gc> NativeLibraries<'gc> {
+    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
@@ -601,7 +592,7 @@ impl From<libloading::Error> for LookupError {
     }
 }
 
-impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
+impl<'gc> LivePoolGetter for LivePoolGetterImpl<'gc> {
     fn elem_type(&self, idx: LiveObjectIndex) -> CPRefType {
         let classes_guard = self.jvm.classes.read().unwrap();
         let object = &classes_guard.anon_class_live_object_ldc_pool[idx.0];
@@ -610,12 +601,12 @@ impl<'gc_life> LivePoolGetter for LivePoolGetterImpl<'gc_life> {
     }
 }
 
-impl<'gc_life> JVMState<'gc_life> {
+impl<'gc> JVMState<'gc> {
     pub fn vm_live(&self) -> bool {
         self.live.load(Ordering::SeqCst)
     }
 
-    pub fn get_live_object_pool_getter(&'gc_life self) -> Arc<dyn LivePoolGetter + 'gc_life> {
+    pub fn get_live_object_pool_getter(&'gc self) -> Arc<dyn LivePoolGetter + 'gc> {
         Arc::new(LivePoolGetterImpl { jvm: self })
     }
 
@@ -644,6 +635,6 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
     }
 }
 
-pub struct StringInternment<'gc_life> {
-    pub strings: HashMap<Vec<u16>, AllocatedObjectHandle<'gc_life>>,
+pub struct StringInternment<'gc> {
+    pub strings: HashMap<Vec<u16>, AllocatedObjectHandle<'gc>>,
 }

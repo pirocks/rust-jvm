@@ -95,7 +95,7 @@ pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_
     new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
-unsafe fn get_java_value_field<'gc_life>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<NewJavaValueHandle<'gc_life>, WasException> {
+unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(field_id_raw as usize);
@@ -127,7 +127,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     new_field_id(jvm, field_rc, field_i)
 }
 
-pub fn new_field_id<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, runtime_class: Arc<RuntimeClass<'gc_life>>, field_i: usize) -> jfieldID {
+pub fn new_field_id<'gc>(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>, field_i: usize) -> jfieldID {
     let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
     unsafe { transmute(id) }
 }
@@ -158,7 +158,7 @@ pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, na
     get_field_id(env, clazz, name, sig)
 }
 
-unsafe fn get_static_field<'gc_life>(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> Result<JavaValue<'gc_life>, WasException> {
+unsafe fn get_static_field<'gc>(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> Result<JavaValue<'gc>, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);

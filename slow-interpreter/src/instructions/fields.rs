@@ -1,21 +1,17 @@
-use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use crate::class_loading::{assert_inited_or_initing_class};
 use crate::interpreter::WasException;
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::utils::throw_npe;
 
 
-pub(crate) fn get_static_impl<'gc_life, 'l>(
-    jvm: &'gc_life JVMState<'gc_life>,
-    int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>,
+pub(crate) fn get_static_impl<'gc, 'l>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
     field_class_name: CClassName,
     field_name: FieldName
-) -> Result<Option<NewJavaValueHandle<'gc_life>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     //todo handle interfaces in setting as well
     let temp = target_classfile.static_vars(jvm);
