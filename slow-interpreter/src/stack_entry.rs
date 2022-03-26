@@ -11,7 +11,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::{FrameHeader, FrameInfo, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::layout::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -57,14 +57,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
         res
     }
 
-    fn get_frame_info(&self) -> &FrameInfo {
-        unsafe { self.get_header().frame_info_ptr.as_ref() }.unwrap()
-    }
-
-    fn get_frame_info_mut(&mut self) -> &mut FrameInfo {
-        unsafe { self.get_header().frame_info_ptr.as_mut() }.unwrap()
-    }
-
     pub fn loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         let method_id = self.get_header().methodid;
         if method_id == MethodId::MAX {
@@ -101,30 +93,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
         Ok(byte_code_offset.0)
     }
 
-    pub fn pc_mut(&mut self) -> &mut u16 {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { .. } => panic!(),
-            FrameInfo::JavaFrame { java_pc, .. } => java_pc,
-        }
-    }
-
-    pub fn pc_offset_mut(&mut self) -> &mut i32 {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { .. } => panic!(),
-            FrameInfo::JavaFrame { pc_offset, .. } => pc_offset,
-        }
-    }
-
-    pub fn pc_offset(&self) -> i32 {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { .. } => panic!(),
-            FrameInfo::JavaFrame { pc_offset, .. } => *pc_offset,
-        }
-    }
-
     pub fn operand_stack_length(&self, jvm: &'gc JVMState<'gc>) -> Result<u16, Opaque> {
         let methodid = self.get_header().methodid;
         if methodid == usize::MAX {
@@ -153,14 +121,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
         Ok(res)
     }
 
-    pub fn is_native(&self) -> bool {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => false,
-            FrameInfo::Native { .. } => true,
-            FrameInfo::JavaFrame { .. } => false,
-        }
-    }
-
     fn max_locals(&self, jvm: &'gc JVMState<'gc>) -> Result<u16, Opaque> {
         let methodid = self.get_header().methodid;
         if methodid == usize::MAX {
@@ -174,7 +134,7 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
 
     fn get_operand_stack_base(&self, jvm: &'gc JVMState<'gc>) -> Result<*mut c_void, Opaque> {
         //todo should be based of actual layout instead of this
-        Ok(unsafe { self.frame_ptr.offset((size_of::<FrameHeader>() + size_of::<u64>() * (dbg!(self.max_locals(jvm)?) as usize)) as isize) })
+        Ok(unsafe { self.frame_ptr.offset((size_of::<FrameHeader>() + size_of::<u64>() * (self.max_locals(jvm)? as usize)) as isize) })
     }
 
     fn get_local_var_base(&self) -> *mut c_void {
@@ -260,38 +220,7 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
         }
     }
 
-    pub fn push_operand_stack(&mut self, j: JavaValue<'gc>) {
-        let frame_info = self.get_frame_info_mut();
-        frame_info.push_operand_stack(j.to_type());
-        let operand_stack_depth = frame_info.operand_stack_depth_mut();
-        let current_depth = *operand_stack_depth;
-        *operand_stack_depth += 1;
-        let operand_stack_base = self.get_operand_stack_base(todo!()).unwrap();
-        let target = unsafe { operand_stack_base.offset(((current_depth as usize) * size_of::<jlong>()) as isize) };
-        Self::write_target(target, j)
-    }
-
-    pub fn pop_operand_stack(&mut self, jvm: &'gc JVMState<'gc>, expected_type: Option<RuntimeType>) -> Option<JavaValue<'gc>> {
-        let operand_stack_depth_mut = self.get_frame_info_mut().operand_stack_depth_mut();
-        let current_depth = *operand_stack_depth_mut;
-        if current_depth == 0 {
-            return None;
-        }
-        *operand_stack_depth_mut -= 1;
-        let new_current_depth = *operand_stack_depth_mut;
-        let type_ = self.get_frame_info_mut().pop_operand_stack().unwrap();
-        let operand_stack_base = self.get_operand_stack_base(todo!()).unwrap();
-        let target = unsafe { operand_stack_base.offset((new_current_depth as usize * size_of::<jlong>()) as isize) };
-        let res = Self::read_target(jvm, target, expected_type.unwrap_or(type_.clone()));
-        Some(res)
-    }
-
-    pub fn get_current_operand_stack_type_state(&self) -> Vec<RuntimeType> {
-        self.get_frame_info().operand_stack_types()
-    }
-
     pub fn set_local_var(&mut self, _jvm: &'gc JVMState<'gc>, i: u16, jv: JavaValue<'gc>) {
-        self.get_frame_info_mut().set_local_var_type(jv.to_type(), i as usize);
         let target = unsafe { self.get_local_var_base().offset((i as isize) * size_of::<jlong>() as isize) };
         Self::write_target(target, jv)
     }
@@ -383,56 +312,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
                 }
             }
         }*/
-    }
-
-    pub fn get_local_refs(&self) -> Vec<HashSet<jobject>> {
-        match self.get_frame_info() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => native_local_refs.clone(),
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
-    }
-
-    pub fn set_local_refs_top_frame(&mut self, new: HashSet<jobject>) {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => {
-                *native_local_refs.last_mut().unwrap() = new;
-            }
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
-    }
-
-    pub fn pop_local_refs(&mut self) -> HashSet<jobject> {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => native_local_refs.pop().unwrap(),
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
-    }
-
-    pub fn push_local_refs(&mut self, to_push: HashSet<jobject>) {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => native_local_refs.push(to_push),
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
-    }
-
-    pub fn pop(&mut self) -> Option<HashSet<jobject>> {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => native_local_refs.pop(),
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
-    }
-
-    pub fn push(&mut self, jobjects: HashSet<jobject>) {
-        match self.get_frame_info_mut() {
-            FrameInfo::FullyOpaque { .. } => panic!(),
-            FrameInfo::Native { native_local_refs, .. } => native_local_refs.push(jobjects),
-            FrameInfo::JavaFrame { .. } => panic!(),
-        }
     }
 }
 

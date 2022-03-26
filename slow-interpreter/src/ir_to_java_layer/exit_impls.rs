@@ -8,7 +8,7 @@ use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegis
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
-use gc_memory_layout_common::AllocatedObjectType;
+use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};

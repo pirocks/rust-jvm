@@ -1,6 +1,6 @@
 use std::mem::size_of;
+use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 
-use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::CPDType;
 

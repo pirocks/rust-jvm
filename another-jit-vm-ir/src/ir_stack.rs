@@ -3,7 +3,8 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 
 use another_jit_vm::stack::OwnedNativeStack;
-use gc_memory_layout_common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::layout::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use rust_jvm_common::MethodId;
 
 use crate::{IRInstructIndex, IRMethodID, IRVMState};

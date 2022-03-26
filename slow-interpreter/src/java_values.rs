@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
-use gc_memory_layout_common::{AllocatedObjectType, MemoryRegions};
+use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;

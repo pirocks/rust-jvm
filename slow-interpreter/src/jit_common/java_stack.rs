@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::ptr::null_mut;
 
 use classfile_view::view::ptype_view::PTypeView;
-use gc_memory_layout_common::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::layout::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use jvmti_jni_bindings::jobject;
 
 use crate::jit_common::SavedRegisters;

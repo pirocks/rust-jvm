@@ -8,7 +8,7 @@ use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
 use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::BaseAddressAndMask;
+use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode};

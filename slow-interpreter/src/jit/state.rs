@@ -2,10 +2,9 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
-use std::mem::{size_of, transmute};
+use std::mem::{size_of};
 use std::ops::{Deref};
 use std::ptr::null_mut;
-use std::sync::{MutexGuard};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread;
 
@@ -16,7 +15,8 @@ use nix::sys::mman::{MapFlags, mmap, ProtFlags};
 
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
-use gc_memory_layout_common::{AllocatedObjectType, ArrayMemoryLayout, FrameHeader, FramePointerOffset, MemoryRegions, ObjectMemoryLayout, StackframeMemoryLayout};
+use gc_memory_layout_common::layout::{ArrayMemoryLayout, FrameHeader, ObjectMemoryLayout, StackframeMemoryLayout};
+use gc_memory_layout_common::memory_regions::{AllocatedObjectType, FramePointerOffset};
 use jvmti_jni_bindings::{jlong};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType};
@@ -26,7 +26,6 @@ use rust_jvm_common::loading::LoaderName;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::{CompiledCodeID, ToIR, ToNative};
 use crate::jit::state::birangemap::BiRangeMap;
-use crate::jit_common::{RuntimeTypeInfo};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::{RuntimeClass};
@@ -187,23 +186,6 @@ impl JITedCodeState {
             self.function_addresses.insert_range(install_at..(install_at.offset(code.len() as isize)), current_code_id);
         }
         install_at
-    }
-
-    fn runtime_type_info(memory_region: &MutexGuard<MemoryRegions>) -> RuntimeTypeInfo {
-        unsafe {
-            RuntimeTypeInfo {
-                small_num_regions: 0,
-                medium_num_regions: 0,
-                large_num_regions: 0,
-                extra_large_num_regions: 0,
-                //todo can't do this b/c vecs might be realloced
-                small_region_index_to_region_data: memory_region.small_region_types.as_ptr(),
-                medium_region_index_to_region_data: memory_region.medium_region_types.as_ptr(),
-                large_region_index_to_region_data: memory_region.large_region_types.as_ptr(),
-                extra_large_region_index_to_region_data: memory_region.extra_large_region_types.as_ptr(),
-                allocated_type_to_vtable: transmute(0xDDDDDDDDusize), //major todo
-            }
-        }
     }
 
 }

@@ -4,7 +4,7 @@ use std::num::NonZeroU8;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 
 use another_jit_vm::Register;
-use gc_memory_layout_common::FramePointerOffset;
+use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;

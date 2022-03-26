@@ -10,7 +10,7 @@ use itertools::Itertools;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use gc_memory_layout_common::FramePointerOffset;
+use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;

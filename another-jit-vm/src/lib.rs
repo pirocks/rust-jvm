@@ -562,25 +562,11 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
 
     pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers_to_save: HashSet<Register>) {
         assembler.set_label(before_exit_label).unwrap();
-        // assembler.mov(r15 + RAX_GUEST_OFFSET_CONST, rax).unwrap();
-        // assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
         for register in registers_to_save {
             assembler.mov(r15 + register.guest_offset_const(), register.to_native_64()).unwrap();
         }
-        // assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
-        // assembler.mov(r15 + RCX_GUEST_OFFSET_CONST, rcx).unwrap();
-        // assembler.mov(r15 + RDX_GUEST_OFFSET_CONST, rdx).unwrap();
-        // assembler.mov(r15 + RDI_GUEST_OFFSET_CONST, rdi).unwrap();
-        // assembler.mov(r15 + RSI_GUEST_OFFSET_CONST, rsi).unwrap();
         assembler.mov(r15 + RBP_GUEST_OFFSET_CONST, rbp).unwrap();
         assembler.mov(r15 + RSP_GUEST_OFFSET_CONST, rsp).unwrap();
-        // assembler.mov(r15 + R8_GUEST_OFFSET_CONST, r8).unwrap();
-        // assembler.mov(r15 + R9_GUEST_OFFSET_CONST, r9).unwrap();
-        // assembler.mov(r15 + R10_GUEST_OFFSET_CONST, r10).unwrap();
-        // assembler.mov(r15 + R11_GUEST_OFFSET_CONST, r11).unwrap();
-        // assembler.mov(r15 + R12_GUEST_OFFSET_CONST, r12).unwrap();
-        // assembler.mov(r15 + R13_GUEST_OFFSET_CONST, r13).unwrap();
-        // assembler.mov(r15 + R14_GUEST_OFFSET_CONST, r14).unwrap();
         assembler.lea(r10, qword_ptr(before_exit_label.clone())).unwrap();//safe to clober r10 b/c it was saved
         assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, r10).unwrap();
         assembler.jmp(qword_ptr(r15 + RIP_NATIVE_OFFSET_CONST)).unwrap();
