@@ -2,6 +2,7 @@ pub mod method_type {
     use std::sync::Arc;
 
     use jvmti_jni_bindings::jint;
+    use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
@@ -16,7 +17,6 @@ pub mod method_type {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
-    use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -344,6 +344,7 @@ pub mod method_handle {
 
 pub mod method_handles {
     pub mod lookup {
+        use std::ops::Deref;
         use rust_jvm_common::compressed_classfile::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
@@ -373,7 +374,7 @@ pub mod method_handles {
         impl<'gc> Lookup<'gc> {
             pub fn trusted_lookup<'l>(jvm: &'gc JVMState<'gc>, _int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Self {
                 let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
-                let static_vars = lookup.static_vars(jvm);
+                let static_vars = static_vars(lookup.deref(),jvm);
                 static_vars.get(FieldName::field_IMPL_LOOKUP()).to_jv().cast_lookup()
             }
 
@@ -427,6 +428,8 @@ pub mod method_handles {
 
         use crate::new_java_values::AllocatedObject;
         use crate::AllocatedObjectHandle;
+        use crate::runtime_class::static_vars;
+
         impl<'gc> NewAsObjectOrJavaValue<'gc> for Lookup<'gc> {
             fn object(self) -> AllocatedObjectHandle<'gc> {
                 todo!()

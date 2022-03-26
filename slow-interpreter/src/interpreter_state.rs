@@ -11,9 +11,8 @@ use itertools::Itertools;
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::memory_regions::FramePointerOffset;
-use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jobject, jvalue};
-use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -639,118 +638,6 @@ pub struct NativeFrameInfo<'gc> {
     pub local_vars: Vec<NativeJavaValue<'gc>>,
     pub operand_stack: Vec<NativeJavaValue<'gc>>,
 }
-
-// fn compatible_with_type(jv: &JavaValue, type_: &VType) -> bool {
-//     match type_ {
-//         VType::DoubleType => {
-//             jv.unwrap_double();
-//             true
-//         }
-//         VType::FloatType => {
-//             jv.unwrap_float();
-//             true
-//         }
-//         VType::IntType => {
-//             jv.unwrap_int();
-//             true
-//         }
-//         VType::LongType => {
-//             jv.unwrap_long();
-//             true
-//         }
-//         VType::Class(ClassWithLoader { class_name, .. }) => {
-//             match jv.unwrap_object() {
-//                 None => true,
-//                 Some(obj) => {
-//                     true//todo need more granular
-//                     // obj.unwrap_normal_object().class_pointer.ptypeview().unwrap_class_type() == class_name.clone()
-//                 }
-//             }
-//         }
-//         VType::ArrayReferenceType(array_ref) => {
-//             if jv.unwrap_object().is_none() {
-//                 return true;
-//             }
-//             let elem_type = jv.unwrap_array().elem_type.clone();
-//             match &elem_type {
-//                 PTypeView::ByteType => array_ref == &PTypeView::ByteType,
-//                 PTypeView::CharType => array_ref == &PTypeView::CharType,
-//                 PTypeView::DoubleType => todo!(),
-//                 PTypeView::FloatType => todo!(),
-//                 PTypeView::IntType => array_ref == &PTypeView::IntType,
-//                 PTypeView::LongType => array_ref == &PTypeView::LongType,
-//                 PTypeView::Ref(ref_) => {
-//                     match ref_ {
-//                         ReferenceTypeView::Class(class_) => {
-//                             true//todo need more granular.
-//                             // &PTypeView::Ref(ReferenceTypeView::Class(class_.clone())) == array_ref
-//                         }
-//                         ReferenceTypeView::Array(array_) => {
-//                             true//todo need more granular
-//                         }
-//                     }
-//                 }
-//                 PTypeView::ShortType => todo!(),
-//                 PTypeView::BooleanType => array_ref == &PTypeView::BooleanType,
-//                 PTypeView::VoidType => todo!(),
-//                 PTypeView::TopType => todo!(),
-//                 PTypeView::NullType => todo!(),
-//                 PTypeView::Uninitialized(_) => todo!(),
-//                 PTypeView::UninitializedThis => todo!(),
-//                 PTypeView::UninitializedThisOrClass(_) => todo!()
-//             }
-//         }
-//         VType::VoidType => todo!(),
-//         VType::TopType => {
-//             match jv {
-//                 JavaValue::Top => true,
-//                 _ => true
-//             }
-//         }
-//         VType::NullType => {
-//             jv.unwrap_object();
-//             true
-//         }
-//         VType::Uninitialized(_) => {
-//             jv.unwrap_object_nonnull();
-//             true
-//         }
-//         VType::UninitializedThis => {
-//             jv.unwrap_object_nonnull();
-//             true
-//         }
-//         VType::UninitializedThisOrClass(_) => {
-//             jv.unwrap_object_nonnull();
-//             true
-//         }
-//         VType::TwoWord => todo!(),
-//         VType::OneWord => todo!(),
-//         VType::Reference => todo!(),
-//         VType::UninitializedEmpty => todo!(),
-//     }
-// }
-//
-// fn remove_tops(stack_map: &OperandStack) -> OperandStack {
-//     //todo this is jank, should be idiomatic way to do this
-//     let mut expecting_top = false;
-//
-//     let mut data = stack_map.data.iter().rev().flat_map(|cur| {
-//         if expecting_top {
-//             assert_eq!(cur, &VType::TopType);
-//             expecting_top = false;
-//             return None;
-//         }
-//         if &VType::LongType == cur || &VType::DoubleType == cur {
-//             expecting_top = true;
-//         }
-//         Some(cur.clone())
-//     }).collect::<VecDeque<_>>();
-//     data = data.into_iter().rev().collect();
-//     assert!(!expecting_top);
-//     OperandStack {
-//         data
-//     }
-// }
 
 pub enum AddFrameNotifyError {
     Opaque,

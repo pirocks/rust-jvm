@@ -283,6 +283,7 @@ pub mod member_name {
 
 pub mod class {
     use std::sync::Arc;
+    use runtime_class_stuff::RuntimeClass;
 
 
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
@@ -299,7 +300,6 @@ pub mod class {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::runtime_class::RuntimeClass;
     use crate::utils::run_static_or_virtual;
 
     pub struct JClass<'gc> {
@@ -678,6 +678,7 @@ pub mod thread {
     use wtf8::Wtf8Buf;
 
     use jvmti_jni_bindings::{jboolean, jint};
+    use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::JavaThreadId;
@@ -693,7 +694,6 @@ pub mod thread {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::runtime_class::RuntimeClass;
     use crate::threading::JavaThread;
     use crate::utils::run_static_or_virtual;
 
@@ -865,6 +865,7 @@ pub mod thread_group {
     use std::sync::Arc;
 
     use jvmti_jni_bindings::{jboolean, jint};
+    use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 
     use crate::{InterpreterStateGuard, JVMState};
@@ -875,7 +876,6 @@ pub mod thread_group {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
     use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::runtime_class::RuntimeClass;
 
     pub struct JThreadGroup<'gc> {
         normal_object: AllocatedObjectHandle<'gc>,

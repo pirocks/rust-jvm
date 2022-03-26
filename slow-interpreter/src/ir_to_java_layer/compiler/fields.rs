@@ -7,6 +7,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
+use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -14,7 +15,6 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast_impl};
 use crate::jit::MethodResolver;
-use crate::runtime_class::{FieldNumber, RuntimeClassClass};
 
 pub const fn field_type_to_size(cpd_type: &CPDType) -> Size {
     match cpd_type {

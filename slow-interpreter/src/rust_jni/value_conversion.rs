@@ -8,7 +8,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, 
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::NewJavaValue;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::local_frame::new_local_ref;
 use crate::rust_jni::native_util::{to_object_new};
 

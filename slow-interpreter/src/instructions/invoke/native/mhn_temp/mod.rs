@@ -20,7 +20,7 @@ use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
 use crate::java_values::JavaValue;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;

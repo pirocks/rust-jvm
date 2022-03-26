@@ -27,7 +27,6 @@ use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::runtime_class::RuntimeClass;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;

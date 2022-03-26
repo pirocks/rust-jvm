@@ -12,7 +12,7 @@ use crate::interpreter::WasException;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use crate::new_java_values::AllocatedObject;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 
 pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: &CPDType, obj: Option<AllocatedObject<'gc, 'any>>) -> jint {
     match obj {

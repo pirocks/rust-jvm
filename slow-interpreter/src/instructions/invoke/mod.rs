@@ -10,7 +10,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
 use crate::java_values::{ArrayObject};
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::utils::{lookup_method_parsed, throw_npe_res};
 
 pub mod interface;

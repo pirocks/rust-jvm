@@ -2,8 +2,8 @@ use std::mem::size_of;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::jlong;
+use rust_jvm_common::NativeJavaValue;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn sastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
@@ -33,6 +33,7 @@ pub fn lastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
 fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, elem_size: Size) -> impl Iterator<Item=IRInstr> {
     let index = Register(1);
     let array_ref = Register(2);
+    todo!("layout");
     assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
     let native_jv_size = size_of::<jlong>();
     let native_jv_size_register = Register(3);

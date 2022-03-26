@@ -2,16 +2,17 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use jvmti_jni_bindings::jlong;
+use runtime_class_stuff::FieldNumber;
 use verification::verifier::Frame;
 use crate::memory_regions::FramePointerOffset;
 
 
 pub struct ObjectMemoryLayout {
-    elems: HashMap<usize /*filed id*/, usize>,
+
 }
 
 impl ObjectMemoryLayout {
-    pub fn field_entry(&self) -> usize {
+    pub fn field_entry(&self, field_number: FieldNumber) -> usize {
         todo!()
     }
 }
@@ -199,3 +200,6 @@ impl StackframeMemoryLayout for NativeStackframeMemoryLayout {
         todo!()
     }
 }
+
+
+

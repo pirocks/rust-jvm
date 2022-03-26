@@ -13,7 +13,7 @@ use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::interpreter::{monitor_for_function, WasException};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;

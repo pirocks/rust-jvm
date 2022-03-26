@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
 use std::num::NonZeroU8;
+use std::ops::Deref;
 use std::ptr::NonNull;
 use itertools::Itertools;
 use libc::memset;
@@ -9,14 +10,13 @@ use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
-use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
@@ -31,6 +31,7 @@ use crate::java::lang::class::JClass;
 use crate::java_values::{default_value, native_to_new_java_value};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
+use crate::runtime_class::static_vars;
 use crate::utils::lookup_method_parsed;
 
 pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, elem_type: CPDTypeID, num_arrays: u8, len_start: *const i64, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
@@ -471,7 +472,7 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, exit_guard: &VMExitGuard, field_
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
     let view = rc.view();
     let field_view = view.field(field_i as usize);
-    let mut static_vars_guard = rc.static_vars(jvm);
+    let mut static_vars_guard = static_vars(rc.deref(),jvm);
     let field_name = field_view.field_name();
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
     let njv = native_to_new_java_value(native_jv,&field_view.field_type(), jvm);

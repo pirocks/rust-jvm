@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::ffi::CStr;
 use std::mem::transmute;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
@@ -14,7 +15,8 @@ use crate::interpreter::WasException;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
+use crate::runtime_class::static_vars;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
@@ -167,7 +169,7 @@ unsafe fn get_static_field<'gc>(env: *mut JNIEnv, klass: jclass, field_id_raw: j
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
     check_initing_or_inited_class(jvm, int_state, rc.cpdtype())?;
-    let guard = rc.static_vars(jvm);
+    let guard = static_vars(rc.deref(),jvm);
     Ok(guard.borrow().get(name).to_jv())
 }
 

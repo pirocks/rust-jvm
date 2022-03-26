@@ -42,5 +42,6 @@ members = [
     "another-jit-vm-ir",
     "gc-memory-layout-common",
     "perf-metrics",
-    "java5-verifier"
+    "java5-verifier",
+    "runtime-class-stuff"
 ]

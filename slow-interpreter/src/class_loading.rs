@@ -9,13 +9,13 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
+use runtime_class_stuff::{ClassStatus, get_field_numbers, get_method_numbers, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
-use rust_jvm_common::method_shape::{MethodShape, ShapeOrderWrapper};
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
@@ -28,9 +28,9 @@ use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value};
 use crate::jit::MethodResolver;
-use crate::jvm_state::{ClassStatus, JVMState};
+use crate::jvm_state::{JVMState};
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectObject};
-use crate::runtime_class::{FieldNumber, initialize_class, MethodNumber, prepare_class, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use crate::runtime_class::{initialize_class, prepare_class, static_vars};
 use crate::verifier_frames::SunkVerifierFrames;
 
 //todo only use where spec says
@@ -80,7 +80,7 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
     }
     match class.status() {
         ClassStatus::UNPREPARED => {
-            prepare_class(jvm, int_state, class.view(), &mut class.static_vars(jvm));
+            prepare_class(jvm, int_state, class.view(), &mut static_vars(class.deref(),jvm));
             class.set_status(ClassStatus::PREPARED);
             check_initing_or_inited_class(jvm, int_state, ptype)
         }
@@ -311,27 +311,6 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
     Ok(runtime_class)
 }
 
-pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
-    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-    let field_numbers = class_view.fields().filter(|field| !field.is_static())
-        .map(|name| (name.field_name(), name.field_type()))
-        .sorted_by_key(|(name, _ptype)| name.0)
-        .enumerate()
-        .map(|(index, (name, ptype))| (name, (FieldNumber((index + start_field_number) as u32), ptype))).collect::<HashMap<_, _>>();
-    (start_field_number + field_numbers.len(), field_numbers)
-}
-
-pub fn get_method_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<MethodShape, MethodNumber>) {
-    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_virtual_methods()).unwrap_or(0);
-    let method_numbers = class_view.methods().filter(|method| !method.is_static()).map(|method| {
-        method.method_shape()
-    })
-        .sorted_by(|shape_1, shape_2| ShapeOrderWrapper(shape_1).cmp(&ShapeOrderWrapper(shape_2)))
-        .enumerate()
-        .map(|(index, shape)| (shape, MethodNumber((index + start_field_number) as u32)))
-        .collect::<HashMap<_, _>>();
-    ((start_field_number + method_numbers.len()) as u32, method_numbers)
-}
 
 pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, CPDType> {
     class_view.fields().filter(|field| field.is_static()).map(|field| (field.field_name(), field.field_type())).collect()

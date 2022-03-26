@@ -1,7 +1,9 @@
+use std::ops::Deref;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
+use crate::runtime_class::static_vars;
 use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
@@ -99,5 +101,5 @@ unsafe fn set_static_field<'gc>(env: *mut JNIEnv, clazz: jclass, field_id_raw: j
     let view = &rc.view();
     let field_name = view.field(field_i as usize).field_name();
     let static_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
-    static_class.static_vars(jvm).set(field_name, value);
+    static_vars(static_class.deref(),jvm).set(field_name, value);
 }

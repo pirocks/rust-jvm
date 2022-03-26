@@ -7,7 +7,7 @@ use jvmti_jni_bindings::_jmethodID;
 use rust_jvm_common::{MethodId, MethodTableIndex};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 
 pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId

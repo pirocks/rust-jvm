@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{FieldId, FieldTableIndex};
 
-use crate::runtime_class::RuntimeClass;
 
 pub struct FieldTable<'gc> {
     table: Vec<(Arc<RuntimeClass<'gc>>, u16)>,

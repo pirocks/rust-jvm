@@ -17,6 +17,7 @@ use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::utils::throw_npe;
@@ -162,7 +163,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = rc.static_vars(jvm);
+            let static_vars = static_vars(rc.deref(),jvm);
             static_vars.get(field_name).to_jv().unwrap_int()
         }
     }
@@ -213,7 +214,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = rc.static_vars(jvm);
+            let static_vars = static_vars(rc.deref(),jvm);
             static_vars.get(field_name).to_jv().unwrap_long()
         }
     }
@@ -258,7 +259,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let res = runtime_class.static_vars(jvm).get(name);
+            let res = static_vars(runtime_class.deref(),jvm).get(name);
             to_object(todo!()/*res.unwrap_object()*/)
         }
         Some(object_to_read) => {
@@ -286,7 +287,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let mut static_vars_guard = runtime_class.static_vars(jvm);
+            let mut static_vars_guard = static_vars(runtime_class.deref(),jvm);
             let mut res = static_vars_guard.get(name);
             res = NewJavaValueHandle::from_optional_object(from_object_new(jvm, to_put)); //todo dup with get function
             static_vars_guard.set(name, res)

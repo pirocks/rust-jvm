@@ -11,7 +11,7 @@ use rust_jvm_common::loading::LoaderName;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::{RuntimeClass};
+use runtime_class_stuff::RuntimeClass;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Opaque {}

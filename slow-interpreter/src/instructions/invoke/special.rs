@@ -12,7 +12,7 @@ use crate::instructions::invoke::virtual_::{setup_virtual_args2};
 use crate::interpreter::{run_function, WasException};
 use crate::jit::MethodResolver;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
 pub fn invoke_special<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {

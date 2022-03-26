@@ -1,6 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use gc_memory_layout_common::NativeJavaValue;
+use rust_jvm_common::NativeJavaValue;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
@@ -23,7 +24,6 @@ use crate::java::lang::long::Long;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
-use crate::runtime_class::RuntimeClass;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     lookup_method_parsed_impl(jvm, class, name, descriptor)

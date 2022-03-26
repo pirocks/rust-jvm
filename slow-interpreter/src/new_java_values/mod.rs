@@ -4,19 +4,20 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
-use gc_memory_layout_common::NativeJavaValue;
 
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
+use runtime_class_stuff::FieldNumber;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::{GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::array_wrapper::ArrayWrapper;
-use crate::runtime_class::{FieldNumber, RuntimeClass};
+use runtime_class_stuff::RuntimeClass;
 
 pub mod array_wrapper;
 

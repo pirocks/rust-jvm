@@ -534,6 +534,7 @@ dependencies = [
  "libc",
  "nix",
  "num-integer",
+ "runtime-class-stuff",
  "rust-jvm-common",
  "verification",
 ]
@@ -688,6 +689,7 @@ dependencies = [
  "num_cpus",
  "parking_lot 0.12.0",
  "regex",
+ "runtime-class-stuff",
  "rust-jvm-common",
  "sketch-jvm-version-of-utf8",
  "slow-interpreter",
@@ -1321,6 +1323,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "runtime-class-stuff"
+version = "0.1.0"
+dependencies = [
+ "classfile-view",
+ "itertools",
+ "rust-jvm-common",
+]
+
+[[package]]
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
@@ -1454,6 +1465,7 @@ dependencies = [
  "perf-metrics",
  "rangemap 1.0.1 (git+https://github.com/pirocks/rangemap.git)",
  "regex",
+ "runtime-class-stuff",
  "rust-jvm-common",
  "serde_yaml",
  "sketch-jvm-version-of-utf8",

@@ -8,7 +8,7 @@ use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::JVMState;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 
 pub fn resolve_invoke_virtual<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {

@@ -15,11 +15,12 @@ use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
-use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
+use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::check_initing_or_inited_class;
@@ -29,7 +30,6 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
-use crate::runtime_class::{RuntimeClass, RuntimeClassClass};
 use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc> {
@@ -113,30 +113,6 @@ impl<'gc> GC<'gc> {
         }
 
         handle
-        // GcManagedObject {
-        //     obj: match object {
-        //         Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems_base, phantom_data, elem_type }) => {
-        //             unsafe {
-        //                 (allocated.as_ptr() as *mut i32).write(len);
-        //                 let elems = slice::from_raw_parts_mut(elems_base, len as usize);
-        //                 let new_elems_base = allocated.as_ptr().offset(size_of::<jlong>() as isize).cast::<NativeJavaValue<'gc>>();
-        //                 for (i, current_elem) in elems.iter().enumerate() {
-        //                     let current_new_elem_ptr = new_elems_base.offset((i /* * size_of::<jlong>()*/) as isize);//not a void pointer so need to mul here
-        //                     current_new_elem_ptr.write(*current_elem);
-        //                 }
-        //                 dbg!(&slice::from_raw_parts(new_elems_base, len as usize));
-        //                 assert_eq!(allocated_size, (len + 1) as usize * size_of::<jlong>());
-        //                 Arc::new(Object::Array(ArrayObject { whole_array_runtime_class, loader, len, elems_base: new_elems_base, phantom_data: Default::default(), elem_type }))
-        //             }
-        //         }
-        //         Object::Object(NormalObject { objinfo: ObjectFieldsAndClass { fields, class_pointer }, obj_ptr }) => {
-        //
-        //         }
-        //     },
-        //     raw_ptr: allocated,
-        //     gc: self,
-        //     jvm,
-        // }
     }
 
 

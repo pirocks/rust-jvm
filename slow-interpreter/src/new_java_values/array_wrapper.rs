@@ -1,9 +1,9 @@
 use std::mem::size_of;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
-use gc_memory_layout_common::NativeJavaValue;
 
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::NativeJavaValue;
 
 use crate::{JVMState, NewJavaValue};
 use crate::java_values::native_to_new_java_value;

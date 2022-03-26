@@ -15,7 +15,7 @@ use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolver;
 use crate::new_java_values::{NewJavaValueHandle};
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
 

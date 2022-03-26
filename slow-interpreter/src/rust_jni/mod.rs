@@ -25,7 +25,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::{NewJavaValueHandle};
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};

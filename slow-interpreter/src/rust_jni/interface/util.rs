@@ -5,7 +5,7 @@ use rust_jvm_common::compressed_classfile::CPRefType;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_loaded_class;
 use crate::java::lang::class::JClass;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 
 //todo move util stuff like varargs into here
 

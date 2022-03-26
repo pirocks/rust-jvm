@@ -27,6 +27,7 @@ libffi = { git = 'https://github.com/pirocks/libffi-rs.git', branch = "updated",
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 rangemap = { git = "https://github.com/pirocks/rangemap.git" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
 metered = "0.8"
 serde_yaml = "0.8"
 num-traits = "0.2"

@@ -1,9 +1,11 @@
+use std::ops::Deref;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class};
 use crate::interpreter::WasException;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::runtime_class::static_vars;
 
 
 pub(crate) fn get_static_impl<'gc, 'l>(
@@ -14,7 +16,7 @@ pub(crate) fn get_static_impl<'gc, 'l>(
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     //todo handle interfaces in setting as well
-    let temp = target_classfile.static_vars(jvm);
+    let temp = static_vars(target_classfile.deref(),jvm);
     let attempted_get = temp.try_get(field_name);
     match attempted_get {
         None => {

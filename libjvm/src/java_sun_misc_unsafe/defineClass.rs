@@ -14,7 +14,7 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::runtime_class::{initialize_class, prepare_class, RuntimeClass, RuntimeClassClass};
+use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::rust_jni::interface::define_class_safe;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};

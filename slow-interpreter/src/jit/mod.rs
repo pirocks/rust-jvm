@@ -19,7 +19,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jvm_state::JVMState;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 
 pub mod ir;
 pub mod state;

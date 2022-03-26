@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use gc_memory_layout_common::NativeJavaValue;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::NativeJavaValue;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
@@ -40,7 +40,6 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
         assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
-        let restore_clone = jvm.java_vm_state.assertion_state.lock().unwrap().current_before.clone();
         if !jvm.instruction_trace_options.partial_tracing(){
             // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
         }

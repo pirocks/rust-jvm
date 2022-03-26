@@ -20,6 +20,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use perf_metrics::PerfMetrics;
+use runtime_class_stuff::{ClassStatus, FieldNumber, MethodNumber, RuntimeClassClass};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -49,8 +50,7 @@ use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedObjectHandleByAddress, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
-use crate::runtime_class::{FieldNumber, MethodNumber, RuntimeClass, RuntimeClassClass};
-use crate::stack_entry::RuntimeClassClassId;
+use runtime_class_stuff::RuntimeClass;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -169,10 +169,6 @@ impl<'gc> Classes<'gc> {
         self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner()
     }
 
-    pub fn convert_runtime_class_class_id(&self, id: RuntimeClassClassId) -> &RuntimeClassClass {
-        todo!()
-    }
-
     pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=AllocatedObject<'gc, 'specific_gc_life>> + 'specific_gc_life {
         self.class_object_pool
             .left_values()
@@ -228,13 +224,7 @@ impl<'gc> Classes<'gc> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ClassStatus {
-    UNPREPARED,
-    PREPARED,
-    INITIALIZING,
-    INITIALIZED,
-}
+
 
 impl<'gc> JVMState<'gc> {
     pub fn new(jvm_options: JVMOptions, scope: Scope<'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {

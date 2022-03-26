@@ -1,4 +1,5 @@
 pub mod unsafe_ {
+    use std::ops::Deref;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::runtime_type::RuntimeType;
@@ -8,6 +9,7 @@ pub mod unsafe_ {
     use crate::interpreter::WasException;
     use crate::java::lang::reflect::field::Field;
     use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::runtime_class::static_vars;
     use crate::utils::run_static_or_virtual;
 
     pub struct Unsafe<'gc> {
@@ -23,7 +25,7 @@ pub mod unsafe_ {
     impl<'gc> Unsafe<'gc> {
         pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Unsafe<'gc> {
             let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
-            let static_vars = unsafe_class.static_vars(jvm);
+            let static_vars = static_vars(unsafe_class.deref(),jvm);
             static_vars.get(FieldName::field_theUnsafe()).to_jv().cast_unsafe()
         }
 

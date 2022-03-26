@@ -2,11 +2,11 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+use runtime_class_stuff::ClassStatus;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 //all of these functions should be implemented in libjvm
 use crate::java_values::JavaValue;
-use crate::jvm_state::ClassStatus;
 use crate::JVMState;
 use crate::utils::unwrap_or_npe;
 

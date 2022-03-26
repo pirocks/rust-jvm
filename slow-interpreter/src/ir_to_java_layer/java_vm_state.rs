@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRMethodID, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
@@ -9,7 +9,6 @@ use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use crate::{InterpreterStateGuard, JVMState, MethodResolver};
 use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData};
-use crate::ir_to_java_layer::instruction_correctness_assertions::AssertionState;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ExitNumber, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
@@ -20,7 +19,6 @@ pub struct JavaVMStateWrapper<'vm_life> {
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,
-    pub(crate) assertion_state: Mutex<AssertionState<'vm_life>>,
 }
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
@@ -33,7 +31,6 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
-            assertion_state: Mutex::new(AssertionState { current_before: vec![] }),
         }
     }
 

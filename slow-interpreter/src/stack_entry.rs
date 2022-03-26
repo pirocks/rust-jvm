@@ -12,10 +12,9 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use gc_memory_layout_common::NativeJavaValue;
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
-use rust_jvm_common::{ByteCodeOffset, MethodId};
+use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::opaque_id_table::OpaqueID;
@@ -30,7 +29,7 @@ use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);

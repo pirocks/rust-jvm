@@ -13,7 +13,7 @@ use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
 use crate::jit::MethodResolver;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::RuntimeClass;
+use runtime_class_stuff::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
