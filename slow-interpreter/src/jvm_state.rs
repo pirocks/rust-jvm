@@ -51,7 +51,6 @@ use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedOb
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use crate::runtime_class::{FieldNumber, MethodNumber, RuntimeClass, RuntimeClassClass};
 use crate::stack_entry::RuntimeClassClassId;
-use crate::static_breakpoints::StaticBreakpoints;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -101,7 +100,6 @@ pub struct JVMState<'gc> {
     pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
-    pub static_breakpoints: StaticBreakpoints,
     pub method_shapes: MethodShapeIDs,
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
@@ -311,7 +309,6 @@ impl<'gc> JVMState<'gc> {
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             object_monitors: Default::default(),
-            static_breakpoints: StaticBreakpoints::new(),
             method_shapes: MethodShapeIDs::new(),
             instruction_trace_options,
             exit_trace_options,
@@ -373,9 +370,6 @@ impl<'gc> JVMState<'gc> {
     pub fn add_class_class_class_object(&'gc self) {
         let mut classes = self.classes.write().unwrap();
         //todo desketchify this
-        let mut fields: HashMap<String, JavaValue<'gc>, RandomState> = Default::default();
-        fields.insert("name".to_string(), JavaValue::null());
-        fields.insert("classLoader".to_string(), JavaValue::null());
         let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
         let fields_map_owned = (0..recursive_num_fields).map(|i| {
@@ -391,7 +385,6 @@ impl<'gc> JVMState<'gc> {
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), runtime_class);
         let runtime_class = classes.class_class.clone();
-        // self.inheritance_ids.write().unwrap().register(self, &runtime_class);
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
 
@@ -534,7 +527,6 @@ pub struct JVMTIState {
 
 struct LivePoolGetterImpl<'gc> {
     jvm: &'gc JVMState<'gc>,
-    // anon_class_live_object_ldc_pool: Arc<RwLock<Vec<GcManagedObject<'gc>>>>,
 }
 
 #[derive(Debug)]

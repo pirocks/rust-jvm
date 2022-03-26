@@ -415,9 +415,6 @@ pub fn trace_instruction_before(jvm: &JVMState, exit_guard: &VMExitGuard, method
     let code = method_view.code_attribute().unwrap();
     let instr = code.instructions.get(&bytecode_offset).unwrap();
     eprintln!("Before:{:?} {}", instr.info.better_debug_string(&jvm.string_pool), bytecode_offset.0);
-    if jvm.static_breakpoints.should_break(view.name().unwrap_name(), method_view.name(), method_view.desc().clone(), bytecode_offset) {
-        eprintln!("here");
-    }
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
     }
