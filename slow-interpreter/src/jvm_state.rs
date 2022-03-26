@@ -315,8 +315,6 @@ impl<'gc> JVMState<'gc> {
             function_frame_type_data_with_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
-            // vtables: RwLock::new(VTables::new()),
-            // inheritance_ids: RwLock::new(InheritanceMethodIDs::new()),
             object_monitors: Default::default(),
             static_breakpoints: StaticBreakpoints::new(),
             method_shapes: MethodShapeIDs::new(),

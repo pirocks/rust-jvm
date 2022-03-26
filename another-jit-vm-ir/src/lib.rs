@@ -24,7 +24,8 @@ use rust_jvm_common::opaque_id_table::OpaqueID;
 
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
-use crate::vm_exit_abi::{IRVMExitType, RuntimeVMExitInput};
+use crate::vm_exit_abi::{IRVMExitType};
+use crate::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 
 #[cfg(test)]
 pub mod tests;
@@ -928,9 +929,9 @@ fn sized_integer_compare(assembler: &mut CodeAssembler, a: &Register, b: &Regist
 fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
-    let registers = vec![Register(1), Register(2), Register(3), Register(4), Register(5), Register(6), Register(7), Register(8), Register(9)];
-    exit_type.gen_assembly(assembler, &mut after_exit_label, registers.clone());
-    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers.into_iter().collect());
+    let registers = exit_type.registers_to_save();
+    exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
+    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
 }
 
 

@@ -234,10 +234,6 @@ impl<'gc> MethodResolver<'gc> {
         self.jvm.wtf8_pool.add_entry(wtf8.clone())
     }
 
-    // pub fn lookup_inheritance_method_id(&self, method_id: MethodId) -> InheritanceMethodID{
-    //     self.jvm.inheritance_ids.read().unwrap().lookup(self.jvm,method_id)
-    // }
-
     pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
     }

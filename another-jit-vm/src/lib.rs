@@ -35,7 +35,7 @@ pub struct Register(pub u8);
 impl Register {
     pub fn guest_offset_const(&self) -> usize {
         match self.0 {
-            0 => panic!(),
+            0 => RAX_GUEST_OFFSET_CONST,
             1 => RBX_GUEST_OFFSET_CONST,
             2 => RCX_GUEST_OFFSET_CONST,
             3 => RDX_GUEST_OFFSET_CONST,
@@ -52,7 +52,7 @@ impl Register {
 
     pub fn to_native_64(&self) -> AsmRegister64 {
         match self.0 {
-            0 => panic!(),
+            0 => rax,
             1 => rbx,
             2 => rcx,
             3 => rdx,
@@ -562,8 +562,8 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
 
     pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers_to_save: HashSet<Register>) {
         assembler.set_label(before_exit_label).unwrap();
-        assembler.mov(r15 + RAX_GUEST_OFFSET_CONST, rax).unwrap();
-        assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
+        // assembler.mov(r15 + RAX_GUEST_OFFSET_CONST, rax).unwrap();
+        // assembler.mov(r15 + RBX_GUEST_OFFSET_CONST, rbx).unwrap();
         for register in registers_to_save {
             assembler.mov(r15 + register.guest_offset_const(), register.to_native_64()).unwrap();
         }

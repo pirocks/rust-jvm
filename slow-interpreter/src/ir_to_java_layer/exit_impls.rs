@@ -7,7 +7,7 @@ use libc::memset;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
-use another_jit_vm_ir::vm_exit_abi::InvokeVirtualResolve;
+use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;

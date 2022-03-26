@@ -5,7 +5,8 @@ use std::hash::Hash;
 
 use another_jit_vm_ir::{IRInstructIndex, IRMethodID, IRVMExitAction};
 use another_jit_vm_ir::compiler::{RestartPointID};
-use another_jit_vm_ir::vm_exit_abi::{RuntimeVMExitInput, VMExitTypeWithArgs};
+use another_jit_vm_ir::vm_exit_abi::{VMExitTypeWithArgs};
+use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::{InterpreterStateGuard, JavaValue, JVMState};

@@ -80,7 +80,6 @@ pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
 pub mod native_tracing;
 pub mod opaque_ids;
-pub mod inheritance_method_ids;
 pub mod static_breakpoints;
 pub mod new_java_values;
 pub mod known_type_to_address_mappings;
