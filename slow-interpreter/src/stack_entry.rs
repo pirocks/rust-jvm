@@ -80,18 +80,12 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
 
     pub fn pc(&self, jvm: &'gc JVMState<'gc>) -> Result<ByteCodeOffset, Opaque> {
         let methodid = self.get_header().methodid;
-        let byte_code_offset = jvm.jit_state.with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(self.current_ip))?;
+        let byte_code_offset = todo!()/*jvm.jit_state.with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(self.current_ip))?*/;
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
-        Ok(byte_code_offset.1)
-    }
-
-    pub fn bytecode_index(&self, jvm: &'gc JVMState<'gc>) -> Result<u16, Opaque> {
-        let saved_instruction_pointer = todo!();
-        let methodid = self.get_header().methodid;
-        let byte_code_offset = jvm.jit_state.with(|jit_state| jit_state.borrow().ip_to_bytecode_pc(saved_instruction_pointer))?;
-        Ok(byte_code_offset.0)
+        /*Ok(byte_code_offset.1)*/
+        todo!()
     }
 
     pub fn operand_stack_length(&self, jvm: &'gc JVMState<'gc>) -> Result<u16, Opaque> {

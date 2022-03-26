@@ -1,4 +1,3 @@
-use std::cell::{RefCell};
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -9,7 +8,6 @@ use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::LocalKey;
 use std::time::Instant;
 
 use bimap::BiMap;
@@ -44,7 +42,6 @@ use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
-use crate::jit::state::{JITedCodeState, JITSTATE};
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
@@ -82,7 +79,6 @@ pub struct JVMState<'gc> {
     pub config: JVMConfig,
     pub java_vm_state: JavaVMStateWrapper<'gc>,
     pub gc: &'gc GC<'gc>,
-    pub jit_state: &'static LocalKey<RefCell<JITedCodeState>>,
     pub native_libaries: NativeLibraries<'gc>,
     pub properties: Vec<String>,
     pub string_pool: CompressedClassfileStringPool,
@@ -279,7 +275,6 @@ impl<'gc> JVMState<'gc> {
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 
         let jvm = Self {
-            jit_state: &JITSTATE,
             config: JVMConfig {
                 store_generated_classes,
                 debug_print_exceptions,

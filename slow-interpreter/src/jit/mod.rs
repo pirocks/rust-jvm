@@ -1,17 +1,14 @@
-use std::collections::{HashMap};
 use std::ffi::c_void;
 use std::sync::Arc;
 
 use wtf8::{ Wtf8Buf};
 
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName};
 use another_jit_vm_ir::IRMethodID;
-use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::{FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode};
+use rust_jvm_common::compressed_classfile::code::{CompressedCode};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
@@ -21,8 +18,6 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::jit::state::birangemap::BiRangeMap;
-use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::runtime_class::RuntimeClass;
 
@@ -48,9 +43,6 @@ pub struct CompiledCodeID(pub u32);
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct IRInstructionIndex(u32);
 
-
-#[derive(Clone, Debug)]
-pub struct NotSupported;
 
 #[derive(Clone, Copy)]
 pub struct MethodResolver<'gc> {
@@ -244,29 +236,5 @@ impl<'gc> MethodResolver<'gc> {
 
     pub fn debug_checkcast_assertions(&self) -> bool {
         self.jvm.checkcast_debug_assertions
-    }
-}
-
-pub struct ToIR {
-    labels: Vec<IRLabel>,
-    ir: Vec<(ByteCodeOffset, IRInstr, CInstruction)>,
-    pub function_start_label: LabelName,
-}
-
-pub struct ToNative {
-    code: Vec<u8>,
-    new_labels: HashMap<LabelName, *mut c_void>,
-    bytecode_offset_to_address: BiRangeMap<*mut c_void, (u16, ByteCodeOffset, CInstruction)>,
-    exits: HashMap<LabelName, VMExitTypeWithArgs>,
-    function_start_label: LabelName,
-}
-
-pub enum TransitionType {
-    ResolveCalls,
-}
-
-pub fn transition_stack_frame(transition_type: TransitionType, frame_to_fix: &mut JavaStack) {
-    match transition_type {
-        TransitionType::ResolveCalls => {}
     }
 }

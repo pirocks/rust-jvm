@@ -5,34 +5,6 @@ use jvmti_jni_bindings::jlong;
 use verification::verifier::Frame;
 use crate::memory_regions::FramePointerOffset;
 
-#[derive(Hash, Eq, PartialEq, Clone)]
-pub enum PointerMemoryLayout {}
-
-impl PointerMemoryLayout {
-    pub fn get_gc_pointer_offsets(&self) -> Vec<usize> {
-        todo!()
-    }
-
-    pub fn as_object(&self) -> ObjectMemoryLayout {
-        todo!()
-    }
-
-    pub fn as_array(&self) -> ArrayMemoryLayout {
-        todo!()
-    }
-
-    pub fn monitor_entry(&self) -> usize {
-        todo!()
-    }
-
-    pub fn class_pointer_entry(&self) -> usize {
-        todo!()
-    }
-
-    pub fn total_size(&self) -> usize {
-        todo!()
-    }
-}
 
 pub struct ObjectMemoryLayout {
     elems: HashMap<usize /*filed id*/, usize>,
@@ -119,6 +91,47 @@ impl StackframeMemoryLayout for FrameBackedStackframeMemoryLayout {
 
     fn full_frame_size(&self) -> usize {
         size_of::<FrameHeader>() + (self.max_locals + self.max_stack + 1) * size_of::<jlong>()
+    }
+
+    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
+        todo!()
+    }
+}
+
+
+#[derive(Debug)]
+pub struct NaiveStackframeLayout {
+    pub(crate) max_locals: u16,
+    pub(crate) max_stack: u16,
+    pub(crate) stack_depth: HashMap<u16, u16>,
+}
+
+impl NaiveStackframeLayout {
+    pub fn from_stack_depth(stack_depth: HashMap<u16, u16>, max_locals: u16, max_stack: u16) -> Self {
+        Self { max_locals, max_stack, stack_depth }
+    }
+}
+
+impl StackframeMemoryLayout for NaiveStackframeLayout {
+    fn local_var_entry(&self, current_count: u16, i: u16) -> FramePointerOffset {
+        FramePointerOffset(size_of::<FrameHeader>() + i as usize * size_of::<jlong>())
+    }
+
+    fn operand_stack_entry(&self, current_count: u16, from_end: u16) -> FramePointerOffset {
+        FramePointerOffset(size_of::<FrameHeader>() + (self.max_locals + self.stack_depth[&current_count] - from_end) as usize * size_of::<jlong>())
+    }
+
+    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
+        todo!()
+    }
+
+    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout {
+        todo!()
+    }
+
+    fn full_frame_size(&self) -> usize {
+        size_of::<FrameHeader>() + (self.max_locals as usize + self.max_stack as usize + 1) * size_of::<jlong>()
+        // max stack is maximum depth which means we need 1 one more for size
     }
 
     fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
