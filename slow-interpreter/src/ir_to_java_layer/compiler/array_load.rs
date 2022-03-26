@@ -3,13 +3,13 @@ use std::mem::size_of;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::ir_to_java_layer::compiler::fields::{field_type_to_size, runtime_type_to_size};
-use crate::java_values::NativeJavaValue;
 
 pub fn caload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_load_impl(method_frame_data, current_instr_data, &CPDType::CharType)

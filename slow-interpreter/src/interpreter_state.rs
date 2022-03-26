@@ -11,6 +11,7 @@ use itertools::Itertools;
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use gc_memory_layout_common::memory_regions::FramePointerOffset;
+use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
@@ -18,7 +19,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{JavaValue, NativeJavaValue};
+use crate::java_values::{JavaValue};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
 use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};

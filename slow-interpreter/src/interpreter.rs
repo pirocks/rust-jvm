@@ -4,13 +4,14 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
+use gc_memory_layout_common::NativeJavaValue;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition};
-use crate::java_values::{NativeJavaValue};
+use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
@@ -54,7 +55,8 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
         Ok(match return_type {
             CompressedParsedDescriptorType::VoidType => None,
             return_type => {
-                Some(NativeJavaValue { as_u64: function_res }.to_new_java_value(&return_type, jvm))
+                let native_value = NativeJavaValue { as_u64: function_res };
+                Some(native_to_new_java_value(native_value,&return_type, jvm))
             }
         })
     } else {

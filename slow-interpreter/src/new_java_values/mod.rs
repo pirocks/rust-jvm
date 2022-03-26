@@ -4,6 +4,7 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
+use gc_memory_layout_common::NativeJavaValue;
 
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
@@ -13,7 +14,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::java_values::{GcManagedObject, NativeJavaValue};
+use crate::java_values::{GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::array_wrapper::ArrayWrapper;
 use crate::runtime_class::{FieldNumber, RuntimeClass};
 
@@ -554,7 +555,7 @@ impl<'gc, 'any> AllocatedObject<'gc, 'any> {
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
         unsafe {
             let native_jv = self.handle.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
-            native_jv.to_new_java_value(&cpdtype, jvm)
+            native_to_new_java_value(native_jv,&cpdtype, jvm)
         }
     }
 
@@ -568,7 +569,7 @@ impl<'gc, 'any> AllocatedObject<'gc, 'any> {
         let cpdtype = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().1;
         let jvm = self.handle.jvm;
         let native_jv = unsafe { self.handle.ptr.cast::<NativeJavaValue>().as_ptr().offset(field_number.0 as isize).read() };
-        native_jv.to_new_java_value(cpdtype, jvm)
+        native_to_new_java_value(native_jv,cpdtype, jvm)
     }
 
     pub fn runtime_class(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {

@@ -12,6 +12,7 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::NativeJavaValue;
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -23,7 +24,7 @@ use rust_jvm_common::vtype::VType;
 
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{GcManagedObject, JavaValue, NativeJavaValue};
+use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value_rtype};
 use crate::jit::state::Opaque;
 use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
@@ -632,7 +633,7 @@ impl<'gc> LocalVarsRef<'gc, '_, '_> {
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_jv.to_new_java_value_rtype(&expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv,&expected_type, jvm)
             }
         }
     }
@@ -721,7 +722,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types().iter().nth(from_start as usize).unwrap(), &expected_type);
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_jv.to_new_java_value_rtype(&expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv, &expected_type, jvm)
             }
         }
     }
@@ -735,7 +736,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert!(self.types().iter().rev().nth(from_end as usize).unwrap().compatible_with_dumb(&expected_type));
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_jv.to_new_java_value_rtype(&expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv,&expected_type, jvm)
             }
         }
     }

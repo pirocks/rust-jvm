@@ -1,4 +1,4 @@
-use std::cell::{UnsafeCell};
+use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
@@ -15,8 +15,9 @@ use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
+use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
@@ -91,9 +92,11 @@ impl<'gc> GC<'gc> {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
                 for (i, field) in fields.iter() {
                     unsafe {
-                        assert_eq!(size_of::<NativeJavaValue>(), size_of::<jlong>());
+                        //todo layout
+                        todo!("layout")
+                        /*assert_eq!(size_of::<NativeJavaValue>(), size_of::<jlong>());
                         let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(i.0 as isize);
-                        field_ptr.write(field.to_native());
+                        field_ptr.write(field.to_native());*/
                     }
                 }
             }
@@ -135,7 +138,6 @@ impl<'gc> GC<'gc> {
         //     jvm,
         // }
     }
-
 
 
     pub fn new(regions: early_startup::Regions) -> Self {
@@ -861,7 +863,7 @@ impl<'gc, 'l> Object<'gc, 'l> {
         };
         let normal_object = self.unwrap_normal_object();
         let guard = normal_object.objinfo.fields.read().unwrap();
-        guard[field_number.0 as usize].to_java_value(rtype, jvm)
+        native_to_new_java_value(guard[field_number.0 as usize],rtype,jvm).to_jv()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'l> {
@@ -993,7 +995,9 @@ impl<'gc> Iterator for ArrayIterator<'gc, '_, '_> {
 impl<'gc> ArrayObject<'gc, '_> {
     pub fn get_i(&self, jvm: &'gc JVMState<'gc>, i: i32) -> JavaValue<'gc> {
         let inner_type = &self.elem_type;
-        unsafe { self.elems_base.offset(i as isize).as_ref().unwrap().to_java_value(inner_type, jvm) }
+        todo!("layout");
+        let native = *unsafe { self.elems_base.offset(i as isize).as_ref() }.unwrap();
+        native_to_new_java_value(native, inner_type, jvm).to_jv()
     }
 
     pub fn set_i(&mut self, jvm: &'gc JVMState<'gc>, i: i32, jv: JavaValue<'gc>) {
@@ -1022,104 +1026,61 @@ impl<'gc> ArrayObject<'gc, '_> {
     }
 }
 
-#[derive(Copy, Clone)]
-pub union NativeJavaValue<'gc/*, 'l*/> {
-    pub(crate) byte: i8,
-    pub(crate) boolean: u8,
-    pub(crate) short: i16,
-    pub(crate) char: u16,
-    pub(crate) int: i32,
-    pub(crate) long: i64,
-    pub(crate) float: f32,
-    pub(crate) double: f64,
-    pub(crate) object: *mut c_void,
-    phantom_data: PhantomData<&'gc ()>,
-    // phantom_data2: PhantomData<&'l ()>,//the owned java value needs to still be alive for ref to stay alive
-    pub as_u64: u64,
-}
 
-impl Debug for NativeJavaValue<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        unsafe { write!(f, "NativeJavaValue({:?})", self.object) }
-    }
-}
-
-impl<'gc> NativeJavaValue<'gc> {
-    pub fn to_java_value(&self, ptype: &CPDType, jvm: &'gc JVMState<'gc>) -> JavaValue<'gc> {
-        unsafe {
-            match ptype {
-                CPDType::ByteType => JavaValue::Byte(self.byte),
-                CPDType::CharType => JavaValue::Char(self.char),
-                CPDType::DoubleType => JavaValue::Double(self.double),
-                CPDType::FloatType => JavaValue::Float(self.float),
-                CPDType::IntType => JavaValue::Int(self.int),
-                CPDType::LongType => JavaValue::Long(self.long),
-                CPDType::Ref(_) => match NonNull::new(self.object) {
-                    None => JavaValue::Object(None),
-                    Some(nonnull) => JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm))),
-                },
-                CPDType::ShortType => JavaValue::Short(self.short),
-                CPDType::BooleanType => JavaValue::Boolean(self.boolean),
-                CPDType::VoidType => panic!(),
-            }
-        }
-    }
-
-    pub fn to_new_java_value(&self, ptype: &CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-        unsafe {
-            match ptype {
-                CPDType::ByteType => NewJavaValueHandle::Byte(self.byte),
-                CPDType::CharType => NewJavaValueHandle::Char(self.char),
-                CPDType::DoubleType => NewJavaValueHandle::Double(self.double),
-                CPDType::FloatType => NewJavaValueHandle::Float(self.float),
-                CPDType::IntType => NewJavaValueHandle::Int(self.int),
-                CPDType::LongType => NewJavaValueHandle::Long(self.long),
-                CPDType::Ref(_) => {
-                    match NonNull::new(self.object) {
-                        None => {
-                            NewJavaValueHandle::Null
-                        }
-                        Some(ptr) => {
-                            NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
-                        }
+pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: &CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+    unsafe {
+        match ptype {
+            CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
+            CPDType::CharType => NewJavaValueHandle::Char(native.char),
+            CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
+            CPDType::FloatType => NewJavaValueHandle::Float(native.float),
+            CPDType::IntType => NewJavaValueHandle::Int(native.int),
+            CPDType::LongType => NewJavaValueHandle::Long(native.long),
+            CPDType::Ref(_) => {
+                match NonNull::new(native.object) {
+                    None => {
+                        NewJavaValueHandle::Null
+                    }
+                    Some(ptr) => {
+                        NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
                     }
                 }
-                CPDType::ShortType => NewJavaValueHandle::Short(self.short),
-                CPDType::BooleanType => NewJavaValueHandle::Boolean(self.boolean),
-                CPDType::VoidType => panic!(),
             }
+            CPDType::ShortType => NewJavaValueHandle::Short(native.short),
+            CPDType::BooleanType => NewJavaValueHandle::Boolean(native.boolean),
+            CPDType::VoidType => panic!(),
         }
     }
+}
 
 
-    pub fn to_new_java_value_rtype(&self, rtype: &RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-        unsafe {
-            match rtype {
-                RuntimeType::DoubleType => NewJavaValueHandle::Double(self.double),
-                RuntimeType::FloatType => NewJavaValueHandle::Float(self.float),
-                RuntimeType::IntType => NewJavaValueHandle::Int(self.int),
-                RuntimeType::LongType => NewJavaValueHandle::Long(self.long),
-                RuntimeType::Ref(ref_) => {
-                    match ref_ {
-                        RuntimeRefType::Array(_) |
-                        RuntimeRefType::Class(_) => {
-                            match NonNull::new(self.object) {
-                                Some(ptr) => {
-                                    NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
-                                }
-                                None => {
-                                    NewJavaValueHandle::Null
-                                }
+pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: &RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+    unsafe {
+        match rtype {
+            RuntimeType::DoubleType => NewJavaValueHandle::Double(native.double),
+            RuntimeType::FloatType => NewJavaValueHandle::Float(native.float),
+            RuntimeType::IntType => NewJavaValueHandle::Int(native.int),
+            RuntimeType::LongType => NewJavaValueHandle::Long(native.long),
+            RuntimeType::Ref(ref_) => {
+                match ref_ {
+                    RuntimeRefType::Array(_) |
+                    RuntimeRefType::Class(_) => {
+                        match NonNull::new(native.object) {
+                            Some(ptr) => {
+                                NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+                            }
+                            None => {
+                                NewJavaValueHandle::Null
                             }
                         }
-                        RuntimeRefType::NullType => {
-                            assert_eq!(self.as_u64, 0);
-                            NewJavaValueHandle::Null
-                        }
+                    }
+                    RuntimeRefType::NullType => {
+                        assert_eq!(native.as_u64, 0);
+                        NewJavaValueHandle::Null
                     }
                 }
-                RuntimeType::TopType => panic!(),
             }
+            RuntimeType::TopType => panic!(),
         }
     }
 }

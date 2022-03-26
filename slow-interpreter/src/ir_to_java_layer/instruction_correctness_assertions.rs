@@ -1,9 +1,8 @@
-
+use gc_memory_layout_common::NativeJavaValue;
 use rust_jvm_common::compressed_classfile::code::{CInstruction,};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JVMState};
-use crate::java_values::NativeJavaValue;
 
 #[derive(Debug, Clone)]
 pub enum BeforeState<'gc> {

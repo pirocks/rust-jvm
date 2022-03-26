@@ -9,6 +9,7 @@ use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
@@ -27,7 +28,7 @@ use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::class::JClass;
-use crate::java_values::{default_value, NativeJavaValue};
+use crate::java_values::{default_value, native_to_new_java_value};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::utils::lookup_method_parsed;
@@ -79,7 +80,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     eprintln!("THROW AT:");
     int_state.debug_print_stack_trace(jvm);
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<NativeJavaValue<'gc>>().read() };
-    let exception_obj_handle = exception_obj_native_value.to_new_java_value(&CClassName::object().into(), jvm);
+    let exception_obj_handle = native_to_new_java_value(exception_obj_native_value,&CClassName::object().into(), jvm);
     throw_impl(&jvm, int_state, exception_obj_handle)
 }
 
@@ -88,7 +89,8 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
         eprintln!("InvokeInterfaceResolve");
     }
     let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
-    let obj_jv_handle = unsafe { (object_ref).cast::<NativeJavaValue>().read() }.to_new_java_value(&CPDType::object(), jvm);
+    let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
+    let obj_jv_handle = native_to_new_java_value(obj_native_jv,&CPDType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
     let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(target_method_id).unwrap();
     let class_view = target_rc.view();
@@ -175,7 +177,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
     todo!();*/
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = value.to_new_java_value(&CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     if let Some(handle) = value {
         let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
@@ -200,7 +202,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     }
     let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = value.to_new_java_value(&CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
@@ -474,7 +476,8 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, exit_guard: &VMExitGuard, field_
     let field_view = view.field(field_i as usize);
     let mut static_vars_guard = rc.static_vars(jvm);
     let field_name = field_view.field_name();
-    let njv = unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap().to_new_java_value(&field_view.field_type(), jvm);
+    let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
+    let njv = native_to_new_java_value(native_jv,&field_view.field_type(), jvm);
     if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
         let rc = alloc.runtime_class(jvm);
         if instance_of_exit_impl(jvm, &field_view.field_type(), Some(alloc)) == 0 {
@@ -517,7 +520,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
         for (i, cpdtype) in (0..num_args).zip(arg_types.iter()) {
             let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv,cpdtype, jvm))
         }
     }
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
@@ -614,7 +617,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 
 pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[CompressedParsedDescriptorType], mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc>> {
     let obj_ref_native = unsafe { arg_start.cast::<NativeJavaValue>().read() };
-    let obj_ref = obj_ref_native.to_new_java_value(&CClassName::object().into(), jvm);
+    let obj_ref = native_to_new_java_value(obj_ref_native,&CClassName::object().into(), jvm);
     let mut args_jv_handle = vec![];
     args_jv_handle.push(obj_ref);
     unsafe {
@@ -622,7 +625,7 @@ pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[Compresse
         for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
             let arg_ptr = arg_start.sub(i * size_of::<jlong>()) as *const u64;
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_jv.to_new_java_value(cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv,cpdtype, jvm))
         }
     }
     args_jv_handle

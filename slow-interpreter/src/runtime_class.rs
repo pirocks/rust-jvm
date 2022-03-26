@@ -3,6 +3,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
+use gc_memory_layout_common::NativeJavaValue;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::method_shape::MethodShape;
@@ -10,7 +11,7 @@ use rust_jvm_common::method_shape::MethodShape;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::interpreter::{run_function, WasException};
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::java_values::{default_value, NativeJavaValue};
+use crate::java_values::{default_value, native_to_new_java_value};
 use crate::jit::MethodResolver;
 use crate::jvm_state::{ClassStatus, JVMState};
 use crate::new_java_values::NewJavaValueHandle;
@@ -112,7 +113,8 @@ pub struct StaticVarGuard<'gc, 'l> {
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let cpd_type = self.types.get(&name)?;
-        Some(self.data_guard.get(&name)?.to_new_java_value(cpd_type, self.jvm))
+        let native = *self.data_guard.get(&name)?;
+        Some(native_to_new_java_value(native,cpd_type, self.jvm))
     }
 
     pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {

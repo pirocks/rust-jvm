@@ -9,7 +9,7 @@ use libc::time;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use rust_jvm_common::compressed_classfile::code::CompressedInstructionInfo::new;
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
-use slow_interpreter::java_values::{ArrayObject, NativeJavaValue, NormalObject, Object, ObjectFieldsAndClass};
+use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{AllocatedObject, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use slow_interpreter::runtime_class::{FieldNumber, RuntimeClass, RuntimeClassClass};

@@ -346,3 +346,6 @@ impl RegionToUse {
     }
 }
 
+
+//object layout:
+// field number* sizeof::<NativeJavaValue>

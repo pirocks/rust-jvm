@@ -2,9 +2,9 @@ use std::mem::size_of;
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use gc_memory_layout_common::NativeJavaValue;
 use jvmti_jni_bindings::jlong;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::java_values::NativeJavaValue;
 
 pub fn sastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data, Size::short())

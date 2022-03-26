@@ -1,11 +1,12 @@
 use std::mem::size_of;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use gc_memory_layout_common::NativeJavaValue;
 
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::{JVMState, NewJavaValue};
-use crate::java_values::NativeJavaValue;
+use crate::java_values::native_to_new_java_value;
 use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
 
 pub struct ArrayWrapper<'gc, 'l> {
@@ -56,7 +57,7 @@ impl<'gc, 'l> ArrayWrapper<'gc, 'l> {
         let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
         let native_jv = unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).read() };
         let cpdtype = self.elem_cpdtype();
-        native_jv.to_new_java_value(&cpdtype, jvm)
+        native_to_new_java_value(native_jv,&cpdtype, jvm)
     }
 
     pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
