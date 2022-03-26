@@ -122,7 +122,7 @@ pub struct RuntimeClassClass<'gc> {
     pub field_numbers_reverse: HashMap<FieldNumber, (FieldName, CPDType)>,
     pub method_numbers: HashMap<MethodShape, MethodNumber>,
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
-    pub recursive_num_fields: usize,
+    pub recursive_num_fields: u32,
     pub static_var_types: HashMap<FieldName, CPDType>,
     pub static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -132,14 +132,14 @@ pub struct RuntimeClassClass<'gc> {
 }
 
 
-pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (usize, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
+pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
     let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
     let field_numbers = class_view.fields().filter(|field| !field.is_static())
         .map(|name| (name.field_name(), name.field_type()))
         .sorted_by_key(|(name, _ptype)| name.0)
         .enumerate()
         .map(|(index, (name, ptype))| (name, (FieldNumber((index + start_field_number) as u32), ptype))).collect::<HashMap<_, _>>();
-    (start_field_number + field_numbers.len(), field_numbers)
+    ((start_field_number + field_numbers.len()) as u32, field_numbers)
 }
 
 pub fn get_method_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<MethodShape, MethodNumber>) {
@@ -157,7 +157,17 @@ pub fn get_method_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc> RuntimeClassClass<'gc> {
-    pub fn new(class_view: Arc<dyn ClassView>, field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>, method_numbers: HashMap<MethodShape, MethodNumber>, recursive_num_fields: usize, static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>, parent: Option<Arc<RuntimeClass<'gc>>>, interfaces: Vec<Arc<RuntimeClass<'gc>>>, status: RwLock<ClassStatus>, static_var_types: HashMap<FieldName, CPDType>) -> Self {
+    pub fn new(
+        class_view: Arc<dyn ClassView>,
+        field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
+        method_numbers: HashMap<MethodShape, MethodNumber>,
+        recursive_num_fields: u32,
+        static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>,
+        parent: Option<Arc<RuntimeClass<'gc>>>,
+        interfaces: Vec<Arc<RuntimeClass<'gc>>>,
+        status: RwLock<ClassStatus>,
+        static_var_types: HashMap<FieldName, CPDType>
+    ) -> Self {
         let field_numbers_reverse = field_numbers.iter()
             .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
             .collect();

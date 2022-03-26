@@ -9,7 +9,6 @@ name = "java"
 path = "src/main.rs"
 
 [dependencies]
-slow-interpreter = { path = "./slow-interpreter" }
 jvm = { path = "./libjvm" }
 jvmti-jni-bindings = { path = "./jvmti-jni-bindings" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }

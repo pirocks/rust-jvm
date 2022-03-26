@@ -386,7 +386,7 @@ impl<'gc> JVMState<'gc> {
         let static_vars = Default::default();
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
-        let recursive_num_fields = field_numbers.len();
+        let recursive_num_fields = field_numbers.len() as u32;
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
         let object_method_numbers = JVMState::get_class_class_or_object_class_method_numbers(object_class_view.deref());
         let object_class_static_var_types = get_static_var_types(object_class_view.deref());

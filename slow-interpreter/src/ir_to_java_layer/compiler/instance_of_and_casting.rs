@@ -7,7 +7,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 use crate::jit::MethodResolver;
 
-pub fn checkcast(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, mut current_instr_data: CurrentInstructionCompilerData, cpdtype: &CPDType) -> impl Iterator<Item=IRInstr> {
+pub fn checkcast(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, mut current_instr_data: CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
     let frame_pointer_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
     checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpdtype, frame_pointer_offset)
 }
@@ -16,7 +16,7 @@ pub(crate) fn checkcast_impl(
     resolver: &MethodResolver,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &mut CurrentInstructionCompilerData,
-    cpdtype: &CPDType,
+    cpdtype: CPDType,
     frame_pointer_offset: FramePointerOffset
 ) -> impl Iterator<Item=IRInstr> {
     let masks_and_address = resolver.known_addresses_for_type(cpdtype);
@@ -56,7 +56,7 @@ pub(crate) fn checkcast_impl(
     res.into_iter()
 }
 
-pub fn instanceof(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, cpdtype: &CPDType) -> impl Iterator<Item=IRInstr> {
+pub fn instanceof(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
     let cpdtype_id = resolver.get_cpdtype_id(cpdtype);
     array_into_iter([
         IRInstr::VMExit2 {

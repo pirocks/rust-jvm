@@ -14,9 +14,9 @@ pub struct CPDTypeTable {
 
 
 impl CPDTypeTable {
-    pub fn get_cpdtype_id(&mut self, cpdtype: &CPDType) -> CPDTypeID {
+    pub fn get_cpdtype_id(&mut self, cpdtype: CPDType) -> CPDTypeID {
         assert_eq!(self.table.len(), self.index.len());
-        match self.index.get(cpdtype) {
+        match self.index.get(&cpdtype) {
             None => {
                 let new_id = self.table.len();
                 self.table.push(cpdtype.clone());

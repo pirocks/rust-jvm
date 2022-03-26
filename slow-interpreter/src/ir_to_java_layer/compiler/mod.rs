@@ -636,10 +636,10 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                 this_function_ir.extend(aastore(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::instanceof(cpdtype) => {
-                this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, cpdtype))
+                this_function_ir.extend(instanceof(resolver, method_frame_data, &current_instr_data, *cpdtype))
             }
             CompressedInstructionInfo::checkcast(cpdtype) => {
-                this_function_ir.extend(checkcast(resolver, method_frame_data, current_instr_data, cpdtype))
+                this_function_ir.extend(checkcast(resolver, method_frame_data, current_instr_data, *cpdtype))
             }
             CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
                 this_function_ir.extend(iinc(method_frame_data, current_instr_data, index, const_))
@@ -859,7 +859,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                 this_function_ir.extend(dup_x2(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::multianewarray { type_, dimensions } => {
-                this_function_ir.extend(multianewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, type_, *dimensions));
+                this_function_ir.extend(multianewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *type_, *dimensions));
             }
             other => {
                 dbg!(other);

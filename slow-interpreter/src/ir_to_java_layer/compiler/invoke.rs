@@ -34,7 +34,7 @@ pub fn invokespecial<'vm_life>(
     let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
     match resolver.lookup_type_inited_initing(&class_cpdtype) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(&CPDType::Ref(classname_ref_type.clone()));
+            let cpd_type_id = resolver.get_cpdtype_id(CPDType::Ref(classname_ref_type.clone()));
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_cpdtype });
             Either::Left(array_into_iter([restart_point_class_load,
                 restart_point_function_address,
@@ -128,7 +128,7 @@ pub fn invokestatic<'vm_life>(
     let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
-            let cpdtype_id = resolver.get_cpdtype_id(&class_as_cpdtype);
+            let cpdtype_id = resolver.get_cpdtype_id(class_as_cpdtype);
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_as_cpdtype });
             Either::Left(array_into_iter([class_init_restart_point,
                 restart_point_function_address,
@@ -227,7 +227,7 @@ pub fn invokevirtual<'vm_life>(
     let after_call_restart_point_id = restart_point_generator.new_restart_point();
     let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
     let target_class_type = CPDType::Ref(classname_ref_type.clone());
-    let target_class_type_id = resolver.get_cpdtype_id(&target_class_type);
+    let target_class_type_id = resolver.get_cpdtype_id(target_class_type);
 
     if resolver.lookup_type_inited_initing(&target_class_type).is_none() {
         recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
@@ -309,7 +309,7 @@ pub fn invoke_interface(
     let num_args = descriptor.arg_types.len() as u16;
 
     let target_class_cpdtype = CPDType::Ref(classname_ref_type.clone());
-    let cpdtype_id = resolver.get_cpdtype_id(&target_class_cpdtype);
+    let cpdtype_id = resolver.get_cpdtype_id(target_class_cpdtype);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let after_call_restart_point_id = restart_point_generator.new_restart_point();

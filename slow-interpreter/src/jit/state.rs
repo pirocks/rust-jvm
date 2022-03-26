@@ -1,17 +1,16 @@
-use std::mem::{size_of};
-use std::ops::{Deref};
+use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use another_jit_vm_ir::compiler::{IRLabel, LabelName};
-use gc_memory_layout_common::memory_regions::{AllocatedObjectType};
-use jvmti_jni_bindings::{jlong};
+use gc_memory_layout_common::layout::ObjectMemoryLayout;
+use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType};
 use rust_jvm_common::loading::LoaderName;
 
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
-use runtime_class_stuff::RuntimeClass;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Opaque {}
@@ -50,11 +49,14 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
             };
             AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() as i32 }
         }
-        RuntimeClass::Object(class_class) => AllocatedObjectType::Class {
-            name: class_class.class_view.name().unwrap_name(),
-            loader,
-            size: class_class.recursive_num_fields * size_of::<jlong>(),
-        },
+        RuntimeClass::Object(class_class) => {
+            let layout = ObjectMemoryLayout::from_rc(class_class);
+            AllocatedObjectType::Class {
+                name: class_class.class_view.name().unwrap_name(),
+                loader,
+                size: layout.size(),
+            }
+        }
         RuntimeClass::Top => panic!(),
     }
 }

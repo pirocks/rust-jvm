@@ -1,33 +1,56 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
-use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::FieldNumber;
+use jvmti_jni_bindings::{jlong};
+use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::NativeJavaValue;
 use verification::verifier::Frame;
 use crate::memory_regions::FramePointerOffset;
 
 
 pub struct ObjectMemoryLayout {
-
+    max_field_number_exclusive: u32
 }
 
 impl ObjectMemoryLayout {
+    pub fn from_rc(rc: &RuntimeClassClass) -> Self{
+        Self{
+            max_field_number_exclusive: rc.recursive_num_fields
+        }
+    }
+
     pub fn field_entry(&self, field_number: FieldNumber) -> usize {
-        todo!()
+        assert!(field_number.0 < self.max_field_number_exclusive);
+        (field_number.0 as usize)*size_of::<NativeJavaValue>()
+    }
+
+    pub fn size(&self) -> usize{
+        (self.max_field_number_exclusive as usize)*size_of::<NativeJavaValue>()
     }
 }
 
-pub struct ArrayMemoryLayout {}
+pub struct ArrayMemoryLayout {
+    sub_type: CPDType
+}
 
 impl ArrayMemoryLayout {
-    pub fn elem_0_entry(&self) -> usize {
-        todo!()
+    pub fn from_cpdtype(sub_type: CPDType) -> Self{
+        assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
+
+        Self{
+            sub_type
+        }
     }
-    pub fn len_entry(&self) -> usize {
-        todo!()
+
+    pub fn elem_0_entry_offset(&self) -> usize {
+        size_of::<jlong>()
+    }
+    pub fn len_entry_offset(&self) -> usize {
+        0
     }
     pub fn elem_size(&self) -> usize {
-        todo!()
+        size_of::<NativeJavaValue>()
     }
 }
 

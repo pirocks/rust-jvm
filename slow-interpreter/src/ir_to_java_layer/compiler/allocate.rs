@@ -18,7 +18,7 @@ pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
                      ccn: CClassName) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    let cpd_type_id = resolver.get_cpdtype_id(&ccn.clone().into());
+    let cpd_type_id = resolver.get_cpdtype_id(ccn.into());
     match resolver.lookup_type_inited_initing(&(ccn).into()) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: ccn.clone().into() });
@@ -55,7 +55,7 @@ pub fn anewarray<'vm_life>(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_inited_initing(&array_type) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(&array_type);
+            let cpd_type_id = resolver.get_cpdtype_id(array_type);
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: array_type });
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
@@ -69,7 +69,7 @@ pub fn anewarray<'vm_life>(
         Some((loaded_class, loader)) => {
             // runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
             //todo allocation should be done in vm exit
-            let array_type = resolver.get_cpdtype_id(&array_type);
+            let array_type = resolver.get_cpdtype_id(array_type);
             let arr_len = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let arr_res = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             Either::Right(array_into_iter([restart_point,
@@ -112,15 +112,15 @@ pub fn multianewarray<'vm_life>(
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
     recompile_conditions: &mut MethodRecompileConditions,
-    array_type: &CPDType,
+    array_type: CPDType,
     num_arrays: NonZeroU8
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     match resolver.lookup_type_inited_initing(&array_type) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(&array_type);
-            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: *array_type });
+            let cpd_type_id = resolver.get_cpdtype_id(array_type);
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: array_type });
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
@@ -134,7 +134,7 @@ pub fn multianewarray<'vm_life>(
             // runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
             //todo allocation should be done in vm exit
             let elem_type = array_type.unwrap_ref_type().recursively_unwrap_array_type();
-            let array_elem_type = resolver.get_cpdtype_id(&elem_type.to_cpdtype());
+            let array_elem_type = resolver.get_cpdtype_id(elem_type.to_cpdtype());
             let arr_len_start = method_frame_data.operand_stack_entry(current_instr_data.current_index, (num_arrays.get() - 1) as u16);
             let arr_res = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
             Either::Right(array_into_iter([restart_point,

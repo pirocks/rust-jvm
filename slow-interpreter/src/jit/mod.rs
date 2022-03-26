@@ -218,7 +218,7 @@ impl<'gc> MethodResolver<'gc> {
         self.jvm.field_table.write().unwrap().get_field_id(runtime_class, field_view.field_i())
     }
 
-    pub fn get_cpdtype_id(&self, cpdtype: &CPDType) -> CPDTypeID {
+    pub fn get_cpdtype_id(&self, cpdtype: CPDType) -> CPDTypeID {
         self.jvm.cpdtype_table.write().unwrap().get_cpdtype_id(cpdtype)
     }
 
@@ -230,7 +230,7 @@ impl<'gc> MethodResolver<'gc> {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
     }
 
-    pub fn known_addresses_for_type(&self, cpd_type: &CPDType) -> Vec<BaseAddressAndMask> {
+    pub fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask> {
         self.jvm.known_addresses.known_addresses_for_type(cpd_type)
     }
 

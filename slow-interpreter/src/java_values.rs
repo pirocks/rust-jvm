@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
+use gc_memory_layout_common::layout::ObjectMemoryLayout;
 use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -91,12 +92,11 @@ impl<'gc> GC<'gc> {
         match object {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
                 for (i, field) in fields.iter() {
+                    let obj_layout = ObjectMemoryLayout::from_rc(object_rc.unwrap_class_class());
                     unsafe {
-                        //todo layout
-                        todo!("layout")
-                        /*assert_eq!(size_of::<NativeJavaValue>(), size_of::<jlong>());
-                        let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(i.0 as isize);
-                        field_ptr.write(field.to_native());*/
+                        let offset = obj_layout.field_entry(*i);
+                        let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(offset as isize);
+                        field_ptr.write(field.to_native());
                     }
                 }
             }
@@ -199,7 +199,7 @@ impl<'gc> GcManagedObject<'gc> {
                 unsafe {
                     Arc::new(Object::Object(NormalObject {
                         objinfo: ObjectFieldsAndClass {
-                            fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc>, num_fields)),
+                            fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc>, num_fields as usize)),
                             class_pointer: runtime_class.clone(),
                         },
                         obj_ptr: Some(raw_ptr.cast()),

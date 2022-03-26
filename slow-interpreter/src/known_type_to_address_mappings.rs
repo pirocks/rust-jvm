@@ -16,8 +16,8 @@ impl KnownAddresses {
         }
     }
 
-    pub fn known_addresses_for_type(&self, cpdtype: &CPDType) -> Vec<BaseAddressAndMask> {
-        match self.inner.read().unwrap().get(cpdtype) {
+    pub fn known_addresses_for_type(&self, cpdtype: CPDType) -> Vec<BaseAddressAndMask> {
+        match self.inner.read().unwrap().get(&cpdtype) {
             Some(x) => x,
             None => return vec![],
         }.clone()

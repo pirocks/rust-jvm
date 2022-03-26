@@ -23,7 +23,7 @@ pub fn putstatic<'vm_life>(
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: resolver.get_cpdtype_id(&target_class.into()),
+                        class: resolver.get_cpdtype_id(target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id
                     },
@@ -60,14 +60,14 @@ pub fn getstatic<'vm_life>(
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: resolver.get_cpdtype_id(&target_class.into()),
+                        class: resolver.get_cpdtype_id(target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id
                     },
                 }])
         }
         Some((rc, loader)) => {
-            let rc_type = resolver.get_cpdtype_id(&rc.cpdtype());
+            let rc_type = resolver.get_cpdtype_id(rc.cpdtype());
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type: IRVMExitType::GetStatic {

@@ -16,7 +16,7 @@ use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompi
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast_impl};
 use crate::jit::MethodResolver;
 
-pub const fn field_type_to_size(cpd_type: &CPDType) -> Size {
+pub const fn field_type_to_register_size(cpd_type: CPDType) -> Size {
     match cpd_type {
         CPDType::BooleanType => Size::Byte,
         CPDType::ByteType => Size::byte(),
@@ -54,7 +54,7 @@ pub fn putfield<'vm_life>(
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    let cpd_type_id_obj = resolver.get_cpdtype_id(&cpd_type);
+    let cpd_type_id_obj = resolver.get_cpdtype_id(cpd_type);
     match resolver.lookup_type_inited_initing(&cpd_type) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
@@ -74,14 +74,14 @@ pub fn putfield<'vm_life>(
             let offset = Register(3);
             let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 1);
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
-            let field_size = field_type_to_size(field_type);
+            let field_size = field_type_to_register_size(field_type);
             Either::Right(array_into_iter([restart_point]).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
                 Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, field_type, to_put_value_offset))
             } else {
                 Either::Right(iter::empty())
             })
                 .chain(if resolver.debug_checkcast_assertions() {
-                    Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, &cpd_type, object_ptr_offset))
+                    Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, object_ptr_offset))
                 } else {
                     Either::Right(iter::empty())
                 })
@@ -127,7 +127,7 @@ pub fn getfield<'vm_life>(
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
-    let obj_cpd_type_id = resolver.get_cpdtype_id(&cpd_type);
+    let obj_cpd_type_id = resolver.get_cpdtype_id(cpd_type);
     match resolver.lookup_type_inited_initing(&cpd_type) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
@@ -146,11 +146,11 @@ pub fn getfield<'vm_life>(
             let offset = Register(3);
             let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
-            let field_size = field_type_to_size(field_type);
+            let field_size = field_type_to_register_size(field_type);
             Either::Right(array_into_iter([
                 restart_point]).chain(
                 if resolver.debug_checkcast_assertions(){
-                    Either::Right(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, &cpd_type, object_ptr_offset))
+                    Either::Right(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, object_ptr_offset))
                 }else {
                     Either::Left(iter::empty())
                 }
@@ -184,9 +184,9 @@ pub fn getfield<'vm_life>(
     }
 }
 
-fn recursively_find_field_number_and_type<'l>(rc: &'l RuntimeClassClass, name: FieldName) -> &'l (FieldNumber, CPDType) {
+fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldName) -> (FieldNumber, CPDType) {
     match rc.field_numbers.get(&name) {
-        Some(x) => x,
+        Some(x) => *x,
         None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),
     }
 }
