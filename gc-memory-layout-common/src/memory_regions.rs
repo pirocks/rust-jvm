@@ -64,7 +64,7 @@ impl AllocatedObjectType {
                 (*name).into()
             }
             AllocatedObjectType::ObjectArray { sub_type, .. } => {
-                CPDType::array(CPDType::Ref(*sub_type))
+                CPDType::array(sub_type.to_cpdtype())
             }
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
                 CPDType::array(*primitive_type)

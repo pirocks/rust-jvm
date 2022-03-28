@@ -32,7 +32,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
             return throw_npe(jvm, int_state);
         }
     };
-    let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) };
+    let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
     let mut args = vec![];
     args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
     let res = invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor,args).unwrap().unwrap().unwrap_object();
@@ -53,7 +53,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
 unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().as_allocated_obj().to_gc_managed().into(), int_state)
+    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().to_gc_managed().into(), int_state)
 }
 
 ///  /**
@@ -79,7 +79,7 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
             match protection_domains.get_by_left(&ByAddress(entry.try_class_pointer(jvm)?.clone())) {
                 None => None,
                 Some(domain) => {
-                    NewJavaValueHandle::Object(domain.owned_inner_ref().handle.duplicate_discouraged()).cast_protection_domain().into()
+                    NewJavaValueHandle::Object(todo!()/*domain*/).cast_protection_domain().into()
                 }
             }
         })

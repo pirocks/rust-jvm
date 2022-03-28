@@ -196,7 +196,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
 fn atom(t: &CPDType) -> bool {
     match t {
         CPDType::ByteType | CPDType::CharType | CPDType::DoubleType | CPDType::FloatType | CPDType::IntType | CPDType::LongType | CPDType::ShortType | CPDType::VoidType | CPDType::BooleanType => true,
-        CPDType::Ref(_) => false,
+        CPDType::Class(_) | CPDType::Array { .. } => false,
     }
 }
 

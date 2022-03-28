@@ -1,25 +1,35 @@
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::java::lang::class::JClass;
-use crate::{InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
+use crate::{AllocatedHandle, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, WasException};
 use crate::instructions::invoke::virtual_::invoke_virtual;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
+use crate::new_java_values::{NewJavaValueHandle};
+use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
+use crate::new_java_values::java_value_common::JavaValueCommon;
 
 pub trait NewAsObjectOrJavaValue<'gc>: Sized {
-    fn object(self) -> AllocatedObjectHandle<'gc>;
-    fn object_ref(&self) -> AllocatedObject<'gc,'_>;
+    fn object(self) -> AllocatedNormalObjectHandle<'gc>;
+    fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc>;
 
+
+    fn full_object(self) -> AllocatedHandle<'gc>{
+        AllocatedHandle::NormalObject(self.object())
+    }
+
+    fn full_object_ref(&self) -> AllocatedObject<'gc,'_>{
+        AllocatedObject::NormalObject(self.object_ref())
+    }
 
     fn java_value(self) -> JavaValue<'gc> {
         todo!()
     }
 
     fn new_java_value_handle(self) -> NewJavaValueHandle<'gc> {
-        NewJavaValueHandle::Object(self.object())
+        NewJavaValueHandle::Object(AllocatedHandle::NormalObject(self.object()))
     }
 
     fn new_java_value(&self) -> NewJavaValue<'gc,'_>{
-        NewJavaValue::AllocObject(self.object_ref())
+        NewJavaValue::AllocObject(self.full_object_ref())
     }
 
     fn get_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<JClass<'gc>, WasException> {
@@ -35,62 +45,18 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
     fn hash_code<'l>(&self, jvm: &'gc crate::jvm_state::JVMState<'gc>, int_state: &'_ mut crate::InterpreterStateGuard<'gc,'l>) -> Result<i32, crate::WasException> {
         let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::IntType };
         let res = invoke_virtual(jvm, int_state, MethodName::method_hashCode(), &desc, vec![self.new_java_value()])?;
-        Ok(res.unwrap().as_njv().unwrap_int_strict())
+        Ok(res.unwrap().unwrap_int_strict())
     }
 
     fn to_string<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Option<JString<'gc>>, WasException> {
         let desc = CMethodDescriptor {
             arg_types: vec![],
-            return_type: CPDType::Ref(CPRefType::Class(CClassName::string())),
+            return_type: CClassName::string().into(),
         };
         let res = invoke_virtual(jvm, int_state, MethodName::method_toString(), &desc, vec![self.new_java_value()])?.unwrap();
         Ok(res.cast_string())
     }
 }
-
-// macro_rules! as_object_or_java_value {
-//     () => {
-//         // use crate::java_values::{Object, JavaValue, NormalObject};
-//         //
-//         //
-//         /*pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc,'todo> {
-//             /*self.normal_object*/
-//             todo!()
-//         }*/
-//
-//         pub fn java_value(self) -> JavaValue<'gc> {
-//             /*JavaValue::Object(self.object().into())*/
-//             todo!()
-//         }
-//
-//         pub fn to_string<'l>(&self, jvm: &'gc crate::jvm_state::JVMState<'gc>, int_state: &'_ mut crate::InterpreterStateGuard<'gc,'l>) -> Result<Option<crate::java::lang::string::JString<'gc>>, crate::WasException> {
-//             todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
-//             let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
-//                 arg_types: vec![],
-//                 return_type: rust_jvm_common::compressed_classfile::CPDType::Ref(rust_jvm_common::compressed_classfile::CPRefType::Class(rust_jvm_common::compressed_classfile::names::CClassName::string())),
-//             };
-//             crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_toString(), &desc, todo!())?;
-//             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::string().into())).cast_string())
-//         }
-//
-//         pub fn get_class<'l>(&self, jvm: &'gc crate::jvm_state::JVMState<'gc>, int_state: &'_ mut crate::InterpreterStateGuard<'gc,'l>) -> Result<crate::java::lang::class::JClass<'gc>, crate::WasException> {
-//             todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
-//             let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
-//                 arg_types: vec![],
-//                 return_type: rust_jvm_common::compressed_classfile::CPDType::Ref(rust_jvm_common::compressed_classfile::CPRefType::Class(rust_jvm_common::compressed_classfile::names::CClassName::class())),
-//             };
-//             crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_getClass(), &desc, todo!())?;
-//             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::class().into())).to_new().cast_class().expect("object can never not have a class"))
-//         }
-//
-//         pub fn hash_code<'l>(&self, jvm: &'gc crate::jvm_state::JVMState<'gc>, int_state: &'_ mut crate::InterpreterStateGuard<'gc,'l>) -> Result<i32, crate::WasException> {
-//             todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
-//             let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor { arg_types: vec![], return_type: rust_jvm_common::compressed_classfile::CPDType::IntType };
-//             crate::instructions::invoke::virtual_::invoke_virtual(jvm, int_state, rust_jvm_common::compressed_classfile::names::MethodName::method_hashCode(), &desc, todo!())?;
-//             Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::runtime_type::RuntimeType::IntType)).unwrap_int())
-//         }
-//     };
-// }
 
 #[macro_use]
 pub mod lang;

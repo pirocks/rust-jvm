@@ -4,7 +4,7 @@ use std::sync::RwLockReadGuard;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType};
 
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
@@ -12,6 +12,7 @@ use crate::interpreter::WasException;
 use crate::java_values::JavaValue;
 use crate::jvm_state::{Classes, JVMState};
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
+use crate::NewAsObjectOrJavaValue;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 
@@ -60,12 +61,10 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
         status |= JVMTI_CLASS_STATUS_VERIFIED as i32;
         status |= JVMTI_CLASS_STATUS_INITIALIZED as i32; //todo so technically this isn't correct, b/c we don't check static intializer completeness
         match type_ {
-            CPDType::Ref(ref_) => match ref_ {
-                CPRefType::Class(_) => {}
-                CPRefType::Array { .. } => {
-                    status |= JVMTI_CLASS_STATUS_ARRAY as i32;
-                }
-            },
+            CPDType::Class(_) => {}
+            CPDType::Array { .. } => {
+                status |= JVMTI_CLASS_STATUS_ARRAY as i32;
+            }
             _ => {
                 status |= JVMTI_CLASS_STATUS_PRIMITIVE as i32;
             }
@@ -143,14 +142,14 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
     let class_object_ptype = JavaValue::Object(todo!() /*notnull_class.into()*/).to_new().cast_class().unwrap().as_type(jvm);
     let type_ = class_object_ptype;
     if !signature_ptr.is_null() {
-        let jvm_repr = CString::new(PTypeView::from_compressed(&type_, &jvm.string_pool).jvm_representation()).unwrap();
+        let jvm_repr = CString::new(PTypeView::from_compressed(type_, &jvm.string_pool).jvm_representation()).unwrap();
         let jvm_repr_ptr = jvm_repr.into_raw();
         let allocated_jvm_repr = libc::malloc(libc::strlen(jvm_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
         signature_ptr.write(allocated_jvm_repr);
         libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
     }
     if !generic_ptr.is_null() {
-        let java_repr = CString::new(PTypeView::from_compressed(&type_, &jvm.string_pool).java_source_representation()).unwrap();
+        let java_repr = CString::new(PTypeView::from_compressed(type_, &jvm.string_pool).java_source_representation()).unwrap();
         let java_repr_ptr = java_repr.into_raw();
         let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
         generic_ptr.write(allocated_java_repr);

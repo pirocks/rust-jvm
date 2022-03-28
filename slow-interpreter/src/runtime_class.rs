@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, RwLockWriteGuard};
-use classfile_view::view::{ClassView, HasAccessFlags};
 
+use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{InterpreterStateGuard, JVMState, MethodResolver, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolver, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
@@ -28,7 +28,7 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
                 };
                 let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
                 let name = field.field_name();
-                static_vars(runtime_class.deref(),jvm).set(name, constant_value);
+                static_vars(runtime_class.deref(), jvm).set(name, constant_value);
             }
         }
     }
@@ -79,10 +79,8 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
 
 pub fn prepare_class<'vm_life, 'l, 'k>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm_life, 'k>) {
     if let Some(jvmti) = jvm.jvmti_state() {
-        if let CPDType::Ref(ref_) = classfile.type_() {
-            if let CPRefType::Class(cn) = ref_ {
-                jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)
-            }
+        if let CPDType::Class(cn) = classfile.type_() {
+            jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)
         }
     }
 
@@ -137,6 +135,6 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
 
     pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
         let cpd_type = self.types.get(&name).unwrap();
-        self.data_guard.insert(name, elem.as_njv().to_native());
+        self.data_guard.insert(name, elem.to_native());
     }
 }

@@ -80,7 +80,7 @@ impl Ord for ShapeOrderWrapper<'_> {
             } else {
                 if this_desc.arg_types.len() == other_desc.arg_types.len(){
                     this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).map(|(this,other)|{
-                        CPDTypeOrderWrapper(this).partial_cmp(&CPDTypeOrderWrapper(other))
+                        CPDTypeOrderWrapper(*this).partial_cmp(&CPDTypeOrderWrapper(*other))
                     }).flatten().find(|ordering|!matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
                 }else {
                     this_desc.arg_types.len().cmp(&other_desc.arg_types.len())

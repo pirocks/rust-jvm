@@ -11,6 +11,7 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
@@ -40,7 +41,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("user.dir".to_string())).unwrap();
     let properties = prop_obj.cast_properties();
     let table = properties.table(jvm);
-    let table_array = table.unwrap_array(jvm);
+    let table_array = table.unwrap_object_nonnull().unwrap_array();
     // let _ = properties.get_property(jvm, int_state, key).unwrap().unwrap().new_java_value_handle().unwrap_object().unwrap();
     /*let key = key.new_java_value();
     let handle = invoke_virtual_method_i(
@@ -65,7 +66,8 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
     };
-    let runtime_class = &prop_obj.as_allocated_obj().runtime_class(jvm);
+    let normal_object_handle = prop_obj.unwrap_normal_object();
+    let runtime_class = &normal_object_handle.runtime_class(jvm);
     let class_view = &runtime_class.view();
     let candidate_meth = class_view.lookup_method_name(MethodName::method_setProperty());
     let meth = candidate_meth.get(0).unwrap();
@@ -77,7 +79,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
         md,
         runtime_class.clone(),
         meth,
-        vec![NewJavaValue::AllocObject(prop_obj.as_allocated_obj()),key.new_java_value_handle().as_njv(),val.new_java_value_handle().as_njv()]
+        vec![NewJavaValue::AllocObject(normal_object_handle.as_allocated_obj()),key.new_java_value_handle().as_njv(),val.new_java_value_handle().as_njv()]
     )?.unwrap().unwrap_object();
     Ok(new_local_ref_public_new(p.as_ref().map(|handle|handle.as_allocated_obj()),int_state))
 }

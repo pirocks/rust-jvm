@@ -13,7 +13,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::WasException;
 use crate::java_values::{ExceptionReturn, JavaValue};
-use crate::JVMState;
+use crate::{JavaValueCommon, JVMState};
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use crate::runtime_class::static_vars;
@@ -28,7 +28,7 @@ pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_bool_strict()
+    java_value.unwrap_bool_strict()
 }
 
 pub unsafe extern "C" fn get_byte_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jbyte {
@@ -36,7 +36,7 @@ pub unsafe extern "C" fn get_byte_field(env: *mut JNIEnv, obj: jobject, field_id
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_byte_strict()
+    java_value.unwrap_byte_strict()
 }
 
 pub unsafe extern "C" fn get_short_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jshort {
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn get_short_field(env: *mut JNIEnv, obj: jobject, field_i
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_short_strict()
+    java_value.unwrap_short_strict()
 }
 
 pub unsafe extern "C" fn get_char_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jchar {
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn get_char_field(env: *mut JNIEnv, obj: jobject, field_id
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_char_strict()
+    java_value.unwrap_char_strict()
 }
 
 pub unsafe extern "C" fn get_int_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jint {
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn get_int_field(env: *mut JNIEnv, obj: jobject, field_id_
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_int_strict() as jint
+    java_value.unwrap_int_strict() as jint
 }
 
 pub unsafe extern "C" fn get_long_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jlong {
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn get_long_field(env: *mut JNIEnv, obj: jobject, field_id
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_long_strict() as jlong
+    java_value.unwrap_long_strict() as jlong
 }
 
 pub unsafe extern "C" fn get_float_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jfloat {
@@ -76,7 +76,7 @@ pub unsafe extern "C" fn get_float_field(env: *mut JNIEnv, obj: jobject, field_i
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_float_strict()
+    java_value.unwrap_float_strict()
 }
 
 pub unsafe extern "C" fn get_double_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jdouble {
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn get_double_field(env: *mut JNIEnv, obj: jobject, field_
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
         Ok(res) => res,
     };
-    java_value.as_njv().unwrap_double_strict()
+    java_value.unwrap_double_strict()
 }
 
 pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jobject {
@@ -110,7 +110,7 @@ unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_
             unreachable!()
         }
     };
-    Ok(notnull.as_allocated_obj().get_var(jvm, &rc, name))
+    Ok(notnull.unwrap_normal_object().get_var(jvm, &rc, name))
 }
 
 pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {

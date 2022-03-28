@@ -1,5 +1,4 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
-use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::instructions::special::{instance_of_exit_impl};
 use crate::new_java_values::NewJavaValueHandle;
@@ -18,6 +17,6 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         }
         Some(ref_type) => ref_type,
     };
-    let res = instance_of_exit_impl(jvm,  &CPDType::Ref(type_), java_obj.as_ref().map(|handle|handle.as_allocated_obj()));
+    let res = instance_of_exit_impl(jvm,  type_.to_cpdtype(), java_obj.as_ref().map(|handle|handle.unwrap_normal_object_ref()));
     (res != 0) as jboolean
 }

@@ -19,6 +19,7 @@ use slow_interpreter::java::lang::long::Long;
 use slow_interpreter::java::lang::short::Short;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
@@ -33,7 +34,7 @@ unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, c
 unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> jint {
     let jvm = get_state(env);
     match get_array(env, arr) {
-        Ok(jv) => jv.unwrap_array(jvm).len() as i32,
+        Ok(jv) => jv.unwrap_object_nonnull().unwrap_array().len() as i32,
         Err(WasException {}) => -1 as i32,
     }
 }
@@ -62,11 +63,12 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
     let int_state = get_interpreter_state(env);
     match get_array(env, arr) {
         Ok(jv) => {
-            let len = jv.unwrap_array(jvm).len() as i32;
+            let nonnull = jv.unwrap_object_nonnull();
+            let len = nonnull.unwrap_array().len() as i32;
             if index < 0 || index >= len {
                 return throw_array_out_of_bounds(jvm, int_state, index);
             }
-            let java_value = jv.unwrap_array(jvm).get_i(index as usize);
+            let java_value = nonnull.unwrap_array().get_i(index as usize);
             new_local_ref_public(
                 match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
                     Ok(boxed) => todo!()/*boxed*/,
@@ -117,7 +119,8 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
         Some(x) => NewJavaValueHandle::Object(x),
         None => return throw_npe(jvm, int_state),
     };
-    let src = src.unwrap_array(jvm);
+    let nonnull = src.unwrap_object_nonnull();
+    let src = nonnull.unwrap_array();
     let mut dest_o = from_object_new(jvm, dst);
     let new_jv_handle = match dest_o {
         Some(x) => NewJavaValueHandle::Object(x),
@@ -125,7 +128,8 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
             return throw_npe(jvm, int_state);
         }
     };
-    let dest = new_jv_handle.unwrap_array(jvm);
+    let nonnull = new_jv_handle.unwrap_object_nonnull();
+    let dest = nonnull.unwrap_array();
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }

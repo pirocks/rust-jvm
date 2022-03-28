@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use itertools::Itertools;
 
 use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName};
 use rust_jvm_common::method_shape::{MethodShape, ShapeOrderWrapper};
 use rust_jvm_common::NativeJavaValue;
@@ -54,7 +54,7 @@ impl<'gc> RuntimeClass<'gc> {
             RuntimeClass::Double => CPDType::DoubleType,
             RuntimeClass::Void => CPDType::VoidType,
             RuntimeClass::Array(arr) => CPDType::array(arr.sub_class.cpdtype()),
-            RuntimeClass::Object(o) => CPDType::Ref(CPRefType::Class(o.class_view.name().unwrap_name())),
+            RuntimeClass::Object(o) => CPDType::Class(o.class_view.name().unwrap_name()),
             RuntimeClass::Top => panic!(),
         }
     }

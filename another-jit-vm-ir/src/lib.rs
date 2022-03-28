@@ -11,7 +11,7 @@ use std::iter::Step;
 use std::ops::{Deref, Range, RangeBounds};
 use std::sync::{Arc, RwLock};
 
-use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock, IntelFormatter};
+use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
 use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dl, dword_ptr, dx, eax, edx, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp, word_ptr};
 use itertools::Itertools;
 
@@ -26,7 +26,6 @@ use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, 
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
 use crate::vm_exit_abi::{IRVMExitType};
 use crate::vm_exit_abi::runtime_input::RuntimeVMExitInput;
-use iced_x86::Formatter;
 
 #[cfg(test)]
 pub mod tests;
@@ -263,24 +262,26 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
 
     #[allow(unused_variables)]
     fn debug_print_instructions(assembler: &CodeAssembler, offsets: &Vec<IRInstructNativeOffset>, base_address: BaseAddress, ir_index_to_assembly_index: &Vec<(IRInstructIndex, AssemblyInstructionIndex)>, ir: &Vec<IRInstr>) {
-        let mut formatted_instructions = String::new();
-        let mut formatter = IntelFormatter::default();
-        let mut assembly_index_to_ir_index = HashMap::new();
-        for (ir_instruct_index, assembly_instruct_index) in ir_index_to_assembly_index.iter() {
-            assembly_index_to_ir_index.insert(*assembly_instruct_index, *ir_instruct_index);
-        }
-        for (i, instruction) in assembler.instructions().iter().enumerate() {
-            let mut temp = String::new();
-            formatter.format(instruction, &mut temp);
-            let instruction_info_as_string = &match assembly_index_to_ir_index.get(&AssemblyInstructionIndex(i)) {
-                Some(ir_instruct_index) => {
-                    ir[ir_instruct_index.0].debug_string()
-                }
-                None => "".to_string(),
-            };
-            unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
-        }
-        eprintln!("{}", formatted_instructions);
+        // use iced_x86::IntelFormatter;
+        // use iced_x86::Formatter;
+        // let mut formatted_instructions = String::new();
+        // let mut formatter = IntelFormatter::default();
+        // let mut assembly_index_to_ir_index = HashMap::new();
+        // for (ir_instruct_index, assembly_instruct_index) in ir_index_to_assembly_index.iter() {
+        //     assembly_index_to_ir_index.insert(*assembly_instruct_index, *ir_instruct_index);
+        // }
+        // for (i, instruction) in assembler.instructions().iter().enumerate() {
+        //     let mut temp = String::new();
+        //     formatter.format(instruction, &mut temp);
+        //     let instruction_info_as_string = &match assembly_index_to_ir_index.get(&AssemblyInstructionIndex(i)) {
+        //         Some(ir_instruct_index) => {
+        //             ir[ir_instruct_index.0].debug_string()
+        //         }
+        //         None => "".to_string(),
+        //     };
+        //     unsafe { formatted_instructions.push_str(format!("{:?}: {:<35}{}\n", base_address.0.offset(offsets[i].0 as isize), temp, instruction_info_as_string).as_str()); }
+        // }
+        // eprintln!("{}", formatted_instructions);
     }
 
     pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {

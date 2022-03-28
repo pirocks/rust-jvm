@@ -33,7 +33,7 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
@@ -45,7 +45,10 @@ use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::{ JavaValue};
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
+use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use crate::new_java_values::allocated_objects::AllocatedHandle;
+use crate::new_java_values::java_value_common::JavaValueCommon;
+use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
@@ -119,7 +122,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     Result::Ok(())
 }
 
-fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedObjectHandle<'gc> {
+fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {
     let mut arg_strings: Vec<NewJavaValueHandle<'gc>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
@@ -149,7 +152,7 @@ fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterSt
 
 fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn ClassView>) -> u16 {
     let string_name = CClassName::string();
-    let string_class = CPDType::Ref(CPRefType::Class(string_name));
+    let string_class = CPDType::Class(string_name);
     let string_array = CPDType::array(string_class);
     let psvms = main.lookup_method_name(MethodName(pool.add_name(&"main".to_string(), false)));
     for m in psvms {

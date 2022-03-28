@@ -24,13 +24,16 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
-use crate::check_initing_or_inited_class;
+use crate::{AllocatedHandle, check_initing_or_inited_class};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
+use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use crate::new_java_values::allocated_objects::{AllocatedArrayObjectHandle, AllocatedNormalObjectHandle};
+use crate::new_java_values::java_value_common::JavaValueCommon;
+use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc> {
@@ -40,18 +43,20 @@ pub struct GC<'gc> {
     pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     //todo deprecated/ not in use
     phantom: PhantomData<&'gc ()>,
-    pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedObjectHandle<'gc>>,
+    pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedNormalObjectHandle<'gc>>,
 }
 
 impl<'gc> GC<'gc> {
     #[must_use]
-    pub fn register_root_reentrant(&'gc self, jvm: &'gc JVMState<'gc>, ptr: NonNull<c_void>) -> AllocatedObjectHandle<'gc> {
+    pub fn register_root_reentrant(&'gc self, jvm: &'gc JVMState<'gc>, ptr: NonNull<c_void>) -> AllocatedHandle<'gc> {
         let mut guard = self.vm_temp_owned_roots.write().unwrap();
         let count = guard.entry(ptr).or_insert(AtomicUsize::new(0));
         count.fetch_add(1, Ordering::SeqCst);
-        AllocatedObjectHandle {
-            jvm,
-            ptr,
+        let guard = self.memory_region.lock().unwrap();
+        if guard.find_object_allocated_type(ptr).as_cpdtype().is_array() {
+            AllocatedHandle::Array(AllocatedArrayObjectHandle { jvm, ptr })
+        } else {
+            AllocatedHandle::NormalObject(AllocatedNormalObjectHandle { jvm, ptr })
         }
     }
 
@@ -64,16 +69,14 @@ impl<'gc> GC<'gc> {
         }
     }
 
-    pub fn handle_lives_for_gc_life(&'gc self, handle: AllocatedObjectHandle<'gc>) -> AllocatedObject<'gc, 'gc> {
+    pub fn handle_lives_for_gc_life(&'gc self, handle: AllocatedNormalObjectHandle<'gc>) -> &'gc AllocatedNormalObjectHandle<'gc> {
         let index = self.objects_that_live_for_gc_life.len();
         self.objects_that_live_for_gc_life.push(handle);
-        let handle_ref: &'gc AllocatedObjectHandle<'gc> = &self.objects_that_live_for_gc_life[index];
-        AllocatedObject {
-            handle: handle_ref
-        }
+        let handle_ref: &'gc AllocatedNormalObjectHandle<'gc> = &self.objects_that_live_for_gc_life[index];
+        handle_ref
     }
 
-    pub fn allocate_object<'l>(&'gc self, jvm: &'gc JVMState<'gc>, object: UnAllocatedObject<'gc, 'l>) -> AllocatedObjectHandle<'gc> {
+    pub fn allocate_object<'l>(&'gc self, jvm: &'gc JVMState<'gc>, object: UnAllocatedObject<'gc, 'l>) -> AllocatedHandle<'gc> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
@@ -87,6 +90,7 @@ impl<'gc> GC<'gc> {
         let allocated = memory_region.get_allocation();
         let allocated_size = memory_region.region_elem_size;
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
+        drop(guard);
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
         self.all_allocated_object.write().unwrap().insert(allocated);
         match object {
@@ -102,6 +106,7 @@ impl<'gc> GC<'gc> {
             }
             UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }) => {
                 unsafe {
+                    todo!("layout");
                     (allocated.as_ptr() as *mut i32).write(elems.len() as i32);
                     let array_base = allocated.as_ptr().offset(size_of::<jlong>() as isize);
                     assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
@@ -128,12 +133,12 @@ impl<'gc> GC<'gc> {
 }
 
 #[derive(Clone)]
-pub enum ByAddressAllocatedObject<'gc, 'l> {
-    Owned(AllocatedObject<'gc, 'l>),
+pub enum ByAddressAllocatedObject<'gc> {
+    Owned(AllocatedNormalObjectHandle<'gc>),
     LookupOnly(usize),
 }
 
-impl<'gc, 'l> ByAddressAllocatedObject<'gc, 'l> {
+impl<'gc> ByAddressAllocatedObject<'gc> {
     pub fn raw_ptr_usize(&self) -> usize {
         match self {
             ByAddressAllocatedObject::Owned(owned) => {
@@ -145,30 +150,30 @@ impl<'gc, 'l> ByAddressAllocatedObject<'gc, 'l> {
         }
     }
 
-    pub fn owned_inner(self) -> AllocatedObject<'gc, 'l> {
+    pub fn owned_inner(self) -> AllocatedNormalObjectHandle<'gc> {
         match self {
             ByAddressAllocatedObject::Owned(owned) => owned,
             ByAddressAllocatedObject::LookupOnly(_) => panic!()
         }
     }
 
-    pub fn owned_inner_ref(&self) -> AllocatedObject<'gc, 'l> {
+    pub fn owned_inner_ref<'l>(&'l self) -> &'l AllocatedNormalObjectHandle<'gc> {
         match self {
-            ByAddressAllocatedObject::Owned(owned) => owned.clone(),
+            ByAddressAllocatedObject::Owned(owned) => owned,
             ByAddressAllocatedObject::LookupOnly(_) => panic!()
         }
     }
 }
 
-impl Hash for ByAddressAllocatedObject<'_, '_> {
+impl Hash for ByAddressAllocatedObject<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_usize(self.raw_ptr_usize())
     }
 }
 
-impl Eq for ByAddressAllocatedObject<'_, '_> {}
+impl Eq for ByAddressAllocatedObject<'_> {}
 
-impl PartialEq for ByAddressAllocatedObject<'_, '_> {
+impl PartialEq for ByAddressAllocatedObject<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.raw_ptr_usize() == other.raw_ptr_usize()
     }
@@ -208,7 +213,7 @@ impl<'gc> GcManagedObject<'gc> {
             }
             AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
                 let classes = jvm.classes.read().unwrap();
-                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::array(CPDType::Ref(sub_type.clone())));
+                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::array(sub_type.to_cpdtype()));
                 unsafe {
                     Arc::new(Object::Array(ArrayObject {
                         whole_array_runtime_class: runtime_class.clone(),
@@ -216,7 +221,7 @@ impl<'gc> GcManagedObject<'gc> {
                         len: *len,
                         elems_base: raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc>,
                         phantom_data: Default::default(),
-                        elem_type: CPDType::Ref(sub_type.clone()),
+                        elem_type: sub_type.to_cpdtype(),
                     }))
                 }
             }
@@ -254,14 +259,6 @@ impl<'gc> GcManagedObject<'gc> {
 
     pub fn strong_count(&self) -> usize {
         self.gc.vm_temp_owned_roots.read().unwrap().get(&(self.raw_ptr)).unwrap().load(Ordering::SeqCst)
-    }
-
-    pub fn to_allocated_object(&self) -> AllocatedObject<'gc, 'static> {
-        todo!()
-    }
-
-    pub fn to_allocated_object_not_static(&self) -> AllocatedObject<'gc, 'gc> {
-        todo!()
     }
 }
 
@@ -619,12 +616,12 @@ impl<'gc> JavaValue<'gc> {
             jv => (*jv).clone(),
         }*/
     }
-    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<AllocatedObjectHandle<'gc>, WasException> {
+    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<AllocatedHandle<'gc>, WasException> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
-    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, bytes: Vec<u8>) -> Result<AllocatedObjectHandle<'gc>, WasException> {
+    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
@@ -635,7 +632,7 @@ impl<'gc> JavaValue<'gc> {
         ObjectFieldsAndClass { fields: todo!(), class_pointer: runtime_class.clone() }
     }
 
-    pub fn new_object(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedObjectHandle<'gc> {
+    pub fn new_object(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
         assert!(!runtime_class.view().is_abstract());
 
         let class_class = runtime_class.unwrap_class_class();
@@ -645,11 +642,10 @@ impl<'gc> JavaValue<'gc> {
         jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: runtime_class,
             fields,
-        }))
-            .into()
+        })).unwrap_normal_object()
     }
 
-    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedObjectHandle<'gc>, WasException> {
+    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedHandle<'gc>, WasException> {
         let mut buf: Vec<NewJavaValue<'gc, '_>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -657,7 +653,7 @@ impl<'gc> JavaValue<'gc> {
         Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
-    pub fn new_vec_from_vec(jvm: &'gc JVMState<'gc>, vals: Vec<NewJavaValue<'gc, '_>>, elem_type: CPDType) -> AllocatedObjectHandle<'gc> {
+    pub fn new_vec_from_vec(jvm: &'gc JVMState<'gc>, vals: Vec<NewJavaValue<'gc, '_>>, elem_type: CPDType) -> AllocatedHandle<'gc> {
         let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(elem_type));
         jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: vals })/*Object::Array(ArrayObject {
             whole_array_runtime_class: todo!(),
@@ -839,7 +835,7 @@ impl<'gc, 'l> Object<'gc, 'l> {
         };
         let normal_object = self.unwrap_normal_object();
         let guard = normal_object.objinfo.fields.read().unwrap();
-        native_to_new_java_value(guard[field_number.0 as usize],rtype,jvm).to_jv()
+        native_to_new_java_value(guard[field_number.0 as usize], rtype, jvm).to_jv()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'l> {
@@ -1012,7 +1008,7 @@ pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: &CPDTy
             CPDType::FloatType => NewJavaValueHandle::Float(native.float),
             CPDType::IntType => NewJavaValueHandle::Int(native.int),
             CPDType::LongType => NewJavaValueHandle::Long(native.long),
-            CPDType::Ref(_) => {
+            CPDType::Class(_) | CPDType::Array { .. } => {
                 match NonNull::new(native.object) {
                     None => {
                         NewJavaValueHandle::Null
@@ -1262,7 +1258,8 @@ pub fn default_value<'gc>(type_: &CPDType) -> NewJavaValueHandle<'gc> {
         CPDType::FloatType => NewJavaValueHandle::Float(0.0),
         CPDType::IntType => NewJavaValueHandle::Int(0),
         CPDType::LongType => NewJavaValueHandle::Long(0),
-        CPDType::Ref(_) => NewJavaValueHandle::Null,
+        CPDType::Class(_) => NewJavaValueHandle::Null,
+        CPDType::Array { .. } => NewJavaValueHandle::Null,
         CPDType::ShortType => NewJavaValueHandle::Short(0),
         CPDType::BooleanType => NewJavaValueHandle::Boolean(0),
         CPDType::VoidType => panic!(),
@@ -1277,7 +1274,8 @@ pub fn default_value_njv<'gc, 'any>(type_: &CPDType) -> NewJavaValue<'gc, 'any> 
         CPDType::FloatType => NewJavaValue::Float(0.0),
         CPDType::IntType => NewJavaValue::Int(0),
         CPDType::LongType => NewJavaValue::Long(0),
-        CPDType::Ref(_) => NewJavaValue::Null,
+        CPDType::Class(_) => NewJavaValue::Null,
+        CPDType::Array { .. } => NewJavaValue::Null,
         CPDType::ShortType => NewJavaValue::Short(0),
         CPDType::BooleanType => NewJavaValue::Boolean(0),
         CPDType::VoidType => panic!(),

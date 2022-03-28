@@ -9,7 +9,7 @@ use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::{ByteCodeIndex, MethodId};
@@ -25,16 +25,16 @@ pub fn invokespecial<'vm_life>(
     recompile_conditions: &mut MethodRecompileConditions,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType,
+    classname_ref_type: CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
-    let class_cpdtype = CPDType::Ref(classname_ref_type.clone());
+    let class_cpdtype = classname_ref_type.to_cpdtype();
     let restart_point_id_class_load = restart_point_generator.new_restart_point();
     let restart_point_class_load = IRInstr::RestartPoint(restart_point_id_class_load);
     let restart_point_id_function_address = restart_point_generator.new_restart_point();
     let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
     match resolver.lookup_type_inited_initing(&class_cpdtype) {
         None => {
-            let cpd_type_id = resolver.get_cpdtype_id(CPDType::Ref(classname_ref_type.clone()));
+            let cpd_type_id = resolver.get_cpdtype_id(classname_ref_type.to_cpdtype());
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_cpdtype });
             Either::Left(array_into_iter([restart_point_class_load,
                 restart_point_function_address,
@@ -125,7 +125,7 @@ pub fn invokestatic<'vm_life>(
     let class_init_restart_point = IRInstr::RestartPoint(restart_point_id);
     let restart_point_id_function_address = restart_point_generator.new_restart_point();
     let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
-    let class_as_cpdtype = CPDType::Ref(classname_ref_type.clone());
+    let class_as_cpdtype = classname_ref_type.to_cpdtype();
     match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
         None => {
             let cpdtype_id = resolver.get_cpdtype_id(class_as_cpdtype);
@@ -220,13 +220,13 @@ pub fn invokevirtual<'vm_life>(
     recompile_conditions: &mut MethodRecompileConditions,
     method_name: MethodName,
     descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType,
+    classname_ref_type: CPRefType,
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let after_call_restart_point_id = restart_point_generator.new_restart_point();
     let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
-    let target_class_type = CPDType::Ref(classname_ref_type.clone());
+    let target_class_type = classname_ref_type.to_cpdtype();
     let target_class_type_id = resolver.get_cpdtype_id(target_class_type);
 
     if resolver.lookup_type_inited_initing(&target_class_type).is_none() {
@@ -308,7 +308,7 @@ pub fn invoke_interface(
 ) -> impl Iterator<Item=IRInstr> {
     let num_args = descriptor.arg_types.len() as u16;
 
-    let target_class_cpdtype = CPDType::Ref(classname_ref_type.clone());
+    let target_class_cpdtype = classname_ref_type.to_cpdtype();
     let cpdtype_id = resolver.get_cpdtype_id(target_class_cpdtype);
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);

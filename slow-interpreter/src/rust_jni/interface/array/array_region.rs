@@ -1,6 +1,7 @@
 use num::NumCast;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
+use crate::JavaValueCommon;
 
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
@@ -36,9 +37,9 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
         }
         Some(x) => x,
     };
-    let array = non_null_array_obj.unwrap_array(jvm);
+    let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let elem = T::from(array.get_i((start + i) as usize).as_njv().unwrap_int()).unwrap();
+        let elem = T::from(array.get_i((start + i) as usize).unwrap_int()).unwrap();
         buf.offset(i as isize).write(elem)
     }
 }
@@ -133,7 +134,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len
         }
         Some(x) => x,
     };
-    let vec_mut = non_nullarray.unwrap_array(jvm);
+    let vec_mut = non_nullarray.unwrap_array();
     for i in 0..len {
         vec_mut.set_i((start + i) as usize, java_value_getter(i as isize).as_njv());
     }

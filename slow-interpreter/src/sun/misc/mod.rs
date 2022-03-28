@@ -4,7 +4,7 @@ pub mod unsafe_ {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::runtime_type::RuntimeType;
 
-    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+    use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::java::lang::reflect::field::Field;
@@ -48,20 +48,21 @@ pub mod unsafe_ {
 pub mod launcher {
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+    use crate::AllocatedHandle;
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
+    use crate::new_java_values::{NewJavaValueHandle};
     use crate::utils::run_static_or_virtual;
 
     pub struct Launcher<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedHandle<'gc>,
     }
 
-    impl<'gc> AllocatedObjectHandle<'gc> {
+    impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_launcher(self) -> Launcher<'gc> {
             Launcher { normal_object: self }
         }

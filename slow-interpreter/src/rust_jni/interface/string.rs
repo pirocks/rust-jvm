@@ -15,8 +15,8 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObjectHandle, NewJavaValueHandle};
-use crate::NewAsObjectOrJavaValue;
+use crate::new_java_values::{NewJavaValueHandle};
+use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object_new};
 use crate::utils::{throw_npe, throw_npe_res};
@@ -86,9 +86,9 @@ pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'
     Ok(to_object_new(intern_safe(jvm, str_obj).object().as_allocated_obj().into()))//todo should this be local ref?
 }
 
-pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedObjectHandle<'gc>) -> JString<'gc> {
+pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) -> JString<'gc> {
     let string_class = assert_loaded_class(jvm, CClassName::string().into());
-    let char_array_ptr = match str_obj.as_allocated_obj().lookup_field(&string_class, FieldName::field_value()).unwrap_object() {
+    let char_array_ptr = match str_obj.unwrap_normal_object_ref().get_var(jvm, &string_class, FieldName::field_value()).unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
             return JavaValue::Object(todo!() /*str_obj.into()*/).cast_string().unwrap();
@@ -96,7 +96,7 @@ pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedObjectHandle<
         }
         Some(char_array_ptr) => char_array_ptr,
     };
-    let char_array = char_array_ptr.unwrap_array(jvm);
+    let char_array = char_array_ptr.unwrap_array();
     let mut native_string_bytes = Vec::with_capacity(char_array.len() as usize);
     for char_ in char_array.array_iterator() {
         native_string_bytes.push(char_.as_njv().unwrap_char_strict());

@@ -6,6 +6,7 @@ use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::class_loader::ClassLoader;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;

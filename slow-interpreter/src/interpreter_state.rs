@@ -16,11 +16,12 @@ use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::{AllocatedHandle, JavaValueCommon};
 
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{JavaValue};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};
 use crate::threading::JavaThread;
 
@@ -54,7 +55,7 @@ pub enum InterpreterStateGuard<'vm_life, 'l> {
         registered: bool,
         jvm: &'vm_life JVMState<'vm_life>,
         current_exited_pc: Option<ByteCodeOffset>,
-        throw: Option<AllocatedObjectHandle<'vm_life>>
+        throw: Option<AllocatedHandle<'vm_life>>
     },
 }
 
@@ -260,7 +261,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }
     }
 
-    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<AllocatedObjectHandle<'gc>>) {
+    pub fn set_throw<'irrelevant_for_now>(&mut self, val: Option<AllocatedHandle<'gc>>) {
         /*match self.int_state.as_mut() {
             None => {
                 let mut guard = self.thread.interpreter_state.write().unwrap();
@@ -312,11 +313,11 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         todo!()
     }
 
-    pub fn throw(&self) -> Option<AllocatedObject<'gc,'_>> {
+    pub fn throw(&self) -> Option<&'_ AllocatedNormalObjectHandle<'gc>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { throw,.. } => {
-                throw.as_ref().map(|handle|handle.as_allocated_obj())
+                throw.as_ref().map(|handle|handle.unwrap_normal_object_ref())
             }
         }
         /*match self.int_state.as_ref() {
@@ -354,7 +355,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         let mut data = vec![];
                         for local_var in local_vars {
                             if let Some(Some(obj)) = local_var.try_unwrap_object_alloc(){
-                                jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.handle.ptr);
+                                jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.ptr());
                             }
                             data.push(unsafe { local_var.to_native().as_u64 });
                         }

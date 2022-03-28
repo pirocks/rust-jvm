@@ -17,11 +17,11 @@ use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::PTypeView;
-use java5_verifier::{type_infer};
+use java5_verifier::type_infer;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use runtime_class_stuff::{ClassStatus, get_field_numbers, get_method_numbers, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::FieldId;
@@ -572,7 +572,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
         let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
         let class_view = runtime_class.view();
         let desc = CMethodDescriptor {
-            arg_types: vec![CPDType::Ref(CPRefType::Class(CClassName::string()))],
+            arg_types: vec![CClassName::string().into()],
             return_type: CPDType::VoidType,
         };
         let constructor_method_id = match class_view.lookup_method(MethodName::constructor_init(), &desc) {
@@ -627,7 +627,7 @@ pub fn field_object_from_view<'gc, 'l>(
     f: FieldView,
 ) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let field_class_name_ = class_obj.clone().cpdtype();
-    let parent_runtime_class = load_class_constant_by_type(jvm, int_state, &field_class_name_)?;
+    let parent_runtime_class = load_class_constant_by_type(jvm, int_state, field_class_name_)?;
 
     let field_name = f.field_name();
 
@@ -726,18 +726,18 @@ pub fn define_class_safe<'gc, 'l>(
             for method_view in class_view.methods() {
                 let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_view.method_i());
                 let code = method_view.code_attribute().unwrap();
-                let instructs = code.instructions.iter().sorted_by_key(|(offset,instruct)|*offset).map(|(_, instruct)|instruct.clone()).collect_vec();
+                let instructs = code.instructions.iter().sorted_by_key(|(offset, instruct)| *offset).map(|(_, instruct)| instruct.clone()).collect_vec();
                 let res = type_infer(&method_view);
-                let frames_tops = res.inferred_frames().iter().map(|(offset, frame)|{
-                    (*offset,SunkVerifierFrames::PartialInferredFrame(frame.clone()))
-                }).collect::<HashMap<_,_>>();
-                let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)|{
-                    (*offset,SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
-                }).collect::<HashMap<_,_>>();
+                let frames_tops = res.inferred_frames().iter().map(|(offset, frame)| {
+                    (*offset, SunkVerifierFrames::PartialInferredFrame(frame.clone()))
+                }).collect::<HashMap<_, _>>();
+                let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)| {
+                    (*offset, SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
+                }).collect::<HashMap<_, _>>();
                 jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, frames_no_tops);
                 jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, frames_tops);
             }
-        },
+        }
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
@@ -746,14 +746,14 @@ pub fn define_class_safe<'gc, 'l>(
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
     classes.loaded_classes_by_type.entry(current_loader).or_insert(HashMap::new()).insert(class_name.clone().into(), runtime_class.clone());
-    classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), ByAddress(runtime_class.clone()));
+    classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
     drop(classes);
-    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(),jvm));
+    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(NewJavaValueHandle::Object(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().handle.duplicate_discouraged()))
+    Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().new_java_handle())
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
@@ -768,7 +768,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     let view = Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool));
     if jvm.config.store_generated_classes {
-        File::create(format!("{}{:?}.class", PTypeView::from_compressed(&CPDType::Ref(view.name()), &jvm.string_pool).class_name_representation(), rand())).unwrap().write_all(slice).unwrap();
+        File::create(format!("{}{:?}.class", PTypeView::from_compressed(view.name().to_cpdtype(), &jvm.string_pool).class_name_representation(), rand())).unwrap().write_all(slice).unwrap();
     }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object_new(
@@ -812,7 +812,7 @@ pub(crate) unsafe fn push_type_to_operand_stack_new<'gc, 'l>(
             let long: i64 = l.arg_long();
             NewJavaValueHandle::Long(long)
         }
-        CPDType::Ref(_) => {
+        CPDType::Class(_) | CPDType::Array { .. } => {
             let native_object: jobject = l.arg_ptr();
             let o = from_object_new(jvm, native_object);
             NewJavaValueHandle::from_optional_object(o)
@@ -856,7 +856,7 @@ pub(crate) unsafe fn push_type_to_operand_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>
             let long: i64 = l.arg_long();
             int_state.push_current_operand_stack(JavaValue::Long(long))
         }
-        CPDType::Ref(_) => {
+        CPDType::Class(_) | CPDType::Array { .. } => {
             let native_object: jobject = l.arg_ptr();
             let o = from_object(jvm, native_object);
             int_state.push_current_operand_stack(JavaValue::Object(o));

@@ -23,13 +23,15 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::new_java_values::{NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
+use slow_interpreter::new_java_values::{NewJavaValueHandle};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::misc::get_all_methods;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use itertools::Itertools;
 use runtime_class_stuff::RuntimeClass;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
@@ -70,7 +72,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
         object_array.push(method_owned.new_java_value());
     }
     /*object_array(jvm, int_state, object_array, method_class.view().type_())?*/
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::Ref(CompressedParsedRefType::Class(CClassName::method())))).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm,int_state, CPDType::array(CClassName::method().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
     UnAllocatedObjectArray{ whole_array_runtime_class, elems: object_array }));
     unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }

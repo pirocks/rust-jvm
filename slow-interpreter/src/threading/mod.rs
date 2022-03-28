@@ -28,7 +28,7 @@ use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_propert
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check, WasException};
 use crate::interpreter_state::{InterpreterState};
-use crate::interpreter_util::new_object;
+use crate::interpreter_util::{ new_object_full};
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
@@ -290,7 +290,7 @@ impl<'gc> ThreadState<'gc> {
         jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
         let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
 
-        let thread_object = NewJavaValueHandle::Object(new_object(jvm, &mut new_int_state, &thread_classfile)).cast_thread();
+        let thread_object = NewJavaValueHandle::Object(new_object_full(jvm, &mut new_int_state, &thread_classfile)).cast_thread();
         thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
         let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread_group().into()).expect("couldn't load thread group class");

@@ -32,7 +32,7 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
-use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
@@ -43,6 +43,8 @@ use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
 use slow_interpreter::utils::throw_npe;
 use itertools::Itertools;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -57,7 +59,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
         .interfaces()
         .map(|interface| {
             let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
-            Ok(class_obj.handle.duplicate_discouraged())
+            Ok(class_obj.duplicate_discouraged())
         })
         .collect::<Result<Vec<_>, WasException>>()
     {
@@ -100,7 +102,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
         match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException {}) => return null_mut(),
-        }.object_ref().into(),
+        }.full_object_ref().into(),
         int_state,
     )
 }
@@ -150,7 +152,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
 
     let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
-    match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(&ptype, &jvm.string_pool).jvm_representation())) {
+    match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(ptype, &jvm.string_pool).jvm_representation())) {
         Ok(jstring) => new_local_ref_public(todo!()/*jstring.object().into()*/, int_state),
         Err(WasException) => null_mut(),
     }
@@ -186,13 +188,13 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
     let int_state = get_interpreter_state(env);
     let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
         .map(|ptype| get_or_create_class_object(jvm, ptype, int_state)
-            .map(|elem| NewJavaValue::AllocObject(elem))
+            .map(|elem| elem.new_java_handle())
         )
         .collect::<Result<Vec<_>, WasException>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses, CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle|handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]
@@ -245,8 +247,8 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    let jclass = load_class_constant_by_type(jvm, int_state, &type_).unwrap();
-    new_local_ref_public_new(jclass.unwrap_object_alloc(), int_state)
+    let jclass = load_class_constant_by_type(jvm, int_state, type_).unwrap();
+    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -264,13 +266,13 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let p_type = CPDType::Ref(CPRefType::Class(CompressedClassName(jvm.string_pool.add_name(name, true))));
+    let p_type = CompressedClassName(jvm.string_pool.add_name(name, true)).into();
 
     let loader_name = from_object_new(jvm, loader)
         .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
         .unwrap_or(LoaderName::BootstrapLoader);
 
-    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type.clone(), int_state, loader_name);
+    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, int_state, loader_name);
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
@@ -278,7 +280,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
                     return null_mut();
                 };
             }
-            new_local_ref_public_new(Some(class_object), int_state)
+            new_local_ref_public_new(Some(class_object.as_allocated_obj()), int_state)
         }
         Err(WasException {}) => null_mut(),
     }
@@ -289,6 +291,6 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
-    let full_name = PTypeView::from_compressed(&obj.cpdtype(), &jvm.string_pool).class_name_representation();
+    let full_name = PTypeView::from_compressed(obj.cpdtype(), &jvm.string_pool).class_name_representation();
     new_string_with_string(env, Wtf8Buf::from_string(full_name))
 }

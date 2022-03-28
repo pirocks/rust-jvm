@@ -27,6 +27,7 @@ use slow_interpreter::interpreter::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::{JVMState};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::rust_jni::interface::define_class_safe;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
@@ -63,7 +64,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut
 
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
-        File::create(PTypeView::from_compressed(&class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        File::create(PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
         Ok(res) => res.to_jv(),

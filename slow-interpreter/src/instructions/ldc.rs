@@ -2,7 +2,7 @@ use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
@@ -15,20 +15,20 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::{StackEntryPush};
 
-fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, type_: &CPDType) -> Result<NewJavaValue<'gc,'gc>, WasException> {
+fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_class_type: &CPDType) -> Result<NewJavaValue<'gc,'gc>, WasException> {
+pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
-    Ok(NewJavaValue::AllocObject(object))
+    Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
 
 fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, s: &StringView) -> NewJavaValueHandle<'gc>{
     let res_string = s.string();
     assert!(int_state.throw().is_none());
     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
-    let string = intern_safe(jvm, before_intern.object().into());
+    let string = intern_safe(jvm, before_intern.full_object().into());
     string.new_java_value_handle()
 }
 

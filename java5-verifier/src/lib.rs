@@ -231,7 +231,8 @@ fn cpdtype_to_simplified_vtype(cpdtype: &CPDType) -> SimplifiedVType {
         CPDType::VoidType => {
             panic!()
         }
-        CPDType::Ref(_) => SimplifiedVType::OneWord,
+        CPDType::Class(_) => SimplifiedVType::OneWord,
+        CPDType::Array { .. } => SimplifiedVType::OneWord,
     }
 }
 

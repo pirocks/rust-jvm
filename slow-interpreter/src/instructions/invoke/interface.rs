@@ -1,10 +1,10 @@
 use std::num::NonZeroU8;
 
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -12,7 +12,7 @@ use crate::new_java_values::NewJavaValueHandle;
 
 pub fn invoke_interface<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) {
     // invoke_interface.count;//todo use this?
-    let _target_class = check_initing_or_inited_class(jvm, int_state, CPDType::Ref(cpreftype));
+    let _target_class = check_initing_or_inited_class(jvm, int_state, cpreftype.to_cpdtype());
     let desc_len = expected_descriptor.arg_types.len();
     // assert_eq!(desc_len + 1, count.get() as usize);
     let current_frame = int_state.current_frame();

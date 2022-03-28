@@ -1,7 +1,7 @@
 use std::iter;
 use std::mem::size_of;
-use itertools::Either;
 
+use itertools::Either;
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
@@ -13,7 +13,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast_impl};
+use crate::ir_to_java_layer::compiler::instance_of_and_casting::checkcast_impl;
 use crate::jit::MethodResolver;
 
 pub const fn field_type_to_register_size(cpd_type: CPDType) -> Size {
@@ -27,7 +27,7 @@ pub const fn field_type_to_register_size(cpd_type: CPDType) -> Size {
         CPDType::FloatType => Size::float(),
         CPDType::DoubleType => Size::X86QWord,
         CPDType::VoidType => panic!(),
-        CPDType::Ref(_) => Size::pointer()
+        CPDType::Class(_) | CPDType::Array { .. } => Size::pointer()
     }
 }
 
@@ -149,12 +149,11 @@ pub fn getfield<'vm_life>(
             let field_size = field_type_to_register_size(field_type);
             Either::Right(array_into_iter([
                 restart_point]).chain(
-                if resolver.debug_checkcast_assertions(){
+                if resolver.debug_checkcast_assertions() {
                     Either::Right(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, object_ptr_offset))
-                }else {
+                } else {
                     Either::Left(iter::empty())
                 }
-
             ).chain(array_into_iter([
                 IRInstr::LoadFPRelative {
                     from: object_ptr_offset,

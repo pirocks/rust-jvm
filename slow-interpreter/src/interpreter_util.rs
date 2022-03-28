@@ -4,28 +4,31 @@ use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter::WasException;
 use crate::java_values::{default_value, JavaValue};
 use runtime_class_stuff::RuntimeClass;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 //todo jni should really live in interpreter state
 
-pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedObjectHandle<'gc> {
+pub fn new_object_full<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedHandle<'gc> {
+    AllocatedHandle::NormalObject(new_object(jvm,int_state,runtime_class))
+}
+
+pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_handle = JavaValue::new_object(jvm, runtime_class.clone());
-    let object_jv = object_handle.new_java_value();
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
-    default_init_fields(jvm, &runtime_class, object_jv.unwrap_object_alloc().unwrap());
+    default_init_fields(jvm, &runtime_class, &object_handle);
     object_handle
 }
 
-fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, object_pointer: AllocatedObject<'gc,'k>) {
+fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, object_pointer: &'k AllocatedNormalObjectHandle<'gc>) {
     if let Some(super_) = current_class_pointer.unwrap_class_class().parent.as_ref() {
-        default_init_fields(jvm, super_, object_pointer.clone());
+        default_init_fields(jvm, super_, object_pointer);
     }
     for field in current_class_pointer.view().fields() {
         if !field.is_static() {

@@ -17,15 +17,15 @@ use libloading::Symbol;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter::WasException;
 use crate::jvm_state::NativeLibraries;
-use crate::new_java_values::{NewJavaValueHandle};
-use runtime_class_stuff::RuntimeClass;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
 use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
@@ -77,16 +77,16 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
         vec![Arg::new(&env)]
     } else {
         assert!(int_state.current_frame().is_native_method());
-        let class_popped_jv = load_class_constant_by_type(jvm, int_state, &classfile.view().type_())?;
+        let class_popped_jv = load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         assert!(int_state.current_frame().is_native_method());
         unsafe { assert!(get_interpreter_state(env).current_frame().is_native_method()); }
-        let class_constant = unsafe { to_native(env, class_popped_jv, &Into::<CPDType>::into(CClassName::object())) };
+        let class_constant = unsafe { to_native(env, class_popped_jv.as_njv(), &Into::<CPDType>::into(CClassName::object())) };
         let res = vec![Arg::new(&env), class_constant];
         res
     };
     //todo inconsistent use of class and/pr arc<RuntimeClass>
 
-    let temp_vec = vec![CPDType::Ref(CPRefType::Class(CClassName::object()))];
+    let temp_vec = vec![CClassName::object().into()];
     let args_and_type = if suppress_runtime_class {
         args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>()
     } else {
@@ -113,7 +113,7 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
         CPDType::IntType => Some(NewJavaValueHandle::Int(cif_res as i32)),
         CPDType::LongType => Some(NewJavaValueHandle::Long(cif_res as i64)),
         CPDType::BooleanType => Some(NewJavaValueHandle::Boolean(cif_res as u8)),
-        CPDType::Ref(_) => {
+        CPDType::Class(_) | CPDType::Array { .. } => {
             Some(unsafe {
                 match from_object_new(jvm, cif_res as jobject) {
                     None => {

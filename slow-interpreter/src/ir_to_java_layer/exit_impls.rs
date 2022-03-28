@@ -19,7 +19,7 @@ use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use crate::{check_initing_or_inited_class, InterpreterStateGuard, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
+use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::native::run_native_method;
@@ -36,8 +36,8 @@ use crate::utils::lookup_method_parsed;
 
 pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, elem_type: CPDTypeID, num_arrays: u8, len_start: *const i64, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
     let elem_type = *jvm.cpdtype_table.read().unwrap().get_cpdtype(elem_type);
-    let elem_type = elem_type.to_non_array();
-    let array_type = CPDType::Ref(CompressedParsedRefType::Array { base_type: elem_type, num_nested_arrs: NonZeroU8::new(num_arrays).unwrap() });
+    let elem_type = elem_type.unwrap_non_array();
+    let array_type = CPDType::Array { base_type: elem_type, num_nested_arrs: NonZeroU8::new(num_arrays).unwrap() };
     let mut lens = vec![];
     unsafe {
         for len_index in 0..num_arrays {
@@ -54,7 +54,7 @@ pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interp
                 panic!()
             }
             Some(depth) => {
-                assert_inited_or_initing_class(jvm, CPDType::Ref(CompressedParsedRefType::Array { base_type: elem_type, num_nested_arrs: depth }))
+                assert_inited_or_initing_class(jvm, CPDType::Array { base_type: elem_type, num_nested_arrs: depth })
             }
         };
         let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
@@ -92,7 +92,7 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
     let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
     let obj_jv_handle = native_to_new_java_value(obj_native_jv,&CPDType::object(), jvm);
-    let obj_rc = obj_jv_handle.unwrap_object_nonnull().as_allocated_obj().runtime_class(jvm);
+    let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
     let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(target_method_id).unwrap();
     let class_view = target_rc.view();
     let method_view = class_view.method_view_i(target_method_i);
@@ -154,9 +154,9 @@ pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {
-            let expception_obj_handle = int_state.throw().unwrap().handle.duplicate_discouraged();
+            let expception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             int_state.set_throw(None);
-            return throw_impl(jvm, int_state, NewJavaValueHandle::Object(expception_obj_handle));
+            return throw_impl(jvm, int_state, expception_obj_handle.new_java_handle());
         }
     };
     if let Some(res) = res {
@@ -181,15 +181,15 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     if let Some(handle) = value {
-        let res_int = instance_of_exit_impl(jvm, &cpdtype, Some(handle.as_allocated_obj()));
+        let res_int = instance_of_exit_impl(jvm, cpdtype, Some(handle.unwrap_normal_object_ref()));
         if res_int == 0 {
             dbg!(cpdtype.jvm_representation(&jvm.string_pool));
-            dbg!(handle.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+            dbg!(handle.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
             int_state.debug_print_stack_trace(jvm);
             todo!()
         }
 
-        let base_address_and_mask = jvm.gc.memory_region.lock().unwrap().find_object_base_address_and_mask(handle.ptr);
+        let base_address_and_mask = jvm.gc.memory_region.lock().unwrap().find_object_base_address_and_mask(handle.ptr());
         jvm.known_addresses.sink_known_address(cpdtype, base_address_and_mask)
     }
     drop(exit_guard);
@@ -206,7 +206,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
-    let res_int = instance_of_exit_impl(jvm, &cpdtype, value.as_ref().map(|handle| handle.as_allocated_obj()));
+    let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref().map(|handle| handle.unwrap_normal_object_ref()));
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     drop(exit_guard);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -249,7 +249,16 @@ pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterSt
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
 }
 
-pub fn invoke_virtual_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exit_guard: &VMExitGuard, return_to_ptr: *const c_void, object_ref_ptr: *const c_void, method_shape_id: MethodShapeID, native_method_restart_point: RestartPointID, native_method_res: *mut c_void) -> IRVMExitAction {
+pub fn invoke_virtual_resolve<'gc>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    exit_guard: &VMExitGuard,
+    return_to_ptr: *const c_void,
+    object_ref_ptr: *const c_void,
+    method_shape_id: MethodShapeID,
+    native_method_restart_point: RestartPointID,
+    native_method_res: *mut c_void
+) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeVirtualResolve");
     }
@@ -258,7 +267,8 @@ pub fn invoke_virtual_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inte
     //todo this is probably wrong what if there's a class with a same name private method?
     // like surely I need to start at the classname specified in the bytecode
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-    let allocated_type = memory_region_guard.find_object_allocated_type(NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() }).unwrap()).clone();
+    let maybe_non_null = NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() });
+    let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
     let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
     drop(memory_region_guard);
     let rc = match allocated_type {
@@ -293,7 +303,7 @@ pub fn invoke_virtual_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inte
             let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
                 Ok(x) => x,
                 Err(WasException {}) => {
-                    let allocate_obj = int_state.throw().unwrap().handle.duplicate_discouraged();
+                    let allocate_obj = int_state.throw().unwrap().duplicate_discouraged();
                     int_state.set_throw(None);
                     dbg!(allocate_obj.cast_throwable().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
                     todo!()
@@ -367,7 +377,7 @@ pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
     let jv = jstring.new_java_value_handle();
     unsafe {
-        let raw_64 = jv.as_njv().to_native().as_u64;
+        let raw_64 = jv.to_native().as_u64;
         (res as *mut u64).write(raw_64);
     }
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
@@ -379,7 +389,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
         eprintln!("AllocateObject");
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
-    let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
+    let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let object_size = object_type.size();
@@ -477,8 +487,8 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, exit_guard: &VMExitGuard, field_
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
     let njv = native_to_new_java_value(native_jv,&field_view.field_type(), jvm);
     if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
-        let rc = alloc.runtime_class(jvm);
-        if instance_of_exit_impl(jvm, &field_view.field_type(), Some(alloc)) == 0 {
+        let rc = alloc.unwrap_normal_object().runtime_class(jvm);
+        if instance_of_exit_impl(jvm, field_view.field_type(), Some(alloc.unwrap_normal_object())) == 0 {
             panic!()
         }
     }
@@ -526,14 +536,14 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {
-            let expception_obj_handle = int_state.throw().unwrap().handle.duplicate_discouraged();
+            let expception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             int_state.set_throw(None);
-            return throw_impl(jvm, int_state, NewJavaValueHandle::Object(expception_obj_handle));
+            return throw_impl(jvm, int_state, expception_obj_handle.new_java_handle());
         }
     };
     assert!(int_state.throw().is_none());
     if let Some(res) = res {
-        unsafe { (res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.as_njv().to_native())) }
+        unsafe { (res_ptr as *mut NativeJavaValue<'static>).write(transmute::<NativeJavaValue<'_>, NativeJavaValue<'static>>(res.to_native())) }
     };
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
@@ -547,7 +557,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
     assert!(len >= 0);
-    let rc = assert_inited_or_initing_class(jvm, CPDType::Ref(type_.clone()));
+    let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
@@ -567,7 +577,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     dbg!(exception_as_string.to_rust_string(jvm));
     let exception_object_handle = throwable.normal_object;
-    let exception_obj = exception_object_handle.as_allocated_obj();
+    let exception_obj = &exception_object_handle;
     let exception_obj_rc = exception_obj.runtime_class(jvm);
     for current_frame in int_state.frame_iter() {
         let rc = match current_frame.try_class_pointer(jvm) {
@@ -588,7 +598,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                 let matches_class = match catch_type {
                     None => true,
                     Some(class_name) => {
-                        instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj.clone()) == 1
+                        instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj) == 1
                     }
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {

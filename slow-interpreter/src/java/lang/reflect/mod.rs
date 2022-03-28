@@ -7,14 +7,15 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{check_initing_or_inited_class};
+use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
+use crate::new_java_values::{NewJavaValueHandle};
+use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
 /*
 // unofficial modifier flags, used by HotSpot:
@@ -88,7 +89,7 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut In
             None => CPRefType::Class(CClassName::throwable()),
             Some(x) => CPRefType::Class(x),
         })
-        .map(|x| CPDType::Ref(x));
+        .map(|x| x.to_cpdtype());
 
     let mut exception_table = vec![]; //types_iter
     for ptype in types_iter {
@@ -128,19 +129,19 @@ pub mod method {
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{new_object, run_constructor};
+    use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::NewJavaValue;
+    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::{AllocatedHandle, JavaValueCommon, NewJavaValue};
 
 
     pub struct Method<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -150,7 +151,7 @@ pub mod method {
         }
     }
 
-    impl<'gc> AllocatedObjectHandle<'gc> {
+    impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_method(self) -> Method<'gc> {
             Method {
                 normal_object: self
@@ -163,7 +164,7 @@ pub mod method {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, int_state, &field_class_type)?.cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, field_class_type)?.cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
@@ -212,7 +213,7 @@ pub mod method {
             annotation_default: NewJavaValueHandle<'gc>,
         ) -> Result<Method<'gc>, WasException> {
             let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
-            let method_object = new_object(jvm, int_state, &method_class);
+            let method_object = new_object_full(jvm, int_state, &method_class);
             let full_args = vec![method_object.new_java_value(),
                                  clazz.new_java_value(),
                                  name.new_java_value(),
@@ -303,13 +304,14 @@ pub mod method {
         // as_object_or_java_value!();
     }
 
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Method<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
-            self.normal_object
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
-            self.normal_object.as_allocated_obj()
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
     }
 }
@@ -325,19 +327,19 @@ pub mod constructor {
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{new_object, run_constructor};
+    use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::NewJavaValue;
+    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::{AllocatedHandle, JavaValueCommon, NewJavaValue};
 
 
     pub struct Constructor<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -347,7 +349,7 @@ pub mod constructor {
         }
     }
 
-    impl<'gc> AllocatedObjectHandle<'gc> {
+    impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_constructor(self) -> Constructor<'gc> {
             Constructor {
                 normal_object: self
@@ -360,7 +362,7 @@ pub mod constructor {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, int_state, &field_class_type)?.cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, field_class_type)?.cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
@@ -383,7 +385,7 @@ pub mod constructor {
             signature: JString<'gc>,
         ) -> Result<Constructor<'gc>, WasException> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
-            let constructor_object = new_object(jvm, int_state, &constructor_class);
+            let constructor_object = new_object_full(jvm, int_state, &constructor_class);
 
             //todo impl annotations
             let empty_byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
@@ -462,13 +464,14 @@ pub mod constructor {
         /*as_object_or_java_value!();*/
     }
 
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Constructor<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
-            self.normal_object
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
-            self.normal_object.as_allocated_obj()
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
     }
 }
@@ -478,17 +481,18 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter::WasException;
-    use crate::interpreter_util::{new_object, run_constructor};
+    use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue};
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
+    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct Field<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -497,15 +501,15 @@ pub mod field {
         }
     }
 
-    impl<'gc> AllocatedObjectHandle<'gc> {
+    impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_field(self) -> Field<'gc> {
-            Field { normal_object: self }
+            Field { normal_object: self.unwrap_normal_object() }
         }
     }
 
     impl<'gc> NewJavaValueHandle<'gc> {
         pub fn cast_field(self) -> Field<'gc> {
-            Field { normal_object: self.unwrap_object_nonnull() }
+            Field { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
         }
     }
 
@@ -522,7 +526,7 @@ pub mod field {
             annotations: Vec<NewJavaValue<'gc, '_>>,
         ) -> Result<Self, WasException> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
-            let field_object = new_object(jvm, int_state, &field_classfile);
+            let field_object = new_object_full(jvm, int_state, &field_classfile);
 
             let modifiers = NewJavaValue::Int(modifiers);
             let slot = NewJavaValue::Int(slot);
@@ -532,7 +536,7 @@ pub mod field {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?,
                 elems: annotations,
             }));
-            let annotations = NewJavaValue::AllocObject(allocated_object_handle.as_allocated_obj());
+            let annotations = allocated_object_handle.new_java_value();
 
             run_constructor(
                 jvm,
@@ -552,24 +556,25 @@ pub mod field {
 
         pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
             let field_rc = assert_inited_or_initing_class(jvm, CClassName::field().into());
-            self.normal_object.as_allocated_obj().lookup_field(&field_rc, FieldName::field_name()).cast_string().expect("fields must have names")
+            self.normal_object.get_var(jvm,&field_rc, FieldName::field_name()).cast_string().expect("fields must have names")
         }
 
         pub fn clazz(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
             let field_rc = assert_inited_or_initing_class(jvm, CClassName::field().into());
-            self.normal_object.as_allocated_obj().lookup_field(&field_rc, FieldName::field_clazz()).cast_class().expect("todo")
+            self.normal_object.get_var(jvm,&field_rc, FieldName::field_clazz()).cast_class().expect("todo")
         }
 
         // as_object_or_java_value!();
     }
 
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Field<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
-            self.normal_object
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
-            self.normal_object.as_allocated_obj()
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
     }
 }

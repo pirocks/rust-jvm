@@ -2,7 +2,7 @@ use std::ops::Deref;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use crate::new_java_values::NewJavaValueHandle;
-use crate::NewJavaValue;
+use crate::{JavaValueCommon, NewJavaValue};
 use crate::runtime_class::static_vars;
 use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
@@ -17,7 +17,7 @@ unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID,
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    notnull.as_allocated_obj().set_var(&rc, name, val);
+    notnull.unwrap_normal_object_ref().set_var(&rc, name, val);
 }
 
 pub unsafe extern "C" fn set_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: jboolean) {

@@ -6,7 +6,7 @@ pub mod method_type {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+    use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::interpreter_util::new_object;
@@ -16,7 +16,7 @@ pub mod method_type {
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
+    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -127,8 +127,8 @@ pub mod method_type {
 
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
             let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            let res_handle: AllocatedObjectHandle<'gc> = new_object(jvm, int_state, &method_type);
-            let res = res_handle.new_java_value().to_jv().cast_method_type();
+            let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, int_state, &method_type);
+            let res = AllocatedHandle::NormalObject(res_handle).new_java_value().to_jv().cast_method_type();
             let ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                 // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
                 whole_array_runtime_class: todo!(),
@@ -153,11 +153,11 @@ pub mod method_type {
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodType<'gc>{
-        fn object(self) -> AllocatedObjectHandle<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
     }
@@ -173,8 +173,8 @@ pub mod method_type_form {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle};
-    use crate::NewAsObjectOrJavaValue;
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     #[derive(Clone)]
     pub struct MethodTypeForm<'gc> {
@@ -222,7 +222,7 @@ pub mod method_type_form {
 
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, arg_to_slot_table: JavaValue<'gc>, slot_to_arg_table: JavaValue<'gc>, arg_counts: jlong, prim_counts: jlong, erased_type: Option<MethodType<'gc>>, basic_type: Option<MethodType<'gc>>, method_handles: JavaValue<'gc>, lambda_forms: JavaValue<'gc>) -> MethodTypeForm<'gc> {
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res_handle: AllocatedObjectHandle<'gc> = new_object(jvm, int_state, &method_type_form);
+            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, int_state, &method_type_form));
             let res = res_handle.new_java_value().to_jv().cast_method_type_form();
             res.set_arg_to_slot_table(arg_to_slot_table);
             res.set_slot_to_arg_table(slot_to_arg_table);
@@ -243,11 +243,11 @@ pub mod method_type_form {
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodTypeForm<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
     }
@@ -257,7 +257,7 @@ pub mod method_handle {
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedObjectHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
@@ -265,7 +265,7 @@ pub mod method_handle {
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::member_name::MemberName;
     use crate::java_values::{GcManagedObject, JavaValue};
-    use crate::new_java_values::AllocatedObject;
+    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -332,11 +332,11 @@ pub mod method_handle {
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodHandle<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
     }
@@ -358,6 +358,8 @@ pub mod method_handles {
         use crate::java::NewAsObjectOrJavaValue;
         use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;
+        use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
+        use crate::new_java_values::java_value_common::JavaValueCommon;
         use crate::utils::run_static_or_virtual;
 
         #[derive(Clone)]
@@ -426,16 +428,14 @@ pub mod method_handles {
             // as_object_or_java_value!();
         }
 
-        use crate::new_java_values::AllocatedObject;
-        use crate::AllocatedObjectHandle;
         use crate::runtime_class::static_vars;
 
         impl<'gc> NewAsObjectOrJavaValue<'gc> for Lookup<'gc> {
-            fn object(self) -> AllocatedObjectHandle<'gc> {
+            fn object(self) -> AllocatedNormalObjectHandle<'gc> {
                 todo!()
             }
 
-            fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+            fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
                 todo!()
             }
         }
@@ -502,14 +502,15 @@ pub mod lambda_form {
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
             }
         }
-        use crate::new_java_values::AllocatedObject;
-        use crate::{AllocatedObjectHandle, NewAsObjectOrJavaValue};
+        use crate::{NewAsObjectOrJavaValue};
+        use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
+
         impl<'gc> NewAsObjectOrJavaValue<'gc> for NamedFunction<'gc> {
-            fn object(self) -> AllocatedObjectHandle<'gc> {
+            fn object(self) -> AllocatedNormalObjectHandle<'gc> {
                 todo!()
             }
 
-            fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+            fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
                 todo!()
             }
         }
@@ -720,7 +721,7 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::assert_inited_or_initing_class;
@@ -746,21 +747,22 @@ pub mod call_site {
         pub fn get_target<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<MethodHandle<'gc>, WasException> {
             let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             int_state.push_current_operand_stack(self.clone().java_value());
-            let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Ref(CPRefType::Class(CClassName::method_handle())) };
+            let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Class(CClassName::method_handle()) };
             invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc, todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
         }
 
         // as_object_or_java_value!();
     }
-    use crate::new_java_values::AllocatedObject;
-    use crate::{AllocatedObjectHandle, NewAsObjectOrJavaValue};
+    use crate::{NewAsObjectOrJavaValue};
+    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for CallSite<'gc> {
-        fn object(self) -> AllocatedObjectHandle<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             todo!()
         }
     }

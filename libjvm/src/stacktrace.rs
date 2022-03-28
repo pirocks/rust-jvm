@@ -14,10 +14,10 @@ use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
-use slow_interpreter::new_java_values::AllocatedObjectHandleByAddress;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 use slow_interpreter::java::NewAsObjectOrJavaValue;
+use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
 
 struct OwnedStackEntry<'gc>{
     declaring_class: Arc<RuntimeClass<'gc>>,
@@ -62,7 +62,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
                     cur_line
                 }
             };
-            let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(&declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
+            let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
             let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
             let source_file_name_wtf8 = Wtf8Buf::from_string(file);
             Ok(Some(OwnedStackEntry{ declaring_class,  line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
@@ -130,6 +130,6 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
         None => {
             return throw_array_out_of_bounds(jvm, int_state, index);
         }
-        Some(element) => { to_object_new(Some(element.object_ref()))},
+        Some(element) => { to_object_new(Some(element.full_object_ref()))},
     }
 }

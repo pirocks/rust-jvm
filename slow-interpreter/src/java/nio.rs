@@ -6,14 +6,15 @@ pub mod heap_byte_buffer {
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::interpreter_util::{new_object, run_constructor};
+    use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
-    use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::{AllocatedHandle, check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
+    use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct HeapByteBuffer<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -22,7 +23,7 @@ pub mod heap_byte_buffer {
         }
     }
 
-    impl<'gc> AllocatedObjectHandle<'gc> {
+    impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_heap_byte_buffer(self) -> HeapByteBuffer<'gc> {
             HeapByteBuffer { normal_object: self }
         }
@@ -31,7 +32,7 @@ pub mod heap_byte_buffer {
     impl<'gc> HeapByteBuffer<'gc> {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
-            let object = new_object(jvm, int_state, &heap_byte_buffer_class);
+            let object = new_object_full(jvm, int_state, &heap_byte_buffer_class);
 
             let elems = buf.into_iter().map(|byte| NewJavaValue::Byte(byte)).collect();
             let array_object = UnAllocatedObjectArray {
@@ -47,13 +48,16 @@ pub mod heap_byte_buffer {
         // as_object_or_java_value!();
     }
 
-    impl <'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc>{
-        fn object(self) -> AllocatedObjectHandle<'gc> {
-            self.normal_object
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::java_value_common::JavaValueCommon;
+
+    impl<'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
-            self.normal_object.as_allocated_obj()
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
     }
 }

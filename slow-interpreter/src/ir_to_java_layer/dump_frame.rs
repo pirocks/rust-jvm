@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use crate::java::NewAsObjectOrJavaValue;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::{AllocatedObjectHandle, InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
 use crate::java_values::ByAddressAllocatedObject;
 
 pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) {
@@ -82,11 +82,11 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
 
 static mut IN_TO_STRING: bool = false;
 
-fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, i: usize, obj: AllocatedObjectHandle<'gc>) {
-    let obj_type = obj.as_allocated_obj().runtime_class(jvm).cpdtype();
+fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
+    let obj_type = obj.runtime_class(jvm).cpdtype();
     unsafe {
         if obj_type == CClassName::string().into() {
-            let ptr = obj.ptr;
+            let ptr = obj.ptr();
             let string = obj.cast_string();
             eprint!("#{}: {:?}(String:{:?})\t", i, ptr, string.to_rust_string_better(jvm).unwrap_or("malformed_string".to_string()))
         } else if obj_type == CClassName::class().into() {
@@ -96,11 +96,11 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGua
                 }
                 None => None,
             };
-            let ptr = obj.ptr;
-            let ref_data = obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_reflectionData());
+            let ptr = obj.ptr();
+            let ref_data = obj.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_reflectionData());
             eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, ref_data.as_njv().to_native().object)
         } else {
-            let ptr = obj.ptr;
+            let ptr = obj.ptr();
             let save = IN_TO_STRING;
             IN_TO_STRING = true;
             eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), obj.cast_object().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));

@@ -1,9 +1,9 @@
 pub mod protection_domain {
-    use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, NewJavaValueHandle};
-    use crate::NewAsObjectOrJavaValue;
+    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
 
     pub struct ProtectionDomain<'gc> {
-        normal_object: AllocatedObjectHandle<'gc>,
+        normal_object: AllocatedHandle<'gc>,
     }
 
     impl<'gc> NewJavaValueHandle<'gc> {
@@ -16,13 +16,14 @@ pub mod protection_domain {
         // as_object_or_java_value!();
     }
 
-    impl <'gc> NewAsObjectOrJavaValue<'gc> for ProtectionDomain<'gc>{
-        fn object(self) -> AllocatedObjectHandle<'gc> {
-            self.normal_object
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    impl<'gc> NewAsObjectOrJavaValue<'gc> for ProtectionDomain<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
 
-        fn object_ref(&self) -> AllocatedObject<'gc, '_> {
-            self.normal_object.as_allocated_obj()
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            todo!()
         }
     }
 }

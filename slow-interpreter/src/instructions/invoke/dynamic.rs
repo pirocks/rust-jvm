@@ -3,7 +3,7 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
@@ -113,7 +113,7 @@ fn invoke_dynamic_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inte
     // int_state.print_stack_trace();
     dbg!(&args);
     dbg!(int_state.current_frame().operand_stack(jvm).types());
-    invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CPDType::Ref(CPRefType::Class(CClassName::object())) }, method_handle_class, invoke, todo!())?;
+    invoke_virtual_method_i(jvm, int_state, &CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() }, method_handle_class, invoke, todo!())?;
 
     assert!(int_state.throw().is_none());
 
@@ -141,7 +141,7 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                     let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                    let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class(&jvm.string_pool)))?;
+                    let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
                     lookup.find_static(jvm, int_state, target_class, name, method_type)?
                 }
             }
@@ -155,7 +155,7 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                     let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                    let target_class = JClass::from_type(jvm, int_state, CPDType::Ref(mr.class(&jvm.string_pool)))?;
+                    let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
                     let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();
                     let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
                     lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?

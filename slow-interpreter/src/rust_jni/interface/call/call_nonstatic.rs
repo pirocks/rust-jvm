@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::interpreter::WasException;
+use crate::JavaValueCommon;
 use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::get_interpreter_state;
@@ -32,7 +33,6 @@ pub unsafe extern "C" fn call_byte_method(env: *mut JNIEnv, obj: jobject, method
         Err(WasException {}) => return jbyte::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_byte_strict()
 }
 
@@ -42,7 +42,6 @@ pub unsafe extern "C" fn call_boolean_method(env: *mut JNIEnv, obj: jobject, met
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_bool_strict()
 }
 
@@ -52,7 +51,6 @@ pub unsafe extern "C" fn call_short_method(env: *mut JNIEnv, obj: jobject, metho
         Err(WasException {}) => return jshort::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_short_strict()
 }
 
@@ -62,7 +60,6 @@ pub unsafe extern "C" fn call_char_method(env: *mut JNIEnv, obj: jobject, method
         Err(WasException {}) => return jchar::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_char_strict()
 }
 
@@ -72,7 +69,6 @@ pub unsafe extern "C" fn call_int_method(env: *mut JNIEnv, obj: jobject, method_
         Err(WasException {}) => return jint::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_int_strict()
 }
 
@@ -82,7 +78,6 @@ pub unsafe extern "C" fn call_float_method(env: *mut JNIEnv, obj: jobject, metho
         Err(WasException {}) => return jfloat::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_float_strict()
 }
 
@@ -92,7 +87,6 @@ pub unsafe extern "C" fn call_double_method(env: *mut JNIEnv, obj: jobject, meth
         Err(WasException {}) => return jdouble::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_double_strict()
 }
 
@@ -102,7 +96,6 @@ pub unsafe extern "C" fn call_long_method(env: *mut JNIEnv, obj: jobject, method
         Err(WasException {}) => return jlong::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_long_strict()
 }
 

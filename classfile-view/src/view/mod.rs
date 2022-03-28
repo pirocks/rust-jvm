@@ -101,7 +101,7 @@ impl ClassView for ClassBackedView {
     }
 
     fn type_(&self) -> CompressedParsedDescriptorType {
-        CompressedParsedDescriptorType::Ref(self.name())
+        self.name().to_cpdtype()
     }
 
     fn super_name(&self) -> Option<CompressedClassName> {

@@ -16,6 +16,7 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
@@ -263,7 +264,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             to_object(todo!()/*res.unwrap_object()*/)
         }
         Some(object_to_read) => {
-            let offseted = object_to_read.ptr.as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;
+            let offseted = object_to_read.ptr().as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;
             (offseted as *mut jobject).read_volatile()
             /*if !object_to_read.is_array(jvm) {
                 todo!()
@@ -293,7 +294,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             static_vars_guard.set(name, res)
         }
         Some(object_to_read) => {
-            let offseted = object_to_read.ptr.as_ptr().offset(offset as isize) as *mut c_void;
+            let offseted = object_to_read.ptr().as_ptr().offset(offset as isize) as *mut c_void;
             (offseted as *mut jobject).write_volatile(to_put);
             /*if object_to_read.is_array(jvm){
                 let array_idx = offset;

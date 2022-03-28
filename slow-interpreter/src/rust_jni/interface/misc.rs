@@ -9,7 +9,7 @@ use by_address::ByAddress;
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CCString, CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CCString, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
@@ -40,13 +40,13 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    let obj = match load_class_constant_by_type(jvm, int_state, &CPDType::from_ptype(&type_, &jvm.string_pool)) {
+    let obj = match load_class_constant_by_type(jvm, int_state, CPDType::from_ptype(&type_, &jvm.string_pool)) {
         Err(WasException {}) => {
             return null_mut();
         }
-        Ok(res) => res.unwrap_object_alloc(),
+        Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj, int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
@@ -57,13 +57,13 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
-    let obj = match load_class_constant_by_type(jvm, int_state, &CPDType::Ref(CPRefType::Class(super_name))) {
+    let obj = match load_class_constant_by_type(jvm, int_state, super_name.into()) {
         Err(WasException {}) => {
             return null_mut();
         }
-        Ok(res) => res.unwrap_object_alloc(),
+        Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj, int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
@@ -84,9 +84,9 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sup_type = sup_class.as_type(jvm);
     check_initing_or_inited_class(jvm,int_state,sup_type).unwrap();
     check_initing_or_inited_class(jvm,int_state,sub_type).unwrap();
-    if let CPDType::Ref(CompressedParsedRefType::Class(sup_type)) = sup_type {
-        if let CPDType::Ref(CompressedParsedRefType::Class(sub_type)) = sub_type {
-            let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), &CPDType::Ref(CompressedParsedRefType::Class(sup_type)));
+    if let CPDType::Class(sup_type) = sup_type {
+        if let CPDType::Class(sub_type) = sub_type {
+            let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), CPDType::Class(sup_type));
             return (instance_of) as jboolean
         }
     }

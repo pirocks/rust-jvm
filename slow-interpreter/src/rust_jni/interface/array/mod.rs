@@ -3,11 +3,12 @@ use std::os::raw::c_void;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
 
+use crate::{JavaValueCommon, NewJavaValue};
+use crate::new_java_values::allocated_objects::AllocatedObject;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::NewJavaValue;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object_new};
-use crate::utils::{throw_npe};
+use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);
@@ -18,7 +19,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
             return throw_npe(jvm, int_state);
         }
     };
-    return temp.unwrap_array(jvm).len() as jsize;
+    return temp.unwrap_array().len() as jsize;
     // let non_null_array: &Object = temp.deref();
     /*let len = match non_null_array {
         Object::Array(a) => a.len(),
@@ -39,8 +40,8 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
         }
     };
     let int_state = get_interpreter_state(env);
-    let array = notnull.unwrap_array(jvm);
-    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    let array = notnull.unwrap_array();
+    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle| AllocatedObject::Handle(handle)), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
@@ -52,7 +53,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
             return throw_npe(jvm, int_state);
         }
     };
-    let array = notnull.unwrap_array(jvm);
+    let array = notnull.unwrap_array();
     array.set_i(index as usize, NewJavaValueHandle::from_optional_object(from_object_new(jvm, val)).as_njv());
 }
 
@@ -73,12 +74,12 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
             return throw_npe(jvm, int_state);
         }
     };
-    let array = not_null.unwrap_array(jvm);
+    let array = not_null.unwrap_array();
     let array_type = &array.elem_cpdtype();
     for i in 0..array.len() {
         match array_type {
             CPDType::ByteType => {
-                array.set_i( i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
+                array.set_i(i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
             }
             CPDType::CharType => {
                 // array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
@@ -100,7 +101,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 // array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
                 todo!()
             }
-            CPDType::Ref(_) => {
+            CPDType::Class(_) | CPDType::Array { .. } => {
                 // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
                 todo!()
             }
@@ -128,46 +129,46 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
             return throw_npe(jvm, int_state);
         }
     };
-    let array = not_null.unwrap_array(jvm);
+    let array = not_null.unwrap_array();
     if !is_copy.is_null() {
         is_copy.write(true as jboolean);
     }
     //dup but difficult to make into template so ehh
     match &array.elem_cpdtype() {
         CPDType::ByteType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_byte_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_byte_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::CharType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_char_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_char_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::DoubleType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_double_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_double_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::FloatType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_float_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_float_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::IntType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_int_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_int_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::LongType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_long_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_long_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::ShortType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_short_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_short_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::BooleanType => {
-            let res = array.array_iterator().map(|elem| elem.as_njv().unwrap_bool_strict()).collect::<Vec<_>>();
+            let res = array.array_iterator().map(|elem| elem.unwrap_bool_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
-        CPDType::Ref(_) => {
-            let res = array.array_iterator().map(|elem| to_object_new(elem.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()))).collect::<Vec<_>>();
+        CPDType::Class(_) | CPDType::Array { .. } => {
+            let res = array.array_iterator().map(|elem| to_object_new(elem.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()))).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         _ => panic!(),

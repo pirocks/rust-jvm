@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
 use crate::interpreter::WasException;
+use crate::JavaValueCommon;
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::get_interpreter_state;
@@ -14,7 +15,6 @@ pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: 
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_bool_strict()
 }
 
@@ -24,7 +24,6 @@ pub unsafe extern "C" fn call_static_byte_method_v(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jbyte::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_byte_strict()
 }
 
@@ -34,7 +33,6 @@ pub unsafe extern "C" fn call_static_short_method_v(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jshort::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_short_strict()
 }
 
@@ -44,7 +42,6 @@ pub unsafe extern "C" fn call_static_char_method_v(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jchar::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_char_strict()
 }
 
@@ -54,7 +51,6 @@ pub unsafe extern "C" fn call_static_int_method_v(env: *mut JNIEnv, _clazz: jcla
         Err(WasException {}) => return jint::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_int_strict()
 }
 
@@ -64,7 +60,6 @@ pub unsafe extern "C" fn call_static_long_method_v(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jlong::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_long_strict()
 }
 
@@ -74,7 +69,6 @@ pub unsafe extern "C" fn call_static_float_method_v(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jfloat::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_float_strict()
 }
 
@@ -84,7 +78,6 @@ pub unsafe extern "C" fn call_static_double_method_v(env: *mut JNIEnv, _clazz: j
         Err(WasException {}) => return jdouble::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_double_strict()
 }
 
@@ -120,7 +113,6 @@ pub unsafe extern "C" fn call_static_boolean_method(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_bool_strict()
 }
 
@@ -130,7 +122,6 @@ pub unsafe extern "C" fn call_static_byte_method(env: *mut JNIEnv, _clazz: jclas
         Err(WasException {}) => return jbyte::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_byte_strict()
 }
 
@@ -140,7 +131,6 @@ pub unsafe extern "C" fn call_static_short_method(env: *mut JNIEnv, _clazz: jcla
         Err(WasException {}) => return jshort::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_short_strict()
 }
 
@@ -150,7 +140,6 @@ pub unsafe extern "C" fn call_static_char_method(env: *mut JNIEnv, _clazz: jclas
         Err(WasException {}) => return jchar::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_char_strict()
 }
 
@@ -160,7 +149,6 @@ pub unsafe extern "C" fn call_static_int_method(env: *mut JNIEnv, _clazz: jclass
         Err(WasException {}) => return jint::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_int_strict()
 }
 
@@ -170,7 +158,6 @@ pub unsafe extern "C" fn call_static_float_method(env: *mut JNIEnv, _clazz: jcla
         Err(WasException {}) => return jfloat::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_float_strict()
 }
 
@@ -180,7 +167,6 @@ pub unsafe extern "C" fn call_static_double_method(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jdouble::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_double_strict()
 }
 
@@ -190,7 +176,6 @@ pub unsafe extern "C" fn call_static_long_method(env: *mut JNIEnv, _clazz: jclas
         Err(WasException {}) => return jlong::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_long_strict()
 }
 
@@ -217,7 +202,6 @@ pub unsafe extern "C" fn call_static_boolean_method_a(env: *mut JNIEnv, _clazz: 
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_bool_strict()
 }
 
@@ -227,7 +211,6 @@ pub unsafe extern "C" fn call_static_byte_method_a(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jbyte::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_byte_strict()
 }
 
@@ -237,7 +220,6 @@ pub unsafe extern "C" fn call_static_short_method_a(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jshort::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_short_strict()
 }
 
@@ -247,7 +229,6 @@ pub unsafe extern "C" fn call_static_char_method_a(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jchar::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_char_strict()
 }
 
@@ -257,7 +238,6 @@ pub unsafe extern "C" fn call_static_int_method_a(env: *mut JNIEnv, _clazz: jcla
         Err(WasException {}) => return jint::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_int_strict()
 }
 
@@ -267,7 +247,6 @@ pub unsafe extern "C" fn call_static_float_method_a(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jfloat::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_float_strict()
 }
 
@@ -277,7 +256,6 @@ pub unsafe extern "C" fn call_static_double_method_a(env: *mut JNIEnv, _clazz: j
         Err(WasException {}) => return jdouble::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_double_strict()
 }
 
@@ -287,7 +265,6 @@ pub unsafe extern "C" fn call_static_long_method_a(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return jlong::MAX,
     }
         .unwrap()
-        .as_njv()
         .unwrap_long_strict()
 }
 

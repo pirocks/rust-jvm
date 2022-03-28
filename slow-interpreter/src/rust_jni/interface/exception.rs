@@ -5,8 +5,9 @@ use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
     let int_state = get_interpreter_state(env);
-    let throw = int_state.throw().map(|obj|obj.handle.duplicate_discouraged());
-    new_local_ref_public_new(throw.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    let throw_owned = int_state.throw().map(|obj|obj.duplicate_discouraged());
+    let throw = throw_owned.as_ref().map(|obj|obj.as_allocated_obj());
+    new_local_ref_public_new(throw, int_state)
 }
 
 pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv) {

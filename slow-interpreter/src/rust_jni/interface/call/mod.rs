@@ -13,6 +13,7 @@ use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::JavaValueCommon;
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::method_table::from_jmethod_id;

@@ -11,10 +11,10 @@ use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class}
 use crate::interpreter::WasException;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
-use crate::new_java_values::AllocatedObject;
 use runtime_class_stuff::RuntimeClass;
+use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
 
-pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: &CPDType, obj: Option<AllocatedObject<'gc, 'any>>) -> jint {
+pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedNormalObjectHandle<'gc>>) -> jint {
     match obj {
         None => {
             0
@@ -25,7 +25,7 @@ pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: &CPDTy
     }
 }
 
-pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: AllocatedObject<'gc, '_>) -> jint {
+pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: &'_ AllocatedNormalObjectHandle<'gc>) -> jint {
     let rc = obj.runtime_class(jvm);
     let actual_cpdtype = rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
@@ -45,7 +45,7 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
                         1
                     } else {
                         if actual_num_nested_arrs == expected_num_nested_arrs{
-                            if inherits_from_cpdtype(jvm,&assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()),&expected_class_type.to_cpdtype()){
+                            if inherits_from_cpdtype(jvm,&assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()),expected_class_type.to_cpdtype()){
                                 return 1
                             }
                         }
@@ -62,7 +62,7 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
                     let object_class = assert_inited_or_initing_class(jvm,(object).into());
-                    if inherits_from_cpdtype(jvm, &object_class, &instance_of_class_name.into()) {
+                    if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
                         1
                     } else {
                         0
@@ -135,21 +135,21 @@ fn runtime_interface_class<'gc>(jvm: &'gc JVMState<'gc>, i: InterfaceView) -> Ar
 }
 
 //todo this really shouldn't need state or Arc<RuntimeClass>
-pub fn inherits_from_cpdtype<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>, parent: &CPDType) -> bool {
+pub fn inherits_from_cpdtype<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>, parent: CPDType) -> bool {
     //todo it is questionable whether this logic should be here:
     if let RuntimeClass::Array(arr) = inherits.deref() {
-        if parent == &CClassName::object().into() || parent == &CClassName::cloneable().into() || parent == &CClassName::serializable().into() {
+        if parent == CClassName::object().into() || parent == CClassName::cloneable().into() || parent == CClassName::serializable().into() {
             return true;
         }
         if let Some(parent_arr) = parent.try_unwrap_array_type() {
-            return inherits_from_cpdtype(jvm, &arr.sub_class, &parent_arr);
+            return inherits_from_cpdtype(jvm, &arr.sub_class, parent_arr);
         }
     }
     if inherits.cpdtype().is_primitive() {
         return false;
     }
 
-    if &CPDType::Ref(inherits.view().name()) == parent {
+    if inherits.view().name().to_cpdtype() == parent {
         return true;
     }
     let mut interfaces_match = false;
@@ -161,7 +161,7 @@ pub fn inherits_from_cpdtype<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<Runtim
 
     (match runtime_super_class(jvm, inherits) {
         None => false,
-        Some(super_) => &CPDType::Ref(super_.view().name()) == parent || inherits_from_cpdtype(jvm, &super_, parent),
+        Some(super_) => super_.view().name().to_cpdtype() == parent || inherits_from_cpdtype(jvm, &super_, parent),
     }) || interfaces_match
 }
 

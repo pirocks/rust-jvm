@@ -28,6 +28,7 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
@@ -60,17 +61,17 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             return throw_npe(jvm, int_state);
         }
     };
-    let args = args_not_null.unwrap_array(jvm);
-    let method_name_str = match method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
+    let args = args_not_null.unwrap_array();
+    let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
             Some(method_name) => method_name.cast_string().to_rust_string(jvm),
         };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
-    let signature = match method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
+    let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
             None => return throw_npe(jvm, int_state),
             Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
         };
-    let clazz_java_val = method_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_clazz());
+    let clazz_java_val = method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
     if target_class.is_primitive() || target_class.is_array() {
@@ -96,16 +97,15 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     };
     let collected_args_array = args.array_iterator().collect_vec();
     for (arg, type_) in collected_args_array.iter().zip(parsed_md.arg_types.iter()) {
-        let arg : &NewJavaValueHandle<'gc> = arg;
         let arg = match type_ {
-            CompressedParsedDescriptorType::BooleanType => NewJavaValue::Boolean(arg.cast_boolean().inner_value(jvm)),
-            CompressedParsedDescriptorType::ByteType => NewJavaValue::Byte(arg.cast_byte().inner_value(jvm)),
-            CompressedParsedDescriptorType::ShortType => NewJavaValue::Short(arg.cast_short().inner_value(jvm)),
-            CompressedParsedDescriptorType::CharType => NewJavaValue::Char(arg.cast_char().inner_value(jvm)),
-            CompressedParsedDescriptorType::IntType => NewJavaValue::Int(arg.cast_int().inner_value(jvm)),
-            CompressedParsedDescriptorType::LongType => NewJavaValue::Long(arg.cast_long().inner_value(jvm)),
-            CompressedParsedDescriptorType::FloatType => NewJavaValue::Float(arg.cast_float().inner_value(jvm)),
-            CompressedParsedDescriptorType::DoubleType => NewJavaValue::Double(arg.cast_double().inner_value(jvm)),
+            CompressedParsedDescriptorType::BooleanType => NewJavaValue::Boolean(arg.as_njv().to_handle_discouraged().cast_boolean().inner_value(jvm)),
+            CompressedParsedDescriptorType::ByteType => NewJavaValue::Byte(arg.as_njv().to_handle_discouraged().cast_byte().inner_value(jvm)),
+            CompressedParsedDescriptorType::ShortType => NewJavaValue::Short(arg.as_njv().to_handle_discouraged().cast_short().inner_value(jvm)),
+            CompressedParsedDescriptorType::CharType => NewJavaValue::Char(arg.as_njv().to_handle_discouraged().cast_char().inner_value(jvm)),
+            CompressedParsedDescriptorType::IntType => NewJavaValue::Int(arg.as_njv().to_handle_discouraged().cast_int().inner_value(jvm)),
+            CompressedParsedDescriptorType::LongType => NewJavaValue::Long(arg.as_njv().to_handle_discouraged().cast_long().inner_value(jvm)),
+            CompressedParsedDescriptorType::FloatType => NewJavaValue::Float(arg.as_njv().to_handle_discouraged().cast_float().inner_value(jvm)),
+            CompressedParsedDescriptorType::DoubleType => NewJavaValue::Double(arg.as_njv().to_handle_discouraged().cast_double().inner_value(jvm)),
             _ => arg.as_njv(),
         };
         res_args.push(arg.clone());
@@ -132,8 +132,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    let signature_str_obj = constructor_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_signature());
-    let temp_4 = constructor_obj.as_allocated_obj().get_var_top_level(jvm, FieldName::field_clazz());
+    let signature_str_obj = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature());
+    let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
         None => {
@@ -149,7 +149,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     };
     let mut signature_str = string_obj_to_string(
         jvm,
-        signature_object.as_allocated_obj(),
+        signature_object.unwrap_normal_object_ref(),
     );
     let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
     let args = if args0.is_null() {
@@ -161,7 +161,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
                 return throw_npe(jvm, int_state);
             }
         };
-        let elems_refcell = temp_1.unwrap_array(jvm);
+        let elems_refcell = temp_1.unwrap_array();
         elems_refcell
             .array_iterator()
             .zip(parameter_types.iter())

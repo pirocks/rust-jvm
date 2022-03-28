@@ -20,6 +20,10 @@ use crate::ptype::{PType, ReferenceType};
 use crate::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::vtype::VType;
 
+pub mod descriptors;
+pub mod names;
+pub mod native_cpdtype;
+
 pub struct CompressedClassfileStringPool {
     pool: AddOnlyIdMap<String>,
 }
@@ -66,9 +70,6 @@ impl CompressedClassfileString {
     }
 }
 
-pub mod descriptors;
-pub mod names;
-
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum CompressedParsedVerificationType {
     TopType,
@@ -85,12 +86,13 @@ pub enum CompressedParsedVerificationType {
 pub type CPRefType = CompressedParsedRefType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(u8)]
 pub enum CompressedParsedRefType {
+    Class(CompressedClassName) = 0,
     Array {
         base_type: NonArrayCompressedParsedDescriptorType,
         num_nested_arrs: NonZeroU8,
-    },
-    Class(CompressedClassName),
+    } = 1,
 }
 
 impl CompressedParsedRefType {
@@ -104,9 +106,7 @@ impl CompressedParsedRefType {
             }
         }
     }
-}
 
-impl CompressedParsedRefType {
     pub fn unwrap_object_name(&self) -> CClassName {
         match self {
             CompressedParsedRefType::Array { .. } => panic!(),
@@ -193,36 +193,50 @@ impl CompressedParsedRefType {
             }
         }
     }
+
+    pub fn to_cpdtype(&self) -> CPDType{
+        match *self {
+            CompressedParsedRefType::Class(ccn) => CPDType::Class(ccn),
+            CompressedParsedRefType::Array { base_type, num_nested_arrs } => CPDType::Array { base_type, num_nested_arrs }
+        }
+    }
 }
 
 pub type CPDType = CompressedParsedDescriptorType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(u8)]
 pub enum CompressedParsedDescriptorType {
-    BooleanType,
-    ByteType,
-    ShortType,
-    CharType,
-    IntType,
-    LongType,
-    FloatType,
-    DoubleType,
-    VoidType,
-    Ref(CompressedParsedRefType),
+    //make sure this stays in sync with CompressedParsedDescriptorTypeNativeDiscriminant
+    BooleanType = 0,
+    ByteType = 1,
+    ShortType = 2,
+    CharType = 3,
+    IntType = 4,
+    LongType = 5,
+    FloatType = 6,
+    DoubleType = 7,
+    VoidType = 8,
+    Class(CompressedClassName) = 9,
+    Array {
+        base_type: NonArrayCompressedParsedDescriptorType,
+        num_nested_arrs: NonZeroU8,
+    } = 10,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(u8)]
 pub enum NonArrayCompressedParsedDescriptorType {
-    BooleanType,
-    ByteType,
-    ShortType,
-    CharType,
-    IntType,
-    LongType,
-    FloatType,
-    DoubleType,
-    VoidType,
-    Class(CClassName),
+    BooleanType = 0,
+    ByteType = 1,
+    ShortType = 2,
+    CharType = 3,
+    IntType = 4,
+    LongType = 5,
+    FloatType = 6,
+    DoubleType = 7,
+    VoidType = 8,
+    Class(CClassName) = 9,
 }
 
 impl NonArrayCompressedParsedDescriptorType {
@@ -256,14 +270,14 @@ impl NonArrayCompressedParsedDescriptorType {
                 CPDType::VoidType
             }
             NonArrayCompressedParsedDescriptorType::Class(ccn) => {
-                CPDType::Ref(CompressedParsedRefType::Class(*ccn))
+                CPDType::Class(*ccn)
             }
         }
     }
 }
 
 impl CompressedParsedDescriptorType {
-    pub fn to_non_array(&self) -> NonArrayCompressedParsedDescriptorType {
+    pub fn unwrap_non_array(&self) -> NonArrayCompressedParsedDescriptorType {
         match self {
             CompressedParsedDescriptorType::BooleanType => NonArrayCompressedParsedDescriptorType::BooleanType,
             CompressedParsedDescriptorType::ByteType => NonArrayCompressedParsedDescriptorType::ByteType,
@@ -274,13 +288,9 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::FloatType => NonArrayCompressedParsedDescriptorType::FloatType,
             CompressedParsedDescriptorType::DoubleType => NonArrayCompressedParsedDescriptorType::DoubleType,
             CompressedParsedDescriptorType::VoidType => NonArrayCompressedParsedDescriptorType::VoidType,
-            CompressedParsedDescriptorType::Ref(ref_) => {
-                match ref_ {
-                    CompressedParsedRefType::Array { .. } => panic!(),
-                    CompressedParsedRefType::Class(ccn) => {
-                        NonArrayCompressedParsedDescriptorType::Class(*ccn)
-                    }
-                }
+            CompressedParsedDescriptorType::Array { .. } => panic!(),
+            CompressedParsedDescriptorType::Class(ccn) => {
+                NonArrayCompressedParsedDescriptorType::Class(*ccn)
             }
         }
     }
@@ -291,7 +301,7 @@ impl CompressedParsedDescriptorType {
                 inner.to_cpdtype()
             }
             Some(nested) => {
-                CPDType::Ref(CompressedParsedRefType::Array { base_type: inner, num_nested_arrs: nested })
+                CPDType::Array { base_type: inner, num_nested_arrs: nested }
             }
         }
     }
@@ -304,10 +314,11 @@ impl CompressedParsedDescriptorType {
             Self::FloatType => "float".to_string(),
             Self::IntType => "int".to_string(),
             Self::LongType => "long".to_string(),
-            Self::Ref(ref_) => ref_.java_source_representation(string_pool),
+            Self::Class(ccn) => CPRefType::Class(*ccn).java_source_representation(string_pool),
             Self::ShortType => "short".to_string(),
             Self::BooleanType => "boolean".to_string(),
             Self::VoidType => "void".to_string(),
+            Self::Array { base_type, num_nested_arrs } => CPRefType::Array { base_type: *base_type, num_nested_arrs: *num_nested_arrs }.java_source_representation(string_pool)
         }
     }
 
@@ -319,7 +330,8 @@ impl CompressedParsedDescriptorType {
             Self::FloatType => "F".to_string(),
             Self::IntType => "I".to_string(),
             Self::LongType => "J".to_string(),
-            Self::Ref(ref_) => ref_.jvm_representation(string_pool),
+            Self::Class(ccn) => CPRefType::Class(*ccn).jvm_representation(string_pool),
+            Self::Array { base_type, num_nested_arrs } => CPRefType::Array { base_type: *base_type, num_nested_arrs: *num_nested_arrs }.jvm_representation(string_pool),
             Self::ShortType => "S".to_string(),
             Self::BooleanType => "Z".to_string(),
             Self::VoidType => "V".to_string(),
@@ -334,7 +346,8 @@ impl CompressedParsedDescriptorType {
             Self::FloatType => "F".to_string(),
             Self::IntType => "I".to_string(),
             Self::LongType => "J".to_string(),
-            Self::Ref(ref_) => ref_.short_representation(string_pool),
+            Self::Class(ccn) => CPRefType::Class(*ccn).short_representation(string_pool),
+            Self::Array { base_type, num_nested_arrs } => CPRefType::Array { base_type: *base_type, num_nested_arrs: *num_nested_arrs }.short_representation(string_pool),
             Self::ShortType => "S".to_string(),
             Self::BooleanType => "Z".to_string(),
             Self::VoidType => "V".to_string(),
@@ -348,7 +361,8 @@ impl CompressedParsedDescriptorType {
 
     pub fn try_unwrap_ref_type(&self) -> Option<CPRefType> {
         match self {
-            CompressedParsedDescriptorType::Ref(ref_) => Some(*ref_),
+            CompressedParsedDescriptorType::Class(ccn) => Some(CompressedParsedRefType::Class(*ccn)),
+            CompressedParsedDescriptorType::Array { base_type, num_nested_arrs } => Some(CompressedParsedRefType::Array { base_type: *base_type, num_nested_arrs: *num_nested_arrs }),
             _ => None,
         }
     }
@@ -359,17 +373,15 @@ impl CompressedParsedDescriptorType {
 
     pub fn try_unwrap_class_type(&self) -> Option<CClassName> {
         match self {
-            CompressedParsedDescriptorType::Ref(ref_) => ref_.try_unwrap_name(),
+            CompressedParsedDescriptorType::Class(ccn) => Some(*ccn),
             _ => None,
         }
     }
 
     pub fn try_unwrap_array_type(&self) -> Option<CPDType> {
         match self {
-            CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array { base_type, num_nested_arrs } => Some(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
-                CompressedParsedRefType::Class(_) => None,
-            },
+            Self::Array { base_type, num_nested_arrs } => Some(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
+            Self::Class(_) => None,
             _ => None,
         }
     }
@@ -389,10 +401,8 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::FloatType => VType::FloatType,
             CompressedParsedDescriptorType::DoubleType => VType::DoubleType,
             CompressedParsedDescriptorType::VoidType => VType::VoidType,
-            CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array { base_type, num_nested_arrs } => VType::ArrayReferenceType(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
-                CompressedParsedRefType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader }),
-            },
+            CompressedParsedDescriptorType::Array { base_type, num_nested_arrs } => VType::ArrayReferenceType(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
+            CompressedParsedDescriptorType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader }),
         }
     }
 
@@ -407,10 +417,8 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::FloatType => RuntimeType::FloatType,
             CompressedParsedDescriptorType::DoubleType => RuntimeType::DoubleType,
             CompressedParsedDescriptorType::VoidType => None?,
-            CompressedParsedDescriptorType::Ref(ref_) => RuntimeType::Ref(match ref_ {
-                CompressedParsedRefType::Array { base_type, num_nested_arrs } => RuntimeRefType::Array(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1)),
-                CompressedParsedRefType::Class(ccn) => RuntimeRefType::Class(*ccn),
-            }),
+            CompressedParsedDescriptorType::Array { base_type, num_nested_arrs } => RuntimeType::Ref(RuntimeRefType::Array(CPDType::new_array_or_normal(*base_type, num_nested_arrs.get() - 1))),
+            CompressedParsedDescriptorType::Class(ccn) => RuntimeType::Ref(RuntimeRefType::Class(*ccn)),
         })
     }
 
@@ -425,13 +433,14 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::FloatType => true,
             CompressedParsedDescriptorType::DoubleType => true,
             CompressedParsedDescriptorType::VoidType => true,
-            CompressedParsedDescriptorType::Ref(_) => false,
+            CompressedParsedDescriptorType::Class(_) => false,
+            CompressedParsedDescriptorType::Array { .. } => false,
         }
     }
 
     pub fn is_array(&self) -> bool {
         match self {
-            CompressedParsedDescriptorType::Ref(ref_) => ref_.is_array(),
+            CompressedParsedDescriptorType::Array { .. } => true,
             _ => false,
         }
     }
@@ -454,22 +463,20 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::FloatType => NonArrayCompressedParsedDescriptorType::FloatType,
             CompressedParsedDescriptorType::DoubleType => NonArrayCompressedParsedDescriptorType::DoubleType,
             CompressedParsedDescriptorType::VoidType => NonArrayCompressedParsedDescriptorType::VoidType,
-            CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array { base_type, num_nested_arrs } => {
-                    return Self::Ref(CompressedParsedRefType::Array { base_type, num_nested_arrs: NonZeroU8::new(num_nested_arrs.get() + 1).unwrap() });
-                }
-                CompressedParsedRefType::Class(class_name) => {
-                    NonArrayCompressedParsedDescriptorType::Class(class_name)
-                }
+            CompressedParsedDescriptorType::Array { base_type, num_nested_arrs } => {
+                return CompressedParsedDescriptorType::Array { base_type, num_nested_arrs: NonZeroU8::new(num_nested_arrs.get() + 1).unwrap() };
+            }
+            CompressedParsedDescriptorType::Class(class_name) => {
+                NonArrayCompressedParsedDescriptorType::Class(class_name)
             }
         };
-        Self::Ref(CPRefType::Array {
+        CompressedParsedDescriptorType::Array {
             base_type: sub_type,
             num_nested_arrs: NonZeroU8::new(1).unwrap(),
-        })
+        }
     }
     pub fn object() -> Self {
-        Self::Ref(CPRefType::Class(CompressedClassName::object()))
+        Self::Class(CompressedClassName::object())
     }
 }
 
@@ -482,10 +489,10 @@ impl CompressedParsedDescriptorType {
             PType::FloatType => Self::FloatType,
             PType::IntType => Self::IntType,
             PType::LongType => Self::LongType,
-            PType::Ref(ref_) => Self::Ref(match ref_ {
-                ReferenceType::Class(class_name) => CompressedParsedRefType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string(), true))),
-                ReferenceType::Array(arr) => CPDType::array(Self::from_ptype(arr.deref(), pool)).unwrap_ref_type(),
-            }),
+            PType::Ref(ref_) => match ref_ {
+                ReferenceType::Class(class_name) => CPDType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string(), true))),
+                ReferenceType::Array(arr) => CPDType::array(Self::from_ptype(arr.deref(), pool)),
+            },
             PType::ShortType => Self::ShortType,
             PType::BooleanType => Self::BooleanType,
             PType::VoidType => Self::VoidType,
@@ -500,17 +507,17 @@ impl CompressedParsedDescriptorType {
 
 impl From<CompressedClassName> for CompressedParsedDescriptorType {
     fn from(ccn: CompressedClassName) -> Self {
-        Self::Ref(CompressedParsedRefType::Class(ccn))
+        CPDType::Class(ccn)
     }
 }
 
 pub type CMethodDescriptor = CompressedMethodDescriptor;
 
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub struct CPDTypeOrderWrapper<'l>(pub &'l CPDType);
+pub struct CPDTypeOrderWrapper(pub CPDType);
 
 //todo replace with a derive
-impl Ord for CPDTypeOrderWrapper<'_> {
+impl Ord for CPDTypeOrderWrapper {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.0 {
             CPDType::BooleanType => match other.0 {
@@ -523,7 +530,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::ByteType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -535,7 +543,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::ShortType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -547,7 +556,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::CharType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -559,7 +569,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::IntType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -571,7 +582,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::LongType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -583,7 +595,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Greater,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::FloatType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -595,7 +608,8 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Equal,
                 CPDType::DoubleType => Ordering::Greater,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::DoubleType => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
@@ -607,10 +621,41 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                 CPDType::FloatType => Ordering::Less,
                 CPDType::DoubleType => Ordering::Equal,
                 CPDType::VoidType => Ordering::Greater,
-                CPDType::Ref(_) => Ordering::Greater,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
             },
             CPDType::VoidType => todo!(),
-            CPDType::Ref(this) => match other.0 {
+            CPDType::Class(ccn) => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Less,
+                CPDType::DoubleType => Ordering::Less,
+                CPDType::VoidType => Ordering::Less,
+                CPDType::Class(ccn_other) => {
+                    ccn.0.cmp(&ccn_other.0)
+                },
+                CPDType::Array { .. } => Ordering::Greater,
+            }
+            CPDType::Array {.. } => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Less,
+                CPDType::DoubleType => Ordering::Less,
+                CPDType::VoidType => Ordering::Less,
+                CPDType::Class(_) => Ordering::Less,
+                CPDType::Array { .. } => {
+                    todo!()
+                },
+            }
+            /*CPDType::Ref(this) => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
                 CPDType::ByteType => Ordering::Less,
                 CPDType::ShortType => Ordering::Less,
@@ -625,9 +670,9 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                         CompressedParsedRefType::Array { base_type: this_base_type, num_nested_arrs: this_num_nested_arrs } => {
                             match other {
                                 CompressedParsedRefType::Array { base_type: other_base_type, num_nested_arrs: other_num_nested_arrs } => {
-                                    match this_num_nested_arrs.cmp(other_num_nested_arrs) {
+                                    match this_num_nested_arrs.cmp(&other_num_nested_arrs) {
                                         Ordering::Less => Ordering::Less,
-                                        Ordering::Equal => CPDTypeOrderWrapper(&this_base_type.to_cpdtype()).cmp(&CPDTypeOrderWrapper(&other_base_type.to_cpdtype())),
+                                        Ordering::Equal => CPDTypeOrderWrapper(this_base_type.to_cpdtype()).cmp(&CPDTypeOrderWrapper(other_base_type.to_cpdtype())),
                                         Ordering::Greater => Ordering::Greater
                                     }
                                 }
@@ -646,12 +691,12 @@ impl Ord for CPDTypeOrderWrapper<'_> {
                         },
                     }
                 }
-            },
+            },*/
         }
     }
 }
 
-impl PartialOrd for CPDTypeOrderWrapper<'_> {
+impl PartialOrd for CPDTypeOrderWrapper {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }

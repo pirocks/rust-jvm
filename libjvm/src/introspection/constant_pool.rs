@@ -43,7 +43,7 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
         Ok(constant_pool) => constant_pool,
         Err(WasException {}) => return null_mut(),
     };
-    to_object_new(constant_pool.object_ref().into())
+    to_object_new(constant_pool.full_object_ref().into())
 }
 
 #[no_mangle]
@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, CPDType::Ref(c.class_ref_type()), int_state) {
+        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, c.class_ref_type().to_cpdtype(), int_state) {
             Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
             Err(_) => null_mut(),
         },
@@ -127,7 +127,7 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
     }
     let method_obj = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class(&jvm.string_pool)), load_class)? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, method_ref.class(&jvm.string_pool).to_cpdtype(), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class,
             };
@@ -138,7 +138,7 @@ unsafe fn get_method(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, loa
             Method::method_object_from_method_view(jvm, int_state, &method_view)?
         }
         ConstantInfoView::InterfaceMethodref(method_ref) => {
-            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, CPDType::Ref(method_ref.class()), load_class)? {
+            let method_ref_class = match get_class_from_type_maybe(jvm, int_state, method_ref.class().to_cpdtype(), load_class)? {
                 None => return Ok(null_mut()),
                 Some(method_ref_class) => method_ref_class,
             };
@@ -218,13 +218,13 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
     }
     let (class, name, desc_str) = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(ref_) => {
-            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class(&jvm.string_pool)), &jvm.string_pool).class_name_representation().replace(".", "/");
+            let class = PTypeView::from_compressed(ref_.class(&jvm.string_pool).to_cpdtype(), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
         }
         ConstantInfoView::InterfaceMethodref(ref_) => {
-            let class = PTypeView::from_compressed(&CPDType::Ref(ref_.class()), &jvm.string_pool).class_name_representation().replace(".", "/");
+            let class = PTypeView::from_compressed(ref_.class().to_cpdtype(), &jvm.string_pool).class_name_representation().replace(".", "/");
             let name = ref_.name_and_type().name(&jvm.string_pool);
             let desc_str = ref_.name_and_type().desc_str(&jvm.string_pool);
             (class, name, desc_str)
@@ -365,7 +365,7 @@ unsafe fn ConstantPoolGetUTF8At_impl(env: *mut JNIEnv, constantPoolOop: jobject,
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Utf8(utf8) => Ok(to_object_new(JString::from_rust(jvm, int_state, utf8.str.clone())?.object_ref().into())),
+        ConstantInfoView::Utf8(utf8) => Ok(to_object_new(JString::from_rust(jvm, int_state, utf8.str.clone())?.full_object_ref().into())),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }
@@ -488,7 +488,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, in
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(&CPDType::Ref(class_.class_ref_type()), &jvm.string_pool).class_name_representation()),
+        ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(class_.class_ref_type().to_cpdtype(), &jvm.string_pool).class_name_representation()),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }

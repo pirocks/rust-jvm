@@ -21,7 +21,8 @@ use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::new_java_values::{UnAllocatedObject, UnAllocatedObjectArray};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state, to_object};
@@ -49,7 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::Ref(CPRefType::Class(CClassName::field())))).unwrap();
+    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),

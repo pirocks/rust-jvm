@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
-use std::iter::{FromIterator, once};
+use std::iter;
+use std::iter::{FromIterator};
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -48,9 +49,11 @@ use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
 use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
-use crate::new_java_values::{AllocatedObject, AllocatedObjectHandle, AllocatedObjectHandleByAddress, UnAllocatedObject, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use runtime_class_stuff::RuntimeClass;
+use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
+use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
+use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -93,7 +96,7 @@ pub struct JVMState<'gc> {
     pub opaque_ids: RwLock<OpaqueIDs>,
     pub native: Native,
     pub live: AtomicBool,
-    pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc, 'gc>, MethodId>>,
+    pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc>, Vec<StackTraceElement<'gc>>>>,
     pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
@@ -114,12 +117,12 @@ pub struct Classes<'gc> {
     //todo needs to be used for all instances of getClass
     pub loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass<'gc>>>>,
     pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>)>,
-    pub(crate) class_object_pool: BiMap<ByAddressAllocatedObject<'gc, 'gc>, ByAddress<Arc<RuntimeClass<'gc>>>>,
+    pub(crate) class_object_pool: BiMap<ByAddressAllocatedObject<'gc>, ByAddress<Arc<RuntimeClass<'gc>>>>,
     pub anon_classes: Vec<Arc<RuntimeClass<'gc>>>,
-    pub anon_class_live_object_ldc_pool: Vec<AllocatedObject<'gc, 'gc>>,
+    pub anon_class_live_object_ldc_pool: Vec<&'gc AllocatedNormalObjectHandle<'gc>>,
     pub(crate) class_class: Arc<RuntimeClass<'gc>>,
-    class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc, 'gc>>,
-    pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc, 'gc>>,
+    class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc>>,
+    pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc>>,
 }
 
 impl<'gc> Classes<'gc> {
@@ -156,7 +159,7 @@ impl<'gc> Classes<'gc> {
         *res
     }
 
-    pub fn get_class_obj(&self, ptypeview: CPDType, loader: Option<LoaderName>) -> Option<AllocatedObject<'gc, 'gc>> {
+    pub fn get_class_obj(&self, ptypeview: CPDType, loader: Option<LoaderName>) -> Option<AllocatedNormalObjectHandle<'gc>> {
         if loader.is_some() {
             todo!()
         }
@@ -165,15 +168,15 @@ impl<'gc> Classes<'gc> {
         Some(obj)
     }
 
-    pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedObject<'gc, 'gc> {
+    pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
         self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner()
     }
 
-    pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=AllocatedObject<'gc, 'specific_gc_life>> + 'specific_gc_life {
-        self.class_object_pool
+    pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=&'specific_gc_life AllocatedNormalObjectHandle<'gc>> + 'specific_gc_life {
+       /* self.class_object_pool
             .left_values()
             .map(|by_address| by_address.clone().owned_inner())
-            .chain(self.anon_class_live_object_ldc_pool.iter().cloned())
+            .chain(todo!()/*self.anon_class_live_object_ldc_pool.iter().cloned().cloned()*/)
             .chain(self.class_loaders.right_values().map(|by_address| by_address.clone().owned_inner()))
             .chain(self.protection_domains.right_values().map(|by_address| by_address.clone().owned_inner()))
             .chain(self.initiating_loaders.values()
@@ -185,24 +188,25 @@ impl<'gc> Classes<'gc> {
                     })*/
                     once(todo!())
                 })
-            )
+            )*/
+        iter::once(todo!())
     }
 
     pub fn loaded_classes_by_type(&self, loader: &LoaderName, type_: &CPDType) -> &Arc<RuntimeClass<'gc>> {
         self.loaded_classes_by_type.get(loader).unwrap().get(type_).unwrap()
     }
 
-    pub fn object_to_runtime_class<'any>(&self, object: AllocatedObject<'gc, 'any>) -> Arc<RuntimeClass<'gc>> {
+    pub fn object_to_runtime_class<'any>(&self, object: &'any AllocatedNormalObjectHandle<'gc>) -> Arc<RuntimeClass<'gc>> {
         self.class_object_pool.get_by_left(&ByAddressAllocatedObject::LookupOnly(object.raw_ptr_usize())).unwrap().0.clone()
     }
 
-    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> AllocatedObject<'gc, 'gc> {
+    pub fn lookup_class_loader(&self, loader_name: LoaderIndex) -> AllocatedNormalObjectHandle<'gc> {
         self.class_loaders.get_by_left(&loader_name).unwrap().clone().owned_inner()
     }
 
-    pub fn lookup_or_add_classloader(&mut self, obj: AllocatedObject<'gc, 'gc>) -> LoaderName {
+    pub fn lookup_or_add_classloader(&mut self, obj: AllocatedNormalObjectHandle<'gc>) -> LoaderName {
         let loaders_guard = &mut self.class_loaders;
-        let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject::Owned(obj.clone()));
+        let loader_index_lookup = loaders_guard.get_by_right(&ByAddressAllocatedObject::LookupOnly(obj.raw_ptr_usize()));
         LoaderName::UserDefinedLoader(match loader_index_lookup {
             Some(x) => *x,
             None => {
@@ -215,7 +219,7 @@ impl<'gc> Classes<'gc> {
         })
     }
 
-    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> &AllocatedObject<'gc, 'gc> {
+    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> &'gc AllocatedNormalObjectHandle<'gc> {
         &self.anon_class_live_object_ldc_pool[idx.0]
     }
 
@@ -371,9 +375,9 @@ impl<'gc> JVMState<'gc> {
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
 
         let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: classes.class_class.clone(), fields }));
-        let class_object = self.gc.handle_lives_for_gc_life(class_object_handle);
+        let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
         let runtime_class = ByAddress(classes.class_class.clone());
-        classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object), runtime_class);
+        classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), runtime_class);
         let runtime_class = classes.class_class.clone();
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
     }
@@ -415,7 +419,7 @@ impl<'gc> JVMState<'gc> {
         )));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
-        let class_object_pool: BiMap<ByAddressAllocatedObject<'gc, 'gc>, ByAddress<Arc<RuntimeClass<'gc>>>> = Default::default();
+        let class_object_pool: BiMap<ByAddressAllocatedObject<'gc>, ByAddress<Arc<RuntimeClass<'gc>>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type: Default::default(),
             initiating_loaders,
@@ -479,7 +483,7 @@ impl<'gc> JVMState<'gc> {
         }
     }
 
-    pub fn allocate_object(&'gc self, object: UnAllocatedObject<'gc, '_>) -> AllocatedObjectHandle<'gc> {
+    pub fn allocate_object(&'gc self, object: UnAllocatedObject<'gc, '_>) -> AllocatedHandle<'gc> {
         self.gc.allocate_object(self, object)
     }
 
@@ -611,5 +615,5 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
 }
 
 pub struct StringInternment<'gc> {
-    pub strings: HashMap<Vec<u16>, AllocatedObjectHandle<'gc>>,
+    pub strings: HashMap<Vec<u16>, AllocatedHandle<'gc>>,
 }

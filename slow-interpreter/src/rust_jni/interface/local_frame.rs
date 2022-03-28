@@ -6,7 +6,7 @@ use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 use crate::interpreter_state::{NativeFrameInfo};
 use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
-use crate::new_java_values::AllocatedObject;
+use crate::new_java_values::allocated_objects::{AllocatedObject};
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 
 ///PopLocalFrame
@@ -81,7 +81,7 @@ pub unsafe fn new_local_ref_public_new<'gc, 'l>(rust_obj: Option<AllocatedObject
 
 
 unsafe fn new_local_ref_internal_new<'gc, 'l>(rust_obj: AllocatedObject<'gc,'_>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> jobject {
-    let c_obj = to_object_new(rust_obj.clone().into());
+    let c_obj = to_object_new(rust_obj.into());
     let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();
     new_local_ref_frame.insert(c_obj);
     set_local_refs_top_frame(interpreter_state, new_local_ref_frame);

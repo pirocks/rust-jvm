@@ -14,7 +14,8 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
-use slow_interpreter::new_java_values::{AllocatedObjectHandle, NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
@@ -104,7 +105,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     }*/
 }
 
-pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<AllocatedObjectHandle<'gc>>, new: NewJavaValue<'gc, 'l>) -> (jboolean, NewJavaValue<'gc, 'l>) {
+pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<AllocatedHandle<'gc>>, new: NewJavaValue<'gc, 'l>) -> (jboolean, NewJavaValue<'gc, 'l>) {
     let should_replace = match curval.unwrap_object() {
         None => match expected {
             None => true,
@@ -130,7 +131,7 @@ pub unsafe fn get_obj_and_name<'gc>(
     the_unsafe: jobject,
     target_obj: jobject,
     offset: jlong,
-) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedObjectHandle<'gc>, FieldName), WasException> {
+) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedHandle<'gc>, FieldName), WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));

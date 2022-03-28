@@ -4,10 +4,10 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -23,7 +23,8 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, JavaValue};
-use crate::new_java_values::{AllocatedObject, NewJavaValueHandle};
+use crate::new_java_values::{ NewJavaValueHandle};
+use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     lookup_method_parsed_impl(jvm, class, name, descriptor)
@@ -37,7 +38,7 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
     match filtered.iter().next() {
         None => {
             let class_name = class.view().super_name().unwrap(); //todo is this unwrap safe?
-            let lookup_type = CPDType::Ref(CPRefType::Class(class_name));
+            let lookup_type = CPDType::Class(class_name);
             let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
             lookup_method_parsed_impl(jvm, super_class, name, descriptor)
         }
@@ -45,12 +46,13 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
     }
 }
 
-pub fn string_obj_to_string<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedObject<'gc, '_>) -> String {
+pub fn string_obj_to_string<'gc>(jvm: &'gc JVMState<'gc>, str_obj: &'_ AllocatedNormalObjectHandle<'gc>) -> String {
     let str_class_pointer = assert_inited_or_initing_class(jvm, CClassName::string().into());
-    let temp = str_obj.lookup_field(&str_class_pointer, FieldName::field_value());
-    let chars = temp.unwrap_array(jvm);
+    let temp = str_obj.get_var(jvm, &str_class_pointer, FieldName::field_value());
+    let nonnull = temp.unwrap_object_nonnull();
+    let chars = nonnull.unwrap_array();
     let borrowed_elems = chars.array_iterator();
-    char::decode_utf16(borrowed_elems.map(|jv| jv.as_njv().unwrap_char_strict())).collect::<Result<String, _>>().expect("really weird string encountered")
+    char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char_strict())).collect::<Result<String, _>>().expect("really weird string encountered")
     //todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
@@ -107,11 +109,11 @@ pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, i
             return T::invalid_default();
         }
     }.object();
-    int_state.set_throw(Some(illegal_arg_object));
+    int_state.set_throw(Some(AllocatedHandle::NormalObject(illegal_arg_object)));
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, java_value: JavaValue<'gc>) -> Result<Option<AllocatedObject<'gc, 'static>>, WasException> {
+pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, java_value: JavaValue<'gc>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),

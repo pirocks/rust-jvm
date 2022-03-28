@@ -17,7 +17,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
 
-#[derive(Debug)]
+#[derive(Clone,Copy, Debug)]
 pub struct WasException;
 
 

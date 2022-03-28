@@ -6,7 +6,7 @@ use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_in
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush};
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::{run_function, WasException};
@@ -200,7 +200,7 @@ pub fn invoke_virtual<'gc, 'l>(
 
     //Let C be the class of objectref.
     let this_pointer = args[0].clone();
-    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
+    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().unwrap_normal_object().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
             let method_i = int_state.current_frame().method_i(jvm);

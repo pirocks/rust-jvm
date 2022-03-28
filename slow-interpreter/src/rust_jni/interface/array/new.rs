@@ -1,10 +1,10 @@
 
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
-use crate::{check_initing_or_inited_class};
+use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
 
 use crate::java_values::{default_value_njv};
-use crate::new_java_values::{NewJavaValueHandle, UnAllocatedObject};
+use crate::new_java_values::{NewJavaValueHandle};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
@@ -18,7 +18,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
         Some(x) => x,
         None => return throw_npe(jvm, int_state),
     };
-    let array = res_safe.unwrap_array(jvm);
+    let array = res_safe.unwrap_array();
     for i in 0..array.len() {
         array.set_i(i, NewJavaValueHandle::from_optional_object(from_object_new(jvm, init)).as_njv());
     }
