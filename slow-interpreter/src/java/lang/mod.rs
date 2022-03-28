@@ -18,7 +18,7 @@ pub mod throwable {
 
     impl <'gc> Clone for Throwable<'gc>{
         fn clone(&self) -> Self {
-            todo!()
+            Throwable{ normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 
@@ -53,11 +53,11 @@ pub mod throwable {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Throwable<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -78,7 +78,7 @@ pub mod stack_trace_element {
     use crate::jvm_state::JVMState;
 
     pub struct StackTraceElement<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -90,7 +90,7 @@ pub mod stack_trace_element {
 
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_stack_trace_element(self) -> StackTraceElement<'gc> {
-            StackTraceElement { normal_object: self }
+            StackTraceElement { normal_object: self.unwrap_normal_object() }
         }
     }
 
@@ -110,11 +110,11 @@ pub mod stack_trace_element {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for StackTraceElement<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -342,7 +342,7 @@ pub mod class {
 
     impl<'gc, 'l> NewJavaValue<'gc, 'l> {
         pub fn cast_class(&self) -> Option<JClass<'gc>> {
-            Some(JClass { normal_object: todo!()/*self.to_handle_discouraged().unwrap_object_nonnull()*/ })
+            Some(JClass { normal_object: self.to_handle_discouraged().unwrap_object_nonnull().unwrap_normal_object() })
         }
     }
 
@@ -1029,12 +1029,12 @@ pub mod class_not_found_exception {
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
 
     pub struct ClassNotFoundException<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_class_not_found_exception(self) -> ClassNotFoundException<'gc> {
-            ClassNotFoundException { normal_object: self }
+            ClassNotFoundException { normal_object: self.unwrap_normal_object() }
         }
     }
 
@@ -1052,11 +1052,11 @@ pub mod class_not_found_exception {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ClassNotFoundException<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

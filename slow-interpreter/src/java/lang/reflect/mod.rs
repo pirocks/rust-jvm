@@ -141,7 +141,7 @@ pub mod method {
 
 
     pub struct Method<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -154,7 +154,7 @@ pub mod method {
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_method(self) -> Method<'gc> {
             Method {
-                normal_object: self
+                normal_object: self.unwrap_normal_object()
             }
         }
     }
@@ -307,11 +307,11 @@ pub mod method {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Method<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

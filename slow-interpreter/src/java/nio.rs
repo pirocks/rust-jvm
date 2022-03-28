@@ -14,7 +14,7 @@ pub mod heap_byte_buffer {
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct HeapByteBuffer<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -25,7 +25,7 @@ pub mod heap_byte_buffer {
 
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_heap_byte_buffer(self) -> HeapByteBuffer<'gc> {
-            HeapByteBuffer { normal_object: self }
+            HeapByteBuffer { normal_object: self.unwrap_normal_object() }
         }
     }
 
@@ -53,11 +53,11 @@ pub mod heap_byte_buffer {
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
