@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::iter::FromIterator;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;
@@ -87,7 +86,7 @@ impl InstructionTraceOptions {
 
 impl JVMOptions {
     pub fn new(main_class_name: ClassName, classpath: Classpath, args: Vec<String>, libjava: OsString, libjdwp: OsString, enable_tracing: bool, enable_jvmti: bool, properties: Vec<String>, unittest_mode: bool, store_generated_classes: bool, debug_print_exceptions: bool, assertions_enabled: bool) -> Self {
-        let trace_set = HashSet::from_iter(vec![
+       /* let trace_set = HashSet::from_iter(vec![
            /* MethodToTrace {
                 combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
             },*/
@@ -109,8 +108,8 @@ impl JVMOptions {
            /*MethodToTrace {
                combined: "beg/b".to_string(),
            },*/
-        ].into_iter());
-        let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
+        ].into_iter());*/
+        let trace_options = InstructionTraceOptions::TraceNone/*TraceMethods(trace_set)*/;
         Self {
             main_class_name,
             classpath,

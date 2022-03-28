@@ -17,6 +17,6 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         }
         Some(ref_type) => ref_type,
     };
-    let res = instance_of_exit_impl(jvm,  type_.to_cpdtype(), java_obj.as_ref().map(|handle|handle.unwrap_normal_object_ref()));
+    let res = instance_of_exit_impl(jvm,  type_.to_cpdtype(), java_obj.as_ref());
     (res != 0) as jboolean
 }

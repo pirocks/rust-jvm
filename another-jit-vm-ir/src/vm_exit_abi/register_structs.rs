@@ -212,12 +212,24 @@ impl TraceInstructionBefore {
     pub const RESTART_IP: Register = Register(4);
 }
 
+impl ExitRegisterStruct for TraceInstructionBefore {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), TraceInstructionBefore::METHOD_ID, TraceInstructionBefore::BYTECODE_OFFSET, TraceInstructionBefore::RESTART_IP])
+    }
+}
+
 pub struct TraceInstructionAfter;
 
 impl TraceInstructionAfter {
     pub const METHOD_ID: Register = Register(2);
     pub const BYTECODE_OFFSET: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+}
+
+impl ExitRegisterStruct for TraceInstructionAfter {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), TraceInstructionAfter::METHOD_ID, TraceInstructionAfter::BYTECODE_OFFSET, TraceInstructionAfter::RESTART_IP])
+    }
 }
 
 pub struct BeforeReturn;
@@ -249,7 +261,7 @@ impl NewClass {
     pub const RESTART_IP: Register = Register(4);
 }
 
-impl ExitRegisterStruct for NewClass{
+impl ExitRegisterStruct for NewClass {
     fn all_registers() -> HashSet<Register> {
         HashSet::from([Register(0), NewClass::RES, NewClass::CPDTYPE_ID, NewClass::RESTART_IP])
     }

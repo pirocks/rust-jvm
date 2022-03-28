@@ -6,15 +6,14 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::interpreter::WasException;
 use crate::java_values::{GcManagedObject, JavaValue};
 use crate::java_values::Object::{Array, Object};
 use runtime_class_stuff::RuntimeClass;
-use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
 
-pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedNormalObjectHandle<'gc>>) -> jint {
+pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedHandle<'gc>>) -> jint {
     match obj {
         None => {
             0
@@ -25,7 +24,7 @@ pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDTyp
     }
 }
 
-pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: &'_ AllocatedNormalObjectHandle<'gc>) -> jint {
+pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: &'_ AllocatedHandle<'gc>) -> jint {
     let rc = obj.runtime_class(jvm);
     let actual_cpdtype = rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {

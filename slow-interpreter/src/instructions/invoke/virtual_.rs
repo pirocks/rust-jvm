@@ -200,7 +200,7 @@ pub fn invoke_virtual<'gc, 'l>(
 
     //Let C be the class of objectref.
     let this_pointer = args[0].clone();
-    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().unwrap_normal_object().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
+    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
         Some(x) => x,
         None => {
             let method_i = int_state.current_frame().method_i(jvm);

@@ -16,6 +16,12 @@ pub mod throwable {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
+    impl <'gc> Clone for Throwable<'gc>{
+        fn clone(&self) -> Self {
+            todo!()
+        }
+    }
+
     impl<'gc> JavaValue<'gc> {
         pub fn cast_throwable(&self) -> Throwable<'gc> {
             Throwable { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
@@ -352,7 +358,7 @@ pub mod class {
 
     impl<'gc> JClass<'gc> {
         pub fn gc_lifeify(&self) -> JClass<'gc> {
-            JClass { normal_object: todo!()/*self.normal_object*/ }//todo there should be a better way to do this b/c class objects live forever
+            JClass { normal_object: self.normal_object.clone() }//todo there should be a better way to do this b/c class objects live forever
         }
 
         pub fn get_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<ClassLoader<'gc>>, WasException> {
@@ -407,11 +413,11 @@ pub mod class {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JClass<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -495,11 +501,11 @@ pub mod class_loader {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ClassLoader<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -619,11 +625,11 @@ pub mod string {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JString<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }}
 
@@ -659,7 +665,7 @@ pub mod integer {
 
 pub mod object {
     use crate::java_values::{ JavaValue};
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
 
     pub struct JObject<'gc> {
         normal_object: AllocatedHandle<'gc>,
@@ -677,7 +683,8 @@ pub mod object {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+
+    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JObject<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -685,6 +692,22 @@ pub mod object {
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             todo!()
+        }
+
+        fn full_object(self) -> AllocatedHandle<'gc>{
+            AllocatedHandle::NormalObject(self.object())
+        }
+
+        fn full_object_ref(&self) -> AllocatedObject<'gc,'_>{
+            self.normal_object.as_allocated_obj()
+        }
+
+        fn new_java_value_handle(self) -> NewJavaValueHandle<'gc> {
+            NewJavaValueHandle::Object(self.normal_object)
+        }
+
+        fn new_java_value(&self) -> NewJavaValue<'gc,'_>{
+            self.normal_object.new_java_value()
         }
     }
 }
@@ -870,11 +893,11 @@ pub mod thread {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -984,11 +1007,11 @@ pub mod thread_group {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JThreadGroup<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

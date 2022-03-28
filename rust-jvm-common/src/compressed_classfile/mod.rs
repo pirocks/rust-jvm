@@ -640,7 +640,7 @@ impl Ord for CPDTypeOrderWrapper {
                 },
                 CPDType::Array { .. } => Ordering::Greater,
             }
-            CPDType::Array {.. } => match other.0 {
+            CPDType::Array { base_type: this_base_type, num_nested_arrs: this_num_nested_arrs } => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
                 CPDType::ByteType => Ordering::Less,
                 CPDType::ShortType => Ordering::Less,
@@ -651,47 +651,14 @@ impl Ord for CPDTypeOrderWrapper {
                 CPDType::DoubleType => Ordering::Less,
                 CPDType::VoidType => Ordering::Less,
                 CPDType::Class(_) => Ordering::Less,
-                CPDType::Array { .. } => {
-                    todo!()
+                CPDType::Array { base_type: other_base_type, num_nested_arrs: other_num_nested_arrs } => {
+                    match this_num_nested_arrs.cmp(&other_num_nested_arrs) {
+                        Ordering::Less => Ordering::Less,
+                        Ordering::Equal => CPDTypeOrderWrapper(this_base_type.to_cpdtype()).cmp(&CPDTypeOrderWrapper(other_base_type.to_cpdtype())),
+                        Ordering::Greater => Ordering::Greater
+                    }
                 },
             }
-            /*CPDType::Ref(this) => match other.0 {
-                CPDType::BooleanType => Ordering::Less,
-                CPDType::ByteType => Ordering::Less,
-                CPDType::ShortType => Ordering::Less,
-                CPDType::CharType => Ordering::Less,
-                CPDType::IntType => Ordering::Less,
-                CPDType::LongType => Ordering::Less,
-                CPDType::FloatType => Ordering::Less,
-                CPDType::DoubleType => Ordering::Less,
-                CPDType::VoidType => Ordering::Less,
-                CPDType::Ref(other) => {
-                    match this {
-                        CompressedParsedRefType::Array { base_type: this_base_type, num_nested_arrs: this_num_nested_arrs } => {
-                            match other {
-                                CompressedParsedRefType::Array { base_type: other_base_type, num_nested_arrs: other_num_nested_arrs } => {
-                                    match this_num_nested_arrs.cmp(&other_num_nested_arrs) {
-                                        Ordering::Less => Ordering::Less,
-                                        Ordering::Equal => CPDTypeOrderWrapper(this_base_type.to_cpdtype()).cmp(&CPDTypeOrderWrapper(other_base_type.to_cpdtype())),
-                                        Ordering::Greater => Ordering::Greater
-                                    }
-                                }
-                                CompressedParsedRefType::Class(_) => {
-                                    Ordering::Greater
-                                }
-                            }
-                        }
-                        CompressedParsedRefType::Class(this_ccn) => match other {
-                            CompressedParsedRefType::Array { .. } => {
-                                Ordering::Less
-                            }
-                            CompressedParsedRefType::Class(other_ccn) => {
-                                this_ccn.0.cmp(&other_ccn.0)
-                            }
-                        },
-                    }
-                }
-            },*/
         }
     }
 }

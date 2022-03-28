@@ -218,7 +218,7 @@ impl<'gc> AllocatedHandle<'gc> {
     }
 
     pub fn is_array(&self, jvm: &'gc JVMState<'gc>) -> bool {
-        let rc = self.unwrap_normal_object_ref().runtime_class(jvm);
+        let rc = self.runtime_class(jvm);
         rc.cpdtype().is_array()
     }
 
@@ -342,6 +342,12 @@ impl<'gc, 'l> AllocatedObject<'gc, 'l> {
             AllocatedObject::NormalObject(normal_obj) => normal_obj,
             AllocatedObject::ArrayObject(_) => panic!()
         }
+    }
+
+    //todo dup
+    pub fn runtime_class(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
+        let allocated_obj_type = jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(self.ptr()).clone();
+        assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
     }
 }
 

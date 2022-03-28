@@ -493,10 +493,10 @@ impl IRVMExitType {
                 todo!()
             }
             IRVMExitType::TraceInstructionBefore { .. } => {
-                todo!()
+                TraceInstructionBefore::all_registers()
             }
             IRVMExitType::TraceInstructionAfter { .. } => {
-                todo!()
+                TraceInstructionAfter::all_registers()
             }
             IRVMExitType::InvokeVirtualResolve { .. } => {
                 InvokeVirtualResolve::all_registers()

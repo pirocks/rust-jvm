@@ -107,11 +107,11 @@ pub mod properties {
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Properties<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

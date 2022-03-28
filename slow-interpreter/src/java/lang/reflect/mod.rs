@@ -339,7 +339,7 @@ pub mod constructor {
 
 
     pub struct Constructor<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -352,7 +352,7 @@ pub mod constructor {
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_constructor(self) -> Constructor<'gc> {
             Constructor {
-                normal_object: self
+                normal_object: self.unwrap_normal_object()
             }
         }
     }
@@ -467,11 +467,11 @@ pub mod constructor {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Constructor<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -570,11 +570,11 @@ pub mod field {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Field<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

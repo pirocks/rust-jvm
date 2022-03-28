@@ -20,16 +20,16 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
         AllocatedObject::NormalObject(self.object_ref())
     }
 
-    fn java_value(self) -> JavaValue<'gc> {
-        todo!()
-    }
-
     fn new_java_value_handle(self) -> NewJavaValueHandle<'gc> {
         NewJavaValueHandle::Object(AllocatedHandle::NormalObject(self.object()))
     }
 
     fn new_java_value(&self) -> NewJavaValue<'gc,'_>{
         NewJavaValue::AllocObject(self.full_object_ref())
+    }
+
+    fn java_value(self) -> JavaValue<'gc> {
+        todo!()
     }
 
     fn get_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<JClass<'gc>, WasException> {

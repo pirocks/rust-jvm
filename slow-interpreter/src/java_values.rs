@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
-use gc_memory_layout_common::layout::ObjectMemoryLayout;
+use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -53,7 +53,8 @@ impl<'gc> GC<'gc> {
         let count = guard.entry(ptr).or_insert(AtomicUsize::new(0));
         count.fetch_add(1, Ordering::SeqCst);
         let guard = self.memory_region.lock().unwrap();
-        if guard.find_object_allocated_type(ptr).as_cpdtype().is_array() {
+        let cpdtype = guard.find_object_allocated_type(ptr).as_cpdtype();
+        if cpdtype.is_array() {
             AllocatedHandle::Array(AllocatedArrayObjectHandle { jvm, ptr })
         } else {
             AllocatedHandle::NormalObject(AllocatedNormalObjectHandle { jvm, ptr })
@@ -106,12 +107,12 @@ impl<'gc> GC<'gc> {
             }
             UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }) => {
                 unsafe {
-                    todo!("layout");
-                    (allocated.as_ptr() as *mut i32).write(elems.len() as i32);
-                    let array_base = allocated.as_ptr().offset(size_of::<jlong>() as isize);
+                    let array_layout = ArrayMemoryLayout::from_cpdtype(whole_array_runtime_class.cpdtype().unwrap_array_type());
+                    (allocated.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).write(elems.len() as i32);
+                    let array_base = allocated.as_ptr().offset(array_layout.elem_0_entry_offset() as isize);
                     assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
                     for (i, elem) in elems.into_iter().enumerate() {
-                        array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native())
+                        array_base.offset((i as isize)* array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
                     }
                 }
             }

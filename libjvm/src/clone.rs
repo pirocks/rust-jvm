@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                     new_array.push(elem);
                 }
                 return new_local_ref_public_new(Some(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-                    whole_array_runtime_class: o.unwrap_normal_object().runtime_class(jvm),
+                    whole_array_runtime_class: o.runtime_class(jvm),
                     elems: new_array.iter().map(|handle| handle.as_njv()).collect(),
                 })).as_allocated_obj()), int_state);
             } else {

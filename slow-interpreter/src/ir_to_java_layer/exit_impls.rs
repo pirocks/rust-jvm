@@ -181,7 +181,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     if let Some(handle) = value {
-        let res_int = instance_of_exit_impl(jvm, cpdtype, Some(handle.unwrap_normal_object_ref()));
+        let res_int = instance_of_exit_impl(jvm, cpdtype, Some(&handle));
         if res_int == 0 {
             dbg!(cpdtype.jvm_representation(&jvm.string_pool));
             dbg!(handle.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
@@ -206,7 +206,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
-    let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref().map(|handle| handle.unwrap_normal_object_ref()));
+    let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     drop(exit_guard);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -486,12 +486,13 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, exit_guard: &VMExitGuard, field_
     let field_name = field_view.field_name();
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
     let njv = native_to_new_java_value(native_jv,&field_view.field_type(), jvm);
-    if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
-        let rc = alloc.unwrap_normal_object().runtime_class(jvm);
-        if instance_of_exit_impl(jvm, field_view.field_type(), Some(alloc.unwrap_normal_object())) == 0 {
-            panic!()
-        }
-    }
+    // if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
+    //     dbg!(alloc.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+    //     // let rc = alloc.unwrap_normal_object().runtime_class(jvm);
+    //     // if instance_of_exit_impl(jvm, field_view.field_type(), Some(alloc.unwrap_normal_object())) == 0 {
+    //     //     panic!()
+    //     // }
+    // }
     static_vars_guard.set(field_name, njv);
     drop(exit_guard);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -568,6 +569,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
         memset(allocated_object.as_ptr(), 0, array_size);
     }//todo init this properly according to type
     unsafe { *allocated_object.cast::<jint>().as_mut() = len }//init the length
+    assert!(memory_region_guard.find_object_allocated_type(allocated_object).as_cpdtype().is_array());
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
@@ -576,9 +578,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let throwable = exception_object_handle.cast_throwable();
     let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     dbg!(exception_as_string.to_rust_string(jvm));
-    let exception_object_handle = throwable.normal_object;
-    let exception_obj = &exception_object_handle;
-    let exception_obj_rc = exception_obj.runtime_class(jvm);
+    let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
     for current_frame in int_state.frame_iter() {
         let rc = match current_frame.try_class_pointer(jvm) {
             None => continue,
@@ -598,7 +598,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                 let matches_class = match catch_type {
                     None => true,
                     Some(class_name) => {
-                        instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), exception_obj) == 1
+                        instance_of_exit_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), &throwable.clone().full_object()) == 1
                     }
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
