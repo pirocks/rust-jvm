@@ -300,7 +300,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
             (class_object, res)
         }
         CPDType::Array { base_type: sub_type, num_nested_arrs } => {
-            let sub_class = check_resolved_class(jvm, int_state, sub_type.to_cpdtype())?;
+            let sub_class = check_resolved_class(jvm, int_state, ptype.unwrap_array_type())?;
             //todo handle class objects for arraus
             (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
         }

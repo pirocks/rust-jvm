@@ -87,7 +87,7 @@ impl CompressedParsedDescriptorType {
                 base_type,
                 num_nested_arrs
             } => {
-                res = CPDTYPE_MAX_DISCRIMINANT as u64 + 1 + base_type.discriminant() as u64;
+                res = (CPDTYPE_MAX_DISCRIMINANT as u64 + 1 + base_type.discriminant() as u64) << 56;
                 res |= (num_nested_arrs.get() as u8 as u64) << 48;
                 res |= match base_type {
                     NonArrayCompressedParsedDescriptorType::Class(ccn) => {
@@ -126,7 +126,7 @@ impl NativeCPDType {
                 };
                 CompressedParsedDescriptorType::Array {
                     base_type: non_array_base_type,
-                    num_nested_arrs: NonZeroU8::new(((self.0 >> 48) | 0xff) as u8).unwrap(),
+                    num_nested_arrs: NonZeroU8::new(((self.0 >> 48) & 0xff) as u8).unwrap(),
                 }
             }
             Some(CompressedParsedDescriptorTypeNativeDiscriminant::BooleanType) => CompressedParsedDescriptorType::BooleanType,
@@ -148,4 +148,32 @@ impl NativeCPDType {
 
 
 #[cfg(test)]
-pub mod to_native_from_native_test {}
+pub mod to_native_from_native_test {
+    use crate::compressed_classfile::CPDType;
+    use crate::compressed_classfile::names::CClassName;
+
+    #[test]
+    pub fn test_array(){
+        let cpdtype = CPDType::array(CPDType::array(CPDType::LongType));
+        let native_cpdtype = cpdtype.to_native();
+        assert_eq!(native_cpdtype.to_cpdtype(), cpdtype);
+
+        let cpdtype = CPDType::array(CPDType::array(CClassName::throwable().into()));
+        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+    }
+
+    #[test]
+    pub fn test_class(){
+        let cpdtype: CPDType = CClassName::object().into();
+        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+
+        let cpdtype: CPDType = CClassName::method().into();
+        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+    }
+
+    #[test]
+    pub fn test_primitive(){
+        let cpdtype: CPDType = CPDType::VoidType;
+        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+    }
+}
