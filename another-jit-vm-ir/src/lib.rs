@@ -34,6 +34,7 @@ pub mod vm_exit_abi;
 pub mod ir_stack;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(transparent)]
 pub struct IRMethodID(pub usize);
 
 pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {

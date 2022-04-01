@@ -1,44 +1,45 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
-use jvmti_jni_bindings::{jlong};
+
+use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::NativeJavaValue;
 use verification::verifier::Frame;
+
 use crate::memory_regions::FramePointerOffset;
 
-
 pub struct ObjectMemoryLayout {
-    max_field_number_exclusive: u32
+    max_field_number_exclusive: u32,
 }
 
 impl ObjectMemoryLayout {
-    pub fn from_rc(rc: &RuntimeClassClass) -> Self{
-        Self{
+    pub fn from_rc(rc: &RuntimeClassClass) -> Self {
+        Self {
             max_field_number_exclusive: rc.recursive_num_fields
         }
     }
 
     pub fn field_entry(&self, field_number: FieldNumber) -> usize {
         assert!(field_number.0 < self.max_field_number_exclusive);
-        (field_number.0 as usize)*size_of::<NativeJavaValue>()
+        (field_number.0 as usize) * size_of::<NativeJavaValue>()
     }
 
-    pub fn size(&self) -> usize{
-        (self.max_field_number_exclusive as usize)*size_of::<NativeJavaValue>()
+    pub fn size(&self) -> usize {
+        (self.max_field_number_exclusive as usize) * size_of::<NativeJavaValue>()
     }
 }
 
 pub struct ArrayMemoryLayout {
-    sub_type: CPDType
+    sub_type: CPDType,
 }
 
 impl ArrayMemoryLayout {
-    pub fn from_cpdtype(sub_type: CPDType) -> Self{
+    pub fn from_cpdtype(sub_type: CPDType) -> Self {
         assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
 
-        Self{
+        Self {
             sub_type
         }
     }
@@ -51,6 +52,9 @@ impl ArrayMemoryLayout {
     }
     pub fn elem_size(&self) -> usize {
         size_of::<NativeJavaValue>()
+    }
+    pub fn array_size(&self, len: i32) -> usize {
+        self.elem_0_entry_offset() + len as usize * self.elem_size()
     }
 }
 

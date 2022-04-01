@@ -42,5 +42,6 @@ members = [
     "gc-memory-layout-common",
     "perf-metrics",
     "java5-verifier",
-    "runtime-class-stuff"
+    "runtime-class-stuff",
+    "vtable"
 ]

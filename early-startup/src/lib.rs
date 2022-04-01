@@ -2,6 +2,7 @@
 // extern crate static_assertions;
 
 use std::ffi::c_void;
+use std::ptr::NonNull;
 
 // use assert_no_alloc::*;
 use procmaps::Mappings;
@@ -34,17 +35,17 @@ static_assertions::const_assert_eq!(1 << EXTRA_LARGE_REGION_SIZE_SIZE, EXTRA_LAR
 #[repr(packed, C)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Regions {
-    pub small_regions: *mut c_void,
-    pub medium_regions: *mut c_void,
-    pub large_regions: *mut c_void,
-    pub extra_large_regions: *mut c_void,
+    pub small_regions: NonNull<c_void>,
+    pub medium_regions: NonNull<c_void>,
+    pub large_regions: NonNull<c_void>,
+    pub extra_large_regions: NonNull<c_void>,
 }
 
-pub unsafe fn map_address(ptr: *mut c_void) {
+pub unsafe fn map_address(ptr: NonNull<c_void>) {
     let map_flags = /*libc::MAP_FIXED |*/ libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE;
     let prot_flags = libc::PROT_WRITE | libc::PROT_READ;
-    let res_ptr = libc::mmap(ptr, MAX_REGIONS_SIZE, prot_flags, map_flags, -1, 0);
-    if res_ptr != ptr {
+    let res_ptr = libc::mmap(ptr.as_ptr(), MAX_REGIONS_SIZE, prot_flags, map_flags, -1, 0);
+    if res_ptr != ptr.as_ptr() {
         panic!()
     }
 }
@@ -59,10 +60,10 @@ pub fn get_regions() -> Regions {
     // let res = assert_no_alloc(|| {
     //whats going on with the shifts here is that we want to encode region size in address, but can't put the whole region size , so small region is 1 and grows from there
     //todo will need to remmap twice to shrink once has lazily grown . https://linux.die.net/man/2/mremap
-    let small_regions = (SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void;
-    let medium_regions = (MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void;
-    let large_regions = (LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void;
-    let extra_large_regions = (EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void;
+    let small_regions = NonNull::new((SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap();
+    let medium_regions = NonNull::new((MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap();
+    let large_regions = NonNull::new((LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap();
+    let extra_large_regions = NonNull::new((EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap();
     unsafe {
         map_address(small_regions);
         map_address(medium_regions);
@@ -70,7 +71,78 @@ pub fn get_regions() -> Regions {
         map_address(extra_large_regions);
     }
     let res = Regions { small_regions, medium_regions, large_regions, extra_large_regions };
-    // });
     let _maps_after = Mappings::from_pid(unsafe { libc::getpid() }).unwrap();
     res
+}
+
+pub enum Region {
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
+pub fn region_pointer_to_region(ptr: u64) -> Region {
+    let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
+    if shifted == SMALL_REGION_BASE as u64 {
+        return Region::Small;
+    }
+    if shifted == MEDIUM_REGION_BASE as u64 {
+        return Region::Medium;
+    }
+    if shifted == LARGE_REGION_BASE as u64 {
+        return Region::Large;
+    }
+    if shifted == EXTRA_LARGE_REGION_BASE as u64 {
+        return Region::ExtraLarge;
+    }
+    panic!()
+}
+
+pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
+    let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
+    //1 3 5 7
+    let i = ((shifted - 1) >> 1) + 1;
+    //1 2 3 4
+    let base = 1 << i;
+    let shift = (i >> 1) - ((i >> 2) << 1);
+    let res = base + (1 << shift) << 1;
+    res
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, SMALL_REGION_SIZE_SIZE};
+
+    #[test]
+    pub fn test_size() {
+        let regions = get_regions();
+        let size = region_pointer_to_region_size(regions.small_regions.as_ptr() as usize as u64) as usize;
+        assert_eq!(size, SMALL_REGION_SIZE_SIZE);
+
+        let size = region_pointer_to_region_size(regions.medium_regions.as_ptr() as usize as u64) as usize;
+        assert_eq!(size, MEDIUM_REGION_SIZE_SIZE);
+
+        let size = region_pointer_to_region_size(regions.large_regions.as_ptr() as usize as u64) as usize;
+        assert_eq!(size, LARGE_REGION_SIZE_SIZE);
+
+        let size = region_pointer_to_region_size(regions.extra_large_regions.as_ptr() as usize as u64) as usize;
+        assert_eq!(size, EXTRA_LARGE_REGION_SIZE_SIZE);
+    }
+
+    #[test]
+    pub fn test_region() {
+        let regions = get_regions();
+        let small_region = region_pointer_to_region(regions.small_regions.as_ptr() as usize as u64);
+        match small_region {
+            Region::Small => {}
+            _ => panic!()
+        }
+
+        let medium_region = region_pointer_to_region(regions.medium_regions.as_ptr() as usize as u64);
+        match medium_region {
+            Region::Medium => {}
+            _ => panic!()
+        }
+    }
 }
