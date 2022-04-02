@@ -60,7 +60,7 @@ pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interp
         let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
         let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
         let array_size = array.size();
-        let region_data = memory_region_guard.find_or_new_region_for(array);
+        let region_data = memory_region_guard.new_region_for(array);
         let allocated_object = region_data.get_allocation();
         unsafe { allocated_object.as_ptr().cast::<jlong>().write(len as jlong); }
         for i in 0..len {
@@ -393,7 +393,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let object_size = object_type.size();
-    let allocated_object = memory_region_guard.find_or_new_region_for(object_type).get_allocation();
+    let allocated_object = memory_region_guard.new_region_for(object_type).get_allocation();
     unsafe {
         libc::memset(allocated_object.as_ptr(), 0, object_size);
     }//todo do correct initing of fields
@@ -562,7 +562,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
-    let region_data = memory_region_guard.find_or_new_region_for(object_array);
+    let region_data = memory_region_guard.new_region_for(object_array);
     let allocated_object = region_data.get_allocation();
     unsafe { res_address.write(allocated_object) }
     unsafe {

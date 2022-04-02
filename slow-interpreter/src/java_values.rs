@@ -87,7 +87,7 @@ impl<'gc> GC<'gc> {
             }//todo loader name nonsense
             UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
         };
-        let memory_region = guard.find_or_new_region_for(allocated_object_type);
+        let memory_region = guard.new_region_for(allocated_object_type);
         let allocated = memory_region.get_allocation();
         let allocated_size = memory_region.region_elem_size;
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }

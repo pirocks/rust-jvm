@@ -35,7 +35,6 @@ members = [
     "add-only-static-vec",
     "jmm-bindings",
     "method-table",
-    "early-startup",
     "another-jit-vm",
     "classfile-writer",
     "another-jit-vm-ir",
