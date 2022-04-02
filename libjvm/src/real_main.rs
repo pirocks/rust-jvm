@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
-use early_startup::get_regions;
+use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use slow_interpreter::java_values::GC;

@@ -664,6 +664,7 @@ dependencies = [
  "classfile-parser",
  "classfile-view",
  "crossbeam",
+ "gc-memory-layout-common",
  "heapsize",
  "itertools",
  "jmm-bindings",

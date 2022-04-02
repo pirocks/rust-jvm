@@ -3,22 +3,25 @@ use std::mem::{size_of, transmute};
 use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::ptr::NonNull;
+
 use itertools::Itertools;
 use libc::memset;
+
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
-use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use gc_memory_layout_common::memory_regions::{AllocatedObjectType};
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
@@ -48,32 +51,33 @@ pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interp
     assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
     let mut current_value = default_value(&elem_type.to_cpdtype()).as_njv().to_native();
     //iterates from innermost to outermost
-    for (depth, len) in lens.into_iter().rev().enumerate() {
-        let rc = match NonZeroU8::new(depth as u8 + 1) {
-            None => {
-                panic!()
+    unsafe {
+        for (depth, len) in lens.into_iter().rev().enumerate() {
+            let rc = match NonZeroU8::new(depth as u8 + 1) {
+                None => {
+                    panic!()
+                }
+                Some(depth) => {
+                    assert_inited_or_initing_class(jvm, CPDType::Array { base_type: elem_type, num_nested_arrs: depth })
+                }
+            };
+            let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
+            let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+            let array_size = array.size();
+            let allocated_object = memory_region_guard.allocate(&array);
+            allocated_object.as_ptr().cast::<jlong>().write(len as jlong);
+            for i in 0..len {
+                allocated_object.as_ptr().cast::<NativeJavaValue<'gc>>().offset((i + 1) as isize).write(current_value);
             }
-            Some(depth) => {
-                assert_inited_or_initing_class(jvm, CPDType::Array { base_type: elem_type, num_nested_arrs: depth })
-            }
-        };
-        let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
-        let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-        let array_size = array.size();
-        let region_data = memory_region_guard.new_region_for(array);
-        let allocated_object = region_data.get_allocation();
-        unsafe { allocated_object.as_ptr().cast::<jlong>().write(len as jlong); }
-        for i in 0..len {
-            unsafe { allocated_object.as_ptr().cast::<NativeJavaValue<'gc>>().offset((i + 1) as isize).write(current_value) };
+            current_value = NativeJavaValue { object: allocated_object.as_ptr() };
         }
-        current_value = NativeJavaValue { object: allocated_object.as_ptr() };
     }
 
     unsafe { res_address.cast::<NativeJavaValue<'gc>>().write(current_value) }
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_ptr: *const c_void) -> IRVMExitAction{
+pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_ptr: *const c_void) -> IRVMExitAction {
     let throw = jvm.perf_metrics.vm_exit_throw();
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("Throw");
@@ -81,7 +85,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     eprintln!("THROW AT:");
     int_state.debug_print_stack_trace(jvm);
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<NativeJavaValue<'gc>>().read() };
-    let exception_obj_handle = native_to_new_java_value(exception_obj_native_value,&CClassName::object().into(), jvm);
+    let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, &CClassName::object().into(), jvm);
     throw_impl(&jvm, int_state, exception_obj_handle)
 }
 
@@ -91,7 +95,7 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     }
     let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
     let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
-    let obj_jv_handle = native_to_new_java_value(obj_native_jv,&CPDType::object(), jvm);
+    let obj_jv_handle = native_to_new_java_value(obj_native_jv, &CPDType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
     let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(target_method_id).unwrap();
     let class_view = target_rc.view();
@@ -178,7 +182,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
     todo!();*/
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value, &CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     if let Some(handle) = value {
         let res_int = instance_of_exit_impl(jvm, cpdtype, Some(&handle));
@@ -203,7 +207,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     }
     let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = native_to_new_java_value(value,&CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value, &CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
@@ -257,7 +261,7 @@ pub fn invoke_virtual_resolve<'gc>(
     object_ref_ptr: *const c_void,
     method_shape_id: MethodShapeID,
     native_method_restart_point: RestartPointID,
-    native_method_res: *mut c_void
+    native_method_res: *mut c_void,
 ) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeVirtualResolve");
@@ -393,7 +397,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let object_size = object_type.size();
-    let allocated_object = memory_region_guard.new_region_for(object_type).get_allocation();
+    let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
     unsafe {
         libc::memset(allocated_object.as_ptr(), 0, object_size);
     }//todo do correct initing of fields
@@ -482,10 +486,10 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, exit_guard: &VMExitGuard, field_
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
     let view = rc.view();
     let field_view = view.field(field_i as usize);
-    let mut static_vars_guard = static_vars(rc.deref(),jvm);
+    let mut static_vars_guard = static_vars(rc.deref(), jvm);
     let field_name = field_view.field_name();
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
-    let njv = native_to_new_java_value(native_jv,&field_view.field_type(), jvm);
+    let njv = native_to_new_java_value(native_jv, &field_view.field_type(), jvm);
     // if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
     //     dbg!(alloc.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
     //     // let rc = alloc.unwrap_normal_object().runtime_class(jvm);
@@ -529,7 +533,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
         for (i, cpdtype) in (0..num_args).zip(arg_types.iter()) {
             let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv,cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
         }
     }
     assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
@@ -562,8 +566,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
-    let region_data = memory_region_guard.new_region_for(object_array);
-    let allocated_object = region_data.get_allocation();
+    let allocated_object = memory_region_guard.allocate(&object_array);
     unsafe { res_address.write(allocated_object) }
     unsafe {
         memset(allocated_object.as_ptr(), 0, array_size);
@@ -625,7 +628,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 
 pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[CompressedParsedDescriptorType], mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc>> {
     let obj_ref_native = unsafe { arg_start.cast::<NativeJavaValue>().read() };
-    let obj_ref = native_to_new_java_value(obj_ref_native,&CClassName::object().into(), jvm);
+    let obj_ref = native_to_new_java_value(obj_ref_native, &CClassName::object().into(), jvm);
     let mut args_jv_handle = vec![];
     args_jv_handle.push(obj_ref);
     unsafe {
@@ -633,7 +636,7 @@ pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[Compresse
         for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
             let arg_ptr = arg_start.sub(i * size_of::<jlong>()) as *const u64;
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv,cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
         }
     }
     args_jv_handle

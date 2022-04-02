@@ -11,8 +11,8 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use vtable::RawNativeVTable;
-use crate::early_startup::{LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 
+use crate::early_startup::{LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -69,16 +69,19 @@ pub struct RegionHeader {
     pub region_elem_size: usize,
     pub region_type: AllocatedTypeID,
     pub vtable_ptr: *mut RawNativeVTable,
+    region_header_magic: u32,
 }
 
 impl RegionHeader {
+    pub const REGION_HEADER_MAGIC: u32 = 0xddeeaadd;
+
     pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>) -> Option<NonNull<c_void>> {
-        let region_base = region_header.as_ptr().add(size_of::<RegionHeader>());
+        let region_base = region_header.as_ptr().add(1);
         assert_eq!((region_header.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
         let current_index = region_header.as_ref().num_current_elements.fetch_add(1, Ordering::SeqCst);
         assert!(current_index < region_header.as_ref().region_max_elements);//todo for now we only get one object per region
-        if current_index < region_header.as_ref().region_max_elements{
-            return None
+        if current_index >= region_header.as_ref().region_max_elements {
+            return None;
         }
         let res = (region_base as *mut c_void).add((current_index * region_header.as_ref().region_elem_size) as usize);
         libc::memset(res, 0, region_header.as_ref().region_elem_size);
@@ -149,15 +152,57 @@ impl MemoryRegions {
         }
     }
 
-    pub fn new_region_for(&mut self, to_allocate_type: AllocatedObjectType) -> NonNull<RegionHeader> {
+    pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectType) -> (NonNull<c_void>, usize) {
+        let region = match self.find_empty_region_for(to_allocate_type) {
+            None => {
+                self.new_region_for(to_allocate_type)
+            }
+            Some(region) => region,
+        };
+        let size = unsafe { region.as_ref() }.region_elem_size;
+        let res_ptr = unsafe {
+            match RegionHeader::get_allocation(region) {
+                Some(x) => x,
+                None => panic!("this allocation failure really shouldn't happen"),
+            }
+        };
+        (res_ptr,size)
+    }
+
+    pub fn allocate(&mut self, to_allocate_type: &AllocatedObjectType) -> NonNull<c_void> {
+        self.allocate_with_size(to_allocate_type).0
+    }
+
+    fn region_header_at(&self, region: Region, index: usize, assert: bool) -> NonNull<RegionHeader> {
+        let regions_base = self.early_mmaped_regions.base_regions_address(region);
+        let res = NonNull::new(unsafe { regions_base.as_ptr().add(region.region_size() * index) }).unwrap().cast::<RegionHeader>();
+        if assert{
+            unsafe { assert_eq!(res.as_ref().region_header_magic, RegionHeader::REGION_HEADER_MAGIC); }
+        }
+        res
+    }
+
+    fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> Option<NonNull<RegionHeader>> {
+        let type_id = self.lookup_or_add_type(&to_allocate_type);
+        let (region, index) = self.type_to_region_datas[type_id.0 as usize].last()?;
+        let region_header_ptr = self.region_header_at(*region, *index, true);
+        let num_current_elements = unsafe { region_header_ptr.as_ref() }.num_current_elements.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
+        let max_elements = unsafe { region_header_ptr.as_ref() }.region_max_elements;
+        if num_current_elements >= max_elements {
+            return None;
+        }
+        Some(region_header_ptr)
+    }
+
+
+    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> NonNull<RegionHeader> {
         let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let current_region_to_use = self.current_region_type[type_id.0 as usize];
-        let regions_base = self.early_mmaped_regions.base_regions_address(current_region_to_use);
         let free_index = self.current_free_index_by_region(current_region_to_use);
         let our_index = *free_index;
         *free_index += 1;
-        let region_header_ptr = NonNull::new(unsafe { regions_base.as_ptr().add(current_region_to_use.region_size() * our_index) }).unwrap().cast::<RegionHeader>();
+        let region_header_ptr = self.region_header_at(current_region_to_use, our_index, false);
         self.type_to_region_datas[type_id.0 as usize].push((current_region_to_use.clone(), our_index));
         unsafe {
             region_header_ptr.as_ptr().write(RegionHeader {
@@ -165,14 +210,15 @@ impl MemoryRegions {
                 region_max_elements: current_region_to_use.region_size() / to_allocate_type.size(),
                 region_elem_size: to_allocate_type.size(),
                 region_type: type_id,
-                vtable_ptr: null_mut()
+                vtable_ptr: null_mut(),
+                region_header_magic: RegionHeader::REGION_HEADER_MAGIC,
             });
         }
         region_header_ptr
     }
 
 
-    fn current_free_index_by_region(&mut self, region: Region) -> &mut usize{
+    fn current_free_index_by_region(&mut self, region: Region) -> &mut usize {
         match region {
             Region::Small => &mut self.free_small_region_index,
             Region::Medium => &mut self.free_medium_region_index,

@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
+use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
@@ -87,9 +88,7 @@ impl<'gc> GC<'gc> {
             }//todo loader name nonsense
             UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
         };
-        let memory_region = guard.new_region_for(allocated_object_type);
-        let allocated = memory_region.get_allocation();
-        let allocated_size = memory_region.region_elem_size;
+        let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
         drop(guard);
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
@@ -122,7 +121,7 @@ impl<'gc> GC<'gc> {
     }
 
 
-    pub fn new(regions: early_startup::Regions) -> Self {
+    pub fn new(regions: Regions) -> Self {
         Self {
             memory_region: Mutex::new(MemoryRegions::new(regions)),
             vm_temp_owned_roots: RwLock::new(Default::default()),
