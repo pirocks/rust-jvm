@@ -104,14 +104,21 @@ pub fn region_pointer_to_region(ptr: u64) -> Region {
 }
 
 pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
+    let res_shift = region_pointer_to_region_size_size(ptr);
+    let res = 1 << res_shift;
+    res
+}
+
+pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
     let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
     //1 3 5 7
     let i = ((shifted - 1) >> 1) + 1;
     //1 2 3 4
     let base = 1 << i;
     let shift = (i >> 1) - ((i >> 2) << 1);
-    let res = base + (1 << shift) << 1;
-    res
+    let res_shift = base + (1 << shift) << 1;
+    assert_eq!(1 << res_shift, region_pointer_to_region(ptr).region_size() as u64);
+    res_shift
 }
 
 impl Region {

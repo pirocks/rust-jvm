@@ -55,6 +55,9 @@ impl <'gc>AllocatedArrayObjectHandle<'gc>{
             AllocatedObjectType::PrimitiveArray { len, .. } => {
                 len as usize
             }
+            AllocatedObjectType::Raw { .. } => {
+                panic!()
+            }
         }
     }
 
@@ -69,6 +72,9 @@ impl <'gc>AllocatedArrayObjectHandle<'gc>{
             }
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
                 primitive_type
+            }
+            AllocatedObjectType::Raw { .. } => {
+                panic!()
             }
         }
     }

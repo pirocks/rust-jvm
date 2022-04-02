@@ -240,6 +240,9 @@ impl<'gc> GcManagedObject<'gc> {
                     }))
                 }
             }
+            AllocatedObjectType::Raw { .. } => {
+                panic!()
+            }
         };
         Self { obj, raw_ptr, gc: jvm.gc, jvm }
     }

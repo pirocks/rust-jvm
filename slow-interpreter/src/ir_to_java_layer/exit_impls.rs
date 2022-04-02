@@ -283,6 +283,9 @@ pub fn invoke_virtual_resolve<'gc>(
         AllocatedObjectType::ObjectArray { .. } => {
             assert_inited_or_initing_class(jvm, CClassName::object().into())
         }
+        AllocatedObjectType::Raw { .. } => {
+            panic!()
+        }
     };
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, name, &desc, rc).unwrap();
     let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, method_i);
@@ -563,15 +566,19 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
     assert!(len >= 0);
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
+    dbg!(rc.cpdtype());
     let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
+    dbg!(object_array.as_cpdtype());
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
     let allocated_object = memory_region_guard.allocate(&object_array);
+    dbg!(memory_region_guard.find_object_region_header(allocated_object).region_type);
     unsafe { res_address.write(allocated_object) }
     unsafe {
         memset(allocated_object.as_ptr(), 0, array_size);
     }//todo init this properly according to type
     unsafe { *allocated_object.cast::<jint>().as_mut() = len }//init the length
+    dbg!(memory_region_guard.find_object_allocated_type(allocated_object).as_cpdtype());
     assert!(memory_region_guard.find_object_allocated_type(allocated_object).as_cpdtype().is_array());
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }

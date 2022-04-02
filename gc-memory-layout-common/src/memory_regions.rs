@@ -4,7 +4,7 @@ use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use iced_x86::code_asm::CodeAssembler;
+use iced_x86::code_asm::{CodeAssembler};
 
 use another_jit_vm::Register;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -12,7 +12,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use vtable::RawNativeVTable;
 
-use crate::early_startup::{LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
+use crate::early_startup::{LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -20,6 +20,7 @@ pub enum AllocatedObjectType {
     Class { name: CClassName, loader: LoaderName, size: usize },
     ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32 },
     PrimitiveArray { primitive_type: CPDType, len: i32 },
+    Raw { size: usize }
 }
 
 impl AllocatedObjectType {
@@ -44,6 +45,9 @@ impl AllocatedObjectType {
                 let array_layout = ArrayMemoryLayout::from_cpdtype(*primitive_type);
                 array_layout.array_size(*len)
             }
+            AllocatedObjectType::Raw { size } => {
+                *size
+            }
         }
     }
 
@@ -57,6 +61,9 @@ impl AllocatedObjectType {
             }
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
                 CPDType::array(*primitive_type)
+            }
+            AllocatedObjectType::Raw { .. } => {
+                panic!()
             }
         }
     }
@@ -77,6 +84,8 @@ impl RegionHeader {
 
     pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>) -> Option<NonNull<c_void>> {
         let region_base = region_header.as_ptr().add(1);
+        assert_eq!(region_header.as_ref().region_header_magic, RegionHeader::REGION_HEADER_MAGIC);
+        let before_type = region_header.as_ref().region_type;
         assert_eq!((region_header.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
         let current_index = region_header.as_ref().num_current_elements.fetch_add(1, Ordering::SeqCst);
         assert!(current_index < region_header.as_ref().region_max_elements);//todo for now we only get one object per region
@@ -85,6 +94,8 @@ impl RegionHeader {
         }
         let res = (region_base as *mut c_void).add((current_index * region_header.as_ref().region_elem_size) as usize);
         libc::memset(res, 0, region_header.as_ref().region_elem_size);
+        assert_eq!(region_header.as_ref().region_header_magic, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(before_type, region_header.as_ref().region_type);
         Some(NonNull::new(res).unwrap())
     }
 }
@@ -159,6 +170,7 @@ impl MemoryRegions {
             }
             Some(region) => region,
         };
+        let region_type = unsafe { region.as_ref() }.region_type;
         let size = unsafe { region.as_ref() }.region_elem_size;
         let res_ptr = unsafe {
             match RegionHeader::get_allocation(region) {
@@ -166,6 +178,8 @@ impl MemoryRegions {
                 None => panic!("this allocation failure really shouldn't happen"),
             }
         };
+        let after_region_type = self.find_object_region_header(res_ptr).region_type;
+        assert_eq!(region_type, after_region_type);
         (res_ptr,size)
     }
 
@@ -280,10 +294,14 @@ impl MemoryRegions {
 
 
     pub fn find_object_region_header(&self, ptr: NonNull<c_void>) -> &RegionHeader {
+        dbg!(ptr.as_ptr());
         let as_u64 = ptr.as_ptr() as u64;
-        let region_size = region_pointer_to_region_size(as_u64);
-        let region_mask = !(u64::MAX << region_size);
+        let region_size = region_pointer_to_region_size_size(as_u64);
+        dbg!(region_size);
+        let region_mask = u64::MAX << region_size;
         let masked = as_u64 & region_mask;
+        dbg!(region_mask);
+        dbg!(masked as usize as *mut c_void);
         unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
     }
 
