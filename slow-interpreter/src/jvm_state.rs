@@ -394,11 +394,13 @@ impl<'gc> JVMState<'gc> {
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
         let object_method_numbers = JVMState::get_class_class_or_object_class_method_numbers(object_class_view.deref());
         let object_class_static_var_types = get_static_var_types(object_class_view.deref());
+        let recursive_num_methods = object_method_numbers.len();
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
             object_class_view,
             HashMap::new(),
             object_method_numbers,
             0,
+            recursive_num_methods as u32,
             RwLock::new(HashMap::new()),
             None,
             vec![],
@@ -406,11 +408,13 @@ impl<'gc> JVMState<'gc> {
             object_class_static_var_types
         )));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
+        let recursive_num_methods = method_numbers.len() as u32;
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
             class_view,
             field_numbers,
             method_numbers,
             recursive_num_fields,
+            recursive_num_methods,
             static_vars,
             Some(temp_object_class),
             interfaces,

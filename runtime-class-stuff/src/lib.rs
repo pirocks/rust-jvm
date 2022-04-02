@@ -123,6 +123,7 @@ pub struct RuntimeClassClass<'gc> {
     pub method_numbers: HashMap<MethodShape, MethodNumber>,
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
     pub recursive_num_fields: u32,
+    pub recursive_num_methods: u32,
     pub static_var_types: HashMap<FieldName, CPDType>,
     pub static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -162,6 +163,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_fields: u32,
+        recursive_num_methods: u32,
         static_vars: RwLock<HashMap<FieldName, NativeJavaValue<'gc>>>,
         parent: Option<Arc<RuntimeClass<'gc>>>,
         interfaces: Vec<Arc<RuntimeClass<'gc>>>,
@@ -175,6 +177,8 @@ impl<'gc> RuntimeClassClass<'gc> {
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
             .collect();
+        assert!(recursive_num_fields >=  field_numbers.len() as u32);
+        assert!(recursive_num_methods >= method_numbers.len() as u32);
         Self {
             class_view,
             field_numbers,
@@ -182,6 +186,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             method_numbers,
             method_numbers_reverse,
             recursive_num_fields,
+            recursive_num_methods,
             static_var_types,
             static_vars,
             parent,

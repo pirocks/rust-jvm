@@ -687,10 +687,10 @@ pub fn define_class_safe<'gc, 'l>(
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
-    let (_recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &super_class);
+    let (recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &super_class);
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), static_var_types)
+        RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, recursive_num_methods, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), static_var_types)
     ));
     jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(), parsed.clone());
     let mut class_view_cache = HashMap::new();

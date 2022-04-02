@@ -235,10 +235,10 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                 interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
             }
             let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
-            let (_recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &parent);
+            let (recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &parent);
             let static_var_types = get_static_var_types(class_view.deref());
             let res = Arc::new(RuntimeClass::Object(
-                RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
+                RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, recursive_num_methods,Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))
             );
             let mut verifier_context = VerifierContext {
                 live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,

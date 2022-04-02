@@ -4,15 +4,16 @@ use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
+use iced_x86::code_asm::CodeAssembler;
+
+use another_jit_vm::Register;
+use early_startup::{EXTRA_LARGE_REGION_SIZE, LARGE_REGION_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE, MEDIUM_REGION_SIZE_SIZE, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
+use vtable::RawNativeVTable;
 
 use crate::layout::ArrayMemoryLayout;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct FramePointerOffset(pub usize);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
@@ -67,7 +68,7 @@ pub struct RegionHeader {
     pub region_max_elements: usize,
     pub region_elem_size: usize,
     pub region_type: AllocatedTypeID,
-    pub vtable_ptr: *mut c_void,
+    pub vtable_ptr: *mut RawNativeVTable,
 }
 
 pub struct RegionData {
@@ -234,12 +235,56 @@ pub struct BaseAddressAndMask {
 }
 
 impl MemoryRegions {
-    pub fn find_object_header(&self, ptr: NonNull<c_void>) -> &RegionHeader {
+
+    pub fn generate_find_vtable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
+        todo!()
+    }
+
+    pub fn generate_find_allocated_type_id(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
+        todo!()
+    }
+
+    pub fn generate_find_object_region_header(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
+        //from compiled region_pointer_to_region_size
+        //let as_u64 = ptr.as_ptr() as u64;
+        //let region_size = region_pointer_to_region_size(as_u64);
+        //let region_mask = !(u64::MAX << region_size);
+        //let masked = as_u64 & region_mask;
+        //unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
+        assembler.mov(temp_2.to_native_64(),ptr.to_native_64()).unwrap();
+        Self::generate_region_pointer_to_region_size(assembler, ptr, temp_1, out);
+        assembler.mov(ptr.to_native_64(), temp_2.to_native_64()).unwrap();
+        assembler.mov(temp_1.to_native_64(), (-1i64) as u64).unwrap();
+        assembler.shl(temp_1.to_native_64(),out.to_native_8()).unwrap();
+        assembler.not(temp_1.to_native_64()).unwrap();
+        //temp_1 is region_mask
+        assembler.and(ptr.to_native_64(),temp_1.to_native_64()).unwrap();
+        //ptr is masked
+        assembler.mov(out.to_native_64(), ptr.to_native_64()).unwrap();
+        assembler.mov(ptr.to_native_64(), temp_2.to_native_64()).unwrap();
+    }
+
+    fn generate_region_pointer_to_region_size(assembler: &mut CodeAssembler, ptr: Register, temp: Register, out: Register) {
+        assembler.shr(ptr.to_native_64(), MAX_REGIONS_SIZE_SIZE as u32).unwrap();
+        assembler.add(ptr.to_native_32(), -1).unwrap();
+        assembler.shr(ptr.to_native_32(), 1).unwrap();
+        assembler.add(ptr.to_native_8(), 1).unwrap();
+        assembler.add(out.to_native_32(), 1).unwrap();
+        assembler.add(temp.to_native_32(), 1).unwrap();
+        assembler.shl(temp.to_native_32(), ptr.to_native_8()).unwrap();
+        assembler.shr(ptr.to_native_8(), 1).unwrap();
+        assembler.and(ptr.to_native_8(), 1).unwrap();
+        assembler.shl(out.to_native_64(), ptr.to_native_8()).unwrap();
+        assembler.add(out.to_native_64(), temp.to_native_64()).unwrap();
+        assembler.add(out.to_native_64(), out.to_native_64()).unwrap();
+    }
+
+
+    pub fn find_object_region_header(&self, ptr: NonNull<c_void>) -> &RegionHeader {
         let as_u64 = ptr.as_ptr() as u64;
         let region_size = region_pointer_to_region_size(as_u64);
         let region_mask = !(u64::MAX << region_size);
         let masked = as_u64 & region_mask;
-        dbg!(masked);
         unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
     }
 

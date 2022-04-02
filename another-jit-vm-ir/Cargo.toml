@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 another-jit-vm = { path = "../another-jit-vm" }
 rust-jvm-common = { path = "../rust-jvm-common" }
-gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+#gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 add-only-static-vec = { path = "../add-only-static-vec" }
 bimap = "0.6"

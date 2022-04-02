@@ -7,10 +7,10 @@ use std::ptr::{slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
+use another_jit_vm_ir::common::FramePointerOffset;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use jvmti_jni_bindings::{jobject, jvalue};
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;

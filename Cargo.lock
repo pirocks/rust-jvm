@@ -49,7 +49,6 @@ dependencies = [
  "add-only-static-vec",
  "another-jit-vm",
  "bimap",
- "gc-memory-layout-common",
  "iced-x86",
  "itertools",
  "libc",
@@ -528,7 +527,10 @@ checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
 name = "gc-memory-layout-common"
 version = "0.1.0"
 dependencies = [
+ "another-jit-vm",
+ "another-jit-vm-ir",
  "early-startup",
+ "iced-x86",
  "itertools",
  "jvmti-jni-bindings",
  "libc",
@@ -537,6 +539,7 @@ dependencies = [
  "runtime-class-stuff",
  "rust-jvm-common",
  "verification",
+ "vtable",
 ]
 
 [[package]]
@@ -1751,7 +1754,9 @@ version = "0.1.0"
 dependencies = [
  "another-jit-vm",
  "another-jit-vm-ir",
+ "by_address",
  "iced-x86",
+ "itertools",
  "memoffset",
  "runtime-class-stuff",
  "rust-jvm-common",

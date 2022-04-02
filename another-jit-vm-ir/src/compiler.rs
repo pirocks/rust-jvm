@@ -1,10 +1,10 @@
 use std::ffi::c_void;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, MMRegister, Register};
-use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use rust_jvm_common::MethodId;
 
 use crate::{IRMethodID, IRVMExitType};
+use crate::common::FramePointerOffset;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Size {

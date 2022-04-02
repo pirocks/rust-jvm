@@ -1,10 +1,10 @@
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull};
+use another_jit_vm_ir::common::FramePointerOffset;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use another_jit_vm_ir::IRMethodID;
-use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;

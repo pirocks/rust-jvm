@@ -9,9 +9,10 @@ use std::sync::Arc;
 use bimap::BiMap;
 use by_address::ByAddress;
 use itertools::Itertools;
+use another_jit_vm_ir::common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::{FrameHeader, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use gc_memory_layout_common::layout::{FrameHeader};
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};

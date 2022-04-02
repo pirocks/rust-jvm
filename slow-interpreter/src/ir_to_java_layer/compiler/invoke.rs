@@ -3,11 +3,11 @@ use std::mem::size_of;
 use itertools::Either;
 
 use another_jit_vm::Register;
+use another_jit_vm_ir::common::FramePointerOffset;
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
-use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
@@ -384,7 +384,6 @@ pub fn invoke_interface(
 }
 
 fn virtual_and_special_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
-    // let target_method_layout = resolver.lookup_method_layout(target_method_id);
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
     let mut local_var_i = 0;

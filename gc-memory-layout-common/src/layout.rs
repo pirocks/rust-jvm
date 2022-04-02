@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
+use another_jit_vm_ir::common::FramePointerOffset;
 
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
@@ -8,7 +9,6 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::NativeJavaValue;
 use verification::verifier::Frame;
 
-use crate::memory_regions::FramePointerOffset;
 
 pub struct ObjectMemoryLayout {
     max_field_number_exclusive: u32,
@@ -57,9 +57,6 @@ impl ArrayMemoryLayout {
         self.elem_0_entry_offset() + len as usize * self.elem_size()
     }
 }
-
-pub const MAGIC_1_EXPECTED: u64 = 0xDEADBEEFDEADBEAF;
-pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
 
 //todo frane info will need to be reworked to be based of rip
 #[repr(C, packed)]

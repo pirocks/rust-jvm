@@ -4,11 +4,11 @@ use std::mem::size_of;
 use itertools::{Either, Itertools};
 
 use another_jit_vm::{Register};
+use another_jit_vm_ir::common::FramePointerOffset;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::IRMethodID;
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
-use gc_memory_layout_common::memory_regions::FramePointerOffset;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch};
 use rust_jvm_common::compressed_classfile::{CPDType};

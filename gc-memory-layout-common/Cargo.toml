@@ -11,7 +11,15 @@ jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 early-startup = { path = "../early-startup" }
 verification = { path = "../verification" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
+another-jit-vm = { path = "../another-jit-vm" }
+another-jit-vm-ir = { path = "../another-jit-vm-ir" }
+vtable = { path = "../vtable" }
+
 nix = "0.23"
 libc = "0.2"
 itertools = "0.10"
 num-integer = "0.1"
+
+[dependencies.iced-x86]
+version = "1.15"
+features = ["code_asm"]
