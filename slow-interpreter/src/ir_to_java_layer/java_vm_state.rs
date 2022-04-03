@@ -78,7 +78,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         let ir_method_id = self.lookup_method_ir_method_id(method_id);
         let address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
 
-        let new_frame_size = resolver.lookup_method_layout(method_id).full_frame_size();
+        let new_frame_size = resolver.lookup_partial_method_layout(method_id).full_frame_size();
         Ok(ResolvedInvokeVirtual {
             address,
             ir_method_id,

@@ -16,7 +16,7 @@ use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
+use crate::ir_to_java_layer::compiler::{PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jvm_state::JVMState;
 use runtime_class_stuff::RuntimeClass;
@@ -183,6 +183,14 @@ impl<'gc> MethodResolver<'gc> {
         let frames = function_frame_type.get(&methodid).unwrap();
         let code = method_view.code_attribute().unwrap();
         YetAnotherLayoutImpl::new(frames, code)
+    }
+
+    pub fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl{
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let code = method_view.code_attribute().unwrap();
+        PartialYetAnotherLayoutImpl::new(code)
     }
 
     pub fn is_synchronized(&self, method_id: MethodId) -> bool {

@@ -84,9 +84,9 @@ impl<'gc> GC<'gc> {
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
                 assert!(arr.whole_array_runtime_class.cpdtype().is_array());
-                runtime_class_to_allocated_object_type(&arr.whole_array_runtime_class, LoaderName::BootstrapLoader, Some(arr.elems.len()))
+                runtime_class_to_allocated_object_type(jvm,arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len()))
             }//todo loader name nonsense
-            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(&obj.object_rc, LoaderName::BootstrapLoader, None),
+            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(jvm,obj.object_rc.clone(), LoaderName::BootstrapLoader, None),
         };
         let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
@@ -196,7 +196,7 @@ impl<'gc> GcManagedObject<'gc> {
         let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
-            AllocatedObjectType::Class { size, name, loader } => {
+            AllocatedObjectType::Class { size, name, loader, vtable:_ } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
                 let runtime_class_class = runtime_class.unwrap_class_class();

@@ -61,7 +61,7 @@ pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interp
                     assert_inited_or_initing_class(jvm, CPDType::Array { base_type: elem_type, num_nested_arrs: depth })
                 }
             };
-            let array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
+            let array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
             let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
             let array_size = array.size();
             let allocated_object = memory_region_guard.allocate(&array);
@@ -124,7 +124,7 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     } else {
         let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
-        let new_frame_size = resolver.lookup_method_layout(resolved_method_id).full_frame_size();
+        let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
         let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
         let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
@@ -272,8 +272,11 @@ pub fn invoke_virtual_resolve<'gc>(
     // like surely I need to start at the classname specified in the bytecode
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let maybe_non_null = NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() });
+    // let vtable = memory_region_guard.find_type_vtable(maybe_non_null.unwrap()).unwrap();
+    // VTable::lookup(vtable, )
     let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
     let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
+    // drop(vtable);//make sure vtable is always guarded by memory region lock
     drop(memory_region_guard);
     let rc = match allocated_type {
         AllocatedObjectType::Class { name, .. } => {
@@ -319,9 +322,6 @@ pub fn invoke_virtual_resolve<'gc>(
             if let Some(res) = res {
                 unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
             };
-            if !jvm.instruction_trace_options.partial_tracing() {
-                /*jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();*/
-            }
             let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
             return IRVMExitAction::RestartAtPtr { ptr: restart_address };
         }
@@ -397,7 +397,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
-    let object_type = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), None);
+    let object_type = runtime_class_to_allocated_object_type(jvm,rc.clone(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let object_size = object_type.size();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
@@ -566,7 +566,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
     assert!(len >= 0);
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
-    let object_array = runtime_class_to_allocated_object_type(rc.as_ref(), int_state.current_loader(jvm), Some(len as usize));
+    let object_array = runtime_class_to_allocated_object_type(jvm,rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
     let allocated_object = memory_region_guard.allocate(&object_array);

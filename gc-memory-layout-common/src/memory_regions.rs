@@ -4,7 +4,7 @@ use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use iced_x86::code_asm::{CodeAssembler};
+use iced_x86::code_asm::CodeAssembler;
 
 use another_jit_vm::Register;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -17,13 +17,24 @@ use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
-    Class { name: CClassName, loader: LoaderName, size: usize },
+    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable> },
     ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32 },
     PrimitiveArray { primitive_type: CPDType, len: i32 },
-    Raw { size: usize }
+    Raw { size: usize },
 }
 
 impl AllocatedObjectType {
+    pub fn vtable(&self) -> Option<NonNull<RawNativeVTable>> {
+        match self {
+            AllocatedObjectType::Class { vtable, .. } => {
+                Some(*vtable)
+            }
+            AllocatedObjectType::ObjectArray { .. } => None,
+            AllocatedObjectType::PrimitiveArray { .. } => None,
+            AllocatedObjectType::Raw { .. } => None,
+        }
+    }
+
     pub fn size(&self) -> usize {
         match self {
             AllocatedObjectType::Class { size, .. } => {
@@ -135,7 +146,7 @@ pub struct MemoryRegions {
 }
 
 
-static mut WAS_NOT_ZERO:bool = false;
+static mut WAS_NOT_ZERO: bool = false;
 
 impl MemoryRegions {
     pub fn new(regions: Regions) -> MemoryRegions {
@@ -192,7 +203,7 @@ impl MemoryRegions {
         assert_ne!(size, 0);
         let after_region_type = self.find_object_region_header(res_ptr).region_type;
         assert_eq!(region_type, after_region_type);
-        (res_ptr,size)
+        (res_ptr, size)
     }
 
     pub fn allocate(&mut self, to_allocate_type: &AllocatedObjectType) -> NonNull<c_void> {
@@ -202,7 +213,7 @@ impl MemoryRegions {
     fn region_header_at(&self, region: Region, index: usize, assert: bool) -> NonNull<RegionHeader> {
         let regions_base = self.early_mmaped_regions.base_regions_address(region);
         let res = NonNull::new(unsafe { regions_base.as_ptr().add(region.region_size() * index) }).unwrap().cast::<RegionHeader>();
-        if assert{
+        if assert {
             unsafe { assert_eq!(res.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
             unsafe { assert_eq!(res.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
             unsafe { assert_ne!(res.as_ref().region_elem_size, 0); }
@@ -243,7 +254,7 @@ impl MemoryRegions {
                 region_max_elements: (current_region_to_use.region_size() - size_of::<RegionHeader>()) / region_elem_size,
                 region_elem_size,
                 region_type: type_id,
-                vtable_ptr: null_mut(),
+                vtable_ptr: to_allocate_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,
             });
         }
@@ -320,6 +331,11 @@ impl MemoryRegions {
         unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
     }
 
+    pub fn find_type_vtable(&self, ptr: NonNull<c_void>) -> Option<NonNull<RawNativeVTable>> {
+        NonNull::new(self.find_object_region_header(ptr).vtable_ptr)
+    }
+
+
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
         let header = self.find_object_region_header(ptr);
         let allocated_type_id = header.region_type;
@@ -390,12 +406,12 @@ impl MemoryRegions {
 }
 
 #[cfg(test)]
-pub mod test{
+pub mod test {
     use crate::early_startup::get_regions;
     use crate::memory_regions::{AllocatedObjectType, MemoryRegions};
 
     #[test]
-    pub fn allocate_small(){
+    pub fn allocate_small() {
         let mut memory_regions = MemoryRegions::new(get_regions());
         let size_1 = AllocatedObjectType::Raw { size: 1 };
         let size_2 = AllocatedObjectType::Raw { size: 8 };
@@ -405,12 +421,12 @@ pub mod test{
         let res_8_2 = memory_regions.allocate(&size_2);
         assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1);
         assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2);
-        for _ in 0..1000{
+        for _ in 0..1000 {
             let res_1 = memory_regions.allocate(&size_1);
             assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1);
         }
         let size_3 = AllocatedObjectType::Raw { size: 16 };
-        for _ in 0..10000{
+        for _ in 0..10000 {
             let res_1 = memory_regions.allocate(&size_3);
             unsafe { libc::memset(res_1.as_ptr(), 0, 16); }
             assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3);

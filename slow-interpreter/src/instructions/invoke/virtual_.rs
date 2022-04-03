@@ -233,6 +233,9 @@ pub fn invoke_virtual<'gc, 'l>(
 }
 
 pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException> {
+    if let Some(res) = jvm.invoke_virtual_lookup_cache.read().unwrap().lookup(c.clone(), method_name, md.clone()){
+        return Ok(res);
+    }
     let all_methods = get_all_methods(jvm, int_state, c.clone(), true)?;
     let (final_target_class, new_i) = all_methods
         .iter()
@@ -272,5 +275,7 @@ pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mu
             // dbg!(prev_prev_frame.local_vars_types());
             panic!()
         });
-    Ok((final_target_class.clone(), *new_i))
+    let res = (final_target_class.clone(), *new_i);
+    jvm.invoke_virtual_lookup_cache.write().unwrap().add_entry(c, method_name, md.clone(),res.clone());
+    Ok(res)
 }

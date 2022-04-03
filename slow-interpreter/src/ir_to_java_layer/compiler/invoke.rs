@@ -85,7 +85,7 @@ pub fn invokespecial<'vm_life>(
                     }
                     Some((ir_method_id, address)) => {
                         recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
-                        let target_method_layout = resolver.lookup_method_layout(method_id);
+                        let target_method_layout = resolver.lookup_partial_method_layout(method_id);
                         let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
                         Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                             temp_register_1: Register(1),
@@ -167,7 +167,7 @@ pub fn invokestatic<'vm_life>(
             } else {
                 let num_args = descriptor.arg_types.len();
                 let arg_from_to_offsets = static_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
-                let target_method_layout = resolver.lookup_method_layout(method_id);
+                let target_method_layout = resolver.lookup_partial_method_layout(method_id);
                 Either::Right(match resolver.lookup_ir_method_id_and_address(method_id) {
                     None => {
                         recompile_conditions.add_condition(NeedsRecompileIf::FunctionCompiled { method_id });

@@ -82,6 +82,24 @@ impl JavaCompilerMethodAndFrameData {
     }
 }
 
+pub struct PartialYetAnotherLayoutImpl{
+    max_locals: u16,
+    max_stack: u16,
+}
+
+impl PartialYetAnotherLayoutImpl {
+    pub fn new(code: &CompressedCode) -> Self{
+        Self{
+            max_locals: code.max_locals,
+            max_stack: code.max_stack
+        }
+    }
+
+    pub fn full_frame_size(&self) -> usize {
+        full_frame_size_impl(self.max_locals, self.max_stack)
+    }
+}
+
 pub struct YetAnotherLayoutImpl {
     max_locals: u16,
     max_stack: u16,
@@ -132,8 +150,14 @@ impl YetAnotherLayoutImpl {
     }
 
     pub fn full_frame_size(&self) -> usize {
-        FRAME_HEADER_END_OFFSET + (self.max_locals + self.max_stack) as usize * size_of::<u64>()
+        let max_locals = self.max_locals;
+        let max_stack = self.max_stack;
+        full_frame_size_impl(max_locals, max_stack)
     }
+}
+
+fn full_frame_size_impl(max_locals: u16, max_stack: u16) -> usize {
+    FRAME_HEADER_END_OFFSET + (max_locals + max_stack) as usize * size_of::<u64>()
 }
 
 pub struct CurrentInstructionCompilerData<'l, 'k> {

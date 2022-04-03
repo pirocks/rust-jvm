@@ -85,6 +85,7 @@ pub mod opaque_ids;
 pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod verifier_frames;
+pub mod layout_cache;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

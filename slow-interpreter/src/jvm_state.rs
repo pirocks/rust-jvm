@@ -51,6 +51,8 @@ use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use runtime_class_stuff::RuntimeClass;
+use vtable::lookup_cache::InvokeVirtualLookupCache;
+use vtable::VTables;
 use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
@@ -109,7 +111,9 @@ pub struct JVMState<'gc> {
     pub checkcast_debug_assertions: bool,
     pub perf_metrics: PerfMetrics,
     pub recompilation_conditions: RwLock<RecompileConditions>,
-    pub known_addresses: KnownAddresses
+    pub known_addresses: KnownAddresses,
+    pub vtable: Mutex<VTables<'gc>>,
+    pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>
 }
 
 
@@ -309,7 +313,9 @@ impl<'gc> JVMState<'gc> {
             checkcast_debug_assertions: false,
             perf_metrics: PerfMetrics::new(),
             recompilation_conditions: RwLock::new(RecompileConditions::new()),
-            known_addresses: KnownAddresses::new()
+            known_addresses: KnownAddresses::new(),
+            vtable: Mutex::new(VTables::new()),
+            invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new())
         };
         (args, jvm)
     }

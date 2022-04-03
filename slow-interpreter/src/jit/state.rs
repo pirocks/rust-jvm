@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use another_jit_vm_ir::compiler::{IRLabel, LabelName};
@@ -16,8 +17,8 @@ use crate::new_java_values::NewJavaValueHandle;
 pub struct Opaque {}
 
 
-pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
-    match ref_type {
+pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_type: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
+    match ref_type.deref() {
         RuntimeClass::Byte => panic!(),
         RuntimeClass::Boolean => panic!(),
         RuntimeClass::Short => panic!(),
@@ -55,6 +56,7 @@ pub fn runtime_class_to_allocated_object_type(ref_type: &RuntimeClass, loader: L
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
                 size: layout.size(),
+                vtable: jvm.vtable.lock().unwrap().lookup_or_new_vtable(ref_type.clone())
             }
         }
         RuntimeClass::Top => panic!(),
