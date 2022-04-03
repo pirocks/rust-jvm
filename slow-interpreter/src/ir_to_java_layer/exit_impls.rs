@@ -539,7 +539,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
             args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
         }
     }
-    assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
+    assert!(jvm.thread_state.int_state_guard_valid.with(|inner|inner.borrow().clone()));
     let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,

@@ -4,7 +4,6 @@ use std::mem::transmute;
 use std::ops::Deref;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Sender};
@@ -13,7 +12,6 @@ use std::time::Duration;
 
 use crossbeam::thread::Scope;
 use libloading::Symbol;
-use nix::unistd::Pid;
 use num::Integer;
 use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IRStackMut;
@@ -41,32 +39,6 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::{StackEntryPush};
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
-pub struct FakeLocalKey<T: Default>{
-    cache: &'static LocalKey<Pid>,
-    inner: Mutex<HashMap<Pid,Rc<T>>>
-}
-thread_local! {
-    static CACHE: Pid = nix::unistd::gettid();
-}
-
-impl <T: Clone + Default> FakeLocalKey<T> {
-    pub fn new() -> Self {
-        Self{
-            cache: &CACHE,
-            inner: Default::default()
-        }
-    }
-
-    pub fn get(&self) -> Rc<T>{
-
-        //todo this is slow
-        let thread_id = self.cache.with(|pid|*pid);
-        self.inner.lock().unwrap().entry(thread_id).or_default().clone()
-    }
-}
-
-
-
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
     main_thread: RwLock<Option<Arc<JavaThread<'gc>>>>,
@@ -74,8 +46,16 @@ pub struct ThreadState<'gc> {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc>>>,
     monitors: RwLock<Vec<Arc<Monitor2>>>,
-    pub(crate) int_state_guard: FakeLocalKey<RefCell<Option<*mut InterpreterStateGuard<'static,'static>>>>,
-    pub(crate) int_state_guard_valid: FakeLocalKey<RefCell<bool>>,
+    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static,'static>>>>,
+    pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
+}
+
+thread_local! {
+    static INT_STATE_GUARD: RefCell<Option<*mut InterpreterStateGuard<'static,'static>>> = RefCell::new(None);
+}
+
+thread_local! {
+    static INT_STATE_GUARD_VALID: RefCell<bool> = RefCell::new(false);
 }
 
 pub struct MainThreadStartInfo {
@@ -91,8 +71,8 @@ impl<'gc> ThreadState<'gc> {
             current_java_thread: &CURRENT_JAVA_THREAD,
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
-            int_state_guard: FakeLocalKey::new(),
-            int_state_guard_valid: FakeLocalKey::new(),
+            int_state_guard: &INT_STATE_GUARD,
+            int_state_guard_valid: &INT_STATE_GUARD_VALID,
         }
     }
 

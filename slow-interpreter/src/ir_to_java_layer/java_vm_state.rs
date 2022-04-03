@@ -63,7 +63,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
-        assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
+        assert!(jvm.thread_state.int_state_guard_valid.with(|inner|inner.borrow().clone()));
         let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
         // eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);

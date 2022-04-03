@@ -68,7 +68,7 @@ pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
 }
 
 pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
-    assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
+    assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));
     assert!(int_state.current_frame().is_native_method());
     unsafe { assert!(jvm.get_int_state().registered()); }
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
@@ -101,7 +101,7 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
     let cif = Cif::new(args_type.into_iter(), Type::usize());
     let fn_ptr = CodePtr::from_fun(*raw);
     unsafe { assert!(jvm.get_int_state().registered()); }
-    assert!(jvm.thread_state.int_state_guard_valid.get().borrow().clone());
+    assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));
     let cif_res: *mut c_void = unsafe { cif.call(fn_ptr, c_args.as_slice()) };
     let res = match &md.return_type {
         CPDType::VoidType => None,

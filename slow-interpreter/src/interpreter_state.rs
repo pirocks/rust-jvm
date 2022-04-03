@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
-use std::ops::{Deref};
 use std::ptr::{slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard};
 
@@ -119,9 +118,9 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
 
     pub fn register_interpreter_state_guard(&mut self, jvm: &'gc JVMState<'gc>) -> OldInterpreterState {
         let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc, '_>) };
-        let old = jvm.thread_state.int_state_guard.get().deref().borrow().clone();
-        jvm.thread_state.int_state_guard.get().replace(ptr.into());
-        jvm.thread_state.int_state_guard_valid.get().replace(true);
+        let old = jvm.thread_state.int_state_guard.with(|elem|elem.borrow().clone());
+        jvm.thread_state.int_state_guard.with(|elem|elem.replace(ptr.into()));
+        jvm.thread_state.int_state_guard_valid.with(|elem|elem.replace(true));
         match self {
             InterpreterStateGuard::RemoteInterpreterState { registered, .. } => {
                 *registered = true;
@@ -137,11 +136,11 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     }
 
     pub fn deregister_int_state(&mut self, jvm: &'gc JVMState<'gc>, old: OldInterpreterState) {
-        jvm.thread_state.int_state_guard.get().replace(old.old);
+        jvm.thread_state.int_state_guard.with(|elem|elem.replace(old.old));
     }
 
     pub fn new(jvm: &'gc JVMState<'gc>, thread: Arc<JavaThread<'gc>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc>>) -> InterpreterStateGuard<'gc, 'interpreter_guard> {
-        jvm.thread_state.int_state_guard_valid.get().replace(false);
+        jvm.thread_state.int_state_guard_valid.with(|valid|valid.replace(false));
         Self::RemoteInterpreterState { int_state: Some(int_state), thread: thread.clone(), registered: true, jvm }
     }
 

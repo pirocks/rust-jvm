@@ -474,8 +474,8 @@ impl<'gc> JVMState<'gc> {
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
-        assert!(self.thread_state.int_state_guard_valid.get().borrow().clone());
-        let ptr = *self.thread_state.int_state_guard.get().borrow().as_ref().unwrap();
+        assert!(self.thread_state.int_state_guard_valid.with(|elem|elem.borrow().clone()));
+        let ptr = self.thread_state.int_state_guard.with(|elem|elem.borrow().clone().unwrap());
         let res = transmute::<&mut InterpreterStateGuard<'static, 'static>, &mut InterpreterStateGuard<'l, 'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
         assert!(res.registered());
         assert!(res.thread().thread_status.read().unwrap().alive);
