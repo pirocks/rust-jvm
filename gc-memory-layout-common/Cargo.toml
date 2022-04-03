@@ -19,7 +19,11 @@ libc = "0.2"
 itertools = "0.10"
 num-integer = "0.1"
 static_assertions = "1"
+memoffset = "0.6"
 
 [dependencies.iced-x86]
 version = "1.15"
 features = ["code_asm"]
+
+[dev-dependencies]
+rusty-fork = "0.3"

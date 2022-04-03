@@ -99,7 +99,7 @@ impl<'gc> GC<'gc> {
                     let obj_layout = ObjectMemoryLayout::from_rc(object_rc.unwrap_class_class());
                     unsafe {
                         let offset = obj_layout.field_entry(*i);
-                        let field_ptr = allocated.as_ptr().cast::<NativeJavaValue>().offset(offset as isize);
+                        let field_ptr = allocated.as_ptr().offset(offset as isize).cast::<NativeJavaValue>();
                         field_ptr.write(field.to_native());
                     }
                 }

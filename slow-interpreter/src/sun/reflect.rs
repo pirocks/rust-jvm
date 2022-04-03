@@ -85,11 +85,11 @@ pub mod constant_pool {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ConstantPool<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

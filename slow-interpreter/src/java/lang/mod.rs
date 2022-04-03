@@ -566,7 +566,6 @@ pub mod string {
         pub fn from_rust<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException> {
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into()).unwrap(); //todo replace these unwraps
             let string_object = AllocatedHandle::NormalObject(new_object(jvm, int_state, &string_class));
-
             let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
             let array_object = UnAllocatedObjectArray {
                 whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
