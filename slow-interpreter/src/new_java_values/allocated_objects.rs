@@ -8,7 +8,8 @@ use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::jlong;
 
 
-use runtime_class_stuff::{FieldNumber, RuntimeClass};
+use runtime_class_stuff::{RuntimeClass};
+use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::NativeJavaValue;

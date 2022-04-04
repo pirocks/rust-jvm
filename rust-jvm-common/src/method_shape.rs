@@ -64,6 +64,21 @@ impl MethodShapeIDs {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ShapeOrderWrapper<'l>(pub &'l MethodShape);
 
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct ShapeOrderWrapperOwned(pub MethodShape);
+
+impl PartialOrd for ShapeOrderWrapperOwned{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ShapeOrderWrapperOwned{
+    fn cmp(&self, other: &Self) -> Ordering {
+        ShapeOrderWrapper(&self.0).cmp(&ShapeOrderWrapper(&other.0))
+    }
+}
+
 impl PartialOrd for ShapeOrderWrapper<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))

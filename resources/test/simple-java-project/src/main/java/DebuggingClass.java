@@ -161,11 +161,24 @@ import java.lang.reflect.Proxy;
 
 public class DebuggingClass{
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-
+        int x  = 0;
+        System.out.println(~(~x));
     }
 
     static {
         System.out.println("foo");
     }
 
+
+
+    class A {
+        private void foo(){
+
+        }
+    }
+    class B extends  A{
+        public void foo(){
+
+        }
+    }
 }

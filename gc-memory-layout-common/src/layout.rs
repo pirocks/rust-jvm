@@ -4,7 +4,8 @@ use std::mem::size_of;
 use another_jit_vm_ir::common::FramePointerOffset;
 
 use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
+use runtime_class_stuff::{RuntimeClassClass};
+use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::NativeJavaValue;
 use verification::verifier::Frame;

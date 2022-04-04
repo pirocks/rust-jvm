@@ -9,7 +9,9 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
-use runtime_class_stuff::{ClassStatus, get_field_numbers, get_method_numbers, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::field_numbers::get_field_numbers;
+use runtime_class_stuff::method_numbers::get_method_numbers;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -235,7 +237,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                 interfaces.push(check_loaded_class(jvm, int_state, interface.interface_name().into())?);
             }
             let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
-            let (recursive_num_methods, method_numbers) = get_method_numbers(&class_view, &parent);
+            let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
             let static_var_types = get_static_var_types(class_view.deref());
             let res = Arc::new(RuntimeClass::Object(
                 RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, recursive_num_methods,Default::default(), parent, interfaces, ClassStatus::UNPREPARED.into(), static_var_types))

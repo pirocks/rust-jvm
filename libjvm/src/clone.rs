@@ -7,7 +7,8 @@ use itertools::Itertools;
 use libc::time;
 
 use jvmti_jni_bindings::{JNIEnv, jobject};
-use runtime_class_stuff::{FieldNumber, RuntimeClassClass};
+use runtime_class_stuff::{RuntimeClassClass};
+use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::code::CompressedInstructionInfo::new;
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};

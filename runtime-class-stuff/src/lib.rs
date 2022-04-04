@@ -1,20 +1,18 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock};
-use itertools::Itertools;
 
-use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
-use rust_jvm_common::compressed_classfile::names::{FieldName};
-use rust_jvm_common::method_shape::{MethodShape, ShapeOrderWrapper};
+use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
+use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::method_shape::{MethodShape, };
 use rust_jvm_common::NativeJavaValue;
+use crate::field_numbers::FieldNumber;
+use crate::method_numbers::MethodNumber;
 
+pub mod method_numbers;
+pub mod field_numbers;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct FieldNumber(pub u32);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MethodNumber(pub u32);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassStatus {
@@ -133,28 +131,6 @@ pub struct RuntimeClassClass<'gc> {
 }
 
 
-pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
-    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-    let field_numbers = class_view.fields().filter(|field| !field.is_static())
-        .map(|name| (name.field_name(), name.field_type()))
-        .sorted_by_key(|(name, _ptype)| name.0)
-        .enumerate()
-        .map(|(index, (name, ptype))| (name, (FieldNumber((index + start_field_number) as u32), ptype))).collect::<HashMap<_, _>>();
-    ((start_field_number + field_numbers.len()) as u32, field_numbers)
-}
-
-pub fn get_method_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<MethodShape, MethodNumber>) {
-    let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_virtual_methods()).unwrap_or(0);
-    let method_numbers = class_view.methods().filter(|method| !method.is_static()).map(|method| {
-        method.method_shape()
-    })
-        .sorted_by(|shape_1, shape_2| ShapeOrderWrapper(shape_1).cmp(&ShapeOrderWrapper(shape_2)))
-        .enumerate()
-        .map(|(index, shape)| (shape, MethodNumber((index + start_field_number) as u32)))
-        .collect::<HashMap<_, _>>();
-    ((start_field_number + method_numbers.len()) as u32, method_numbers)
-}
-
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc> RuntimeClassClass<'gc> {
@@ -168,7 +144,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         parent: Option<Arc<RuntimeClass<'gc>>>,
         interfaces: Vec<Arc<RuntimeClass<'gc>>>,
         status: RwLock<ClassStatus>,
-        static_var_types: HashMap<FieldName, CPDType>
+        static_var_types: HashMap<FieldName, CPDType>,
     ) -> Self {
         let field_numbers_reverse = field_numbers.iter()
             .map(|(field_name, (field_number, cpd_type))| (*field_number, (*field_name, cpd_type.clone())))
@@ -177,7 +153,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
             .collect();
-        assert!(recursive_num_fields >=  field_numbers.len() as u32);
+        assert!(recursive_num_fields >= field_numbers.len() as u32);
         assert!(recursive_num_methods >= method_numbers.len() as u32);
         Self {
             class_view,
@@ -210,7 +186,6 @@ impl<'gc> Debug for RuntimeClassClass<'gc> {
         write!(f, "{:?}:{:?}", self.class_view.name(), todo!()/*self.static_vars*/)
     }
 }
-
 
 
 impl<'gc> std::convert::From<RuntimeClassClass<'gc>> for RuntimeClass<'gc> {

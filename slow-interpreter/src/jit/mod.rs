@@ -1,15 +1,17 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use wtf8::{ Wtf8Buf};
+use wtf8::Wtf8Buf;
 
 use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::code::{CompressedCode};
-use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::code::CompressedCode;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
@@ -19,7 +21,6 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::ir_to_java_layer::compiler::{PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jvm_state::JVMState;
-use runtime_class_stuff::RuntimeClass;
 
 pub mod ir;
 pub mod state;
@@ -37,6 +38,7 @@ pub struct ResolvedInvokeVirtual {
 pub struct NotCompiledYet {
     pub needs_compiling: MethodId,
 }
+
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub struct CompiledCodeID(pub u32);
 
@@ -51,9 +53,7 @@ pub struct MethodResolver<'gc> {
 }
 
 
-pub trait MethodResolverAndRecompileConditions{
-
-}
+pub trait MethodResolverAndRecompileConditions {}
 
 
 impl<'gc> MethodResolver<'gc> {
@@ -149,7 +149,7 @@ impl<'gc> MethodResolver<'gc> {
         if let Some(method_view) = view.lookup_method(name, &desc) {
             assert!(!method_view.is_static());
             let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-            return Some((method_id, method_view.is_native()))
+            return Some((method_id, method_view.is_native()));
         }
         if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
             if let Some(res) = self.lookup_special_impl(name, desc, parent_rc.clone()) {
@@ -185,7 +185,7 @@ impl<'gc> MethodResolver<'gc> {
         YetAnotherLayoutImpl::new(frames, code)
     }
 
-    pub fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl{
+    pub fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl {
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
@@ -236,6 +236,37 @@ impl<'gc> MethodResolver<'gc> {
 
     pub fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID {
         self.jvm.method_shapes.lookup_method_shape_id(method_shape)
+    }
+
+    pub fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber {
+        let new_target_class = if rc.cpdtype().is_array() {
+            let object_rc = assert_inited_or_initing_class(self.jvm, CClassName::object().into());
+            object_rc
+        } else {
+            rc
+        };
+        self.lookup_method_number_recurse(new_target_class.unwrap_class_class(), method_shape)
+    }
+
+    fn lookup_method_number_recurse(&self, rc: &RuntimeClassClass, method_shape: MethodShape) -> MethodNumber {
+        *match rc.method_numbers.get(&method_shape) {
+            Some(x) => x,
+            None => {
+                dbg!(method_shape.name.0.to_str(&self.jvm.string_pool));
+                dbg!(method_shape.desc.jvm_representation(&self.jvm.string_pool));
+                panic!()
+                /*match rc.parent.as_ref() {
+                    None => {
+                        dbg!(method_shape.name.0.to_str(&self.jvm.string_pool));
+                        dbg!(method_shape.desc.jvm_representation(&self.jvm.string_pool));
+                        panic!()
+                    }
+                    Some(parent) => {
+                        return self.lookup_method_number_recurse(parent.unwrap_class_class(), method_shape)
+                    }
+                }*/
+            }
+        }
     }
 
     pub fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask> {

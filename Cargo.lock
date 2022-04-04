@@ -54,6 +54,7 @@ dependencies = [
  "libc",
  "num-derive 0.3.3",
  "num-traits",
+ "runtime-class-stuff",
  "rust-jvm-common",
  "sketch-jvm-version-of-utf8",
 ]

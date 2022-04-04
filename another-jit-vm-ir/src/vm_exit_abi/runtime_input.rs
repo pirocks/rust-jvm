@@ -145,6 +145,7 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         object_ref_ptr: *const c_void,
         method_shape_id: MethodShapeID,
+        method_number: u32,
         native_method_restart_point: RestartPointID,
         native_method_res: *mut c_void,
     },
@@ -296,6 +297,7 @@ impl RuntimeVMExitInput {
                     object_ref_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF_PTR) as *const c_void,
                     native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RESTART_POINT)),
                     native_method_res,
+                    method_number: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::METHOD_NUMBER) as u32
                 }
             }
             RawVMExitType::MonitorEnter => {

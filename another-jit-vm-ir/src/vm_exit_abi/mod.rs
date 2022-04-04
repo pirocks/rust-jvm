@@ -4,6 +4,7 @@ use std::num::NonZeroU8;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 
 use another_jit_vm::Register;
+use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -114,6 +115,7 @@ pub enum IRVMExitType {
     InvokeVirtualResolve {
         object_ref: FramePointerOffset,
         method_shape_id: MethodShapeID,
+        method_number: MethodNumber,
         native_restart_point: RestartPointID,
         native_return_offset: Option<FramePointerOffset>,
     },
@@ -318,12 +320,13 @@ impl IRVMExitType {
                     }
                 }
             }
-            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, native_restart_point, native_return_offset } => {
+            IRVMExitType::InvokeVirtualResolve { object_ref, method_shape_id, method_number, native_restart_point, native_return_offset } => {
                 assembler.mov(rax, RawVMExitType::InvokeVirtualResolve as u64).unwrap();
                 assembler.lea(InvokeVirtualResolve::OBJECT_REF_PTR.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.lea(InvokeVirtualResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(InvokeVirtualResolve::METHOD_SHAPE_ID.to_native_64(), method_shape_id.0).unwrap();
                 assembler.mov(InvokeVirtualResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
+                assembler.mov(InvokeVirtualResolve::METHOD_NUMBER.to_native_64(), method_number.0 as u64).unwrap();
                 match native_return_offset {
                     None => {
                         assembler.mov(InvokeVirtualResolve::NATIVE_RETURN_PTR.to_native_64(), u64::MAX).unwrap();

@@ -14,7 +14,8 @@ use memoffset::offset_of;
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::IRMethodID;
-use runtime_class_stuff::{MethodNumber, RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::MethodId;
 
 pub mod lookup_cache;

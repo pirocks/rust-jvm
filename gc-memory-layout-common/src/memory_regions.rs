@@ -340,34 +340,6 @@ impl MemoryRegions {
         let header = self.find_object_region_header(ptr);
         let allocated_type_id = header.region_type;
         &self.types[allocated_type_id.0 as usize]
-        // let num_zeros = (8 * TERABYTE).trailing_zeros();
-        // let mask = !(!0u64 << num_zeros);
-        // let region_base_masked_ptr = ptr.as_ptr() as u64 & !mask;
-        /*let region_type = if region_base_masked_ptr == self.early_mmaped_regions.small_regions.as_ptr() as u64 {
-            let region_index = ((ptr.as_ptr() as u64 & mask) / SMALL_REGION_SIZE as u64) as usize;
-            let region_data = &self.small_region_types[region_index];
-            region_data.region_type
-        } else if region_base_masked_ptr == self.early_mmaped_regions.medium_regions.as_ptr() as u64 {
-            let region_index = ((ptr.as_ptr() as u64 & mask) / MEDIUM_REGION_SIZE as u64) as usize;
-            let region_data = &self.medium_region_types[region_index];
-            region_data.region_type
-        } else if region_base_masked_ptr == self.early_mmaped_regions.large_regions.as_ptr() as u64 {
-            let region_index = ((ptr.as_ptr() as u64 & mask) / LARGE_REGION_SIZE as u64) as usize;
-            let region_data = &self.large_region_types[region_index];
-            region_data.region_type
-        } else if region_base_masked_ptr == self.early_mmaped_regions.extra_large_regions.as_ptr() as u64 {
-            todo!();
-            /*let region_index = ((ptr.as_ptr() as u64 & mask) / LARGE_REGION_SIZE as u64) as usize;
-            let region_data = &self.extra_large_region_types[region_index];
-            region_data.region_type*/
-        } else {
-            dbg!(self.early_mmaped_regions.large_regions);
-            dbg!(&self.early_mmaped_regions);
-            dbg!(region_base_masked_ptr as *mut c_void);
-            dbg!(ptr.as_ptr());
-            todo!()
-        };
-        &self.types[region_type.0 as usize]*/
     }
 
     pub fn find_object_base_address_and_mask(&self, ptr: NonNull<c_void>) -> BaseAddressAndMask {

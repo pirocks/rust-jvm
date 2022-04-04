@@ -311,6 +311,7 @@ impl InvokeVirtualResolve {
     pub const METHOD_ID_RES: Register = Register(6);
     pub const NEW_FRAME_SIZE_RES: Register = Register(7);
     pub const METHOD_SHAPE_ID: Register = Register(8);
+    pub const METHOD_NUMBER: Register = Register(4);
     pub const NATIVE_RESTART_POINT: Register = Register(9);
     pub const NATIVE_RETURN_PTR: Register = Register(5);
 }
@@ -328,6 +329,7 @@ impl ExitRegisterStruct for InvokeVirtualResolve {
             Self::METHOD_SHAPE_ID,
             Self::NATIVE_RESTART_POINT,
             Self::NATIVE_RETURN_PTR,
+            Self::METHOD_NUMBER
         ])
     }
 }

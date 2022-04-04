@@ -10,7 +10,7 @@ use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::names::{MethodName};
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::{ByteCodeIndex, MethodId};
 
@@ -230,18 +230,25 @@ pub fn invokevirtual<'vm_life>(
     let target_class_type_id = resolver.get_cpdtype_id(target_class_type);
 
     if resolver.lookup_type_inited_initing(&target_class_type).is_none() {
-        recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
-        //todo this should never happen?
-        return Either::Left(array_into_iter([restart_point,
-            IRInstr::VMExit2 {
-                exit_type: IRVMExitType::InitClassAndRecompile {
-                    class: target_class_type_id,
-                    this_method_id: method_frame_data.current_method_id,
-                    restart_point_id,
-                },
-            }, after_call_restart_point]));
-    }
 
+    }
+    let rc = match resolver.lookup_type_inited_initing(&target_class_type) {
+        Some((rc,_)) => {
+            rc
+        },
+        None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
+            //todo this should never happen?
+            return Either::Left(array_into_iter([restart_point,
+                IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::InitClassAndRecompile {
+                        class: target_class_type_id,
+                        this_method_id: method_frame_data.current_method_id,
+                        restart_point_id,
+                    },
+                }, after_call_restart_point]));
+        },
+    };
     let num_args = descriptor.arg_types.len();
     /*if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(), method_name, descriptor.clone()) {
         let arg_start_frame_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16);
@@ -268,6 +275,7 @@ pub fn invokevirtual<'vm_life>(
             exit_type: IRVMExitType::InvokeVirtualResolve {
                 object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                 method_shape_id: resolver.lookup_method_shape(MethodShape { name: method_name, desc: descriptor.clone() }),
+                method_number: resolver.lookup_method_number(rc,MethodShape { name: method_name, desc: descriptor.clone() }),
                 native_restart_point: after_call_restart_point_id,
                 native_return_offset: if descriptor.return_type.is_void() {
                     None
