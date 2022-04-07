@@ -211,7 +211,7 @@ impl<'gc> GcManagedObject<'gc> {
                     }))
                 }
             }
-            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len } => {
+            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len, object_vtable:_ } => {
                 let classes = jvm.classes.read().unwrap();
                 let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::array(sub_type.to_cpdtype()));
                 unsafe {
@@ -225,7 +225,7 @@ impl<'gc> GcManagedObject<'gc> {
                     }))
                 }
             }
-            AllocatedObjectType::PrimitiveArray { primitive_type, len } => {
+            AllocatedObjectType::PrimitiveArray { primitive_type, len, object_vtable:_ } => {
                 let classes = jvm.classes.read().unwrap();
                 //todo loader nonsense
                 let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::array(*primitive_type));

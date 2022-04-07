@@ -1,5 +1,4 @@
-use another_jit_vm::Register;
-use another_jit_vm_ir::common::FramePointerOffset;
+use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::memory_regions::{BaseAddressAndMask};

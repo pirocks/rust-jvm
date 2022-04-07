@@ -1,12 +1,12 @@
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::null_mut;
+use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use another_jit_vm::stack::OwnedNativeStack;
 use rust_jvm_common::MethodId;
 
-use crate::{IRInstructIndex, IRMethodID, IRVMState};
-use crate::common::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use crate::{IRInstructIndex, IRVMState};
 
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames

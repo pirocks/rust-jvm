@@ -6,3 +6,5 @@ distinguish between ptype and actual jvm type.
 use private static volatile Map<Class<?>,String[]> fieldFilterMap;
         private static volatile Map<Class<?>,String[]> methodFilterMap;
 in sun.reflect.Reflection
+
+have function entry tracing as well as instruction

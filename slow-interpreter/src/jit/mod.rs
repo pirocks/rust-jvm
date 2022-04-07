@@ -2,8 +2,8 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
+use another_jit_vm::IRMethodID;
 
-use another_jit_vm_ir::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};

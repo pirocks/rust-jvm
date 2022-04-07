@@ -17,13 +17,26 @@ use std::ops::Range;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
-use iced_x86::code_asm::{AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10b, r10d, r10w, r11, r11b, r11d, r11w, r12, r12b, r12d, r12w, r13, r13b, r13d, r13w, r14, r14b, r14d, r14w, r15, r8, r8b, r8d, r8w, r9, r9b, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+use iced_x86::code_asm::{al, AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, eax, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10b, r10d, r10w, r11, r11b, r11d, r11w, r12, r12b, r12d, r12w, r13, r13b, r13d, r13w, r14, r14b, r14d, r14w, r15, r8, r8b, r8d, r8w, r9, r9b, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
+use iced_x86::OpCodeOperandKind::ax;
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
 
 use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use crate::stack::OwnedNativeStack;
+
+// todo this should really go elsewhere
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(transparent)]
+pub struct IRMethodID(pub usize);
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct FramePointerOffset(pub usize);
+
+pub const MAGIC_1_EXPECTED: u64 = 0xDEADBEEFDEADBEAF;
+pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
+
 
 pub mod stack;
 pub mod saved_registers_utils;
@@ -69,7 +82,7 @@ impl Register {
 
     pub fn to_native_32(&self) -> AsmRegister32 {
         match self.0 {
-            0 => panic!(),
+            0 => eax,
             1 => ebx,
             2 => ecx,
             3 => edx,
@@ -101,7 +114,7 @@ impl Register {
     }
     pub fn to_native_8(&self) -> AsmRegister8 {
         match self.0 {
-            0 => panic!(),
+            0 => al,
             1 => bl,
             2 => cl,
             3 => dl,
@@ -591,6 +604,9 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
+        if inner_guard.max_ptr as u64 % 100_000 < 8 {
+            dbg!(inner_guard.max_ptr);
+        }
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
         current_method_id
     }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
-use another_jit_vm_ir::common::FramePointerOffset;
+use another_jit_vm::FramePointerOffset;
 
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{RuntimeClassClass};

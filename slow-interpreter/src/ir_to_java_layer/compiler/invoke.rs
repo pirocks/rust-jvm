@@ -2,17 +2,16 @@ use std::mem::size_of;
 
 use itertools::Either;
 
-use another_jit_vm::Register;
-use another_jit_vm_ir::common::FramePointerOffset;
+use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
-use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{MethodName};
-use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::{ByteCodeIndex, MethodId};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
+use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::method_shape::MethodShape;
 
 use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::jit::MethodResolver;
@@ -229,13 +228,11 @@ pub fn invokevirtual<'vm_life>(
     let target_class_type = classname_ref_type.to_cpdtype();
     let target_class_type_id = resolver.get_cpdtype_id(target_class_type);
 
-    if resolver.lookup_type_inited_initing(&target_class_type).is_none() {
-
-    }
+    if resolver.lookup_type_inited_initing(&target_class_type).is_none() {}
     let rc = match resolver.lookup_type_inited_initing(&target_class_type) {
-        Some((rc,_)) => {
+        Some((rc, _)) => {
             rc
-        },
+        }
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_type });
             //todo this should never happen?
@@ -247,7 +244,7 @@ pub fn invokevirtual<'vm_life>(
                         restart_point_id,
                     },
                 }, after_call_restart_point]));
-        },
+        }
     };
     let num_args = descriptor.arg_types.len();
     /*if let Some(method_id) = resolver.lookup_native_virtual(target_class_type.clone(), method_name, descriptor.clone()) {
@@ -271,11 +268,11 @@ pub fn invokevirtual<'vm_life>(
     // todo investigate size of table for invokevirtual without tagging.
     let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
     return Either::Right(array_into_iter([restart_point,
-        IRInstr::VMExit2 {
-            exit_type: IRVMExitType::InvokeVirtualResolve {
+        IRInstr::VTableLookupOrExit {
+            resolve_exit: IRVMExitType::InvokeVirtualResolve {
                 object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args as u16),
                 method_shape_id: resolver.lookup_method_shape(MethodShape { name: method_name, desc: descriptor.clone() }),
-                method_number: resolver.lookup_method_number(rc,MethodShape { name: method_name, desc: descriptor.clone() }),
+                method_number: resolver.lookup_method_number(rc, MethodShape { name: method_name, desc: descriptor.clone() }),
                 native_restart_point: after_call_restart_point_id,
                 native_return_offset: if descriptor.return_type.is_void() {
                     None
@@ -332,7 +329,7 @@ pub fn invoke_interface(
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
                     },
-                },after_call_restart_point]))
+                }, after_call_restart_point]))
         }
         Some((target_method_id, is_native)) => {
             Either::Left(/*if is_native {
@@ -354,39 +351,39 @@ pub fn invoke_interface(
                     after_call_restart_point
                 ]))
             } else {*/
-                array_into_iter([
-                    restart_point,
-                    IRInstr::VMExit2 {
-                        exit_type: IRVMExitType::InvokeInterfaceResolve {
-                            object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
-                            target_method_id,
-                            native_restart_point: after_call_restart_point_id,
-                            native_return_offset: if descriptor.return_type.is_void() {
-                                None
-                            } else {
-                                Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-                            }
-                        }
-                    },
-                    IRInstr::IRCall {
-                        temp_register_1: Register(1),
-                        temp_register_2: Register(2),
-                        arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor),
-                        return_value: if descriptor.return_type.is_void() {
-                            None
-                        } else {
-                            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-                        },
-                        target_address: IRCallTarget::Variable {
-                            address: InvokeInterfaceResolve::ADDRESS_RES,
-                            ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
-                            method_id: InvokeInterfaceResolve::METHOD_ID_RES,
-                            new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
-                        },
-                        current_frame_size: method_frame_data.full_frame_size(),
-                    }
-                ,after_call_restart_point])
-            /*}*/)
+                         array_into_iter([
+                             restart_point,
+                             IRInstr::VMExit2 {
+                                 exit_type: IRVMExitType::InvokeInterfaceResolve {
+                                     object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
+                                     target_method_id,
+                                     native_restart_point: after_call_restart_point_id,
+                                     native_return_offset: if descriptor.return_type.is_void() {
+                                         None
+                                     } else {
+                                         Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                                     },
+                                 }
+                             },
+                             IRInstr::IRCall {
+                                 temp_register_1: Register(1),
+                                 temp_register_2: Register(2),
+                                 arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor),
+                                 return_value: if descriptor.return_type.is_void() {
+                                     None
+                                 } else {
+                                     Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
+                                 },
+                                 target_address: IRCallTarget::Variable {
+                                     address: InvokeInterfaceResolve::ADDRESS_RES,
+                                     ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
+                                     method_id: InvokeInterfaceResolve::METHOD_ID_RES,
+                                     new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
+                                 },
+                                 current_frame_size: method_frame_data.full_frame_size(),
+                             }
+                             , after_call_restart_point])
+                         /*}*/)
         }
     }
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use bimap::BiMap;
 use by_address::ByAddress;
 use itertools::Itertools;
-use another_jit_vm_ir::common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::{FrameHeader};

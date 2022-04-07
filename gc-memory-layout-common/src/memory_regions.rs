@@ -4,7 +4,8 @@ use std::mem::size_of;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use iced_x86::code_asm::CodeAssembler;
+use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
+use memoffset::offset_of;
 
 use another_jit_vm::Register;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -18,8 +19,8 @@ use crate::layout::ArrayMemoryLayout;
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
     Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable> },
-    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32 },
-    PrimitiveArray { primitive_type: CPDType, len: i32 },
+    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable> },
+    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable> },
     Raw { size: usize },
 }
 
@@ -29,8 +30,8 @@ impl AllocatedObjectType {
             AllocatedObjectType::Class { vtable, .. } => {
                 Some(*vtable)
             }
-            AllocatedObjectType::ObjectArray { .. } => None,
-            AllocatedObjectType::PrimitiveArray { .. } => None,
+            AllocatedObjectType::ObjectArray { object_vtable,.. } => Some(*object_vtable),
+            AllocatedObjectType::PrimitiveArray { object_vtable,.. } => Some(*object_vtable),
             AllocatedObjectType::Raw { .. } => None,
         }
     }
@@ -146,7 +147,8 @@ pub struct MemoryRegions {
 }
 
 
-static mut WAS_NOT_ZERO: bool = false;
+
+static mut OBJECT_ALLOCS: u64 = 0;
 
 impl MemoryRegions {
     pub fn new(regions: Regions) -> MemoryRegions {
@@ -182,14 +184,24 @@ impl MemoryRegions {
     }
 
     pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectType) -> (NonNull<c_void>, usize) {
-        let region = match self.find_empty_region_for(to_allocate_type) {
-            None => {
-                self.new_region_for(to_allocate_type)
+        unsafe {
+            if OBJECT_ALLOCS % 1_000_000 < 8 {
+                dbg!(OBJECT_ALLOCS);
             }
-            Some(region) => region,
+        }
+        let region = match self.find_empty_region_for(to_allocate_type) {
+            Err(FindRegionError::NoRegion) => {
+                //todo need to use bigger region as needed.
+                self.new_region_for(to_allocate_type, false)
+            }
+            Err(FindRegionError::RegionFull) => {
+                self.new_region_for(to_allocate_type, true)
+            }
+            Ok(region) => region,
         };
         let region_type = unsafe { region.as_ref() }.region_type;
         let size = unsafe { region.as_ref() }.region_elem_size;
+        unsafe { OBJECT_ALLOCS += size as u64; }
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         assert_ne!(size, 0);
@@ -220,26 +232,37 @@ impl MemoryRegions {
         }
         res
     }
+}
 
-    fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> Option<NonNull<RegionHeader>> {
+pub enum FindRegionError{
+    RegionFull,
+    NoRegion
+}
+
+impl MemoryRegions {
+    fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> Result<NonNull<RegionHeader>, FindRegionError> {
         let type_id = self.lookup_or_add_type(&to_allocate_type);
-        let (region, index) = self.type_to_region_datas[type_id.0 as usize].last()?;
+        let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
         let region_header_ptr = self.region_header_at(*region, *index, true);
         let num_current_elements = unsafe { region_header_ptr.as_ref() }.num_current_elements.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
         let max_elements = unsafe { region_header_ptr.as_ref() }.region_max_elements;
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
         if num_current_elements >= max_elements {
-            return None;
+            eprintln!("was empty: {}", type_id.0);
+            return Err(FindRegionError::RegionFull);
         }
-        Some(region_header_ptr)
+        Ok(region_header_ptr)
     }
 
 
-    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> NonNull<RegionHeader> {
+    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType, bigger: bool) -> NonNull<RegionHeader> {
         let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
-        let current_region_to_use = self.current_region_type[type_id.0 as usize];
+        let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
+        if bigger {
+            current_region_to_use = current_region_to_use.bigger()
+        }
         let free_index = self.current_free_index_by_region(current_region_to_use);
         let our_index = *free_index;
         *free_index += 1;
@@ -279,47 +302,68 @@ pub struct BaseAddressAndMask {
 }
 
 impl MemoryRegions {
-    pub fn generate_find_vtable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
-        todo!()
+    pub fn generate_find_vtable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
+        Self::generate_find_object_region_header(assembler,ptr,temp_1,temp_2,temp_3,out);
+        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,vtable_ptr)).unwrap();
     }
 
     pub fn generate_find_allocated_type_id(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
         todo!()
     }
 
-    pub fn generate_find_object_region_header(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
+    pub fn generate_find_object_region_header(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register,temp_3: Register,  out: Register) {
         //from compiled region_pointer_to_region_size
         //let as_u64 = ptr.as_ptr() as u64;
         //let region_size = region_pointer_to_region_size(as_u64);
-        //let region_mask = !(u64::MAX << region_size);
+        //let region_mask = u64::MAX << region_size;
         //let masked = as_u64 & region_mask;
         //unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
-        assembler.mov(temp_2.to_native_64(), ptr.to_native_64()).unwrap();
-        Self::generate_region_pointer_to_region_size(assembler, ptr, temp_1, out);
-        assembler.mov(ptr.to_native_64(), temp_2.to_native_64()).unwrap();
-        assembler.mov(temp_1.to_native_64(), (-1i64) as u64).unwrap();
-        assembler.shl(temp_1.to_native_64(), out.to_native_8()).unwrap();
-        assembler.not(temp_1.to_native_64()).unwrap();
-        //temp_1 is region_mask
-        assembler.and(ptr.to_native_64(), temp_1.to_native_64()).unwrap();
-        //ptr is masked
-        assembler.mov(out.to_native_64(), ptr.to_native_64()).unwrap();
-        assembler.mov(ptr.to_native_64(), temp_2.to_native_64()).unwrap();
+        assembler.mov(temp_3.to_native_64(), ptr.to_native_64()).unwrap();
+        Self::generate_region_pointer_to_region_size(assembler, ptr, temp_1,temp_2, out);
+        assert_eq!(temp_2.to_native_64(), rcx);
+        assembler.mov(temp_2.to_native_64(), out.to_native_64()).unwrap();
+        //temp1 is region mask
+        assembler.mov(temp_1.to_native_64(), u64::MAX).unwrap();
+        assembler.shl(temp_1.to_native_64(), cl).unwrap();
+        assembler.and(temp_3.to_native_64(), temp_1.to_native_64()).unwrap();
+        assembler.mov(out.to_native_64(), temp_3.to_native_64()).unwrap();
     }
 
-    fn generate_region_pointer_to_region_size(assembler: &mut CodeAssembler, ptr: Register, temp: Register, out: Register) {
-        assembler.shr(ptr.to_native_64(), MAX_REGIONS_SIZE_SIZE as u32).unwrap();
+    fn generate_region_pointer_to_region_size(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
+        assert_eq!(temp_2.to_native_64(), rcx);
+        assembler.sub(temp_1.to_native_64(), temp_1.to_native_64()).unwrap();
+        assembler.sub(out.to_native_64(),out.to_native_64()).unwrap();
+        // example::region_pointer_to_region_size_size:
+        // shr     rdi, 43
+        assembler.shr( ptr.to_native_64(),MAX_REGIONS_SIZE_SIZE as u32).unwrap();
+        // add     edi, -1
         assembler.add(ptr.to_native_32(), -1).unwrap();
+        // shr     edi
         assembler.shr(ptr.to_native_32(), 1).unwrap();
+        // add     dil, 1
         assembler.add(ptr.to_native_8(), 1).unwrap();
-        assembler.add(out.to_native_32(), 1).unwrap();
-        assembler.add(temp.to_native_32(), 1).unwrap();
-        assembler.shl(temp.to_native_32(), ptr.to_native_8()).unwrap();
+        // mov     ecx, edi
+        assembler.mov(ecx, ptr.to_native_32()).unwrap();
+        // and     cl, 7
+        assembler.and(cl, 7).unwrap();
+        // mov     al, 1
+        assembler.mov(out.to_native_8(), 1).unwrap();
+        // mov     dl, 1
+        assembler.mov(temp_1.to_native_8(), 1).unwrap();
+        // shl     dl, cl
+        assembler.shl(temp_1.to_native_8(), cl).unwrap();
+        // shr     dil
         assembler.shr(ptr.to_native_8(), 1).unwrap();
+        // and     dil, 1
         assembler.and(ptr.to_native_8(), 1).unwrap();
-        assembler.shl(out.to_native_64(), ptr.to_native_8()).unwrap();
-        assembler.add(out.to_native_64(), temp.to_native_64()).unwrap();
-        assembler.add(out.to_native_64(), out.to_native_64()).unwrap();
+        // mov     ecx, edi
+        assembler.mov(ecx, ptr.to_native_32()).unwrap();
+        // shl     al, cl
+        assembler.shl(out.to_native_8(), cl).unwrap();
+        // add     al, dl
+        assembler.add(out.to_native_8(), temp_1.to_native_8()).unwrap();
+        // add     al, al
+        assembler.add(out.to_native_8(), out.to_native_8()).unwrap();
     }
 
 

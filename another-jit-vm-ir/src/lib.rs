@@ -15,16 +15,18 @@ use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
 use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dl, dword_ptr, dx, eax, edx, qword_ptr, rax, rbp, rbx, rcx, rdx, rsp, word_ptr};
 use itertools::Itertools;
 
-use another_jit_vm::{BaseAddress, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
+use another_jit_vm::{BaseAddress, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
-use crate::common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use vtable::generate_vtable_access;
 
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
-use crate::vm_exit_abi::{IRVMExitType};
+use crate::vm_exit_abi::IRVMExitType;
+use crate::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use crate::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 
 #[cfg(test)]
@@ -34,9 +36,6 @@ pub mod vm_exit_abi;
 pub mod ir_stack;
 pub mod common;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-#[repr(transparent)]
-pub struct IRMethodID(pub usize);
 
 pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // each IR function is distinct single java methods may many ir methods
@@ -848,6 +847,37 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
                     todo!()
                 }
             };
+        }
+        IRInstr::VTableLookupOrExit { resolve_exit } => {
+            match resolve_exit {
+                IRVMExitType::InvokeVirtualResolve {
+                    object_ref,
+                    method_shape_id,
+                    method_number,
+                    native_restart_point,
+                    native_return_offset
+                } => {
+                    let obj_ptr = Register(0);
+                    assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+                    let vtable_ptr_register = Register(3);
+                    MemoryRegions::generate_find_vtable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register);
+                    let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4
+                    let ir_method_id_register = InvokeVirtualResolve::IR_METHOD_ID_RES;// register 5
+                    let method_id_register = InvokeVirtualResolve::METHOD_ID_RES;// register 6
+                    let frame_size_register = InvokeVirtualResolve::NEW_FRAME_SIZE_RES;// register 7
+                    generate_vtable_access(assembler, *method_number, vtable_ptr_register, Register(1), address_register, ir_method_id_register, method_id_register, frame_size_register);
+                    assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
+                    let mut fast_resolve_worked = assembler.create_label();
+                    assembler.jnz(fast_resolve_worked.clone()).unwrap();
+                    let registers = resolve_exit.registers_to_save();
+                    resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
+                    let mut before_exit_label = assembler.create_label();
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
+                    // assembler.set_label(&mut fast_resolve_worked).unwrap();
+                    assembler.nop().unwrap();
+                }
+                _ => panic!(),
+            }
         }
     }
 }

@@ -86,6 +86,17 @@ pub enum Region {
     ExtraLarge,
 }
 
+impl Region{
+    pub fn bigger(&self) -> Region{
+        match self {
+            Region::Small => Region::Medium,
+            Region::Medium => Region::Large,
+            Region::Large => Region::ExtraLarge,
+            Region::ExtraLarge => Region::ExtraLarge,
+        }
+    }
+}
+
 pub fn region_pointer_to_region(ptr: u64) -> Region {
     let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
     if shifted == SMALL_REGION_BASE as u64 {

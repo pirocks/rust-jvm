@@ -1,16 +1,30 @@
 use std::collections::HashMap;
+use std::ffi::c_void;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use another_jit_vm::IRMethodID;
 
 use jvmti_jni_bindings::_jmethodID;
 use rust_jvm_common::{MethodId, MethodTableIndex};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 
 use runtime_class_stuff::RuntimeClass;
+use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
+use crate::jit::ResolvedInvokeVirtual;
 
 pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
+}
+
+pub struct MethodTableData<'gc>{
+    rc: Arc<RuntimeClass<'gc>>,
+    method_i : u16,
+    cached_layout: YetAnotherLayoutImpl,
+    current_ir_method_id: IRMethodID,
+    current_address: NonNull<c_void>,
+    resolved_invoke_virtual: Option<Box<ResolvedInvokeVirtual>>
 }
 
 pub struct MethodTable<'gc> {

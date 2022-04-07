@@ -4,24 +4,25 @@ use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use libc::memset;
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
-use gc_memory_layout_common::memory_regions::{AllocatedObjectType};
+use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::{jint, jlong};
 use perf_metrics::VMExitGuard;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use vtable::{ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
@@ -267,7 +268,6 @@ pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterSt
 pub fn invoke_virtual_resolve<'gc>(
     jvm: &'gc JVMState<'gc>,
     int_state: &mut InterpreterStateGuard<'gc, '_>,
-    exit_guard: &VMExitGuard,
     return_to_ptr: *const c_void,
     object_ref_ptr: *const c_void,
     method_shape_id: MethodShapeID,
@@ -279,17 +279,80 @@ pub fn invoke_virtual_resolve<'gc>(
         eprintln!("InvokeVirtualResolve");
     }
     let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
-    let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(method_shape_id);
     //todo this is probably wrong what if there's a class with a same name private method?
     // like surely I need to start at the classname specified in the bytecode
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let maybe_non_null = NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() });
-    // let vtable = memory_region_guard.find_type_vtable(maybe_non_null.unwrap()).unwrap();
-    // VTable::lookup(vtable, )
-    let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
-    let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
-    // drop(vtable);//make sure vtable is always guarded by memory region lock
-    drop(memory_region_guard);
+    let vtable = memory_region_guard.find_type_vtable(maybe_non_null.unwrap()).unwrap();
+    let vtable_lookup_res = VTable::lookup(vtable, method_number);
+    //todo actually use vtable lookup res
+    let res = match vtable_lookup_res {
+        None => {
+            let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
+            let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
+            drop(vtable);//make sure vtable is always guarded by memory region lock
+            drop(memory_region_guard);
+
+            let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(method_shape_id);
+            let res = invoke_virtual_full(
+                jvm,
+                int_state,
+                object_ref_ptr,
+                method_number,
+                native_method_restart_point,
+                native_method_res,
+                caller_method_id,
+                name,
+                &desc,
+                allocated_type,
+            );
+            match res {
+                Either::Left(resolved) => {
+                    resolved
+                }
+                Either::Right(was_native) => {
+                    return was_native;
+                }
+            }
+        }
+        Some(res) => {
+            res
+        }
+    };
+
+    let ResolvedVTableEntry {
+        address,
+        ir_method_id,
+        method_id,
+        new_frame_size
+    } = res;
+
+
+    let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
+    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr());
+    start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, method_id as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
+    IRVMExitAction::RestartWithRegisterState {
+        diff: SavedRegistersWithIPDiff {
+            rip: Some(return_to_ptr),
+            saved_registers_without_ip: start_diff,
+        }
+    }
+}
+
+fn invoke_virtual_full<'gc>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut InterpreterStateGuard<'gc,'_>,
+    object_ref_ptr: *const c_void,
+    method_number: MethodNumber,
+    native_method_restart_point: RestartPointID,
+    native_method_res: *mut c_void,
+    caller_method_id: MethodId,
+    name: MethodName,
+    desc: &CMethodDescriptor,
+    allocated_type: AllocatedObjectType,
+) -> Either<ResolvedVTableEntry, IRVMExitAction> {
     let rc = match allocated_type {
         AllocatedObjectType::Class { name, .. } => {
             assert_inited_or_initing_class(jvm, (name).into())
@@ -303,7 +366,7 @@ pub fn invoke_virtual_resolve<'gc>(
         }
     };
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, name, &desc, rc).unwrap();
-    let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc, method_i);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), method_i);
     let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
         if !jvm.is_native_by_method_id(method_id) {
@@ -321,7 +384,6 @@ pub fn invoke_virtual_resolve<'gc>(
             let arg_start: *const c_void = object_ref_ptr;
             let args_jv_handle = virtual_args_extract(jvm, arg_types, arg_start);
             let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
-            drop(exit_guard);
             let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
                 Ok(x) => x,
                 Err(WasException {}) => {
@@ -335,7 +397,7 @@ pub fn invoke_virtual_resolve<'gc>(
                 unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
             };
             let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
-            return IRVMExitAction::RestartAtPtr { ptr: restart_address };
+            return Either::Right(IRVMExitAction::RestartAtPtr { ptr: restart_address });
         }
     }
 
@@ -358,18 +420,15 @@ pub fn invoke_virtual_resolve<'gc>(
             // jvm.vtables.read().unwrap().lookup_resolved(allocated_type_id, *inheritance_id).unwrap()
         }
     };
-    let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
-    start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
-    start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, method_id as *mut c_void);
-    start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
-    drop(exit_guard);
-    IRVMExitAction::RestartWithRegisterState {
-        diff: SavedRegistersWithIPDiff {
-            rip: Some(return_to_ptr),
-            saved_registers_without_ip: start_diff,
-        }
-    }
+    let resolved_vtable_entry = VTableEntry {
+        address: Some(NonNull::new(address as *mut c_void).unwrap()),
+        ir_method_id,
+        method_id,
+        new_frame_size,
+    };
+    jvm.vtable.lock().unwrap().vtable_register_entry(resolved_rc, method_number, resolved_vtable_entry);
+
+    Either::Left(resolved_vtable_entry.resolved().unwrap())
 }
 
 #[inline(never)]
@@ -404,6 +463,7 @@ pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
+
 #[inline(never)]
 pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exit_guard: &VMExitGuard, type_: &CPDTypeID, return_to_ptr: *const c_void, res_address: &*mut NonNull<c_void>) -> IRVMExitAction {
     let guard = jvm.perf_metrics.vm_exit_allocate_obj();
@@ -412,7 +472,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
-    let object_type = runtime_class_to_allocated_object_type(jvm,rc.clone(), int_state.current_loader(jvm), None);
+    let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let object_size = object_type.size();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
@@ -559,7 +619,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
             args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
         }
     }
-    assert!(jvm.thread_state.int_state_guard_valid.with(|inner|inner.borrow().clone()));
+    assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
     let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
@@ -587,7 +647,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
     assert!(len >= 0);
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
-    let object_array = runtime_class_to_allocated_object_type(jvm,rc.clone(), int_state.current_loader(jvm), Some(len as usize));
+    let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
     let allocated_object = memory_region_guard.allocate(&object_array);

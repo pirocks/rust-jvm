@@ -49,6 +49,7 @@ dependencies = [
  "add-only-static-vec",
  "another-jit-vm",
  "bimap",
+ "gc-memory-layout-common",
  "iced-x86",
  "itertools",
  "libc",
@@ -57,6 +58,7 @@ dependencies = [
  "runtime-class-stuff",
  "rust-jvm-common",
  "sketch-jvm-version-of-utf8",
+ "vtable",
 ]
 
 [[package]]
@@ -519,7 +521,6 @@ name = "gc-memory-layout-common"
 version = "0.1.0"
 dependencies = [
  "another-jit-vm",
- "another-jit-vm-ir",
  "iced-x86",
  "itertools",
  "jvmti-jni-bindings",
@@ -1731,7 +1732,6 @@ name = "vtable"
 version = "0.1.0"
 dependencies = [
  "another-jit-vm",
- "another-jit-vm-ir",
  "by_address",
  "iced-x86",
  "itertools",

@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::Hash;
+use another_jit_vm::IRMethodID;
 
-use another_jit_vm_ir::{IRInstructIndex, IRMethodID, IRVMExitAction};
+use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
@@ -114,7 +115,7 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
                 exit_impls::new_class(jvm, int_state, &exit_guard, *type_, *res, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, method_number, native_method_restart_point, native_method_res } => {
-                exit_impls::invoke_virtual_resolve(jvm, int_state, &exit_guard, *return_to_ptr, *object_ref_ptr, *method_shape_id, MethodNumber(*method_number), *native_method_restart_point, *native_method_res)
+                exit_impls::invoke_virtual_resolve(jvm, int_state, *return_to_ptr, *object_ref_ptr, *method_shape_id, MethodNumber(*method_number), *native_method_restart_point, *native_method_res)
             }
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr } => {
                 exit_impls::monitor_enter(jvm, int_state, &exit_guard, obj_ptr, return_to_ptr)

@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 rust-jvm-common = { path = "../rust-jvm-common" }
 another-jit-vm = { path = "../another-jit-vm" }
-another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 memoffset = "0.6"
 itertools = "0.10"

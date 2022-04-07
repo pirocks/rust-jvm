@@ -11,7 +11,6 @@ jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 verification = { path = "../verification" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 another-jit-vm = { path = "../another-jit-vm" }
-another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 vtable = { path = "../vtable" }
 
 nix = "0.23"

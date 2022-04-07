@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Debug;
 use std::ptr::null_mut;
-use another_jit_vm_ir::common::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::layout::{FrameHeader};

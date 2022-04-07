@@ -3,6 +3,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
 use crate::java_values::ByAddressAllocatedObject;
+use crate::java::NewAsObjectOrJavaValue;
 
 pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) {
     unsafe {
@@ -102,7 +103,9 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGua
             let ptr = obj.ptr();
             let save = IN_TO_STRING;
             IN_TO_STRING = true;
-            eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), "".to_string()/*obj.cast_object().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm)*/);
+            if !save {
+                eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), ""/*obj.cast_object().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm)*/);
+            }
             IN_TO_STRING = save;
         }
     }

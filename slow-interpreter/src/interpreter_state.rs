@@ -6,7 +6,7 @@ use std::ptr::{slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
-use another_jit_vm_ir::common::FramePointerOffset;
+use another_jit_vm::FramePointerOffset;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};

@@ -1,10 +1,9 @@
 use std::ffi::c_void;
 
-use another_jit_vm::{DoubleRegister, FloatRegister, MMRegister, Register};
+use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
 use rust_jvm_common::MethodId;
 
-use crate::{IRMethodID, IRVMExitType};
-use crate::common::FramePointerOffset;
+use crate::IRVMExitType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Size {
@@ -116,6 +115,9 @@ pub enum IRInstr {
     BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     RestartPoint(RestartPointID),
+    VTableLookupOrExit{
+        resolve_exit: IRVMExitType
+    },
     VMExit2 { exit_type: IRVMExitType },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
@@ -365,6 +367,9 @@ impl IRInstr {
             }
             IRInstr::SubFloat { .. } => {
                 "SubFloat".to_string()
+            }
+            IRInstr::VTableLookupOrExit { .. } => {
+                "VTableLookupOrExit".to_string()
             }
         }
     }

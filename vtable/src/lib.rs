@@ -12,8 +12,7 @@ use iced_x86::code_asm::CodeAssembler;
 use itertools::Itertools;
 use memoffset::offset_of;
 
-use another_jit_vm::Register;
-use another_jit_vm_ir::IRMethodID;
+use another_jit_vm::{IRMethodID, Register};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::MethodId;
@@ -21,13 +20,13 @@ use rust_jvm_common::MethodId;
 pub mod lookup_cache;
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct VTableEntry {
-    address: Option<NonNull<c_void>>,
+    pub address: Option<NonNull<c_void>>,
     //null indicates need for resolve
-    ir_method_id: IRMethodID,
-    method_id: MethodId,
-    new_frame_size: usize,
+    pub ir_method_id: IRMethodID,
+    pub method_id: MethodId,
+    pub new_frame_size: usize,
 }
 
 impl VTableEntry {
@@ -40,12 +39,12 @@ impl VTableEntry {
         }
     }
 
-    pub fn resolved(&self) -> Option<ResolvedVTableEntry>{
-        Some(ResolvedVTableEntry{
+    pub fn resolved(&self) -> Option<ResolvedVTableEntry> {
+        Some(ResolvedVTableEntry {
             address: self.address?,
             ir_method_id: self.ir_method_id,
             method_id: self.method_id,
-            new_frame_size: self.new_frame_size
+            new_frame_size: self.new_frame_size,
         })
     }
 }
@@ -53,10 +52,10 @@ impl VTableEntry {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct ResolvedVTableEntry {
-    address: NonNull<c_void>,
-    ir_method_id: IRMethodID,
-    method_id: MethodId,
-    new_frame_size: usize,
+    pub address: NonNull<c_void>,
+    pub ir_method_id: IRMethodID,
+    pub method_id: MethodId,
+    pub new_frame_size: usize,
 }
 
 #[repr(C)]
@@ -119,6 +118,8 @@ pub struct VTables<'gc> {
     inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<RawNativeVTable>>,//ref is leaked box
 }
 
+static mut VTABLE_ALLOCS: u64 = 0;
+
 impl<'gc> VTables<'gc> {
     pub fn new() -> Self {
         Self {
@@ -127,7 +128,16 @@ impl<'gc> VTables<'gc> {
     }
 
     pub fn lookup_or_new_vtable(&mut self, rc: Arc<RuntimeClass<'gc>>) -> NonNull<RawNativeVTable> {
-        *self.inner.entry(ByAddress(rc.clone())).or_insert(NonNull::new(Box::into_raw(box RawNativeVTable::new(rc.unwrap_class_class()))).unwrap())
+        *self.inner.entry(ByAddress(rc.clone())).or_insert_with(|| {
+            unsafe {
+                VTABLE_ALLOCS += 1;
+                if VTABLE_ALLOCS % 10_000 == 0 {
+                    dbg!(VTABLE_ALLOCS);
+                }
+            }
+            NonNull::new(Box::into_raw(box RawNativeVTable::new(rc.unwrap_class_class()))).unwrap()
+        }
+        )
     }
 
     pub fn vtable_register_entry(&mut self, rc: Arc<RuntimeClass<'gc>>, method_number: MethodNumber, entry: VTableEntry) -> NonNull<RawNativeVTable> {
