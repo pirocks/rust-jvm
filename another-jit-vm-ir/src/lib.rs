@@ -852,10 +852,8 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             match resolve_exit {
                 IRVMExitType::InvokeVirtualResolve {
                     object_ref,
-                    method_shape_id,
                     method_number,
-                    native_restart_point,
-                    native_return_offset
+                    ..
                 } => {
                     let obj_ptr = Register(0);
                     assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();

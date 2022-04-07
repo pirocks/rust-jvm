@@ -36,7 +36,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     assert!(method.is_native());
 
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
-    dbg!(&method_as_string);
+    // dbg!(&method_as_string);
     let noise = vec![
         "arraycopy",
         "getClass",
