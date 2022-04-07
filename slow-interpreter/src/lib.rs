@@ -42,7 +42,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::NewAsObjectOrJavaValue;
-use crate::java_values::{ JavaValue};
+use crate::java_values::JavaValue;
 use crate::jit::MethodResolver;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
@@ -86,6 +86,7 @@ pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod verifier_frames;
 pub mod layout_cache;
+pub mod string_exit_cache;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

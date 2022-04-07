@@ -535,7 +535,9 @@ pub mod string {
 
     impl Clone for JString<'_> {
         fn clone(&self) -> Self {
-            todo!()
+            JString{
+                normal_object: self.normal_object.duplicate_discouraged()
+            }
         }
     }
 

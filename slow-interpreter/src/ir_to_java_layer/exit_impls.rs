@@ -439,16 +439,28 @@ pub fn new_class<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateG
 }
 
 #[inline(never)]
-pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, return_to_ptr: *const c_void, res: *mut c_void, compressed_wtf8: &CompressedWtf8String) -> IRVMExitAction {
+pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, return_to_ptr: *const c_void, res: *mut c_void, compressed_wtf8: CompressedWtf8String) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("NewString");
     }
-    let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-    let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
-    let jv = jstring.new_java_value_handle();
+    let read_guard = jvm.string_exit_cache.read().unwrap();
+    let native = match read_guard.lookup(compressed_wtf8){
+        None => {
+            drop(read_guard);
+            let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
+            let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
+            jvm.string_exit_cache.write().unwrap().register_entry(compressed_wtf8,jstring.clone());
+            let jv = jstring.new_java_value();
+            jv.to_native()
+        }
+        Some(jstring) => {
+            let jv = jstring.new_java_value();
+            jv.to_native()
+        }
+    };
     unsafe {
-        let raw_64 = jv.to_native().as_u64;
-        (res as *mut u64).write(raw_64);
+        let raw_u64 = native.as_u64;
+        (res as *mut u64).write(raw_u64);
     }
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }

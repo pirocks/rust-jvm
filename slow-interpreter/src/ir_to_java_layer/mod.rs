@@ -109,7 +109,7 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
                 exit_impls::allocate_object(jvm, int_state, type_, *return_to_ptr, res_address)
             }
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8 } => {
-                exit_impls::new_string(&jvm, int_state, *return_to_ptr, *res, compressed_wtf8)
+                exit_impls::new_string(&jvm, int_state, *return_to_ptr, *res, *compressed_wtf8)
             }
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr } => {
                 exit_impls::new_class(jvm, int_state, *type_, *res, *return_to_ptr)

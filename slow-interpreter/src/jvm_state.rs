@@ -58,6 +58,7 @@ use vtable::VTables;
 use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
+use crate::string_exit_cache::StringExitCache;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
@@ -115,7 +116,8 @@ pub struct JVMState<'gc> {
     pub recompilation_conditions: RwLock<RecompileConditions>,
     pub known_addresses: KnownAddresses,
     pub vtable: Mutex<VTables<'gc>>,
-    pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>
+    pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
+    pub string_exit_cache: RwLock<StringExitCache<'gc>>
 }
 
 
@@ -317,7 +319,8 @@ impl<'gc> JVMState<'gc> {
             recompilation_conditions: RwLock::new(RecompileConditions::new()),
             known_addresses: KnownAddresses::new(),
             vtable: Mutex::new(VTables::new()),
-            invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new())
+            invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
+            string_exit_cache: RwLock::new(StringExitCache::new())
         };
         (args, jvm)
     }
