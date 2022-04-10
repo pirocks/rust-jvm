@@ -50,6 +50,7 @@ pub(crate) fn checkcast_impl(
         exit_type: IRVMExitType::CheckCast {
             value: frame_pointer_offset,
             cpdtype: cpdtype_id,
+            java_pc: current_instr_data.current_offset
         }
     });
     res.push(IRInstr::Label(IRLabel{ name: checkcast_succeeds }));
@@ -64,6 +65,7 @@ pub fn instanceof(resolver: &MethodResolver, method_frame_data: &JavaCompilerMet
                 value: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                 res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 cpdtype: cpdtype_id,
+                java_pc: current_instr_data.current_offset
             }
         }
     ])

@@ -13,6 +13,7 @@
 #![feature(generic_associated_types)]
 #![feature(never_type)]
 #![feature(box_patterns)]
+#![feature(once_cell)]
 extern crate core;
 extern crate errno;
 extern crate libc;
@@ -81,7 +82,6 @@ pub mod jit;
 pub mod jit_common;
 pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
-pub mod opaque_ids;
 pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod verifier_frames;

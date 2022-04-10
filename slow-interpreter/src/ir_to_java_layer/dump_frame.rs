@@ -3,7 +3,6 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
 use crate::java_values::ByAddressAllocatedObject;
-use crate::java::NewAsObjectOrJavaValue;
 
 pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) {
     unsafe {

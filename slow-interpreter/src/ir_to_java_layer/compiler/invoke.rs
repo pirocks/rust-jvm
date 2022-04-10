@@ -42,6 +42,7 @@ pub fn invokespecial<'vm_life>(
                         class: cpd_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id: restart_point_id_class_load,
+                        java_pc: current_instr_data.current_offset
                     },
                 }]))
         }
@@ -64,6 +65,7 @@ pub fn invokespecial<'vm_life>(
                                 Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                             },
                             num_args: num_args as u16,
+                            java_pc: current_instr_data.current_offset
                         }
                     }
                 ]))
@@ -77,6 +79,7 @@ pub fn invokespecial<'vm_life>(
                                 current_method_id: method_frame_data.current_method_id,
                                 target_method_id: method_id,
                                 restart_point_id: restart_point_id_function_address,
+                                java_pc: current_instr_data.current_offset
                             }
                         };
                         //todo have restart point ids for matching same restart points
@@ -136,6 +139,7 @@ pub fn invokestatic<'vm_life>(
                         class: cpdtype_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
+                        java_pc: current_instr_data.current_offset
                     },
                 }]))
         }
@@ -161,6 +165,7 @@ pub fn invokestatic<'vm_life>(
                                 Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                             },
                             num_args,
+                            java_pc: current_instr_data.current_offset
                         },
                     }]))
             } else {
@@ -175,6 +180,7 @@ pub fn invokestatic<'vm_life>(
                                 current_method_id: method_frame_data.current_method_id,
                                 target_method_id: method_id,
                                 restart_point_id: restart_point_id_function_address,
+                                java_pc: current_instr_data.current_offset
                             }
                         };
                         //todo have restart point ids for matching same restart points
@@ -242,6 +248,7 @@ pub fn invokevirtual<'vm_life>(
                         class: target_class_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
+                        java_pc: current_instr_data.current_offset
                     },
                 }, after_call_restart_point]));
         }
@@ -279,6 +286,7 @@ pub fn invokevirtual<'vm_life>(
                 } else {
                     Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                 },
+                java_pc: current_instr_data.current_offset
             }
         },
         IRInstr::IRCall {
@@ -328,6 +336,7 @@ pub fn invoke_interface(
                         class: cpdtype_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
+                        java_pc: current_instr_data.current_offset
                     },
                 }, after_call_restart_point]))
         }
@@ -363,6 +372,7 @@ pub fn invoke_interface(
                                      } else {
                                          Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                                      },
+                                     java_pc: current_instr_data.current_offset
                                  }
                              },
                              IRInstr::IRCall {

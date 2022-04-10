@@ -14,11 +14,12 @@ impl AllocateObjectArray {
     pub const TYPE: Register = Register(3);
     pub const RES_PTR: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for AllocateObjectArray {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::RES_PTR, Self::RESTART_IP, Self::LEN, Self::TYPE])
+        HashSet::from([Register(0), Self::RES_PTR, Self::RESTART_IP, Self::LEN, Self::TYPE, Self::JAVA_PC])
     }
 }
 
@@ -30,6 +31,7 @@ impl MultiAllocateArray {
     pub const NUM_ARRAYS: Register = Register(4);
     pub const RES_PTR: Register = Register(5);
     pub const RESTART_IP: Register = Register(6);
+    pub const JAVA_PC: Register = Register(7);
 }
 
 impl ExitRegisterStruct for MultiAllocateArray {
@@ -40,6 +42,7 @@ impl ExitRegisterStruct for MultiAllocateArray {
             Self::NUM_ARRAYS,
             Self::RES_PTR,
             Self::RESTART_IP,
+            Self::JAVA_PC
         ])
     }
 }
@@ -50,11 +53,13 @@ impl AllocateObject {
     pub const TYPE: Register = Register(3);
     pub const RES_PTR: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
+
 }
 
 impl ExitRegisterStruct for AllocateObject {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), AllocateObject::TYPE, AllocateObject::RES_PTR, AllocateObject::RESTART_IP])
+        HashSet::from([Register(0), AllocateObject::TYPE, AllocateObject::RES_PTR, AllocateObject::RESTART_IP, Self::JAVA_PC])
     }
 }
 
@@ -63,12 +68,16 @@ pub struct RunStaticNative;
 impl RunStaticNative {
     pub const RES: Register = Register(1);
     pub const ARG_START: Register = Register(2);
-    //pointer to first(highest address) arg
     pub const NUM_ARGS: Register = Register(3);
-    //num args
     pub const METHODID: Register = Register(4);
-    //methodid
     pub const RESTART_IP: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
+}
+
+impl ExitRegisterStruct for RunStaticNative{
+    fn all_registers() -> HashSet<Register> {
+        todo!()
+    }
 }
 
 
@@ -79,6 +88,7 @@ impl RunNativeVirtual {
     pub const ARG_START: Register = Register(3);
     pub const METHODID: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for RunNativeVirtual {
@@ -94,6 +104,7 @@ impl RunNativeSpecial {
     pub const ARG_START: Register = Register(3);
     pub const METHODID: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for RunNativeSpecial {
@@ -103,6 +114,7 @@ impl ExitRegisterStruct for RunNativeSpecial {
             Self::ARG_START,
             Self::METHODID,
             Self::RESTART_IP,
+            Self::JAVA_PC
         ])
     }
 }
@@ -111,6 +123,8 @@ pub struct TopLevelReturn;
 
 impl TopLevelReturn {
     pub const RES: Register = Register(2);
+    pub const JAVA_PC: Register = Register(3);
+
 }
 
 pub struct PutStatic;
@@ -119,11 +133,13 @@ impl PutStatic {
     pub const FIELD_ID: Register = Register(2);
     pub const VALUE_PTR: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
+
 }
 
 impl ExitRegisterStruct for PutStatic {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), PutStatic::VALUE_PTR, PutStatic::FIELD_ID, PutStatic::RESTART_IP])
+        HashSet::from([Register(0), PutStatic::VALUE_PTR, PutStatic::FIELD_ID, PutStatic::RESTART_IP, Self::JAVA_PC])
     }
 }
 
@@ -135,11 +151,12 @@ impl GetStatic {
     pub const RES_VALUE_PTR: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
     pub const CPDTYPE_ID: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for GetStatic {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::FIELD_NAME, Self::RES_VALUE_PTR, Self::RESTART_IP, Self::CPDTYPE_ID])
+        HashSet::from([Register(0), Self::FIELD_NAME, Self::RES_VALUE_PTR, Self::RESTART_IP, Self::CPDTYPE_ID, Self::JAVA_PC])
     }
 }
 
@@ -147,11 +164,12 @@ pub struct Throw;
 
 impl Throw {
     pub const EXCEPTION_PTR: Register = Register(2);
+    pub const JAVA_PC: Register = Register(3);
 }
 
 impl ExitRegisterStruct for Throw {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Throw::EXCEPTION_PTR])
+        HashSet::from([Register(0), Throw::EXCEPTION_PTR, Self::JAVA_PC])
     }
 }
 
@@ -161,6 +179,7 @@ impl InitClassAndRecompile {
     pub const CPDTYPE_ID: Register = Register(2);
     pub const TO_RECOMPILE: Register = Register(3);
     pub const RESTART_POINT_ID: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 pub struct CompileFunctionAndRecompileCurrent;
@@ -169,11 +188,12 @@ impl CompileFunctionAndRecompileCurrent {
     pub const CURRENT: Register = Register(2);
     pub const TO_RECOMPILE: Register = Register(3);
     pub const RESTART_POINT_ID: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 impl ExitRegisterStruct for CompileFunctionAndRecompileCurrent {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), CompileFunctionAndRecompileCurrent::TO_RECOMPILE, CompileFunctionAndRecompileCurrent::CURRENT, CompileFunctionAndRecompileCurrent::RESTART_POINT_ID])
+        HashSet::from([Register(0), CompileFunctionAndRecompileCurrent::TO_RECOMPILE, CompileFunctionAndRecompileCurrent::CURRENT, CompileFunctionAndRecompileCurrent::RESTART_POINT_ID, Self::JAVA_PC])
     }
 }
 
@@ -188,6 +208,7 @@ impl LoadClassAndRecompile {
     pub const CPDTYPE_ID: Register = Register(2);
     pub const TO_RECOMPILE: Register = Register(3);
     pub const RESTART_POINT_ID: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 pub struct LogFramePointerOffsetValue;
@@ -195,13 +216,14 @@ pub struct LogFramePointerOffsetValue;
 impl LogFramePointerOffsetValue {
     pub const VALUE: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
-    // pub const STRING_MESSAGE: Register = Register(4);
+    pub const JAVA_PC: Register = Register(4);
 }
 
 pub struct LogWholeFrame;
 
 impl LogWholeFrame {
     pub const RESTART_IP: Register = Register(2);
+    pub const JAVA_PC: Register = Register(3);
 }
 
 pub struct TraceInstructionBefore;
@@ -210,11 +232,12 @@ impl TraceInstructionBefore {
     pub const METHOD_ID: Register = Register(2);
     pub const BYTECODE_OFFSET: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 impl ExitRegisterStruct for TraceInstructionBefore {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), TraceInstructionBefore::METHOD_ID, TraceInstructionBefore::BYTECODE_OFFSET, TraceInstructionBefore::RESTART_IP])
+        HashSet::from([Register(0), TraceInstructionBefore::METHOD_ID, TraceInstructionBefore::BYTECODE_OFFSET, TraceInstructionBefore::RESTART_IP, Self::JAVA_PC])
     }
 }
 
@@ -224,11 +247,12 @@ impl TraceInstructionAfter {
     pub const METHOD_ID: Register = Register(2);
     pub const BYTECODE_OFFSET: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 impl ExitRegisterStruct for TraceInstructionAfter {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), TraceInstructionAfter::METHOD_ID, TraceInstructionAfter::BYTECODE_OFFSET, TraceInstructionAfter::RESTART_IP])
+        HashSet::from([Register(0), TraceInstructionAfter::METHOD_ID, TraceInstructionAfter::BYTECODE_OFFSET, TraceInstructionAfter::RESTART_IP, Self::JAVA_PC])
     }
 }
 
@@ -237,6 +261,7 @@ pub struct BeforeReturn;
 impl BeforeReturn {
     pub const FRAME_SIZE: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
+    pub const JAVA_PC: Register = Register(4);
 }
 
 pub struct NewString;
@@ -245,11 +270,12 @@ impl NewString {
     pub const COMPRESSED_WTF8: Register = Register(2);
     pub const RES: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 impl ExitRegisterStruct for NewString {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), NewString::RES, NewString::RESTART_IP, NewString::COMPRESSED_WTF8])
+        HashSet::from([Register(0), NewString::RES, NewString::RESTART_IP, NewString::COMPRESSED_WTF8, Self::JAVA_PC])
     }
 }
 
@@ -259,11 +285,12 @@ impl NewClass {
     pub const CPDTYPE_ID: Register = Register(2);
     pub const RES: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
 }
 
 impl ExitRegisterStruct for NewClass {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), NewClass::RES, NewClass::CPDTYPE_ID, NewClass::RESTART_IP])
+        HashSet::from([Register(0), NewClass::RES, NewClass::CPDTYPE_ID, NewClass::RESTART_IP, Self::JAVA_PC])
     }
 }
 
@@ -274,6 +301,7 @@ impl InstanceOf {
     pub const RES_VALUE_PTR: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
     pub const CPDTYPE_ID: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for InstanceOf {
@@ -283,6 +311,7 @@ impl ExitRegisterStruct for InstanceOf {
             Self::RES_VALUE_PTR,
             Self::RESTART_IP,
             Self::CPDTYPE_ID,
+            Self::JAVA_PC
         ])
     }
 }
@@ -293,11 +322,12 @@ impl CheckCast {
     pub const VALUE_PTR: Register = Register(2);
     pub const RESTART_IP: Register = Register(4);
     pub const CPDTYPE_ID: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
 }
 
 impl ExitRegisterStruct for CheckCast {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), CheckCast::RESTART_IP, CheckCast::VALUE_PTR, CheckCast::CPDTYPE_ID])
+        HashSet::from([Register(0), CheckCast::RESTART_IP, CheckCast::VALUE_PTR, CheckCast::CPDTYPE_ID, Self::JAVA_PC])
     }
 }
 
@@ -306,14 +336,15 @@ pub struct InvokeVirtualResolve;
 impl InvokeVirtualResolve {
     pub const OBJECT_REF_PTR: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
-    pub const ADDRESS_RES: Register = Register(4);
-    pub const IR_METHOD_ID_RES: Register = Register(5);
-    pub const METHOD_ID_RES: Register = Register(6);
-    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
-    pub const METHOD_SHAPE_ID: Register = Register(8);
     pub const METHOD_NUMBER: Register = Register(4);
-    pub const NATIVE_RESTART_POINT: Register = Register(9);
     pub const NATIVE_RETURN_PTR: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
+    pub const METHOD_SHAPE_ID: Register = Register(8);
+    pub const NATIVE_RESTART_POINT: Register = Register(9);
+    pub const METHOD_ID_RES: Register = Register(6);
+    pub const IR_METHOD_ID_RES: Register = Register(5);
+    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
+    pub const ADDRESS_RES: Register = Register(4);
 }
 
 impl ExitRegisterStruct for InvokeVirtualResolve {
@@ -329,7 +360,8 @@ impl ExitRegisterStruct for InvokeVirtualResolve {
             Self::METHOD_SHAPE_ID,
             Self::NATIVE_RESTART_POINT,
             Self::NATIVE_RETURN_PTR,
-            Self::METHOD_NUMBER
+            Self::METHOD_NUMBER,
+            Self::JAVA_PC
         ])
     }
 }
@@ -340,13 +372,14 @@ pub struct InvokeInterfaceResolve;
 impl InvokeInterfaceResolve {
     pub const OBJECT_REF: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
-    pub const ADDRESS_RES: Register = Register(4);
-    pub const IR_METHOD_ID_RES: Register = Register(5);
-    pub const METHOD_ID_RES: Register = Register(6);
-    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
+    pub const JAVA_PC: Register = Register(4);
+    pub const NATIVE_RETURN_PTR: Register = Register(5);
     pub const TARGET_METHOD_ID: Register = Register(8);
     pub const NATIVE_RESTART_POINT: Register = Register(9);
-    pub const NATIVE_RETURN_PTR: Register = Register(5);
+    pub const ADDRESS_RES: Register = Register(4);
+    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
+    pub const IR_METHOD_ID_RES: Register = Register(5);
+    pub const METHOD_ID_RES: Register = Register(6);
 }
 
 impl ExitRegisterStruct for InvokeInterfaceResolve {
@@ -362,6 +395,7 @@ impl ExitRegisterStruct for InvokeInterfaceResolve {
             Self::TARGET_METHOD_ID,
             Self::NATIVE_RESTART_POINT,
             Self::NATIVE_RETURN_PTR,
+            Self::JAVA_PC
         ])
     }
 }
@@ -371,11 +405,12 @@ pub struct MonitorEnter;
 impl MonitorEnter {
     pub const OBJ_ADDR: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
+    pub const JAVA_PC: Register = Register(4);
 }
 
 impl ExitRegisterStruct for MonitorEnter {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), MonitorEnter::RESTART_IP, MonitorEnter::OBJ_ADDR])
+        HashSet::from([Register(0), MonitorEnter::RESTART_IP, MonitorEnter::OBJ_ADDR, Self::JAVA_PC])
     }
 }
 
@@ -384,10 +419,24 @@ pub struct MonitorExit;
 impl MonitorExit {
     pub const OBJ_ADDR: Register = Register(2);
     pub const RESTART_IP: Register = Register(3);
+    pub const JAVA_PC: Register = Register(4);
 }
 
 impl ExitRegisterStruct for MonitorExit {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), MonitorExit::RESTART_IP, MonitorExit::OBJ_ADDR])
+        HashSet::from([Register(0), MonitorExit::RESTART_IP, MonitorExit::OBJ_ADDR, Self::JAVA_PC])
+    }
+}
+
+
+pub struct NPE;
+
+impl NPE {
+    pub const JAVA_PC: Register = Register(4);
+}
+
+impl ExitRegisterStruct for NPE {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::JAVA_PC])
     }
 }

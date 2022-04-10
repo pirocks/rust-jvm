@@ -362,7 +362,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                             data.push(unsafe { jv.to_native().as_u64 });
                         }
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
-                        int_state.push_frame(top_level_exit_ptr, Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -377,14 +377,14 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
-                        int_state.push_frame(top_level_exit_ptr, None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr.as_ptr(), None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Opaque { opaque_id, native_local_refs } => {
                         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
                         let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
                         let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
                         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
-                        int_state.push_frame(top_level_exit_ptr, None, wrapped_opaque_id.to_native(), data.as_slice(), ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr.as_ptr(), None, wrapped_opaque_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                 };
                 FramePushGuard {

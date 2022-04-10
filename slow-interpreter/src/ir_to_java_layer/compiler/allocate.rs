@@ -27,6 +27,7 @@ pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
                     class: cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
+                    java_pc: current_instr_data.current_offset
                 },
             }])
         }
@@ -35,6 +36,7 @@ pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
                 exit_type: IRVMExitType::AllocateObject {
                     class_type: cpd_type_id,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                    java_pc: current_instr_data.current_offset
                 }
             }])
         }
@@ -63,6 +65,7 @@ pub fn anewarray<'vm_life>(
                         class: cpd_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
+                        java_pc: current_instr_data.current_offset
                     },
                 }]))
         }
@@ -78,6 +81,7 @@ pub fn anewarray<'vm_life>(
                         array_type,
                         arr_len,
                         arr_res,
+                        java_pc: current_instr_data.current_offset
                     }
                 }]))
         }
@@ -127,6 +131,7 @@ pub fn multianewarray<'vm_life>(
                         class: cpd_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
+                        java_pc: current_instr_data.current_offset
                     },
                 }]))
         }
@@ -144,6 +149,7 @@ pub fn multianewarray<'vm_life>(
                         num_arrays,
                         arr_len_start,
                         arr_res,
+                        java_pc: current_instr_data.current_offset
                     }
                 }]))
         }

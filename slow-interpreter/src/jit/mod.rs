@@ -5,6 +5,7 @@ use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
 
 use classfile_view::view::HasAccessFlags;
+use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -132,16 +133,7 @@ impl<'gc> MethodResolver<'gc> {
     pub fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(on)?;
-        // assert_eq!(loader_name, self.loader);
         self.lookup_special_impl(name, &desc, rc)
-        /*let view = rc.view();
-        let string_pool = &self.jvm.string_pool;
-        dbg!(view.name().jvm_representation(string_pool));
-        dbg!(name.0.to_str(string_pool));
-        dbg!(desc.jvm_representation(string_pool));
-        let method_view = view.lookup_method(name, &desc).unwrap();
-        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-        Some((method_id, method_view.is_native()))*/
     }
 
     fn lookup_special_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
@@ -161,10 +153,6 @@ impl<'gc> MethodResolver<'gc> {
                 return Some(res);
             }
         }
-        // let string_pool = &self.jvm.string_pool;
-        // dbg!(name.0.to_str(string_pool));
-        // dbg!(desc.jvm_representation(string_pool));
-        // dbg!(rc.cpdtype().jvm_representation(string_pool));
         None
     }
 
@@ -193,31 +181,47 @@ impl<'gc> MethodResolver<'gc> {
         PartialYetAnotherLayoutImpl::new(code)
     }
 
-    pub fn is_synchronized(&self, method_id: MethodId) -> bool {
+    fn using_method_view_impl<T>(&self, method_id: MethodId, using: impl FnOnce(&MethodView) -> T) -> T{
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
-        method_view.is_synchronized()
+        using(&method_view)
+    }
+
+    pub fn is_synchronized(&self, method_id: MethodId) -> bool {
+        self.using_method_view_impl(method_id,|method_view|{
+            method_view.is_synchronized()
+        })
+    }
+
+    pub fn is_static(&self, method_id: MethodId) -> bool {
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.is_static()
+        })
     }
 
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
-        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let view = rc.view();
-        let method_view = view.method_view_i(method_i);
-        method_view.code_attribute().unwrap().clone()
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.code_attribute().unwrap().clone()
+        })
     }
 
     pub fn num_args(&self, method_id: MethodId) -> u16 {
-        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let view = rc.view();
-        let method_view = view.method_view_i(method_i);
-        method_view.num_args() as u16
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.num_args()
+        })
+    }
+
+    pub fn lookup_method_desc(&self, method_id: MethodId) -> CMethodDescriptor {
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.desc().clone()
+        })
     }
 
     pub fn lookup_ir_method_id_and_address(&self, method_id: MethodId) -> Option<(IRMethodID, *const c_void)> {
         let ir_method_id = self.jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })?;
         let ptr = self.jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-        Some((ir_method_id, ptr))
+        Some((ir_method_id, ptr.as_ptr()))
     }
 
     pub fn get_field_id(&self, runtime_class: Arc<RuntimeClass<'gc>>, field_name: FieldName) -> FieldId {

@@ -8,7 +8,9 @@ use std::collections::{Bound, BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
 use std::iter::Step;
+use std::lazy::OnceCell;
 use std::ops::{Deref, Range, RangeBounds};
+use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, code_asm, InstructionBlock};
@@ -51,7 +53,7 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // index
     opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
-    handlers: HashMap<IRMethodID, ExitHandlerType<'vm_life, ExtraData>>,
+    pub handler: OnceCell<ExitHandlerType<'vm_life, ExtraData>>
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
@@ -66,7 +68,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             method_ir_offsets_at_index: Default::default(),
             _method_ir: Default::default(),
             opaque_method_to_or_method_id: Default::default(),
-            handlers: Default::default(),
+            handler: Default::default(),
         }
     }
 
@@ -98,7 +100,7 @@ pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
     pub inner: RwLock<IRVMStateInner<'vm_life, ExtraData>>,
 }
 
-
+//todo make this not an arc for perf
 pub type ExitHandlerType<'vm_life, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life>;
 
 
@@ -151,12 +153,12 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         (ir_method_id, ir_instruct_index)
     }
 
-    pub fn lookup_ir_method_id_pointer(&self, ir_method_id: IRMethodID) -> *const c_void {
+    pub fn lookup_ir_method_id_pointer(&self, ir_method_id: IRMethodID) -> NonNull<c_void> {
         let guard = self.inner.read().unwrap();
         let current_implementation = &guard.current_implementation;
         let ir_method_implementation = *current_implementation.get(&ir_method_id).unwrap();
         drop(guard);
-        self.native_vm.lookup_method_addresses(ir_method_implementation).start
+        NonNull::new(self.native_vm.lookup_method_addresses(ir_method_implementation).start as *mut c_void).unwrap()
     }
 
     pub fn get_top_level_return_ir_method_id(&self) -> IRMethodID {
@@ -174,7 +176,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let method_ir_offsets_for_this_method = read_guard.method_ir_offsets_at_index.get(&ir_method_id).unwrap();
         let offset = *method_ir_offsets_for_this_method.get(&ir_instruct_index).unwrap();
         let func_start = self.lookup_ir_method_id_pointer(ir_method_id);
-        unsafe { NativeInstructionLocation(func_start.offset(offset.0 as isize)) }
+        unsafe { NativeInstructionLocation(func_start.as_ptr().offset(offset.0 as isize)) }
     }
 
     pub fn new() -> Self {
@@ -201,38 +203,39 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         let ir_stack = &mut ir_stack_frame.ir_stack;
         let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers, extra_data);
         while let Some(vm_exit_event) = launched_vm.next() {
-            let ir_method_id = *self.inner.read().unwrap().implementation_id_to_ir_method_id.get(&vm_exit_event.method).unwrap();
-            let implementation_id = *self.inner.read().unwrap().current_implementation.get(&method_id).unwrap();
-            let current_method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
+            // let ir_method_id = *self.inner.read().unwrap().implementation_id_to_ir_method_id.get(&vm_exit_event.method).unwrap();
+            // let implementation_id = *self.inner.read().unwrap().current_implementation.get(&method_id).unwrap();
+            // let current_method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
             let exiting_stack_pointer = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rsp;
-            if ir_method_id == self.get_top_level_return_ir_method_id() {
+            /*if ir_method_id == self.get_top_level_return_ir_method_id() {
                 assert!(exiting_frame_position_rbp >= exiting_stack_pointer);
             } else {
                 assert!(exiting_frame_position_rbp > exiting_stack_pointer);
-            }
-            let function_start = self.lookup_ir_method_id_pointer(ir_method_id);
-            let rip = vm_exit_event.saved_guest_registers.rip;
-            let ir_instruct_native_offset = unsafe { IRInstructNativeOffset(rip.offset_from(function_start).abs() as usize) };
-            let read_guard = self.inner.read().unwrap();
-            let method_native_offsets_to_index = read_guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
-            let (_, ir_instr_index) = method_native_offsets_to_index.range((Bound::Included(ir_instruct_native_offset), Unbounded)).next().unwrap();
-            let ir_instr_index = *ir_instr_index;
-            drop(read_guard);
+            }*/
+            // let function_start = self.lookup_ir_method_id_pointer(ir_method_id);
+            // let rip = vm_exit_event.saved_guest_registers.rip;
+            // let ir_instruct_native_offset = unsafe { IRInstructNativeOffset(rip.offset_from(function_start.as_ptr()).abs() as usize) };
+            // let read_guard = self.inner.read().unwrap();
+            // let method_native_offsets_to_index = read_guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
+            // let (_, ir_instr_index) = method_native_offsets_to_index.range((Bound::Included(ir_instruct_native_offset), Unbounded)).next().unwrap();
+            // let ir_instr_index = *ir_instr_index;
+            // drop(read_guard);
             let event = IRVMExitEvent {
                 inner: &vm_exit_event,
-                ir_method: ir_method_id,
+                // ir_method: ir_method_id,
                 exit_type: exit_input,
-                _exiting_frame_position_rbp: exiting_frame_position_rbp,
-                exit_ir_instr: ir_instr_index,
+                // _exiting_frame_position_rbp: exiting_frame_position_rbp,
+                // exit_ir_instr: ir_instr_index,
             };
             // let mmaped_top = ir_stack.native.mmaped_top;
             let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp as *mut c_void, exiting_stack_pointer as *mut c_void);
             let read_guard = self.inner.read().unwrap();
 
-            let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
+            // let handler = read_guard.handlers.get(&ir_method_id).unwrap().clone();
             // ir_stack_mut.debug_print_stack_strace(self);
+            let handler = read_guard.handler.get().unwrap().clone();
             drop(read_guard);
             match (handler.deref())(&event, ir_stack_mut, self, launched_vm.extra) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
@@ -240,12 +243,13 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
                     vm_exit_event.indicate_okay_to_drop();
                     return return_value;
                 }
-                IRVMExitAction::RestartAtIndex { index } => {
-                    let read_guard = self.inner.read().unwrap();
+                IRVMExitAction::RestartAtIndex { index:_ } => {
+                    /*let read_guard = self.inner.read().unwrap();
                     let address_offsets = read_guard.method_ir_offsets_at_index.get(&ir_method_id).unwrap();
                     let address_offset = address_offsets.get(&index).unwrap();
                     let target_return_rip = unsafe { current_method_start.offset(address_offset.0 as isize) };
-                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change() });
+                    launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(target_return_rip), saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change() });*/
+                    todo!()
                 }
                 IRVMExitAction::RestartAtPtr { ptr } => {
                     launched_vm.return_to(vm_exit_event, SavedRegistersWithIPDiff { rip: Some(ptr), saved_registers_without_ip: SavedRegistersWithoutIPDiff::no_change() })
@@ -285,12 +289,11 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         // eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, handler: ExitHandlerType<'vm_life, ExtraData>) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
-        inner_guard.handlers.insert(current_ir_id, handler);
         let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
@@ -1019,9 +1022,9 @@ impl std::iter::Step for AssemblyInstructionIndex {
 
 pub struct IRVMExitEvent<'l> {
     pub inner: &'l VMExitEvent,
-    pub ir_method: IRMethodID,
+    // pub ir_method: IRMethodID,
     pub exit_type: RuntimeVMExitInput,
-    pub exit_ir_instr: IRInstructIndex,
-    _exiting_frame_position_rbp: *const c_void,
+    // pub exit_ir_instr: IRInstructIndex,
+    // _exiting_frame_position_rbp: *const c_void,
 }
 

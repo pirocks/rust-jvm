@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::mem::size_of;
 
 use itertools::{Either, Itertools};
@@ -6,10 +6,10 @@ use itertools::{Either, Itertools};
 use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
-use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 
 use crate::ir_to_java_layer::compiler::allocate::{anewarray, multianewarray, new, newarray};
@@ -35,7 +35,7 @@ use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, iret
 use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
 use crate::ir_to_java_layer::compiler::throw::athrow;
 use crate::jit::MethodResolver;
-use crate::jit::state::{Labeler};
+use crate::jit::state::Labeler;
 use crate::JVMState;
 use crate::verifier_frames::SunkVerifierFrames;
 
@@ -80,16 +80,16 @@ impl JavaCompilerMethodAndFrameData {
     }
 }
 
-pub struct PartialYetAnotherLayoutImpl{
+pub struct PartialYetAnotherLayoutImpl {
     max_locals: u16,
     max_stack: u16,
 }
 
 impl PartialYetAnotherLayoutImpl {
-    pub fn new(code: &CompressedCode) -> Self{
-        Self{
+    pub fn new(code: &CompressedCode) -> Self {
+        Self {
             max_locals: code.max_locals,
-            max_stack: code.max_stack
+            max_stack: code.max_stack,
         }
     }
 
@@ -267,6 +267,36 @@ impl NeedsRecompileIf {
     }
 }
 
+pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions) -> Vec<IRInstr> {
+    //todo handle synchronized
+    let mut res = vec![];
+    let desc = resolver.lookup_method_desc(method_id);
+    if resolver.is_static(method_id) {
+        res.push(IRInstr::VMExit2 {
+            exit_type: IRVMExitType::RunStaticNativeNew {
+                method_id,
+                arg_start_frame_offset: todo!(),
+                java_pc: todo!()
+            }
+        });
+        res.push(IRInstr::Return {
+            return_val: if desc.return_type.is_void(){
+                None
+            }else {
+                Some(Register(0))//todo assert this alwaus matches exit return register
+            },
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            temp_register_3: Register(3),
+            temp_register_4: Register(4),
+            frame_size: todo!()
+        });
+    } else {
+        todo!()
+    }
+    res
+}
+
 pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![];
@@ -291,11 +321,11 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
         let mut this_function_ir = vec![];
         if let Some(prev_offset) = prev_offset {
             if method_frame_data.should_trace_instructions {
-                this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset } });
+                this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset, java_pc: current_instr_data.current_offset } });
             }
         }
         if method_frame_data.should_trace_instructions {
-            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset } });
+            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset, java_pc: current_instr_data.current_offset } });
         }
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {

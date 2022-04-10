@@ -19,6 +19,7 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
@@ -117,6 +118,7 @@ pub struct JVMState<'gc> {
     pub known_addresses: KnownAddresses,
     pub vtable: Mutex<VTables<'gc>>,
     pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
+    pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
     pub string_exit_cache: RwLock<StringExitCache<'gc>>
 }
 
@@ -320,6 +322,7 @@ impl<'gc> JVMState<'gc> {
             known_addresses: KnownAddresses::new(),
             vtable: Mutex::new(VTables::new()),
             invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
+            invoke_interface_lookup_cache: RwLock::new(InvokeInterfaceLookupCache::new()),
             string_exit_cache: RwLock::new(StringExitCache::new())
         };
         (args, jvm)

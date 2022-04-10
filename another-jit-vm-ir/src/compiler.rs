@@ -99,8 +99,8 @@ pub enum IRInstr {
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
-    SignExtend { from: Register, to: Register, from_size:Size, to_size: Size },
-    ZeroExtend { from: Register, to: Register, from_size:Size, to_size: Size },
+    SignExtend { from: Register, to: Register, from_size: Size, to_size: Size },
+    ZeroExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     BranchToLabel { label: LabelName },
     LoadLabel { label: LabelName, to: Register },
     LoadRBP { to: Register },
@@ -115,7 +115,7 @@ pub enum IRInstr {
     BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     RestartPoint(RestartPointID),
-    VTableLookupOrExit{
+    VTableLookupOrExit {
         resolve_exit: IRVMExitType
     },
     VMExit2 { exit_type: IRVMExitType },
@@ -224,7 +224,7 @@ impl IRInstr {
             IRInstr::VMExit2 { exit_type } => {
                 format!("VMExit2-{}", match exit_type {
                     IRVMExitType::AllocateObjectArray_ { .. } => { "AllocateObjectArray_" }
-                    IRVMExitType::NPE => { "NPE" }
+                    IRVMExitType::NPE { .. } => { "NPE" }
                     IRVMExitType::LoadClassAndRecompile { .. } => { "LoadClassAndRecompile" }
                     IRVMExitType::InitClassAndRecompile { .. } => { "InitClassAndRecompile" }
                     IRVMExitType::RunStaticNative { .. } => { "RunStaticNative" }
@@ -251,6 +251,9 @@ impl IRInstr {
                     IRVMExitType::InvokeInterfaceResolve { .. } => { "InvokeInterfaceResolve" }
                     IRVMExitType::MultiAllocateObjectArray_ { .. } => {
                         "MultiAllocateObjectArray_"
+                    }
+                    IRVMExitType::RunStaticNativeNew { .. } => {
+                        "RunStaticNativeNew"
                     }
                 })
             }

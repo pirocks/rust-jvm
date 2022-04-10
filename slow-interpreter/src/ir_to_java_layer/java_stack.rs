@@ -207,6 +207,6 @@ impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l
 
     pub fn assert_prev_rip<'gc>(&mut self, ir_method_ref: IRMethodID, jvm: &'gc JVMState<'gc>) {
         let method_pointer = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);
-        self.ir_mut.assert_prev_rip(method_pointer);
+        self.ir_mut.assert_prev_rip(method_pointer.as_ptr());
     }
 }

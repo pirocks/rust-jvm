@@ -28,6 +28,7 @@ crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 rangemap = { git = "https://github.com/pirocks/rangemap.git" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 vtable = { path = "../vtable" }
+interface-vtable = { path = "../interface-vtable" }
 metered = "0.8"
 serde_yaml = "0.8"
 num-traits = "0.2"

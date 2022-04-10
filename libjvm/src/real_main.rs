@@ -73,7 +73,7 @@ fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC
 }
 
 pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
-    jvm_ref.java_vm_state.add_top_level_vm_exit();
+    jvm_ref.java_vm_state.init(jvm_ref);
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object();
     let thread_state = &jvm_ref.thread_state;

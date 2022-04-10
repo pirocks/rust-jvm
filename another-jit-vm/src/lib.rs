@@ -229,8 +229,8 @@ impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {
 
 #[derive(Clone)]
 pub struct VMExitEvent {
-    pub method: MethodImplementationID,
-    pub method_base_address: *const c_void,
+    // pub method: MethodImplementationID,
+    // pub method_base_address: *const c_void,
     pub saved_guest_registers: SavedRegistersWithIP,
     correctly_exited: bool,
 }
@@ -549,27 +549,27 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
             )
         }
         // eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
-        self.generate_exit_event(jit_context.guest_registers.rip, jit_context.guest_registers/*, extra*/)
+        self.generate_exit_event(jit_context.guest_registers/*, extra*/)
     }
 
-    fn generate_exit_event(&self, guest_rip: *const c_void, guest_registers: SavedRegistersWithIP/*, extra: &mut ExtraData*/) -> VMExitEvent {
-        let inner_read_guard = self.inner.read().unwrap();
-        let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
-        match method_implementation {
-            None => {
-                todo!()
-            }
-            Some(method_implementation) => {
-                let method_implementation = *method_implementation;
-                let vm_exit_event = VMExitEvent {
-                    method: method_implementation,
-                    method_base_address: inner_read_guard.code_regions.get(&method_implementation).unwrap().start,
-                    saved_guest_registers: guest_registers,
-                    correctly_exited: false,
-                };
-                vm_exit_event
-            }
-        }
+    fn generate_exit_event(&self, guest_registers: SavedRegistersWithIP/*, extra: &mut ExtraData*/) -> VMExitEvent {
+        // let inner_read_guard = self.inner.read().unwrap();
+        // let method_implementation = inner_read_guard.code_regions_to_method.get(&guest_rip);
+        // match method_implementation {
+        // None => {
+        //     todo!()
+        // }
+        // Some(method_implementation) => {
+        // let method_implementation = *method_implementation;
+        let vm_exit_event = VMExitEvent {
+            // method: method_implementation,
+            // method_base_address: inner_read_guard.code_regions.get(&method_implementation).unwrap().start,
+            saved_guest_registers: guest_registers,
+            correctly_exited: false,
+        };
+        vm_exit_event
+        // }
+        // }
     }
 
     pub fn gen_vm_exit(assembler: &mut CodeAssembler, before_exit_label: &mut CodeLabel, after_exit_label: &mut CodeLabel, registers_to_save: HashSet<Register>) {

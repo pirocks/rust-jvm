@@ -628,6 +628,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "interface-vtable"
+version = "0.1.0"
+dependencies = [
+ "another-jit-vm",
+ "by_address",
+ "iced-x86",
+ "itertools",
+ "memoffset",
+ "runtime-class-stuff",
+ "rust-jvm-common",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1433,6 +1446,7 @@ dependencies = [
  "errno",
  "gc-memory-layout-common",
  "iced-x86",
+ "interface-vtable",
  "itertools",
  "jar-manipulation",
  "java5-verifier",

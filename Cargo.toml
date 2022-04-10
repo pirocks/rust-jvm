@@ -42,5 +42,6 @@ members = [
     "perf-metrics",
     "java5-verifier",
     "runtime-class-stuff",
-    "vtable"
+    "vtable",
+    "interface-vtable"
 ]

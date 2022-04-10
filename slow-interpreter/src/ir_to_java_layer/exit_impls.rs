@@ -12,6 +12,7 @@ use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use interface_vtable::ResolvedInterfaceVTableEntry;
 use jvmti_jni_bindings::{jint, jlong};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
@@ -106,41 +107,60 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     let method_view = class_view.method_view_i(target_method_i);
     let method_name = method_view.name();
     let method_desc = method_view.desc();
-    let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc, method_name, method_desc).unwrap();
-    let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
-    if jvm.is_native_by_method_id(resolved_method_id) {
-        let args_jv_handle = virtual_args_extract(jvm, method_desc.arg_types.as_slice(), object_ref);
-        match run_native_method(jvm, int_state, resolved_rc, resolved_method_i, args_jv_handle.iter().map(|handle| handle.as_njv()).collect_vec()) {
-            Ok(res) => {
-                if let Some(res) = res {
-                    unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
-                };
-                if !jvm.instruction_trace_options.partial_tracing() {
-                    // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+    let read_guard = jvm.invoke_interface_lookup_cache.read().unwrap();
+    let res = match read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone()){
+        None => {
+            drop(read_guard);
+            let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_name, method_desc).unwrap();
+            let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
+            if jvm.is_native_by_method_id(resolved_method_id) {
+                let args_jv_handle = virtual_args_extract(jvm, method_desc.arg_types.as_slice(), object_ref);
+                match run_native_method(jvm, int_state, resolved_rc, resolved_method_i, args_jv_handle.iter().map(|handle| handle.as_njv()).collect_vec()) {
+                    Ok(res) => {
+                        if let Some(res) = res {
+                            unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
+                        };
+                        if !jvm.instruction_trace_options.partial_tracing() {
+                            // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+                        }
+                        let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
+                        return IRVMExitAction::RestartAtPtr { ptr: restart_address };
+                    }
+                    Err(WasException {}) => {
+                        todo!()
+                    }
                 }
-                let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
-                return IRVMExitAction::RestartAtPtr { ptr: restart_address };
-            }
-            Err(WasException {}) => {
-                todo!()
+            } else {
+                let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+                jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
+                let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
+                let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
+                let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
+                let resolved = ResolvedInterfaceVTableEntry{
+                    address,
+                    ir_method_id,
+                    method_id: resolved_method_id,
+                    new_frame_size
+                };
+                jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc,method_name, method_desc.clone(),resolved);
+                resolved
             }
         }
-    } else {
-        let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
-        let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
-        let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
-        let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-        let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-        start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address as *mut c_void);
-        start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
-        start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, resolved_method_id as *mut c_void);
-        start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
-        IRVMExitAction::RestartWithRegisterState {
-            diff: SavedRegistersWithIPDiff {
-                rip: Some(return_to_ptr),
-                saved_registers_without_ip: start_diff,
-            }
+        Some(resolved) => {
+            drop(read_guard);
+            resolved
+        }
+    };
+    let ResolvedInterfaceVTableEntry{ address, ir_method_id, method_id, new_frame_size } = res;
+    let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
+    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr() as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::IR_METHOD_ID_RES, ir_method_id.0 as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::METHOD_ID_RES, method_id as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::NEW_FRAME_SIZE_RES, new_frame_size as *mut c_void);
+    IRVMExitAction::RestartWithRegisterState {
+        diff: SavedRegistersWithIPDiff {
+            rip: Some(return_to_ptr),
+            saved_registers_without_ip: start_diff,
         }
     }
 }
