@@ -40,7 +40,7 @@ use crate::verifier_frames::SunkVerifierFrames;
 //todo only use where spec says
 pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
-    match class.deref() {
+    match class.clone().deref() {
         RuntimeClass::Byte => {
             check_initing_or_inited_class(jvm, int_state, CClassName::byte().into())?;
             return Ok(class);
@@ -79,6 +79,8 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
         }
         RuntimeClass::Array(a) => {
             check_initing_or_inited_class(jvm, int_state, a.sub_class.cpdtype())?;
+            let loader_name = int_state.current_loader(jvm);
+            jvm.classes.write().unwrap().initiating_loaders.insert(ptype, (loader_name, class.clone()));
         }
         _ => {}
     }

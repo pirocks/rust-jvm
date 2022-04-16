@@ -46,6 +46,7 @@ pub enum RawVMExitType {
     RunNativeVirtual,
     RunNativeSpecial,
     Todo,
+    RunStaticNativeNew
 }
 
 
@@ -431,6 +432,9 @@ impl RuntimeVMExitInput {
                     num_arrays: register_state.saved_registers_without_ip.get_register(MultiAllocateArray::NUM_ARRAYS) as u8,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(MultiAllocateArray::JAVA_PC) as u16),
                 }
+            }
+            RawVMExitType::RunStaticNativeNew => {
+                todo!()
             }
         }
     }

@@ -4,6 +4,8 @@
 #![feature(trait_alias)]
 #![feature(bound_as_ref)]
 
+extern crate core;
+
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
@@ -759,6 +761,9 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
         }
         IRInstr::SubFloat { res, a } => {
             assembler.subss(res.to_xmm(), a.to_xmm()).unwrap();
+        }
+        IRInstr::SubDouble { res, a } => {
+            assembler.subsd(res.to_xmm(), a.to_xmm()).unwrap();
         }
         IRInstr::BinaryBitOr { res, a, size } => {
             match size {

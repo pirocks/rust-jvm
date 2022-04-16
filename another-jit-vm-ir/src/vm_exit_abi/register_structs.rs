@@ -80,6 +80,17 @@ impl ExitRegisterStruct for RunStaticNative{
     }
 }
 
+pub struct RunStaticNativeNew;
+
+impl RunStaticNativeNew{
+    pub const METHOD_ID: Register = Register(2);
+}
+
+impl ExitRegisterStruct for RunStaticNativeNew{
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::METHOD_ID])
+    }
+}
 
 pub struct RunNativeVirtual;
 

@@ -183,11 +183,6 @@ impl MemoryRegions {
     }
 
     pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectType) -> (NonNull<c_void>, usize) {
-        unsafe {
-            if OBJECT_ALLOCS % 1_000_000 < 8 {
-                dbg!(OBJECT_ALLOCS);
-            }
-        }
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
                 //todo need to use bigger region as needed.

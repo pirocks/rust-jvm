@@ -232,32 +232,32 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
 
     pub fn to_handle_discouraged(&self) -> NewJavaValueHandle<'gc> {
         match self {
-            NewJavaValue::Long(_) => {
-                todo!()
+            NewJavaValue::Long(long) => {
+                NewJavaValueHandle::Long(*long)
             }
-            NewJavaValue::Int(_) => {
-                todo!()
+            NewJavaValue::Int(int) => {
+                NewJavaValueHandle::Int(*int)
             }
-            NewJavaValue::Short(_) => {
-                todo!()
+            NewJavaValue::Short(short) => {
+                NewJavaValueHandle::Short(*short)
             }
-            NewJavaValue::Byte(_) => {
-                todo!()
+            NewJavaValue::Byte(byte) => {
+                NewJavaValueHandle::Byte(*byte)
             }
-            NewJavaValue::Boolean(_) => {
-                todo!()
+            NewJavaValue::Boolean(bool) => {
+                NewJavaValueHandle::Boolean(*bool)
             }
-            NewJavaValue::Char(_) => {
-                todo!()
+            NewJavaValue::Char(char) => {
+                NewJavaValueHandle::Char(*char)
             }
-            NewJavaValue::Float(_) => {
-                todo!()
+            NewJavaValue::Float(float) => {
+                NewJavaValueHandle::Float(*float)
             }
-            NewJavaValue::Double(_) => {
-                todo!()
+            NewJavaValue::Double(double) => {
+                NewJavaValueHandle::Double(*double)
             }
             NewJavaValue::Null => {
-                todo!()
+                NewJavaValueHandle::Null
             }
             NewJavaValue::UnAllocObject(_) => {
                 todo!("wtf do I do here")

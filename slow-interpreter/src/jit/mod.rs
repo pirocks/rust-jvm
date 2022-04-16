@@ -6,6 +6,7 @@ use another_jit_vm::IRMethodID;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -163,14 +164,18 @@ impl<'gc> MethodResolver<'gc> {
         Some((rc, loader))
     }
 
-    pub fn lookup_method_layout(&self, methodid: usize) -> YetAnotherLayoutImpl {
-        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(methodid).unwrap();
+    pub fn lookup_method_layout(&self, method_id: usize) -> YetAnotherLayoutImpl {
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let function_frame_type = self.jvm.function_frame_type_data_no_tops.read().unwrap();
-        let frames = function_frame_type.get(&methodid).unwrap();
+        let frames = function_frame_type.get(&method_id).unwrap();
         let code = method_view.code_attribute().unwrap();
         YetAnotherLayoutImpl::new(frames, code)
+    }
+
+    pub fn lookup_native_method_kayout(&self, method_id: usize) -> NativeStackframeMemoryLayout{
+        todo!()
     }
 
     pub fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl {
@@ -200,6 +205,12 @@ impl<'gc> MethodResolver<'gc> {
         })
     }
 
+    pub fn is_native(&self, method_id: MethodId) -> bool {
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.is_native()
+        })
+    }
+
     pub fn get_compressed_code(&self, method_id: MethodId) -> CompressedCode {
         self.using_method_view_impl(method_id, |method_view|{
             method_view.code_attribute().unwrap().clone()
@@ -209,6 +220,12 @@ impl<'gc> MethodResolver<'gc> {
     pub fn num_args(&self, method_id: MethodId) -> u16 {
         self.using_method_view_impl(method_id, |method_view|{
             method_view.num_args()
+        })
+    }
+
+    pub fn num_locals(&self, method_id: MethodId) -> u16 {
+        self.using_method_view_impl(method_id, |method_view|{
+            method_view.num_args() + if method_view.is_static() { 0} else { 1 }
         })
     }
 

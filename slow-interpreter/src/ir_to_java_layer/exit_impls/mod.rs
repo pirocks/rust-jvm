@@ -1,11 +1,10 @@
-use std::ffi::c_void;
+use std::ffi::{ c_void};
 use std::mem::{size_of, transmute};
-use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
 use itertools::{Either, Itertools};
-use libc::memset;
+use libc::{memset, rand};
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
@@ -33,52 +32,14 @@ use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::class::JClass;
-use crate::java_values::{default_value, native_to_new_java_value};
+use crate::java_values::{native_to_new_java_value};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::runtime_class::static_vars;
 use crate::utils::lookup_method_parsed;
 
-#[inline(never)]
-pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, elem_type: CPDTypeID, num_arrays: u8, len_start: *const i64, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
-    let elem_type = *jvm.cpdtype_table.read().unwrap().get_cpdtype(elem_type);
-    let elem_type = elem_type.unwrap_non_array();
-    let array_type = CPDType::Array { base_type: elem_type, num_nested_arrs: NonZeroU8::new(num_arrays).unwrap() };
-    let mut lens = vec![];
-    unsafe {
-        for len_index in 0..num_arrays {
-            let offsetted_ptr = len_start.sub(len_index as usize);
-            lens.push(offsetted_ptr.cast::<i32>().read());
-        }
-    }
-    assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
-    let mut current_value = default_value(&elem_type.to_cpdtype()).as_njv().to_native();
-    //iterates from innermost to outermost
-    unsafe {
-        for (depth, len) in lens.into_iter().rev().enumerate() {
-            let rc = match NonZeroU8::new(depth as u8 + 1) {
-                None => {
-                    panic!()
-                }
-                Some(depth) => {
-                    assert_inited_or_initing_class(jvm, CPDType::Array { base_type: elem_type, num_nested_arrs: depth })
-                }
-            };
-            let array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
-            let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-            let array_size = array.size();
-            let allocated_object = memory_region_guard.allocate(&array);
-            allocated_object.as_ptr().cast::<jlong>().write(len as jlong);
-            for i in 0..len {
-                allocated_object.as_ptr().cast::<NativeJavaValue<'gc>>().offset((i + 1) as isize).write(current_value);
-            }
-            current_value = NativeJavaValue { object: allocated_object.as_ptr() };
-        }
-    }
+pub mod multi_allocate_array;
 
-    unsafe { res_address.cast::<NativeJavaValue<'gc>>().write(current_value) }
-    IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
-}
 
 #[inline(never)]
 pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_ptr: *const c_void) -> IRVMExitAction {
@@ -170,6 +131,7 @@ pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("RunNativeSpecial");
     }
+    jvm.java_vm_state.add_method_if_needed(jvm,&MethodResolver{ jvm, loader: int_state.current_loader(jvm) },method_id);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let class_view = rc.view();
     let method_view = class_view.method_view_i(method_i);
@@ -381,9 +343,8 @@ fn invoke_virtual_full<'gc>(
     let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), method_i);
     let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
-        if !jvm.is_native_by_method_id(method_id) {
-            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
-        } else {
+        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
+        if jvm.is_native_by_method_id(method_id) {
             //is native should run native method
             //todo duplicated
             if jvm.exit_trace_options.tracing_enabled() {
@@ -492,6 +453,11 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("AllocateObject");
     }
+    unsafe {
+        if rand() < 1000 {
+            int_state.debug_print_stack_trace(jvm)
+        }
+    }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), None);
@@ -565,7 +531,13 @@ pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
+    unsafe {
+        if rand() < 10_000  && cpdtype.short_representation(&jvm.string_pool) == "agp"{
+            int_state.debug_print_stack_trace(jvm);
+        }
+    }
     let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
@@ -637,6 +609,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
     }
     assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
     let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
+    jvm.java_vm_state.add_method_if_needed(jvm,&MethodResolver{ jvm, loader: int_state.current_loader(jvm) },method_id);
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {

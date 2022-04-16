@@ -48,6 +48,9 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     args: Vec<NewJavaValue<'gc,'_>>
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_method_i = target_method.method_i();
+    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(),target_method_i);
+    let method_resolver = MethodResolver { jvm, loader: interpreter_state.current_loader(jvm) };
+    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
 
@@ -78,9 +81,6 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         // let mut args = vec![];
         // let max_locals = target_method.code_attribute().unwrap().max_locals;
         // setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
-        let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(),target_method_i);
-        let method_resolver = MethodResolver { jvm, loader: interpreter_state.current_loader(jvm) };
-        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut frame_for_function) {

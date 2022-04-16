@@ -198,31 +198,22 @@ impl StackframeMemoryLayout for FullyOpaqueFrame {
     }
 }
 
-pub struct NativeStackframeMemoryLayout {}
+pub struct NativeStackframeMemoryLayout {
+    pub num_locals: u16
+}
 
-impl StackframeMemoryLayout for NativeStackframeMemoryLayout {
-    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
+impl NativeStackframeMemoryLayout {
+    pub fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
+        assert!(i < self.num_locals as u16);
+        FramePointerOffset(size_of::<FrameHeader>() + i as usize*size_of::<jlong>())
     }
 
-    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
-        todo!()
+    pub fn data_entry(&self) -> FramePointerOffset{
+        FramePointerOffset(size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>())
     }
 
-    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
-        todo!()
-    }
-
-    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout {
-        todo!()
-    }
-
-    fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION + size_of::<jlong>()
-    }
-
-    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
+    pub fn full_frame_size(&self) -> usize {
+        size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>() + size_of::<jlong>()
     }
 }
 

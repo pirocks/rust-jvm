@@ -3,7 +3,6 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
-use crate::interpreter_state::{NativeFrameInfo};
 use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::allocated_objects::{AllocatedObject};
@@ -117,8 +116,7 @@ fn get_top_local_ref_frame<'l>(interpreter_state: &'l InterpreterStateGuard) -> 
 }
 
 fn set_local_refs_top_frame<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, new: HashSet<jobject>) {
-    let data = interpreter_state.current_frame().frame_view.ir_ref.data(0) as usize as *mut NativeFrameInfo;
-    unsafe { *data.as_mut().unwrap().native_local_refs.last_mut().unwrap() = new; }
+    unsafe { *interpreter_state.current_frame().native_frame_ptr().as_mut().unwrap().native_local_refs.last_mut().unwrap() = new}
 }
 
 fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> HashSet<jobject> {
@@ -137,6 +135,5 @@ fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut Interprete
 
 fn current_native_local_refs<'l>(interpreter_state: &'l InterpreterStateGuard) -> Vec<HashSet<jobject>> {
     assert!(interpreter_state.current_frame().is_opaque() || interpreter_state.current_frame().is_native_method());
-    let data = interpreter_state.current_frame().frame_view.ir_ref.data(0) as usize as *const NativeFrameInfo;
-    unsafe { data.as_ref().unwrap().native_local_refs.clone() }
+    unsafe { interpreter_state.current_frame().native_frame_ptr().as_ref().unwrap().native_local_refs.clone() }
 }

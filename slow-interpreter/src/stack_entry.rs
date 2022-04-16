@@ -12,7 +12,7 @@ use itertools::Itertools;
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::{FrameHeader};
+use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout};
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
@@ -878,17 +878,12 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     }
 
     pub fn is_native_method(&self) -> bool {
-        let res = match self.frame_view.ir_ref.method_id() {
+        match self.frame_view.ir_ref.method_id() {
             None => false,
             Some(method_id) => {
                 self.frame_view.jvm.is_native_by_method_id(method_id)
             }
-        };
-
-        if res {
-            assert!(self.frame_view.ir_ref.ir_method_id().is_none());
         }
-        res
     }
 
     pub fn is_opaque(&self) -> bool {
@@ -954,7 +949,10 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
 
     pub fn native_frame_ptr(&self) -> *mut NativeFrameInfo {
         assert!(self.is_native_method());
-        let raw_u64 = self.frame_view.ir_ref.data(0);
+        let method_id = self.frame_view.ir_ref.method_id().unwrap();
+        let max_locals = self.frame_view.jvm.num_local_vars_native(method_id);
+        let layout = NativeStackframeMemoryLayout{ num_locals: max_locals };
+        let raw_u64 = self.frame_view.ir_ref.read_at_offset(layout.data_entry());
         raw_u64 as usize as *mut c_void as *mut NativeFrameInfo
     }
 

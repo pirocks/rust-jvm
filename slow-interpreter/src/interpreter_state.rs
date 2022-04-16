@@ -365,19 +365,23 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
+                        let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
+                        assert_eq!(jvm.num_local_vars_native(method_id) as usize, local_vars.len());
                         let native_frame_info = NativeFrameInfo {
                             method_id,
                             loader,
                             native_local_refs,
-                            local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
+                            // local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
                             operand_stack: operand_stack.iter().map(|njv|njv.to_native()).collect(),
                         };
                         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
-                        let data = [raw_frame_info_pointer as *const c_void as usize as u64];
-                        int_state.push_frame(top_level_exit_ptr.as_ptr(), None, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                        //todo use NativeStackframeMemoryLayout for this
+                        let mut data = local_vars.iter().map(|local_var|unsafe { local_var.to_native().as_u64 }).collect_vec();
+                        data.push(raw_frame_info_pointer as *const c_void as usize as u64);
+                        int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Opaque { opaque_id, native_local_refs } => {
                         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
@@ -635,7 +639,7 @@ pub struct NativeFrameInfo<'gc> {
     pub method_id: usize,
     pub loader: LoaderName,
     pub native_local_refs: Vec<HashSet<jobject>>,
-    pub local_vars: Vec<NativeJavaValue<'gc>>,
+    // pub local_vars: Vec<NativeJavaValue<'gc>>,
     pub operand_stack: Vec<NativeJavaValue<'gc>>,
 }
 

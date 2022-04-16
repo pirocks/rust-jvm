@@ -25,12 +25,20 @@ pub fn iastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
     array_store_impl(method_frame_data, current_instr_data,CPDType::IntType)
 }
 
+pub fn fastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data,CPDType::FloatType)
+}
+
 pub fn aastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data,CClassName::object().into())
 }
 
 pub fn lastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data,CPDType::LongType)
+}
+
+pub fn dastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_store_impl(method_frame_data, current_instr_data,CPDType::DoubleType)
 }
 
 fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, elem_type: CPDType) -> impl Iterator<Item=IRInstr> {

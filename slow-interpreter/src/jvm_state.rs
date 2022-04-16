@@ -119,7 +119,7 @@ pub struct JVMState<'gc> {
     pub vtable: Mutex<VTables<'gc>>,
     pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
     pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
-    pub string_exit_cache: RwLock<StringExitCache<'gc>>
+    pub string_exit_cache: RwLock<StringExitCache<'gc>>,
 }
 
 
@@ -146,10 +146,10 @@ impl<'gc> Classes<'gc> {
 
     pub fn is_inited_or_initing(&self, ptype: &CPDType) -> Option<Arc<RuntimeClass<'gc>>> {
         let rc = self.initiating_loaders.get(&ptype)?.1.clone();
-        Some(match rc.status(){
+        Some(match rc.status() {
             ClassStatus::UNPREPARED |
             ClassStatus::PREPARED => {
-                return None
+                return None;
             }
             ClassStatus::INITIALIZING |
             ClassStatus::INITIALIZED => {
@@ -161,9 +161,9 @@ impl<'gc> Classes<'gc> {
     pub fn get_initiating_loader(&self, class_: &Arc<RuntimeClass<'gc>>) -> LoaderName {
         let (res, actual_class) = self.initiating_loaders.get(&class_.cpdtype()).unwrap();
         if !Arc::ptr_eq(class_, actual_class) {
-            dbg!(class_.cpdtype().unwrap_class_type());
-            dbg!(actual_class.cpdtype().unwrap_class_type());
-            dbg!(res);
+            // dbg!(class_.cpdtype().unwrap_class_type());
+            // dbg!(actual_class.cpdtype().unwrap_class_type());
+            // dbg!(res);
             // panic!()//todo
         }
         *res
@@ -183,22 +183,22 @@ impl<'gc> Classes<'gc> {
     }
 
     pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=&'specific_gc_life AllocatedNormalObjectHandle<'gc>> + 'specific_gc_life {
-       /* self.class_object_pool
-            .left_values()
-            .map(|by_address| by_address.clone().owned_inner())
-            .chain(todo!()/*self.anon_class_live_object_ldc_pool.iter().cloned().cloned()*/)
-            .chain(self.class_loaders.right_values().map(|by_address| by_address.clone().owned_inner()))
-            .chain(self.protection_domains.right_values().map(|by_address| by_address.clone().owned_inner()))
-            .chain(self.initiating_loaders.values()
-                .flat_map(|(_loader, class): &(_, Arc<RuntimeClass<'gc>>)| class.try_unwrap_class_class())
-                .flat_map(|class: &RuntimeClassClass<'gc>| {
-                    let guard = class.static_vars.read().unwrap();
-                    /*guard.values().map(|jv| {
-                        todo!()
-                    })*/
-                    once(todo!())
-                })
-            )*/
+        /* self.class_object_pool
+             .left_values()
+             .map(|by_address| by_address.clone().owned_inner())
+             .chain(todo!()/*self.anon_class_live_object_ldc_pool.iter().cloned().cloned()*/)
+             .chain(self.class_loaders.right_values().map(|by_address| by_address.clone().owned_inner()))
+             .chain(self.protection_domains.right_values().map(|by_address| by_address.clone().owned_inner()))
+             .chain(self.initiating_loaders.values()
+                 .flat_map(|(_loader, class): &(_, Arc<RuntimeClass<'gc>>)| class.try_unwrap_class_class())
+                 .flat_map(|class: &RuntimeClassClass<'gc>| {
+                     let guard = class.static_vars.read().unwrap();
+                     /*guard.values().map(|jv| {
+                         todo!()
+                     })*/
+                     once(todo!())
+                 })
+             )*/
         iter::once(todo!())
     }
 
@@ -237,7 +237,6 @@ impl<'gc> Classes<'gc> {
         Some(self.initiating_loaders.get(cpdtype)?.clone())
     }
 }
-
 
 
 impl<'gc> JVMState<'gc> {
@@ -323,7 +322,7 @@ impl<'gc> JVMState<'gc> {
             vtable: Mutex::new(VTables::new()),
             invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
             invoke_interface_lookup_cache: RwLock::new(InvokeInterfaceLookupCache::new()),
-            string_exit_cache: RwLock::new(StringExitCache::new())
+            string_exit_cache: RwLock::new(StringExitCache::new()),
         };
         (args, jvm)
     }
@@ -348,7 +347,7 @@ impl<'gc> JVMState<'gc> {
                 assert!(verification_types_without_top.contains_key(offset));
             }
             self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top);
-            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.iter().map(|(offset, frame)|{
+            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.iter().map(|(offset, frame)| {
                 (*offset, SunkVerifierFrames::FullFrame(frame.clone()))
             }).collect());
         }
@@ -364,7 +363,7 @@ impl<'gc> JVMState<'gc> {
             verification_types: HashMap::new(),
             debug: false,
             perf_metrics: &self.perf_metrics,
-            permissive_types_workaround: false
+            permissive_types_workaround: false,
         };
         let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
         verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");
@@ -419,7 +418,7 @@ impl<'gc> JVMState<'gc> {
             None,
             vec![],
             RwLock::new(ClassStatus::INITIALIZED),
-            object_class_static_var_types
+            object_class_static_var_types,
         )));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
         let recursive_num_methods = method_numbers.len() as u32;
@@ -433,7 +432,7 @@ impl<'gc> JVMState<'gc> {
             Some(temp_object_class),
             interfaces,
             status,
-            class_class_static_var_types
+            class_class_static_var_types,
         )));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
@@ -471,19 +470,19 @@ impl<'gc> JVMState<'gc> {
         field_numbers
     }
 
-    pub fn get_class_class_or_object_class_method_numbers(class_class_view: &dyn ClassView) -> HashMap<MethodShape, MethodNumber>{
+    pub fn get_class_class_or_object_class_method_numbers(class_class_view: &dyn ClassView) -> HashMap<MethodShape, MethodNumber> {
         class_class_view.methods()
-            .filter(|method|!method.is_static())
-            .map(|method|{ method.method_shape() })
-            .sorted_by(|left,right|ShapeOrderWrapper(left).cmp(&ShapeOrderWrapper(right)))
+            .filter(|method| !method.is_static())
+            .map(|method| { method.method_shape() })
+            .sorted_by(|left, right| ShapeOrderWrapper(left).cmp(&ShapeOrderWrapper(right)))
             .enumerate()
-            .map(|(number, shape)|(shape,MethodNumber(number as u32)))
+            .map(|(number, shape)| (shape, MethodNumber(number as u32)))
             .collect()
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
-        assert!(self.thread_state.int_state_guard_valid.with(|elem|elem.borrow().clone()));
-        let ptr = self.thread_state.int_state_guard.with(|elem|elem.borrow().clone().unwrap());
+        assert!(self.thread_state.int_state_guard_valid.with(|elem| elem.borrow().clone()));
+        let ptr = self.thread_state.int_state_guard.with(|elem| elem.borrow().clone().unwrap());
         let res = transmute::<&mut InterpreterStateGuard<'static, 'static>, &mut InterpreterStateGuard<'l, 'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
         assert!(res.registered());
         assert!(res.thread().thread_status.read().unwrap().alive);
@@ -528,6 +527,13 @@ impl<'gc> JVMState<'gc> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         method_view.desc().arg_types.len() as u16
+    }
+
+    pub fn num_local_vars_native(&self, method_id: MethodId) -> u16 {
+        let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.desc().arg_types.len() as u16 + if method_view.is_static() { 0 } else { 1 }
     }
 }
 

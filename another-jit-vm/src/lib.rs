@@ -603,9 +603,6 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
-        if inner_guard.max_ptr as u64 % 100_000 < 8 {
-            dbg!(inner_guard.max_ptr);
-        }
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
         current_method_id
     }

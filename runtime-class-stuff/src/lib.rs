@@ -3,10 +3,11 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock};
 
 use classfile_view::view::{ArrayView, ClassView, HasAccessFlags, PrimitiveView};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
-use rust_jvm_common::method_shape::{MethodShape, };
+use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::NativeJavaValue;
+
 use crate::field_numbers::FieldNumber;
 use crate::method_numbers::MethodNumber;
 
@@ -99,6 +100,13 @@ impl<'gc> RuntimeClass<'gc> {
 
     pub fn unwrap_class_class(&self) -> &RuntimeClassClass<'gc> {
         self.try_unwrap_class_class().unwrap()
+    }
+
+    pub fn unwrap_class_array(&self) -> &RuntimeClassArray<'gc> {
+        match self {
+            RuntimeClass::Array(arr) => arr,
+            _ => panic!()
+        }
     }
 
     pub fn try_unwrap_class_class(&'_ self) -> Option<&'_ RuntimeClassClass<'gc>> {

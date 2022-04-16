@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 use std::collections::HashMap;
 
 use itertools::{Either, Itertools};
@@ -5,6 +7,7 @@ use itertools::{Either, Itertools};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset};
+use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedExceptionTableElem, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::vtype::VType;
@@ -311,7 +314,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             three_one_word_in_zero_out(method_frames, current_index);
         }
         CompressedInstructionInfo::bipush(_) => {
-            todo!()
+            one_word_const(method_frames, current_index);
         }
         CompressedInstructionInfo::caload => {
             two_one_word_in_one_word_out(method_frames, current_index);
@@ -323,10 +326,10 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::d2f => {
-            todo!()
+            one_two_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::d2i => {
-            todo!()
+            one_two_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::d2l => {
             todo!()
@@ -341,34 +344,34 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::dcmpg => {
-            todo!()
+            two_two_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::dcmpl => {
-            todo!()
+            two_two_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::dconst_0 => {
-            todo!()
+            two_word_const(method_frames, current_index)
         }
         CompressedInstructionInfo::dconst_1 => {
-            todo!()
+            two_word_const(method_frames, current_index)
         }
         CompressedInstructionInfo::ddiv => {
             todo!()
         }
-        CompressedInstructionInfo::dload(_) => {
-            todo!()
+        CompressedInstructionInfo::dload(n) => {
+            two_word_variable_load(method_frames, *n, current_index);
         }
         CompressedInstructionInfo::dload_0 => {
-            todo!()
+            two_word_variable_load(method_frames, 0, current_index);
         }
         CompressedInstructionInfo::dload_1 => {
-            todo!()
+            two_word_variable_load(method_frames, 1, current_index);
         }
         CompressedInstructionInfo::dload_2 => {
-            todo!()
+            two_word_variable_load(method_frames, 2, current_index);
         }
         CompressedInstructionInfo::dload_3 => {
-            todo!()
+            two_word_variable_load(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::dmul => {
             todo!()
@@ -382,20 +385,20 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::dreturn => {
             todo!()
         }
-        CompressedInstructionInfo::dstore(_) => {
-            todo!()
+        CompressedInstructionInfo::dstore(n) => {
+            two_word_variable_store(method_frames, *n, current_index)
         }
         CompressedInstructionInfo::dstore_0 => {
-            todo!()
+            two_word_variable_store(method_frames, 0, current_index)
         }
         CompressedInstructionInfo::dstore_1 => {
-            todo!()
+            two_word_variable_store(method_frames, 1, current_index)
         }
         CompressedInstructionInfo::dstore_2 => {
-            todo!()
+            two_word_variable_store(method_frames, 2, current_index)
         }
         CompressedInstructionInfo::dstore_3 => {
-            todo!()
+            two_word_variable_store(method_frames, 3, current_index)
         }
         CompressedInstructionInfo::dsub => {
             todo!()
@@ -434,7 +437,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::f2d => {
-            todo!()
+            one_word_in_two_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::f2i => {
             one_word_in_one_word_out(method_frames, current_index)
@@ -467,7 +470,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_const(method_frames, current_index);
         }
         CompressedInstructionInfo::fdiv => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::fload(n) => {
             one_word_variable_load(method_frames, *n, current_index);
@@ -485,13 +488,13 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_variable_load(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::fmul => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::fneg => {
             one_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::frem => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::freturn => {
             top_operand_is_one_word_and_exit(method_frames, current_offset);
@@ -512,18 +515,21 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_variable_store(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::fsub => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::getfield { name: _, desc, target_class: _ } => {
-            let (current_frame, mut next_index) = method_frames.nth_frame_and_next_mut(current_index);
+            let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
             current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
             match cpdtype_to_simplified_vtype(&desc.0) {
                 SimplifiedVType::OneWord => {
                     let operand_stack = current_frame.operand_stack();
-                    next_index.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+                    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
                 }
                 SimplifiedVType::TwoWord => {
-                    todo!()
+                    let mut operand_stack = current_frame.operand_stack();
+                    operand_stack.pop().unwrap().unwrap();
+                    operand_stack.push(Some(SimplifiedVType::TwoWord));
+                    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
                 }
                 SimplifiedVType::Top => {
                     panic!()
@@ -543,8 +549,12 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
                 }
             }
         }
-        CompressedInstructionInfo::goto_(_) => {
-            todo!()
+        CompressedInstructionInfo::goto_(offset) => {
+            let res_offset = (current_offset.0 as i32 + *offset as i32) as u16;
+            let current_frame = method_frames.nth_frame_mut(current_offset);
+            let operand_stack = current_frame.operand_stack();
+            let target_frame = method_frames.nth_frame_mut(ByteCodeOffset(res_offset));
+            target_frame.assert_operand_stack_is(operand_stack);
         }
         CompressedInstructionInfo::goto_w(_) => {
             todo!()
@@ -556,25 +566,25 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::i2d => {
-            todo!()
+            one_word_in_two_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::i2f => {
             one_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::i2l => {
-            todo!()
+            one_word_in_two_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::i2s => {
             one_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::iadd => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::iaload => {
             two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::iand => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::iastore => {
             three_one_word_in_zero_out(method_frames, current_index);
@@ -601,13 +611,13 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_const(method_frames, current_index);
         }
         CompressedInstructionInfo::idiv => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
-        CompressedInstructionInfo::if_acmpeq(_) => {
-            todo!()
+        CompressedInstructionInfo::if_acmpeq(offset) => {
+            if_two_one_word(method_frames, current_offset, *offset)
         }
-        CompressedInstructionInfo::if_acmpne(_) => {
-            todo!()
+        CompressedInstructionInfo::if_acmpne(offset) => {
+            if_two_one_word(method_frames, current_offset, *offset)
         }
         CompressedInstructionInfo::if_icmpeq(offset) => {
             if_two_one_word(method_frames, current_offset, *offset)
@@ -627,23 +637,23 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::if_icmple(offset) => {
             if_two_one_word(method_frames, current_offset, *offset)
         }
-        CompressedInstructionInfo::ifeq(_) => {
-            todo!()
+        CompressedInstructionInfo::ifeq(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::ifne(_) => {
-            todo!()
+        CompressedInstructionInfo::ifne(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::iflt(_) => {
-            todo!()
+        CompressedInstructionInfo::iflt(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::ifge(_) => {
-            todo!()
+        CompressedInstructionInfo::ifge(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::ifgt(_) => {
-            todo!()
+        CompressedInstructionInfo::ifgt(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::ifle(_) => {
-            todo!()
+        CompressedInstructionInfo::ifle(offset) => {
+            if_one_word(method_frames, current_offset, *offset);
         }
         CompressedInstructionInfo::ifnonnull(offset) => {
             if_one_word(method_frames, current_offset, *offset);
@@ -651,8 +661,11 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::ifnull(offset) => {
             if_one_word(method_frames, current_offset, *offset);
         }
-        CompressedInstructionInfo::iinc(_) => {
-            todo!()
+        CompressedInstructionInfo::iinc(n) => {
+            let (current_frame, next_frame) = method_frames.nth_frame_and_next_mut_offset(current_offset);
+            current_frame.assert_local_is(n.index, SimplifiedVType::OneWord);
+            let operand_stack = current_frame.operand_stack();
+            next_frame.unwrap().assert_operand_stack_is(operand_stack);
         }
         CompressedInstructionInfo::iload(n) => {
             one_word_variable_load(method_frames, *n, current_index);
@@ -670,13 +683,13 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_variable_load(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::imul => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::ineg => {
             one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::instanceof(_) => {
-            todo!()
+            one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::invokedynamic(_) => {
             todo!()
@@ -694,19 +707,19 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             invoke(method_frames, i, descriptor, true);
         }
         CompressedInstructionInfo::ior => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::irem => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::ireturn => {
             top_operand_is_one_word_and_exit(method_frames, current_offset);
         }
         CompressedInstructionInfo::ishl => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::ishr => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::istore(n) => {
             one_word_variable_store(method_frames, *n, current_index);
@@ -724,13 +737,13 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_variable_store(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::isub => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::iushr => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::ixor => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::jsr(_) => {
             todo!()
@@ -763,10 +776,10 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::lconst_0 => {
-            todo!()
+            two_word_const(method_frames, current_index)
         }
         CompressedInstructionInfo::lconst_1 => {
-            todo!()
+            two_word_const(method_frames, current_index)
         }
         CompressedInstructionInfo::ldc(ldc_either) => {
             match ldc_either {
@@ -807,29 +820,52 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
                 }
             }
         }
-        CompressedInstructionInfo::ldc_w(_) => {
-            todo!()
+        CompressedInstructionInfo::ldc_w(wide) => {
+            match wide {
+                CompressedLdcW::String { .. } => {
+                    one_word_const(method_frames, current_index);
+                }
+                CompressedLdcW::Class { .. } => {
+                    one_word_const(method_frames, current_index);
+                }
+                CompressedLdcW::Float { .. } => {
+                    one_word_const(method_frames, current_index);
+                }
+                CompressedLdcW::Integer { .. } => {
+                    one_word_const(method_frames, current_index);
+                }
+                CompressedLdcW::MethodType { .. } => todo!(),
+                CompressedLdcW::MethodHandle { .. } => todo!(),
+                CompressedLdcW::LiveObject(_) => todo!(),
+            }
         }
-        CompressedInstructionInfo::ldc2_w(_) => {
-            todo!()
+        CompressedInstructionInfo::ldc2_w(wide) => {
+            match wide {
+                CompressedLdc2W::Long(_) => {
+                    two_word_const(method_frames, current_index);
+                }
+                CompressedLdc2W::Double(_) => {
+                    two_word_const(method_frames, current_index);
+                }
+            }
         }
         CompressedInstructionInfo::ldiv => {
             todo!()
         }
-        CompressedInstructionInfo::lload(_) => {
-            todo!()
+        CompressedInstructionInfo::lload(n) => {
+            two_word_variable_load(method_frames, *n, current_index);
         }
         CompressedInstructionInfo::lload_0 => {
-            todo!()
+            two_word_variable_load(method_frames, 0, current_index);
         }
         CompressedInstructionInfo::lload_1 => {
-            todo!()
+            two_word_variable_load(method_frames, 1, current_index);
         }
         CompressedInstructionInfo::lload_2 => {
-            todo!()
+            two_word_variable_load(method_frames, 2, current_index);
         }
         CompressedInstructionInfo::lload_3 => {
-            todo!()
+            two_word_variable_load(method_frames, 3, current_index);
         }
         CompressedInstructionInfo::lmul => {
             todo!()
@@ -837,8 +873,17 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::lneg => {
             todo!()
         }
-        CompressedInstructionInfo::lookupswitch(_) => {
-            todo!()
+        CompressedInstructionInfo::lookupswitch(LookupSwitch{ pairs, default }) => {
+            let frame = method_frames.nth_frame_mut(current_offset);
+            frame.assert_operand_stack_entry_is(0,SimplifiedVType::OneWord);
+            let mut operand_stack = frame.operand_stack();
+            operand_stack.pop().unwrap().unwrap();
+            let default = ByteCodeOffset((current_offset.0 as i32 + *default) as u16);
+            method_frames.nth_frame_mut(default).assert_operand_stack_is(operand_stack.clone());
+            for (_,offset) in pairs{
+                let offset = ByteCodeOffset((current_offset.0 as i32 + *offset) as u16);
+                method_frames.nth_frame_mut(offset).assert_operand_stack_is(operand_stack.clone());
+            }
         }
         CompressedInstructionInfo::lor => {
             todo!()
@@ -855,20 +900,20 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::lshr => {
             todo!()
         }
-        CompressedInstructionInfo::lstore(_) => {
-            todo!()
+        CompressedInstructionInfo::lstore(n) => {
+            two_word_variable_store(method_frames, *n, current_index)
         }
         CompressedInstructionInfo::lstore_0 => {
-            todo!()
+            two_word_variable_store(method_frames, 0, current_index)
         }
         CompressedInstructionInfo::lstore_1 => {
-            todo!()
+            two_word_variable_store(method_frames, 1, current_index)
         }
         CompressedInstructionInfo::lstore_2 => {
-            todo!()
+            two_word_variable_store(method_frames, 2, current_index)
         }
         CompressedInstructionInfo::lstore_3 => {
-            todo!()
+            two_word_variable_store(method_frames, 3, current_index)
         }
         CompressedInstructionInfo::lsub => {
             todo!()
@@ -880,10 +925,10 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::monitorenter => {
-            todo!()
+            one_word_in_zero_out(method_frames, current_index);
         }
         CompressedInstructionInfo::monitorexit => {
-            todo!()
+            one_word_in_zero_out(method_frames, current_index);
         }
         CompressedInstructionInfo::multianewarray { .. } => {
             todo!()
@@ -898,15 +943,22 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::pop => {
-            todo!()
+            one_word_in_zero_out(method_frames, current_index);
         }
         CompressedInstructionInfo::pop2 => {
             todo!()
         }
-        CompressedInstructionInfo::putfield { .. } => {
-            todo!()
+        CompressedInstructionInfo::putfield { desc, .. } => {
+            let field_type = cpdtype_to_simplified_vtype(&desc.0);
+            let (frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+            frame.assert_operand_stack_entry_is(0, field_type);
+            frame.assert_operand_stack_entry_is(1, SimplifiedVType::OneWord);
+            let mut operand_stack = frame.operand_stack();
+            operand_stack.pop().unwrap();
+            operand_stack.pop().unwrap();
+            next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
         }
-        CompressedInstructionInfo::putstatic { name:_, desc, target_class:_ } => {
+        CompressedInstructionInfo::putstatic { name: _, desc, target_class: _ } => {
             match cpdtype_to_simplified_vtype(&desc.0) {
                 SimplifiedVType::OneWord => {
                     one_word_in_zero_out(method_frames, current_index);
@@ -943,8 +995,17 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             let operand_stack = frame.operand_stack();
             next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
         }
-        CompressedInstructionInfo::tableswitch(_) => {
-            todo!()
+        CompressedInstructionInfo::tableswitch(box TableSwitch{ default, low:_, high:_, offsets }) => {
+            let frame = method_frames.nth_frame_mut(current_offset);
+            frame.assert_operand_stack_entry_is(0,SimplifiedVType::OneWord);
+            let mut operand_stack = frame.operand_stack();
+            operand_stack.pop().unwrap().unwrap();
+            let default = ByteCodeOffset((current_offset.0 as i32 + *default) as u16);
+            method_frames.nth_frame_mut(default).assert_operand_stack_is(operand_stack.clone());
+            for offset in offsets{
+                let offset = ByteCodeOffset((current_offset.0 as i32 + *offset) as u16);
+                method_frames.nth_frame_mut(offset).assert_operand_stack_is(operand_stack.clone());
+            }
         }
         CompressedInstructionInfo::wide(_) => {
             todo!()
@@ -967,7 +1028,7 @@ fn invoke(method_frames: &mut MethodFrames, i: usize, descriptor: &CMethodDescri
                 }
             }
             SimplifiedVType::TwoWord => {
-                todo!()
+                operand_stack.pop().unwrap();
             }
             SimplifiedVType::Top => {
                 panic!()
@@ -986,7 +1047,7 @@ fn invoke(method_frames: &mut MethodFrames, i: usize, descriptor: &CMethodDescri
                 operand_stack.push(Some(SimplifiedVType::OneWord));
             }
             SimplifiedVType::TwoWord => {
-                todo!()
+                operand_stack.push(Some(SimplifiedVType::TwoWord));
             }
             SimplifiedVType::Top => {
                 panic!()
@@ -1019,6 +1080,27 @@ fn two_one_word_in_one_word_out(method_frames: &mut MethodFrames, current_index:
     next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
 }
 
+fn two_two_word_in_one_word_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::TwoWord);
+    current_frame.assert_operand_stack_entry_is(1, SimplifiedVType::TwoWord);
+    let mut operand_stack = current_frame.operand_stack();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    operand_stack.push(Some(SimplifiedVType::OneWord));
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
+fn one_two_word_in_one_word_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::TwoWord);
+    let mut operand_stack = current_frame.operand_stack();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    operand_stack.push(Some(SimplifiedVType::OneWord));
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
+
 fn top_operand_is_one_word_and_exit(method_frames: &mut MethodFrames, current_offset: ByteCodeOffset) {
     let current_frame = method_frames.nth_frame_mut(current_offset);
     current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
@@ -1028,6 +1110,15 @@ fn one_word_in_one_word_out(method_frames: &mut MethodFrames, current_index: Byt
     let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
     current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
     let operand_stack = current_frame.operand_stack();
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
+fn one_word_in_two_word_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
+    let mut operand_stack = current_frame.operand_stack();
+    operand_stack.pop().unwrap().unwrap();
+    operand_stack.push(Some(SimplifiedVType::TwoWord));
     next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
 }
 
@@ -1072,6 +1163,13 @@ fn one_word_const(method_frames: &mut MethodFrames, current_index: ByteCodeIndex
     next_frame.as_mut().unwrap().assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
 }
 
+fn two_word_const(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    let mut operand_stack = frame.operand_stack();
+    operand_stack.push(Some(SimplifiedVType::TwoWord));
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
 fn one_word_variable_load(method_frames: &mut MethodFrames, n: u8, current_index: ByteCodeIndex) {
     let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
     current_frame.assert_local_is(n as u16, SimplifiedVType::OneWord);
@@ -1081,10 +1179,27 @@ fn one_word_variable_load(method_frames: &mut MethodFrames, n: u8, current_index
     next_frame.as_mut().unwrap().assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
 }
 
+fn two_word_variable_load(method_frames: &mut MethodFrames, n: u8, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_local_is(n as u16, SimplifiedVType::TwoWord);
+    let mut operand_stack = current_frame.operand_stack();
+    operand_stack.push(Some(SimplifiedVType::TwoWord));
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
 fn one_word_variable_store(method_frames: &mut MethodFrames, n: u8, current_index: ByteCodeIndex) {
     let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
     current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
     next_frame.as_mut().unwrap().assert_local_is(n as u16, SimplifiedVType::OneWord);
+    let mut operand_stack = current_frame.operand_stack();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
+fn two_word_variable_store(method_frames: &mut MethodFrames, n: u8, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::TwoWord);
+    next_frame.as_mut().unwrap().assert_local_is(n as u16, SimplifiedVType::TwoWord);
     let mut operand_stack = current_frame.operand_stack();
     let _ = operand_stack.pop().unwrap().unwrap();
     next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
