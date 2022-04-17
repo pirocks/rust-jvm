@@ -134,7 +134,7 @@ pub enum IRInstr {
     Label(IRLabel),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FloatCompareMode {
     G,
     L,
