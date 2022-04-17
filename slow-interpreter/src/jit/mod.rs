@@ -174,8 +174,10 @@ impl<'gc> MethodResolver<'gc> {
         YetAnotherLayoutImpl::new(frames, code)
     }
 
-    pub fn lookup_native_method_kayout(&self, method_id: usize) -> NativeStackframeMemoryLayout{
-        todo!()
+    pub fn lookup_native_method_layout(&self, method_id: usize) -> NativeStackframeMemoryLayout{
+        NativeStackframeMemoryLayout{
+            num_locals: self.num_locals(method_id)
+        }
     }
 
     pub fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl {
@@ -225,6 +227,7 @@ impl<'gc> MethodResolver<'gc> {
 
     pub fn num_locals(&self, method_id: MethodId) -> u16 {
         self.using_method_view_impl(method_id, |method_view| {
+            assert!(method_view.is_native());
             method_view.desc().count_local_vars_needed() + if method_view.is_static() { 0 } else { 1 }
         } as u16)
     }

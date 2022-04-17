@@ -107,4 +107,19 @@ impl RuntimeType {
             }
         }
     }
+
+    pub fn try_back_to_cpdtype(&self) -> Option<CPDType>{
+        Some(match self {
+            RuntimeType::IntType => CPDType::IntType,
+            RuntimeType::FloatType => CPDType::FloatType,
+            RuntimeType::DoubleType => CPDType::DoubleType,
+            RuntimeType::LongType => CPDType::LongType,
+            RuntimeType::Ref(ref_) => match ref_ {
+                RuntimeRefType::Array(arr) => CPDType::array(*arr),
+                RuntimeRefType::Class(class) => CPDType::Class(*class),
+                RuntimeRefType::NullType => CPDType::object()
+            }
+            RuntimeType::TopType => return None,
+        })
+    }
 }

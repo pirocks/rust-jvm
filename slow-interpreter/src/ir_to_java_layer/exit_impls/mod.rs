@@ -39,6 +39,7 @@ use crate::runtime_class::static_vars;
 use crate::utils::lookup_method_parsed;
 
 pub mod multi_allocate_array;
+pub mod new_run_native;
 
 
 #[inline(never)]
@@ -344,7 +345,7 @@ fn invoke_virtual_full<'gc>(
     let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
         jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
-        if jvm.is_native_by_method_id(method_id) {
+/*        if jvm.is_native_by_method_id(method_id) {
             //is native should run native method
             //todo duplicated
             if jvm.exit_trace_options.tracing_enabled() {
@@ -372,7 +373,7 @@ fn invoke_virtual_full<'gc>(
             let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
             return Either::Right(IRVMExitAction::RestartAtPtr { ptr: restart_address });
         }
-    }
+*/    }
 
     let ResolvedInvokeVirtual {
         address,

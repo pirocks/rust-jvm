@@ -186,10 +186,10 @@ impl MemoryRegions {
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
                 //todo need to use bigger region as needed.
-                self.new_region_for(to_allocate_type, None)
+                self.new_region_for(to_allocate_type, None, None)
             }
-            Err(FindRegionError::RegionFull{ prev_region_size }) => {
-                self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()))
+            Err(FindRegionError::RegionFull { prev_region_size, prev_vtable_ptr }) => {
+                self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()), Some(prev_vtable_ptr))
             }
             Ok(region) => region,
         };
@@ -230,7 +230,8 @@ impl MemoryRegions {
 
 pub enum FindRegionError {
     RegionFull {
-        prev_region_size: Region
+        prev_region_size: Region,
+        prev_vtable_ptr: *mut RawNativeVTable,
     },
     NoRegion,
 }
@@ -246,15 +247,18 @@ impl MemoryRegions {
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
         if num_current_elements >= max_elements {
             eprintln!("was empty: {}", type_id.0);
-            return Err(FindRegionError::RegionFull {
-                prev_region_size: *region
-            });
+            unsafe {
+                return Err(FindRegionError::RegionFull {
+                    prev_region_size: *region,
+                    prev_vtable_ptr: region_header_ptr.as_ref().vtable_ptr,
+                });
+            }
         }
         Ok(region_header_ptr)
     }
 
 
-    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType, size_override: Option<Region>) -> NonNull<RegionHeader> {
+    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType, size_override: Option<Region>, prev_vtable_ptr: Option<*mut RawNativeVTable>) -> NonNull<RegionHeader> {
         let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
@@ -266,6 +270,9 @@ impl MemoryRegions {
         *free_index += 1;
         let region_header_ptr = self.region_header_at(current_region_to_use, our_index, false);
         self.type_to_region_datas[type_id.0 as usize].push((current_region_to_use, our_index));
+        if let Some(prev_vtable_ptr) = prev_vtable_ptr {
+            assert_eq!(to_allocate_type.vtable().unwrap().as_ptr(), prev_vtable_ptr);
+        }
         unsafe {
             let region_elem_size = to_allocate_type.size();
             assert_ne!(region_elem_size, 0);
@@ -407,7 +414,7 @@ impl MemoryRegions {
                 mask: region_mask,
                 base_address: (ptr.as_ptr() as u64 & region_mask) as *mut c_void,
             }
-        }else if region_base_masked_ptr == self.early_mmaped_regions.extra_large_regions.as_ptr() as u64 {
+        } else if region_base_masked_ptr == self.early_mmaped_regions.extra_large_regions.as_ptr() as u64 {
             let region_mask = 1 << EXTRA_LARGE_REGION_SIZE_SIZE;
             BaseAddressAndMask {
                 mask: region_mask,

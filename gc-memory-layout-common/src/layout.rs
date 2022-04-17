@@ -199,7 +199,7 @@ impl StackframeMemoryLayout for FullyOpaqueFrame {
 }
 
 pub struct NativeStackframeMemoryLayout {
-    pub num_locals: u16
+    pub num_locals: u16// num_locals does include top native functions, to allow same ircall mechanism
 }
 
 impl NativeStackframeMemoryLayout {

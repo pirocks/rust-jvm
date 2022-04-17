@@ -227,6 +227,9 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     if parent_frame.is_native_method() || parent_frame.is_opaque(){
         parent_frame = stack.next().unwrap();
     }
+    if parent_frame.is_native_method() || parent_frame.is_opaque(){
+        parent_frame = stack.next().unwrap();
+    }
     assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque());
     let possibly_class_pointer = stack.find_map(|entry| {
         let class_pointer = entry.try_class_pointer(jvm)?;

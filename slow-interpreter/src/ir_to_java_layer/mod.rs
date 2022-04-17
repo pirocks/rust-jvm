@@ -1,26 +1,18 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::Hash;
-use std::ptr::{null_mut};
 
-use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
+use another_jit_vm::{IRMethodID};
 use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
-use crate::{InterpreterStateGuard, JavaValue, JavaValueCommon, JVMState};
-use crate::instructions::invoke::native::run_native_method;
+use crate::{InterpreterStateGuard, JavaValue, JVMState};
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
-use crate::java_values::native_to_new_java_value_rtype;
-use itertools::Itertools;
-use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
 
 pub mod compiler;
 pub mod java_stack;
@@ -167,67 +159,15 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
                 multi_allocate_array(jvm, int_state.unwrap(), *elem_type, *num_arrays, *len_start, *return_to_ptr, *res_address)
             }
             RuntimeVMExitInput::RunNativeSpecialNew { method_id, return_to_ptr } => {
-                let int_state = int_state.unwrap();
-                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
-                let view = rc.view();
-                let method_view = view.method_view_i(method_i);
-                let mut args = vec![];
-                let current_frame = int_state.current_frame();
-                //todo dup
-                let memory_layout = NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(*method_id) };
-                let nth_local = current_frame.frame_view.read_target(memory_layout.local_var_entry(0));
-                let rtype: RuntimeType = RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()));
-                args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
-                let mut i = 0;
-                for arg_type in method_view.desc().arg_types.iter() {
-                    let nth_local = current_frame.frame_view.read_target(memory_layout.local_var_entry((i + 1) as u16));
-                    let rtype: RuntimeType = arg_type.to_runtime_type().unwrap();
-                    if let RuntimeType::LongType | RuntimeType::DoubleType = rtype {
-                        i += 1;
-                    }
-                    args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
-                    i += 1;
-                }
-                let res = run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()).unwrap();
-                let mut diff = SavedRegistersWithoutIPDiff::no_change();
-                diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().object }).unwrap_or(null_mut()));
-                IRVMExitAction::RestartWithRegisterState {
-                    diff: SavedRegistersWithIPDiff {
-                        rip: Some(*return_to_ptr),
-                        saved_registers_without_ip: diff,
-                    }
-                }
+                run_native_special_new(jvm, int_state, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::RunNativeStaticNew { method_id, return_to_ptr } => {
-                Self::run_native_static_new(jvm, int_state, *method_id, *return_to_ptr)
+                run_native_static_new(jvm, int_state, *method_id, *return_to_ptr)
             }
         }
     }
 
-    fn run_native_static_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut InterpreterStateGuard<'vm, '_>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
-        let int_state = int_state.unwrap();
-        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let view = rc.view();
-        let method_view = view.method_view_i(method_i);
-        assert!(method_view.is_static());
-        let mut args = vec![];
-        let memory_layout = NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(method_id) };
-        let current_frame = int_state.current_frame();
-        for (i, arg_type) in method_view.desc().arg_types.iter().enumerate() {
-            let nth_local = current_frame.frame_view.read_target(memory_layout.local_var_entry(i as u16));
-            let rtype: RuntimeType = arg_type.to_runtime_type().unwrap();
-            args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
-        }
-        let res = run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()).unwrap();
-        let mut diff = SavedRegistersWithoutIPDiff::no_change();
-        diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().object }).unwrap_or(null_mut()));
-        IRVMExitAction::RestartWithRegisterState {
-            diff: SavedRegistersWithIPDiff {
-                rip: Some(return_to_ptr),
-                saved_registers_without_ip: diff,
-            }
-        }
-    }
+
 }
 
 pub mod exit_impls;
