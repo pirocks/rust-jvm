@@ -5,7 +5,6 @@ use by_address::ByAddress;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::JVM_ACC_SYNCHRONIZED;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -17,6 +16,26 @@ use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
+
+pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc,'l>]) -> Vec<NewJavaValue<'gc,'l>>{
+    let mut res = vec![];
+    for arg in args{
+        res.push(arg.clone());
+        match arg {
+            NewJavaValue::Long(_) => {
+                res.push(NewJavaValue::Top)
+            }
+            NewJavaValue::Double(_) => {
+                res.push(NewJavaValue::Top)
+            }
+            NewJavaValue::Top => {
+                panic!()
+            }
+            _ => {}
+        }
+    }
+    res
+}
 
 pub fn run_native_method<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -77,27 +96,9 @@ pub fn run_native_method<'gc, 'l, 'k>(
     if !noise.contains(method_as_string.as_str()) {
         // int_state.debug_print_stack_trace(jvm);
     }
-    let parsed = method.desc();
-    /*let mut args = vec![];
-    if method.is_static() {
-        for parameter_type in parsed.arg_types.iter().rev() {
-            let rtpye = parameter_type.to_runtime_type().unwrap();
-            args.push(int_state.pop_current_operand_stack(Some(rtpye)));
-        }
-        args.reverse();
-    } else if method.is_native() {
-        for parameter_type in parsed.arg_types.iter().rev() {
-            let rtype = parameter_type.to_runtime_type().unwrap();
-            args.push(int_state.pop_current_operand_stack(Some(rtype)));
-        }
-        args.reverse();
-        args.insert(0, int_state.pop_current_operand_stack(Some(CClassName::object().into())));
-    } else {
-        panic!();
-    }*/
-    let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, args.clone()));
+    let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, correct_args(args.as_slice())));
     assert!(int_state.current_frame().is_native_method());
-    let monitor = monitor_for_function(jvm, int_state, &method, method.access_flags() & JVM_ACC_SYNCHRONIZED as u16 > 0);
+    let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm, int_state).unwrap();
     }
@@ -109,7 +110,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
             let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
             *reg_natives_for_class.get(&(method_i as u16)).unwrap()
         };
-        match call_impl(jvm, int_state, class.clone(), args, parsed.clone(), &res_fn, !method.is_static()) {
+        match call_impl(jvm, int_state, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);
@@ -118,7 +119,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
         }
     } else {
         assert!(int_state.current_frame().is_native_method());
-        match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), parsed.clone()) {
+        match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);

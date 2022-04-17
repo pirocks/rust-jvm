@@ -1,16 +1,14 @@
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::{NonNull};
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{MethodId, NativeJavaValue};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValue, JVMState};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
-use crate::java_values::GcManagedObject;
 
 pub struct OwnedJavaStack<'vm_life> {
     jvm: &'vm_life JVMState<'vm_life>,
@@ -129,9 +127,10 @@ pub struct RuntimeJavaStackFrameRef<'l, 'vm_life> {
 }
 
 impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
-    fn read_target(&self, offset: FramePointerOffset, rtype: RuntimeType) -> JavaValue<'vm_life> {
+    pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm_life> {
         let res = self.ir_ref.read_at_offset(offset);
-        match rtype {
+        NativeJavaValue{as_u64:res}
+        /*match rtype {
             RuntimeType::IntType => JavaValue::Int(res as i32),
             RuntimeType::FloatType => JavaValue::Float(f32::from_le_bytes((res as u32).to_le_bytes())),
             RuntimeType::DoubleType => JavaValue::Double(f64::from_le_bytes((res as f64).to_le_bytes())),
@@ -143,7 +142,7 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
             RuntimeType::TopType => {
                 panic!()
             }
-        }
+        }*/
     }
 
     pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
@@ -152,9 +151,9 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         self.read_target(offset, rtype)*/
     }
 
-    pub fn nth_local(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
+    pub fn nth_local(&self, n: usize) -> NativeJavaValue<'vm_life> {
         let offset = FramePointerOffset(n * size_of::<u64>());
-        self.read_target(offset, rtype)
+        self.read_target(offset)
     }
 }
 

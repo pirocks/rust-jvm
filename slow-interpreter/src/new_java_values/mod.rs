@@ -74,7 +74,7 @@ impl<'gc> JavaValueCommon<'gc> for NewJavaValueHandle<'gc> {
                 NewJavaValue::AllocObject(AllocatedObject::Handle(obj))
             }
             NewJavaValueHandle::Top => {
-                todo!()
+                NewJavaValue::Top
             }
         }
     }

@@ -54,7 +54,6 @@ impl AllocateObject {
     pub const RES_PTR: Register = Register(4);
     pub const RESTART_IP: Register = Register(5);
     pub const JAVA_PC: Register = Register(6);
-
 }
 
 impl ExitRegisterStruct for AllocateObject {
@@ -74,7 +73,7 @@ impl RunStaticNative {
     pub const JAVA_PC: Register = Register(6);
 }
 
-impl ExitRegisterStruct for RunStaticNative{
+impl ExitRegisterStruct for RunStaticNative {
     fn all_registers() -> HashSet<Register> {
         todo!()
     }
@@ -82,13 +81,27 @@ impl ExitRegisterStruct for RunStaticNative{
 
 pub struct RunStaticNativeNew;
 
-impl RunStaticNativeNew{
+impl RunStaticNativeNew {
     pub const METHOD_ID: Register = Register(2);
+    pub const RETURN_TO_PTR: Register = Register(3);
 }
 
-impl ExitRegisterStruct for RunStaticNativeNew{
+impl ExitRegisterStruct for RunStaticNativeNew {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::METHOD_ID])
+        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR])
+    }
+}
+
+pub struct RunSpecialNativeNew;
+
+impl RunSpecialNativeNew {
+    pub const METHOD_ID: Register = Register(2);
+    pub const RETURN_TO_PTR: Register = Register(3);
+}
+
+impl ExitRegisterStruct for RunSpecialNativeNew {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR])
     }
 }
 
@@ -135,7 +148,6 @@ pub struct TopLevelReturn;
 impl TopLevelReturn {
     pub const RES: Register = Register(2);
     pub const JAVA_PC: Register = Register(3);
-
 }
 
 pub struct PutStatic;
@@ -145,7 +157,6 @@ impl PutStatic {
     pub const VALUE_PTR: Register = Register(3);
     pub const RESTART_IP: Register = Register(4);
     pub const JAVA_PC: Register = Register(5);
-
 }
 
 impl ExitRegisterStruct for PutStatic {

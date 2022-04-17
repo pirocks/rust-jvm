@@ -478,6 +478,22 @@ impl CompressedParsedDescriptorType {
     pub fn object() -> Self {
         Self::Class(CompressedClassName::object())
     }
+
+    pub fn is_double_or_long(&self) -> bool{
+        match self {
+            CompressedParsedDescriptorType::BooleanType => false,
+            CompressedParsedDescriptorType::ByteType => false,
+            CompressedParsedDescriptorType::ShortType => false,
+            CompressedParsedDescriptorType::CharType => false,
+            CompressedParsedDescriptorType::IntType => false,
+            CompressedParsedDescriptorType::LongType => true,
+            CompressedParsedDescriptorType::FloatType => false,
+            CompressedParsedDescriptorType::DoubleType => true,
+            CompressedParsedDescriptorType::VoidType => false,
+            CompressedParsedDescriptorType::Class(_) => false,
+            CompressedParsedDescriptorType::Array { .. } => false,
+        }
+    }
 }
 
 impl CompressedParsedDescriptorType {
@@ -697,6 +713,24 @@ impl CompressedMethodDescriptor {
 
     pub fn java_source_representation(&self, _string_pool: &CompressedClassfileStringPool) -> String {
         todo!()
+    }
+
+    pub fn count_local_vars_needed(&self) -> u16 {
+        self.arg_types.iter().map(|arg|{
+            match arg {
+                CompressedParsedDescriptorType::BooleanType => 1,
+                CompressedParsedDescriptorType::ByteType => 1,
+                CompressedParsedDescriptorType::ShortType => 1,
+                CompressedParsedDescriptorType::CharType => 1,
+                CompressedParsedDescriptorType::IntType => 1,
+                CompressedParsedDescriptorType::LongType => 2,
+                CompressedParsedDescriptorType::FloatType => 1,
+                CompressedParsedDescriptorType::DoubleType => 2,
+                CompressedParsedDescriptorType::VoidType => panic!(),
+                CompressedParsedDescriptorType::Class(_) => 1,
+                CompressedParsedDescriptorType::Array { .. } => 1,
+            }
+        }).sum()
     }
 }
 

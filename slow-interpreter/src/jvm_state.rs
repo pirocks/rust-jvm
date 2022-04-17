@@ -533,7 +533,8 @@ impl<'gc> JVMState<'gc> {
         let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
-        method_view.desc().arg_types.len() as u16 + if method_view.is_static() { 0 } else { 1 }
+        assert!(method_view.is_native());
+        method_view.desc().count_local_vars_needed() as u16 + if method_view.is_static() { 0 } else { 1 }
     }
 }
 

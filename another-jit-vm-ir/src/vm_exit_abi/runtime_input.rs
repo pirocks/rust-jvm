@@ -14,7 +14,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, PutStatic, RunNativeSpecial, RunNativeVirtual, RunStaticNative, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, PutStatic, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -46,7 +46,8 @@ pub enum RawVMExitType {
     RunNativeVirtual,
     RunNativeSpecial,
     Todo,
-    RunStaticNativeNew
+    RunStaticNativeNew,
+    RunSpecialNativeNew
 }
 
 
@@ -217,6 +218,14 @@ pub enum RuntimeVMExitInput {
         method_id: MethodId,
         return_to_ptr: *const c_void,
         pc: ByteCodeOffset,
+    },
+    RunNativeSpecialNew {
+        method_id: MethodId,
+        return_to_ptr: *const c_void
+    },
+    RunNativeStaticNew {
+        method_id: MethodId,
+        return_to_ptr: *const c_void
     },
 }
 
@@ -434,7 +443,17 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::RunStaticNativeNew => {
-                todo!()
+                RuntimeVMExitInput::RunNativeStaticNew {
+                    method_id: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::METHOD_ID) as MethodId,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RETURN_TO_PTR) as *const c_void
+                }
+            }
+            RawVMExitType::RunSpecialNativeNew => {
+                RuntimeVMExitInput::RunNativeSpecialNew {
+                    method_id: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::METHOD_ID) as MethodId,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RETURN_TO_PTR) as *const c_void
+                }
+
             }
         }
     }
@@ -468,6 +487,8 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::CheckCast { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeVirtual { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeSpecial { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::RunNativeSpecialNew { .. } => None,
+            RuntimeVMExitInput::RunNativeStaticNew { .. } => None,
         }
     }
 }

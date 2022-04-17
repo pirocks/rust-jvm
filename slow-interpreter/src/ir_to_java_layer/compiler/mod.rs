@@ -278,21 +278,22 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
                 method_id,
             }
         });
-        res.push(IRInstr::Return {
-            return_val: if desc.return_type.is_void() {
-                None
-            } else {
-                Some(Register(0))//todo assert this always matches exit return register
-            },
-            temp_register_1: Register(1),
-            temp_register_2: Register(2),
-            temp_register_3: Register(3),
-            temp_register_4: Register(4),
-            frame_size: NativeStackframeMemoryLayout { num_locals: resolver.num_args(method_id) }.full_frame_size(),
-        });
     } else {
-        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo });
+        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }});
     }
+    let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
+    res.push(IRInstr::Return {
+        return_val: if desc.return_type.is_void() {
+            None
+        } else {
+            Some(Register(0))//todo assert this always matches exit return register
+        },
+        temp_register_1: Register(1),
+        temp_register_2: Register(2),
+        temp_register_3: Register(3),
+        temp_register_4: Register(4),
+        frame_size: layout.full_frame_size(),
+    });
     res
 }
 

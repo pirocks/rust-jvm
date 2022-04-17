@@ -48,6 +48,8 @@ pub fn invoke_static_impl<'l, 'gc>(
     args: Vec<NewJavaValue<'gc,'_>>
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_class_view = target_class.view();
+    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: interpreter_state.current_loader(jvm) }, method_id);
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();
@@ -68,8 +70,6 @@ pub fn invoke_static_impl<'l, 'gc>(
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-        let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
-        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: interpreter_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut function_call_frame) {

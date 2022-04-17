@@ -256,6 +256,9 @@ impl IRInstr {
                     IRVMExitType::RunStaticNativeNew { .. } => {
                         "RunStaticNativeNew"
                     }
+                    IRVMExitType::RunSpecialNativeNew { .. } => {
+                        "RunSpecialNativeNew"
+                    }
                 })
             }
             IRInstr::NPECheck { .. } => {

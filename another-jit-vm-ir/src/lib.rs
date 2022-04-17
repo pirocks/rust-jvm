@@ -11,6 +11,7 @@ use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
 use std::iter::Step;
 use std::lazy::OnceCell;
+use std::mem::size_of;
 use std::ops::{Deref, Range, RangeBounds};
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
@@ -22,6 +23,7 @@ use itertools::Itertools;
 use another_jit_vm::{BaseAddress, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, MethodImplementationID, NativeInstructionLocation, Register, VMExitEvent, VMState};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
+use gc_memory_layout_common::layout::FrameHeader;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
@@ -537,6 +539,7 @@ fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, lab
             target_address,
             current_frame_size
         } => {
+            assert!(*current_frame_size >= size_of::<FrameHeader>());
             let temp_register = temp_register_1.to_native_64();
             let return_to_rbp = temp_register_2.to_native_64();
             let mut after_call_label = assembler.create_label();

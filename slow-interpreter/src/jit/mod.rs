@@ -224,9 +224,9 @@ impl<'gc> MethodResolver<'gc> {
     }
 
     pub fn num_locals(&self, method_id: MethodId) -> u16 {
-        self.using_method_view_impl(method_id, |method_view|{
-            method_view.num_args() + if method_view.is_static() { 0} else { 1 }
-        })
+        self.using_method_view_impl(method_id, |method_view| {
+            method_view.desc().count_local_vars_needed() + if method_view.is_static() { 0 } else { 1 }
+        } as u16)
     }
 
     pub fn lookup_method_desc(&self, method_id: MethodId) -> CMethodDescriptor {

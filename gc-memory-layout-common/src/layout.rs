@@ -203,7 +203,7 @@ pub struct NativeStackframeMemoryLayout {
 }
 
 impl NativeStackframeMemoryLayout {
-    pub fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
+    pub fn local_var_entry(&self, i: u16) -> FramePointerOffset {
         assert!(i < self.num_locals as u16);
         FramePointerOffset(size_of::<FrameHeader>() + i as usize*size_of::<jlong>())
     }
@@ -213,7 +213,7 @@ impl NativeStackframeMemoryLayout {
     }
 
     pub fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>() + size_of::<jlong>()
+        size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>() + size_of::<jlong>() //extra jlong for extra native data entry
     }
 }
 

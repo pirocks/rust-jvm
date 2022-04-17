@@ -1029,7 +1029,7 @@ pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: &CPDTy
 }
 
 
-pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: &RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
     unsafe {
         match rtype {
             RuntimeType::DoubleType => NewJavaValueHandle::Double(native.double),

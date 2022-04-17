@@ -74,6 +74,8 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
             drop(read_guard);
             let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_name, method_desc).unwrap();
             let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
+            let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+            jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
             if jvm.is_native_by_method_id(resolved_method_id) {
                 let args_jv_handle = virtual_args_extract(jvm, method_desc.arg_types.as_slice(), object_ref);
                 match run_native_method(jvm, int_state, resolved_rc, resolved_method_i, args_jv_handle.iter().map(|handle| handle.as_njv()).collect_vec()) {
@@ -92,8 +94,6 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
                     }
                 }
             } else {
-                let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
-                jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
                 let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
                 let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
                 let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
@@ -604,7 +604,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
         for (i, cpdtype) in (0..num_args).zip(arg_types.iter()) {
             let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm));
         }
     }
     assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
@@ -709,7 +709,7 @@ pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[Compresse
         for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
             let arg_ptr = arg_start.sub(i * size_of::<jlong>()) as *const u64;
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm))
+            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm));
         }
     }
     args_jv_handle

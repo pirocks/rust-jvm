@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::mem::size_of;
 use std::sync::{Arc, RwLock};
 use another_jit_vm::IRMethodID;
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use crate::{InterpreterStateGuard, JVMState, MethodResolver};
 use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData, native_to_ir};
@@ -90,6 +91,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         } else {
             resolver.lookup_partial_method_layout(method_id).full_frame_size()
         };
+        assert!(new_frame_size > size_of::<FrameHeader>());
         Ok(ResolvedInvokeVirtual {
             address: address.as_ptr(),
             ir_method_id,
@@ -210,36 +212,33 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         // drop(read_guard);
         let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
 
-        let res = match ir_vm_exit_event.exit_type.exiting_pc() {
-            Some(exiting_pc) => {
-                let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-                    int_state: ir_stack_mut,
-                    thread: jvm.thread_state.get_current_thread(),
-                    registered: false,
-                    jvm,
-                    current_exited_pc: Some(exiting_pc),
-                    throw: None,
-                };
-                let old_intstate = int_state.register_interpreter_state_guard(jvm);
-                unsafe {
-                    let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
-                    let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
-                    if exiting_stack_pointer != mmaped_top {
-                        let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
-                        let frame_ref = int_state.current_frame().frame_view.ir_ref;
-                        let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
-                        assert_eq!(offset, expected_current_frame_size);
-                    }
-                }
-                let method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
-                let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut int_state), &ir_vm_exit_event.exit_type);
-                int_state.deregister_int_state(jvm, old_intstate);
-                res
-            }
-            None => {
-                JavaVMStateWrapperInner::handle_vm_exit(jvm, None, &ir_vm_exit_event.exit_type)
-            }
+        let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+            int_state: ir_stack_mut,
+            thread: jvm.thread_state.get_current_thread(),
+            registered: false,
+            jvm,
+            current_exited_pc: ir_vm_exit_event.exit_type.exiting_pc(),
+            throw: None,
         };
+        let old_intstate = int_state.register_interpreter_state_guard(jvm);
+        unsafe {
+            let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
+            let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
+            if exiting_stack_pointer != mmaped_top {
+                let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
+                let frame_ref = int_state.current_frame().frame_view.ir_ref;
+                let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
+                if offset != expected_current_frame_size {
+                    dbg!(offset);
+                    dbg!(expected_current_frame_size);
+                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(frame_ref.method_id().unwrap(),&jvm.string_pool));
+                    panic!()
+                }
+            }
+        }
+        let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut int_state), &ir_vm_exit_event.exit_type);
+        int_state.deregister_int_state(jvm, old_intstate);
         res
     }
+
 }

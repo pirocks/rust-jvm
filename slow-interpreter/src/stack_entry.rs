@@ -627,7 +627,7 @@ impl<'gc> LocalVarsRef<'gc, '_, '_> {
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv,&expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv,expected_type, jvm)
             }
         }
     }
@@ -716,7 +716,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types().iter().nth(from_start as usize).unwrap(), &expected_type);
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv, &expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv, expected_type, jvm)
             }
         }
     }
@@ -730,7 +730,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert!(self.types().iter().rev().nth(from_end as usize).unwrap().compatible_with_dumb(&expected_type));
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv,&expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv,expected_type, jvm)
             }
         }
     }

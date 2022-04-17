@@ -430,11 +430,11 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         // self.current_frame_mut().set_pc(new_pc);
     }
 
-    pub fn current_pc(&self) -> ByteCodeOffset {
+    pub fn current_pc(&self) -> Option<ByteCodeOffset> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { current_exited_pc, .. } => {
-                current_exited_pc.unwrap()
+                current_exited_pc.clone()
             }
         }
     }
@@ -458,7 +458,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 JavaFrameIterRef {
                     ir: int_state.frame_iter(&jvm.java_vm_state.ir),
                     jvm,
-                    current_pc: Some(self.current_pc()),
+                    current_pc: self.current_pc(),
                 }
             }
         }
