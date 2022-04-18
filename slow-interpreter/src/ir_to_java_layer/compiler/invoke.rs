@@ -4,10 +4,9 @@ use itertools::Either;
 
 use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
-use another_jit_vm_ir::ir_stack::FRAME_HEADER_END_OFFSET;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
-use gc_memory_layout_common::layout::FrameHeader;
+use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::{MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};

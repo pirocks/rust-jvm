@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use another_jit_vm::stack::OwnedNativeStack;
+use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET};
 use rust_jvm_common::MethodId;
 
 use crate::{IRInstructIndex, IRVMState};
@@ -50,7 +51,7 @@ impl<'k> OwnedIRStack {
 
     pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64]) {
         self.native.validate_frame_pointer(frame_pointer);
-        let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
+        let prev_rip_ptr = frame_pointer.sub( FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
         let prev_rpb_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *mut *mut c_void;
         prev_rpb_ptr.write(prev_rbp);
@@ -365,13 +366,7 @@ pub struct UnPackedIRFrameHeader {
     // prev_rip: *mut c_void,
 }
 
-pub const FRAME_HEADER_PREV_RIP_OFFSET: usize = 0;
-pub const FRAME_HEADER_PREV_RBP_OFFSET: usize = 8;
-pub const FRAME_HEADER_IR_METHOD_ID_OFFSET: usize = 16;
-pub const FRAME_HEADER_METHOD_ID_OFFSET: usize = 24;
-pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = 32;
-pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = 40;
-pub const FRAME_HEADER_END_OFFSET: usize = 48;
+
 
 
 unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {

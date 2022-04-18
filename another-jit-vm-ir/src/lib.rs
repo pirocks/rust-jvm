@@ -3,7 +3,6 @@
 #![feature(once_cell)]
 #![feature(trait_alias)]
 #![feature(bound_as_ref)]
-
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
@@ -20,11 +19,12 @@ use itertools::Itertools;
 use another_jit_vm::{BaseAddress, IRMethodID, MethodImplementationID, NativeInstructionLocation, VMExitEvent, VMState};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
-use ir_stack::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, OPAQUE_FRAME_SIZE};
+use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use ir_stack::{OPAQUE_FRAME_SIZE};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
-use crate::ir_stack::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, IRFrameMut, IRStackMut};
+use crate::ir_stack::{IRFrameMut, IRStackMut};
 use crate::ir_to_native::single_ir_to_native;
 use crate::vm_exit_abi::IRVMExitType;
 use crate::vm_exit_abi::register_structs::InvokeVirtualResolve;

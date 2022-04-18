@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
+use memoffset::offset_of;
 use another_jit_vm::FramePointerOffset;
 
 use jvmti_jni_bindings::jlong;
@@ -71,6 +72,14 @@ pub struct FrameHeader {
     pub magic_part_2: u64,
 }
 
+
+pub const FRAME_HEADER_PREV_RIP_OFFSET: usize = offset_of!(FrameHeader,prev_rip);
+pub const FRAME_HEADER_PREV_RBP_OFFSET: usize = offset_of!(FrameHeader, prev_rpb);
+pub const FRAME_HEADER_IR_METHOD_ID_OFFSET: usize = offset_of!(FrameHeader,ir_method_id);
+pub const FRAME_HEADER_METHOD_ID_OFFSET: usize = offset_of!(FrameHeader,methodid);
+pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = offset_of!(FrameHeader,magic_part_1);
+pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = offset_of!(FrameHeader,magic_part_2);
+pub const FRAME_HEADER_END_OFFSET: usize = size_of::<FrameHeader>();
 
 pub trait StackframeMemoryLayout {
     fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset;

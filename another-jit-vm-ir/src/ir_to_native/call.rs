@@ -1,8 +1,8 @@
 use std::mem::size_of;
 use iced_x86::code_asm::{CodeAssembler, qword_ptr, rax, rbp, rsp};
 use another_jit_vm::{FramePointerOffset, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, Register};
-use gc_memory_layout_common::layout::FrameHeader;
-use crate::{FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, IRCallTarget};
+use gc_memory_layout_common::layout::{FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, FrameHeader};
+use crate::IRCallTarget;
 
 pub fn ir_return(assembler: &mut CodeAssembler, return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: &usize) {
     if let Some(return_register) = return_val {
@@ -40,10 +40,10 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
     }
 
     assembler.mov(temp_register, MAGIC_1_EXPECTED).unwrap();
-    assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_1_OFFSET) as u64, temp_register).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register).unwrap();
     assembler.mov(temp_register, MAGIC_2_EXPECTED).unwrap();
-    assembler.mov(rbp - (FRAME_HEADER_PREV_MAGIC_2_OFFSET) as u64, temp_register).unwrap();
-    assembler.mov(rbp - (FRAME_HEADER_PREV_RBP_OFFSET) as u64, return_to_rbp).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_2_OFFSET as u64, temp_register).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_RBP_OFFSET as u64, return_to_rbp).unwrap();
     match target_address {
         IRCallTarget::Constant { method_id, .. } => {
             assembler.mov(temp_register, *method_id as u64).unwrap();
@@ -52,7 +52,7 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
             assembler.mov(temp_register, method_id.to_native_64()).unwrap();
         }
     }
-    assembler.mov(rbp - (FRAME_HEADER_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_METHOD_ID_OFFSET as u64, temp_register).unwrap();
     match target_address {
         IRCallTarget::Constant { ir_method_id, .. } => {
             assembler.mov(temp_register, ir_method_id.0 as u64).unwrap();
@@ -61,11 +61,11 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
             assembler.mov(temp_register, ir_method_id.to_native_64()).unwrap();
         }
     }
-    assembler.mov(rbp - (FRAME_HEADER_IR_METHOD_ID_OFFSET) as u64, temp_register).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_IR_METHOD_ID_OFFSET as u64, temp_register).unwrap();
 
     let return_to_rip = temp_register_2.to_native_64();
     assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
-    assembler.mov(rbp - (FRAME_HEADER_PREV_RIP_OFFSET) as u64, return_to_rip).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_RIP_OFFSET as u64, return_to_rip).unwrap();
     match target_address {
         IRCallTarget::Constant { address, .. } => {
             assembler.mov(temp_register, *address as u64).unwrap();
