@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx};
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
-use crate::ir_to_native::call::{ir_call, ir_return};
+use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};
 use crate::ir_to_native::integer_compare::{int_compare, sized_integer_compare};
 use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir_store_fp_relative};
@@ -116,7 +116,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             target_address,
             current_frame_size
         } => {
-            ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, return_value, target_address, current_frame_size)
+            ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size)
+        }
+        IRInstr::IRStart {
+            temp_register, ir_method_id, method_id, frame_size
+        } => {
+            ir_function_start(assembler,*temp_register, *ir_method_id, *method_id,*frame_size)
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
             npe_check(assembler, *temp_register, npe_exit_type, *possibly_null);

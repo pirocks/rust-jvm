@@ -80,9 +80,6 @@ pub fn invokespecial<'vm_life>(
                         },
                         target_address: IRCallTarget::Constant {
                             address,
-                            new_frame_size,
-                            method_id,
-                            ir_method_id,
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }]))
@@ -166,9 +163,6 @@ pub fn invokestatic<'vm_life>(
                             },
                             target_address: IRCallTarget::Constant {
                                 address,
-                                ir_method_id,
-                                method_id,
-                                new_frame_size,
                             },
                             current_frame_size: method_frame_data.full_frame_size(),
                         }]))
@@ -246,9 +240,9 @@ pub fn invokevirtual<'vm_life>(
             },
             target_address: IRCallTarget::Variable {
                 address: InvokeVirtualResolve::ADDRESS_RES,
-                ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
-                method_id: InvokeVirtualResolve::METHOD_ID_RES,
-                new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
+                // ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
+                // method_id: InvokeVirtualResolve::METHOD_ID_RES,
+                // new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
             },
             current_frame_size: method_frame_data.full_frame_size(),
         },
@@ -314,9 +308,9 @@ pub fn invoke_interface(
                         },
                         target_address: IRCallTarget::Variable {
                             address: InvokeInterfaceResolve::ADDRESS_RES,
-                            ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
-                            method_id: InvokeInterfaceResolve::METHOD_ID_RES,
-                            new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
+                            // ir_method_id: InvokeInterfaceResolve::IR_METHOD_ID_RES,
+                            // method_id: InvokeInterfaceResolve::METHOD_ID_RES,
+                            // new_frame_size: InvokeInterfaceResolve::NEW_FRAME_SIZE_RES,
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }

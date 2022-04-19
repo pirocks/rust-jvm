@@ -129,6 +129,12 @@ pub enum IRInstr {
         target_address: IRCallTarget,
         current_frame_size: usize,
     },
+    IRStart{
+        temp_register: Register,
+        ir_method_id: IRMethodID,
+        method_id: MethodId,
+        frame_size: usize
+    },
     NOP,
     DebuggerBreakpoint,
     Label(IRLabel),
@@ -140,19 +146,13 @@ pub enum FloatCompareMode {
     L,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum IRCallTarget {
     Constant {
         address: *const c_void,
-        ir_method_id: IRMethodID,
-        method_id: MethodId,
-        new_frame_size: usize,
     },
     Variable {
         address: Register,
-        ir_method_id: Register,
-        method_id: Register,
-        new_frame_size: Register,
     },
 }
 
@@ -380,6 +380,9 @@ impl IRInstr {
             }
             IRInstr::SubDouble { .. } => {
                 "SubDouble".to_string()
+            }
+            IRInstr::IRStart { .. } => {
+                "IRStart".to_string()
             }
         }
     }

@@ -53,6 +53,8 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
     pub handler: OnceCell<ExitHandlerType<'vm_life, ExtraData>>,
+
+    reserved_ir_method_id: HashSet<IRMethodID>
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
@@ -68,6 +70,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             _method_ir: Default::default(),
             opaque_method_to_or_method_id: Default::default(),
             handler: Default::default(),
+            reserved_ir_method_id: Default::default()
         }
     }
 
@@ -261,24 +264,32 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         // eprintln!("{}", formatted_instructions);
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
-        assert!(frame_size >= FRAME_HEADER_END_OFFSET);
+    pub fn reserve_method_id(&self) -> IRMethodID{
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
+        inner_guard.reserved_ir_method_id.insert(current_ir_id);
+        current_ir_id
+    }
+
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
+        assert!(frame_size >= FRAME_HEADER_END_OFFSET);
+        let mut inner_guard = self.inner.write().unwrap();
         let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS /*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address, &assembly_index_to_ir_instruct_index, &instructions);
-        inner_guard.add_function_ir_offsets(current_ir_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
-        inner_guard.frame_sizes_by_ir_method_id.insert(current_ir_id, frame_size);
+        inner_guard.add_function_ir_offsets(ir_method_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
+        inner_guard.frame_sizes_by_ir_method_id.insert(ir_method_id, frame_size);
         let code = result.code_buffer;
         let method_implementation_id = self.native_vm.add_method_implementation(code, base_address);
-        inner_guard.current_implementation.insert(current_ir_id, method_implementation_id);
-        inner_guard.implementation_id_to_ir_method_id.insert(method_implementation_id, current_ir_id);
-        (current_ir_id, restart_points)
+        inner_guard.current_implementation.insert(ir_method_id, method_implementation_id);
+        inner_guard.implementation_id_to_ir_method_id.insert(method_implementation_id, ir_method_id);
+        let was_present = inner_guard.reserved_ir_method_id.remove(&ir_method_id);
+        assert!(was_present);
+        (ir_method_id, restart_points)
     }
 }
 

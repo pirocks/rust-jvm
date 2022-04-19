@@ -267,9 +267,15 @@ impl NeedsRecompileIf {
     }
 }
 
-pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions) -> Vec<IRInstr> {
+pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions, reserved_method_id: IRMethodID) -> Vec<IRInstr> {
     //todo handle synchronized
-    let mut res = vec![];
+    let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
+    let mut res = vec![IRInstr::IRStart {
+        temp_register: Register(2),
+        ir_method_id: reserved_method_id,
+        method_id,
+        frame_size: layout.full_frame_size()
+    }];
     let desc = resolver.lookup_method_desc(method_id);
     if resolver.is_static(method_id) {
         res.push(IRInstr::VMExit2 {
@@ -280,7 +286,6 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
     } else {
         res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }});
     }
-    let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
     res.push(IRInstr::Return {
         return_val: if desc.return_type.is_void() {
             None
@@ -296,9 +301,14 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
     res
 }
 
-pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions) -> Vec<(ByteCodeOffset, IRInstr)> {
+pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
-    let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![];
+    let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0),IRInstr::IRStart {
+        temp_register: Register(1),
+        ir_method_id: reserved_ir_method_id,
+        method_id: method_frame_data.current_method_id,
+        frame_size: method_frame_data.full_frame_size()
+    })];
     let mut compiler_labeler = CompilerLabeler {
         labeler,
         labels_vec: vec![],

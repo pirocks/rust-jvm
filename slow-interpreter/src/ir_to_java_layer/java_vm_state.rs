@@ -49,7 +49,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
 
     pub fn add_top_level_vm_exit(&'vm_life self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
-        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET);
+        let ir_method_id = self.ir.reserve_method_id();
+        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET,ir_method_id);
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }
@@ -155,14 +156,15 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
             //todo need some mechanism for detecting recompile necessary
             //todo unify resolver and recompile_conditions
             let is_native = jvm.is_native_by_method_id(method_id);
+            let reserved_method_id = self.ir.reserve_method_id();
             let (ir_instructions, full_frame_size, byte_code_ir_mapping) = if is_native {
-                let ir_instr = native_to_ir(resolver, &self.labeler, method_id, &mut recompile_conditions);
+                let ir_instr = native_to_ir(resolver, &self.labeler, method_id, &mut recompile_conditions, reserved_method_id);
                 (ir_instr, NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(method_id) }.full_frame_size(), None)
             } else {
                 let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
                 let java_frame_data = &java_function_frame_guard.entry(method_id)
                     .or_insert_with(|| JavaCompilerMethodAndFrameData::new(jvm, method_id));
-                let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions);
+                let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions, reserved_method_id);
                 let mut ir_instructions = vec![];
                 let mut ir_index_to_bytecode_pc = HashMap::new();
                 let mut bytecode_pc_to_start_ir_index = HashMap::new();
@@ -187,7 +189,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
-            let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, full_frame_size);
+            let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, full_frame_size,reserved_method_id);
             let mut write_guard = self.inner.write().unwrap();
             write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
             write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
