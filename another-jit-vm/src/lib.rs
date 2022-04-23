@@ -2,7 +2,7 @@
 #![feature(backtrace)]
 #![feature(trait_alias)]
 #![feature(generic_associated_types)]
-// save all registers when entering and exiting vm -
+#![feature(core_intrinsics)]
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
 // have another layer above this which gets rid of native points and does everytthing in terms of IR
@@ -21,6 +21,7 @@ use iced_x86::code_asm::{al, AsmRegister16, AsmRegister32, AsmRegister64, AsmReg
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
+use crate::code_modification::CodeModificationHandle;
 
 use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use crate::stack::OwnedNativeStack;
@@ -39,6 +40,7 @@ pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
 
 pub mod stack;
 pub mod saved_registers_utils;
+pub mod code_modification;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Register(pub u8);
@@ -589,7 +591,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         BaseAddress(self.inner.read().unwrap().max_ptr)
     }
 
-    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress) -> MethodImplementationID {
+    pub fn add_method_implementation(&self, code: Vec<u8>, base_address: BaseAddress, code_modification_handle: CodeModificationHandle) -> MethodImplementationID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_method_id = inner_guard.method_id_max;
         inner_guard.method_id_max.0 += 1;
@@ -604,6 +606,7 @@ impl<'vm_life, T, ExtraData> VMState<'vm_life, T, ExtraData> {
         inner_guard.code_regions_to_method.insert(method_range, current_method_id);
         inner_guard.max_ptr = end_of_new_method;
         unsafe { copy_nonoverlapping(code.as_ptr() as *const c_void, new_method_base as *mut c_void, code_len); }
+        drop(code_modification_handle);
         current_method_id
     }
 }

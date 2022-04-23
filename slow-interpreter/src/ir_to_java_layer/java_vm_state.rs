@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::{Arc, RwLock};
+use another_jit_vm::code_modification::GlobalCodeEditingLock;
 use another_jit_vm::IRMethodID;
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
@@ -10,6 +11,7 @@ use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use crate::{InterpreterStateGuard, JVMState, MethodResolver};
+use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use crate::ir_to_java_layer::compiler::{compile_to_ir, JavaCompilerMethodAndFrameData, native_to_ir};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, ExitNumber, JavaVMStateMethod, JavaVMStateWrapperInner};
@@ -21,6 +23,8 @@ pub struct JavaVMStateWrapper<'vm_life> {
     pub inner: RwLock<JavaVMStateWrapperInner<'vm_life>>,
     // should be per thread
     labeler: Labeler,
+    function_call_targets: RwLock<FunctionCallTargetsByFunction>,
+    modication_lock: GlobalCodeEditingLock
 }
 
 impl<'vm_life> JavaVMStateWrapper<'vm_life> {
@@ -33,6 +37,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
+            function_call_targets: RwLock::new(FunctionCallTargetsByFunction::new()),
+            modication_lock: GlobalCodeEditingLock::new()
         };
         res
     }
@@ -50,7 +56,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_top_level_vm_exit(&'vm_life self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm_life, ExtraData>, &mut ExtraData
         let ir_method_id = self.ir.reserve_method_id();
-        let (ir_method_id, restart_points) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET,ir_method_id);
+        let (ir_method_id, restart_points,_) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET,ir_method_id, self.modication_lock.acquire());
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }
@@ -152,7 +158,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
-            eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             //todo need some mechanism for detecting recompile necessary
             //todo unify resolver and recompile_conditions
             let is_native = jvm.is_native_by_method_id(method_id);
@@ -189,7 +195,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
-            let (ir_method_id, restart_points) = self.ir.add_function(ir_instructions, full_frame_size,reserved_method_id);
+            let (ir_method_id, restart_points,function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size,reserved_method_id, self.modication_lock.acquire());
+            self.function_call_targets.write().unwrap().sink_targets(function_call_targets);
             let mut write_guard = self.inner.write().unwrap();
             write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
             write_guard.methods.insert(ir_method_id, JavaVMStateMethod {
@@ -197,6 +204,7 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 byte_code_ir_mapping,
                 associated_method_id: method_id,
             });
+            self.function_call_targets.read().unwrap().update_target(method_id,self.ir.lookup_ir_method_id_pointer(ir_method_id),self.modication_lock.acquire());
             drop(write_guard);
         }
     }

@@ -150,6 +150,7 @@ pub enum FloatCompareMode {
 pub enum IRCallTarget {
     Constant {
         address: *const c_void,
+        method_id: MethodId
     },
     Variable {
         address: Register,

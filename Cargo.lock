@@ -40,6 +40,7 @@ dependencies = [
  "memoffset",
  "nix",
  "rangemap 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "raw-cpuid",
 ]
 
 [[package]]
@@ -1261,6 +1262,15 @@ checksum = "4556ba17699ec8276a2e73e22c5b846666e06fe9db1228a9d4377e67b5d35fcb"
 name = "rangemap"
 version = "1.0.1"
 source = "git+https://github.com/pirocks/rangemap.git#75590c58e7c058444ef29cc32720cbef35e8e2a8"
+
+[[package]]
+name = "raw-cpuid"
+version = "10.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "738bc47119e3eeccc7e94c4a506901aea5e7b4944ecd0829cbebf4af04ceda12"
+dependencies = [
+ "bitflags",
+]
 
 [[package]]
 name = "rdrand"

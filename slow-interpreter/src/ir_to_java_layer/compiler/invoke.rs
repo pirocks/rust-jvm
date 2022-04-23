@@ -80,6 +80,7 @@ pub fn invokespecial<'vm_life>(
                         },
                         target_address: IRCallTarget::Constant {
                             address,
+                            method_id
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }]))
@@ -163,6 +164,7 @@ pub fn invokestatic<'vm_life>(
                             },
                             target_address: IRCallTarget::Constant {
                                 address,
+                                method_id
                             },
                             current_frame_size: method_frame_data.full_frame_size(),
                         }]))
@@ -214,6 +216,7 @@ pub fn invokevirtual<'vm_life>(
     let method_shape_id = resolver.lookup_virtual(target_class_type, method_name, descriptor.clone());
     // todo investigate size of table for invokevirtual without tagging.
     let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
+    //todo fix the generated lookup
     return Either::Right(array_into_iter([restart_point,
         IRInstr::VTableLookupOrExit {
             resolve_exit: IRVMExitType::InvokeVirtualResolve {

@@ -14,15 +14,7 @@
 #![feature(never_type)]
 #![feature(box_patterns)]
 #![feature(once_cell)]
-extern crate core;
-extern crate errno;
-extern crate libc;
-extern crate libloading;
-extern crate lock_api;
-extern crate nix;
-extern crate parking_lot;
-extern crate regex;
-extern crate va_list;
+
 
 use std::error::Error;
 use std::sync::Arc;
@@ -54,6 +46,7 @@ use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::JavaThread;
 
+pub mod function_call_targets_updating;
 pub mod java_values;
 pub mod java;
 pub mod sun;

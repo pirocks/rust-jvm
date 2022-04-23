@@ -3,7 +3,7 @@ use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use itertools::{Either, Itertools};
+use itertools::{Itertools};
 use libc::{memset, rand};
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -281,14 +281,7 @@ pub fn invoke_virtual_resolve<'gc>(
                 &desc,
                 allocated_type,
             );
-            match res {
-                Either::Left(resolved) => {
-                    resolved
-                }
-                Either::Right(was_native) => {
-                    return was_native;
-                }
-            }
+            res
         }
         Some(res) => {
             res
@@ -301,7 +294,7 @@ pub fn invoke_virtual_resolve<'gc>(
         method_id,
         new_frame_size
     } = res;
-
+    dbg!(return_to_ptr);
 
     let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
     start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr());
@@ -327,7 +320,7 @@ fn invoke_virtual_full<'gc>(
     name: MethodName,
     desc: &CMethodDescriptor,
     allocated_type: AllocatedObjectType,
-) -> Either<ResolvedVTableEntry, IRVMExitAction> {
+) -> ResolvedVTableEntry {
     let rc = match allocated_type {
         AllocatedObjectType::Class { name, .. } => {
             assert_inited_or_initing_class(jvm, (name).into())
@@ -345,35 +338,7 @@ fn invoke_virtual_full<'gc>(
     let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
         jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
-/*        if jvm.is_native_by_method_id(method_id) {
-            //is native should run native method
-            //todo duplicated
-            if jvm.exit_trace_options.tracing_enabled() {
-                eprintln!("RunNativeVirtual");
-            }
-            let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-            let class_view = rc.view();
-            let method_view = class_view.method_view_i(method_i);
-            let arg_types = &method_view.desc().arg_types;
-            let arg_start: *const c_void = object_ref_ptr;
-            let args_jv_handle = virtual_args_extract(jvm, arg_types, arg_start);
-            let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
-            let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
-                Ok(x) => x,
-                Err(WasException {}) => {
-                    let allocate_obj = int_state.throw().unwrap().duplicate_discouraged();
-                    int_state.set_throw(None);
-                    dbg!(allocate_obj.cast_throwable().to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
-                    todo!()
-                }
-            };
-            if let Some(res) = res {
-                unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
-            };
-            let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
-            return Either::Right(IRVMExitAction::RestartAtPtr { ptr: restart_address });
-        }
-*/    }
+   }
 
     let ResolvedInvokeVirtual {
         address,
@@ -402,7 +367,7 @@ fn invoke_virtual_full<'gc>(
     };
     jvm.vtable.lock().unwrap().vtable_register_entry(resolved_rc, method_number, resolved_vtable_entry);
 
-    Either::Left(resolved_vtable_entry.resolved().unwrap())
+    resolved_vtable_entry.resolved().unwrap()
 }
 
 #[inline(never)]

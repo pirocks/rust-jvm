@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx};
+use another_jit_vm::code_modification::{AssemblerFunctionCallTarget};
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};
@@ -19,7 +20,7 @@ pub mod special;
 
 
 pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, labels: &mut HashMap<LabelName, CodeLabel>,
-                       restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) {
+                       restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) -> Option<AssemblerFunctionCallTarget>{
     match instruction {
         IRInstr::LoadFPRelative { from, to, size } => {
             ir_load_fp_relative(assembler, *from, *to, *size)
@@ -116,7 +117,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             target_address,
             current_frame_size
         } => {
-            ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size)
+            return ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size)
         }
         IRInstr::IRStart {
             temp_register, ir_method_id, method_id, frame_size
@@ -235,6 +236,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             vtable_lookup_or_exit(assembler, resolve_exit)
         }
     }
+    None
 }
 
 

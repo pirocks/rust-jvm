@@ -1,6 +1,7 @@
 use std::mem::size_of;
 use iced_x86::code_asm::{CodeAssembler, qword_ptr, rax, rbp, rsp};
 use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED, Register};
+use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRuntimeModificationTarget};
 use gc_memory_layout_common::layout::{FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, FrameHeader};
 use rust_jvm_common::MethodId;
 use crate::IRCallTarget;
@@ -20,7 +21,7 @@ pub fn ir_return(assembler: &mut CodeAssembler, return_val: Option<Register>, te
     assembler.jmp(temp_register_1.to_native_64()).unwrap();
 }
 
-pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register, ir_method_id: IRMethodID, method_id: MethodId, frame_size: usize){
+pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register, ir_method_id: IRMethodID, method_id: MethodId, frame_size: usize) {
     assembler.mov(temp_register.to_native_64(), MAGIC_1_EXPECTED).unwrap();
     assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.mov(temp_register.to_native_64(), MAGIC_2_EXPECTED).unwrap();
@@ -32,14 +33,14 @@ pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register,
     assembler.lea(rsp, rbp - frame_size).unwrap();
 }
 
-pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_register_2: Register, arg_from_to_offsets: &Vec<(FramePointerOffset, FramePointerOffset)>, return_value: Option<FramePointerOffset>, target_address: IRCallTarget, current_frame_size: usize) {
+pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_register_2: Register, arg_from_to_offsets: &Vec<(FramePointerOffset, FramePointerOffset)>, return_value: Option<FramePointerOffset>, target_address: IRCallTarget, current_frame_size: usize) -> Option<AssemblerFunctionCallTarget> {
     assert!(current_frame_size >= size_of::<FrameHeader>());
     let temp_register = temp_register_1.to_native_64();
     let return_to_rbp = temp_register_2.to_native_64();
     let mut after_call_label = assembler.create_label();
     assembler.mov(return_to_rbp, rbp).unwrap();
     assembler.sub(rbp, current_frame_size as i32).unwrap();
-    let max_offset = arg_from_to_offsets.iter().map(|(_,to)|to.0).max().unwrap_or(0);
+    let max_offset = arg_from_to_offsets.iter().map(|(_, to)| to.0).max().unwrap_or(0);
     assembler.mov(rbp - FRAME_HEADER_PREV_RBP_OFFSET as u64, return_to_rbp).unwrap();
     //so that we don't get red zoned
     assembler.sub(rsp, max_offset as i32).unwrap();
@@ -51,17 +52,23 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
     let return_to_rip = temp_register_2.to_native_64();
     assembler.lea(return_to_rip, qword_ptr(after_call_label.clone())).unwrap();
     assembler.mov(rbp - FRAME_HEADER_PREV_RIP_OFFSET as u64, return_to_rip).unwrap();
-    match target_address {
-        IRCallTarget::Constant { address, .. } => {
+    let mov_position_and_method_id = match target_address {
+        IRCallTarget::Constant { address, method_id, } => {
+            let mov_position = assembler.instructions().len();
             assembler.mov(temp_register, address as u64).unwrap();
+            Some((mov_position, method_id))
         }
         IRCallTarget::Variable { address, .. } => {
             assembler.mov(temp_register, address.to_native_64()).unwrap();
+            None
         }
-    }
+    };
     assembler.jmp(temp_register).unwrap();
     assembler.set_label(&mut after_call_label).unwrap();
     if let Some(return_value) = return_value {
         assembler.mov(rbp - return_value.0, rax).unwrap();
     }
+    let (mov_position, method_id) = mov_position_and_method_id?;
+    let modification_target = AssemblerRuntimeModificationTarget::MovQ { instruction_number: mov_position };
+    Some(AssemblerFunctionCallTarget { modification_target, method_id })
 }

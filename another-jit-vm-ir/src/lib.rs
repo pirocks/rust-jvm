@@ -3,6 +3,7 @@
 #![feature(once_cell)]
 #![feature(trait_alias)]
 #![feature(bound_as_ref)]
+
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
@@ -12,15 +13,17 @@ use std::ops::{Deref, Range, RangeBounds};
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
-use iced_x86::{BlockEncoder, BlockEncoderOptions, InstructionBlock};
+use iced_x86::{BlockEncoder, BlockEncoderOptions, ConstantOffsets, InstructionBlock};
 use iced_x86::code_asm::{CodeAssembler};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, IRMethodID, MethodImplementationID, NativeInstructionLocation, VMExitEvent, VMState};
+use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRuntimeModificationTarget, CodeModificationHandle, FunctionCallTarget};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use ir_stack::{OPAQUE_FRAME_SIZE};
+use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
@@ -54,7 +57,7 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // function_ir_mapping: HashMap<IRMethodID, !>,
     pub handler: OnceCell<ExitHandlerType<'vm_life, ExtraData>>,
 
-    reserved_ir_method_id: HashSet<IRMethodID>
+    reserved_ir_method_id: HashSet<IRMethodID>,
 }
 
 impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
@@ -70,12 +73,12 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             _method_ir: Default::default(),
             opaque_method_to_or_method_id: Default::default(),
             handler: Default::default(),
-            reserved_ir_method_id: Default::default()
+            reserved_ir_method_id: Default::default(),
         }
     }
 
     pub fn add_function_ir_offsets(&mut self, current_ir_id: IRMethodID,
-                                   new_instruction_offsets: Vec<IRInstructNativeOffset>,
+                                   new_instruction_offsets: &Vec<IRInstructNativeOffset>,
                                    ir_instruct_index_to_assembly_index: Vec<(IRInstructIndex, AssemblyInstructionIndex)>) {
         let mut offsets_range = BTreeMap::new();
         let mut offsets_at_index = HashMap::new();
@@ -86,9 +89,9 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
             }
             let assembly_instruction_index_1 = AssemblyInstructionIndex(i);
             assert_eq!(assembly_instruction_index_1, assembly_instruction_index_2);
-            let overwritten = offsets_range.insert(instruction_offset, ir_instruction_index);
+            let overwritten = offsets_range.insert(*instruction_offset, ir_instruction_index);
             assert!(overwritten.is_none());
-            offsets_at_index.entry(ir_instruction_index).or_insert(instruction_offset);
+            offsets_at_index.entry(ir_instruction_index).or_insert(*instruction_offset);
         }
         let indexes = offsets_range.iter().map(|(_, instruct)| *instruct).collect::<HashSet<_>>();
         assert_eq!(indexes.iter().max().unwrap().0 + 1, indexes.len());
@@ -264,7 +267,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         // eprintln!("{}", formatted_instructions);
     }
 
-    pub fn reserve_method_id(&self) -> IRMethodID{
+    pub fn reserve_method_id(&self) -> IRMethodID {
         let mut inner_guard = self.inner.write().unwrap();
         let current_ir_id = inner_guard.ir_method_id_max;
         inner_guard.ir_method_id_max.0 += 1;
@@ -272,44 +275,65 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         current_ir_id
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>) {
+    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID, code_modification_handle: CodeModificationHandle) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>, HashMap<MethodId, Vec<FunctionCallTarget>>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
-        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points) = add_function_from_ir(&instructions);
+        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points, call_modification_points) = add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
-        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS /*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
+        let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS/*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
         let new_instruction_offsets = result.new_instruction_offsets.into_iter().map(|new_instruction_offset| IRInstructNativeOffset(new_instruction_offset as usize)).collect_vec();
         Self::debug_print_instructions(&code_assembler, &new_instruction_offsets, base_address, &assembly_index_to_ir_instruct_index, &instructions);
-        inner_guard.add_function_ir_offsets(ir_method_id, new_instruction_offsets, assembly_index_to_ir_instruct_index);
+        inner_guard.add_function_ir_offsets(ir_method_id, &new_instruction_offsets, assembly_index_to_ir_instruct_index);
         inner_guard.frame_sizes_by_ir_method_id.insert(ir_method_id, frame_size);
         let code = result.code_buffer;
-        let method_implementation_id = self.native_vm.add_method_implementation(code, base_address);
+        let method_implementation_id = self.native_vm.add_method_implementation(code, base_address, code_modification_handle);
         inner_guard.current_implementation.insert(ir_method_id, method_implementation_id);
         inner_guard.implementation_id_to_ir_method_id.insert(method_implementation_id, ir_method_id);
         let was_present = inner_guard.reserved_ir_method_id.remove(&ir_method_id);
         assert!(was_present);
-        (ir_method_id, restart_points)
+        let mut function_call_targets: HashMap<usize, Vec<FunctionCallTarget>> = HashMap::new();
+        for call_modification_point in call_modification_points {
+            match call_modification_point {
+                AssemblerFunctionCallTarget { method_id, modification_target } => {
+                    unsafe {
+                        match modification_target {
+                            AssemblerRuntimeModificationTarget::MovQ { instruction_number } => {
+                                let constant_offset: &ConstantOffsets = &result.constant_offsets[instruction_number];
+                                assert!(constant_offset.has_immediate());
+                                let raw_ptr = base_address.0.offset(new_instruction_offsets[instruction_number].0 as isize)
+                                    .offset(constant_offset.immediate_offset() as isize);
+                                function_call_targets.entry(method_id).or_default().push(FunctionCallTarget(raw_ptr as *mut *const c_void));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        (ir_method_id, restart_points, function_call_targets)
     }
 }
 
 
-fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>) {
+fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut ir_instruct_index_to_assembly_instruction_index = Vec::new();
     let mut labels = HashMap::new();
     let mut restart_points = HashMap::new();
+    let mut assembler_function_call_modification_points = vec![];
     for (i, instruction) in instructions.iter().enumerate() {
         let assembly_instruction_index_start = AssemblyInstructionIndex(assembler.instructions().len());
         let ir_instruction_index = IRInstructIndex(i);
-        single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index);
+        let assembler_function_call_modification_point = single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index);
+        assembler_function_call_modification_points.extend(assembler_function_call_modification_point.into_iter());
         let assembly_instruction_index_end = AssemblyInstructionIndex(assembler.instructions().len());
         assert!(!(assembly_instruction_index_start..assembly_instruction_index_end).is_empty());
         for assembly_index in assembly_instruction_index_start..assembly_instruction_index_end {
             ir_instruct_index_to_assembly_instruction_index.push((ir_instruction_index, assembly_index));
         }
     }
-    (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points)
+    (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points, assembler_function_call_modification_points)
 }
 
 fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
@@ -356,7 +380,7 @@ impl Step for IRInstructNativeOffset {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct AssemblyInstructionIndex(usize);
 
-impl std::iter::Step for AssemblyInstructionIndex {
+impl Step for AssemblyInstructionIndex {
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         Some(end.0 - start.0)
     }
