@@ -2,13 +2,19 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::compressed_classfile::{CMethodDescriptor, CPDTypeOrderWrapper};
+use crate::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDTypeOrderWrapper};
 use crate::compressed_classfile::names::MethodName;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct MethodShape {
     pub name: MethodName,
     pub desc: CMethodDescriptor,
+}
+
+impl MethodShape{
+    pub fn to_jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
+        format!("{}/{}", self.name.0.to_str(string_pool), self.desc.jvm_representation(string_pool))
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]

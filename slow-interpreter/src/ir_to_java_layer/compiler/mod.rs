@@ -26,6 +26,7 @@ use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dm
 use crate::ir_to_java_layer::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
 use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
+use crate::ir_to_java_layer::compiler::intrinsics::gen_intrinsic_ir;
 use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
 use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, dload_n, fload_n, iload_n, lload_n};
@@ -267,14 +268,19 @@ impl NeedsRecompileIf {
     }
 }
 
-pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions, reserved_method_id: IRMethodID) -> Vec<IRInstr> {
+pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions, ir_method_id: IRMethodID) -> Vec<IRInstr> {
     //todo handle synchronized
     let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
+    if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, labeler, method_id,ir_method_id) {
+        return intrinsic_ir;
+    }
+
     let mut res = vec![IRInstr::IRStart {
         temp_register: Register(2),
-        ir_method_id: reserved_method_id,
+        ir_method_id,
         method_id,
-        frame_size: layout.full_frame_size()
+        frame_size: layout.full_frame_size(),
+        num_locals: resolver.num_locals(method_id) as usize,
     }];
     let desc = resolver.lookup_method_desc(method_id);
     if resolver.is_static(method_id) {
@@ -284,7 +290,7 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
             }
         });
     } else {
-        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }});
+        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id } });
     }
     res.push(IRInstr::Return {
         return_val: if desc.return_type.is_void() {
@@ -303,11 +309,12 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
 
 pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
-    let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0),IRInstr::IRStart {
+    let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0), IRInstr::IRStart {
         temp_register: Register(1),
         ir_method_id: reserved_ir_method_id,
         method_id: method_frame_data.current_method_id,
-        frame_size: method_frame_data.full_frame_size()
+        frame_size: method_frame_data.full_frame_size(),
+        num_locals: method_frame_data.layout.max_locals as usize,
     })];
     let mut compiler_labeler = CompilerLabeler {
         labeler,
@@ -996,7 +1003,7 @@ fn swap(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: 
     iter
 }
 
-
+pub mod intrinsics;
 pub mod float_convert;
 pub mod float_arithmetic;
 pub mod instance_of_and_casting;

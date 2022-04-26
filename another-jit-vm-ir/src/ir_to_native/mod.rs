@@ -120,9 +120,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             return ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size)
         }
         IRInstr::IRStart {
-            temp_register, ir_method_id, method_id, frame_size
+            temp_register, ir_method_id, method_id, frame_size, num_locals
         } => {
-            ir_function_start(assembler,*temp_register, *ir_method_id, *method_id,*frame_size)
+            ir_function_start(assembler,*temp_register, *ir_method_id, *method_id,*frame_size, *num_locals)
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
             npe_check(assembler, *temp_register, npe_exit_type, *possibly_null);

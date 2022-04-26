@@ -21,7 +21,11 @@ pub fn ir_return(assembler: &mut CodeAssembler, return_val: Option<Register>, te
     assembler.jmp(temp_register_1.to_native_64()).unwrap();
 }
 
-pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register, ir_method_id: IRMethodID, method_id: MethodId, frame_size: usize) {
+pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register, ir_method_id: IRMethodID, method_id: MethodId, frame_size: usize, num_locals: usize) {
+    assembler.mov(temp_register.to_native_64(),0xeeee_eeee_eeee_eeeeu64).unwrap();
+    for i in (size_of::<FrameHeader>()/8 + num_locals)..(frame_size/8){
+        assembler.mov(rbp - i*8, temp_register.to_native_64()).unwrap()
+    }
     assembler.mov(temp_register.to_native_64(), MAGIC_1_EXPECTED).unwrap();
     assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.mov(temp_register.to_native_64(), MAGIC_2_EXPECTED).unwrap();

@@ -13,9 +13,9 @@ pub struct MethodNumber(pub u32);
 
 
 //todo this won't handle private methods correctly but can't b/c method shape doesn't know about multiple private methods
-struct MethodNumberMappings {
-    current_method_number: u32,
-    mapping: HashMap<MethodShape, MethodNumber>,
+pub struct MethodNumberMappings {
+    pub current_method_number: u32,
+    pub mapping: HashMap<MethodShape, MethodNumber>,
 }
 
 impl MethodNumberMappings {

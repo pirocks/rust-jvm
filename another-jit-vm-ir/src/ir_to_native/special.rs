@@ -43,10 +43,8 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let vtable_ptr_register = Register(3);
             MemoryRegions::generate_find_vtable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register);
             let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4
-            let ir_method_id_register = InvokeVirtualResolve::IR_METHOD_ID_RES;// register 5
-            let method_id_register = InvokeVirtualResolve::METHOD_ID_RES;// register 6
-            let frame_size_register = InvokeVirtualResolve::NEW_FRAME_SIZE_RES;// register 7
-            generate_vtable_access(assembler, *method_number, vtable_ptr_register, Register(1), address_register, ir_method_id_register, method_id_register, frame_size_register);
+            assembler.sub(address_register.to_native_64(),address_register.to_native_64()).unwrap();
+            generate_vtable_access(assembler, *method_number, vtable_ptr_register, Register(1), address_register);
             assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
             let mut fast_resolve_worked = assembler.create_label();
             assembler.jnz(fast_resolve_worked.clone()).unwrap();

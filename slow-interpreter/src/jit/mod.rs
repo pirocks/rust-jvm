@@ -188,7 +188,7 @@ impl<'gc> MethodResolver<'gc> {
         PartialYetAnotherLayoutImpl::new(code)
     }
 
-    fn using_method_view_impl<T>(&self, method_id: MethodId, using: impl FnOnce(&MethodView) -> T) -> T{
+    pub fn using_method_view_impl<T>(&self, method_id: MethodId, using: impl FnOnce(&MethodView) -> T) -> T{
         let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
@@ -265,7 +265,7 @@ impl<'gc> MethodResolver<'gc> {
     pub fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber {
         let new_target_class = if rc.cpdtype().is_array() {
             let object_rc = assert_inited_or_initing_class(self.jvm, CClassName::object().into());
-            object_rc
+            object_rc //todo handle arrays being serializable and cloneable
         } else {
             rc
         };

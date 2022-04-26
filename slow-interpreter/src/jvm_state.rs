@@ -24,14 +24,14 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
-use runtime_class_stuff::method_numbers::MethodNumber;
+use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName};
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
-use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapper};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapperOwned};
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
@@ -399,21 +399,24 @@ impl<'gc> JVMState<'gc> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
-        let method_numbers = JVMState::get_class_class_or_object_class_method_numbers(class_view.deref());
         let static_vars = Default::default();
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let recursive_num_fields = field_numbers.len() as u32;
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
-        let object_method_numbers = JVMState::get_class_class_or_object_class_method_numbers(object_class_view.deref());
+        let (object_recursive_num_methods,object_method_numbers) = JVMState::get_class_class_or_object_class_method_numbers(pool,object_class_view.deref(), None);
+        let (class_recursive_num_methods, class_class_method_numbers) = JVMState::get_class_class_or_object_class_method_numbers(pool,class_view.deref(), Some(object_class_view.deref()));
+        for (object_method_shape, object_method_number) in object_method_numbers.iter(){
+            let class_method_number = class_class_method_numbers.get(object_method_shape).unwrap();
+            assert_eq!(object_method_number, class_method_number);
+        }
         let object_class_static_var_types = get_static_var_types(object_class_view.deref());
-        let recursive_num_methods = object_method_numbers.len();
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
             object_class_view,
             HashMap::new(),
             object_method_numbers,
             0,
-            recursive_num_methods as u32,
+            object_recursive_num_methods as u32,
             RwLock::new(HashMap::new()),
             None,
             vec![],
@@ -421,13 +424,12 @@ impl<'gc> JVMState<'gc> {
             object_class_static_var_types,
         )));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
-        let recursive_num_methods = method_numbers.len() as u32;
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
             class_view,
             field_numbers,
-            method_numbers,
+            class_class_method_numbers,
             recursive_num_fields,
-            recursive_num_methods,
+            class_recursive_num_methods,
             static_vars,
             Some(temp_object_class),
             interfaces,
@@ -470,14 +472,25 @@ impl<'gc> JVMState<'gc> {
         field_numbers
     }
 
-    pub fn get_class_class_or_object_class_method_numbers(class_class_view: &dyn ClassView) -> HashMap<MethodShape, MethodNumber> {
-        class_class_view.methods()
+    pub fn get_class_class_or_object_class_method_numbers(pool: &CompressedClassfileStringPool, class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32,HashMap<MethodShape, MethodNumber>) {
+        let mut method_number_mappings = MethodNumberMappings::new();
+
+        if let Some(parent) = parent{
+            for method_shape in parent.methods()
+                .filter(|method| !method.is_static())
+                .map(|method|ShapeOrderWrapperOwned(method.method_shape())).sorted(){
+                method_number_mappings.sink_method(method_shape.0);
+            }
+        }
+        for method_shape in class_class_view.methods()
             .filter(|method| !method.is_static())
-            .map(|method| { method.method_shape() })
-            .sorted_by(|left, right| ShapeOrderWrapper(left).cmp(&ShapeOrderWrapper(right)))
-            .enumerate()
-            .map(|(number, shape)| (shape, MethodNumber(number as u32)))
-            .collect()
+            .map(|method| ShapeOrderWrapperOwned(method.method_shape())).sorted() {
+            method_number_mappings.sink_method(method_shape.0);
+        }
+
+        let reverse_mapping = method_number_mappings.mapping.iter().map(|(_1, _2)| (_2.clone(), _1.clone())).collect::<HashMap<MethodNumber, MethodShape>>();
+
+        (method_number_mappings.current_method_number, method_number_mappings.mapping)
     }
 
     pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {

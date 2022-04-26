@@ -363,9 +363,6 @@ impl InvokeVirtualResolve {
     pub const JAVA_PC: Register = Register(6);
     pub const METHOD_SHAPE_ID: Register = Register(8);
     pub const NATIVE_RESTART_POINT: Register = Register(9);
-    pub const METHOD_ID_RES: Register = Register(6);
-    pub const IR_METHOD_ID_RES: Register = Register(5);
-    pub const NEW_FRAME_SIZE_RES: Register = Register(7);
     pub const ADDRESS_RES: Register = Register(4);
 }
 
@@ -376,9 +373,6 @@ impl ExitRegisterStruct for InvokeVirtualResolve {
             Self::OBJECT_REF_PTR,
             Self::RESTART_IP,
             Self::ADDRESS_RES,
-            Self::IR_METHOD_ID_RES,
-            Self::METHOD_ID_RES,
-            Self::NEW_FRAME_SIZE_RES,
             Self::METHOD_SHAPE_ID,
             Self::NATIVE_RESTART_POINT,
             Self::NATIVE_RETURN_PTR,

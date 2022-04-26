@@ -243,9 +243,6 @@ pub fn invokevirtual<'vm_life>(
             },
             target_address: IRCallTarget::Variable {
                 address: InvokeVirtualResolve::ADDRESS_RES,
-                // ir_method_id: InvokeVirtualResolve::IR_METHOD_ID_RES,
-                // method_id: InvokeVirtualResolve::METHOD_ID_RES,
-                // new_frame_size: InvokeVirtualResolve::NEW_FRAME_SIZE_RES,
             },
             current_frame_size: method_frame_data.full_frame_size(),
         },

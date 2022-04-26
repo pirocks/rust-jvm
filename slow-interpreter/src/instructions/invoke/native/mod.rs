@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use by_address::ByAddress;
@@ -56,7 +55,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
 
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
     // dbg!(&method_as_string);
-    let noise = vec![
+    /*let noise = vec![
         "arraycopy",
         "getClass",
         "hashCode",
@@ -95,7 +94,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
         .collect::<HashSet<_>>();
     if !noise.contains(method_as_string.as_str()) {
         // int_state.debug_print_stack_trace(jvm);
-    }
+    }*/
     let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, correct_args(args.as_slice())));
     assert!(int_state.current_frame().is_native_method());
     let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());

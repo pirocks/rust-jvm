@@ -133,7 +133,8 @@ pub enum IRInstr {
         temp_register: Register,
         ir_method_id: IRMethodID,
         method_id: MethodId,
-        frame_size: usize
+        frame_size: usize,
+        num_locals: usize
     },
     NOP,
     DebuggerBreakpoint,
