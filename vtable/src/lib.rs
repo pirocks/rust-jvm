@@ -1,5 +1,6 @@
 #![feature(vec_into_raw_parts)]
 #![feature(box_syntax)]
+#![feature(portable_simd)]
 
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -112,7 +113,9 @@ pub fn generate_vtable_access(
 }
 
 pub struct VTables<'gc> {
-    inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<RawNativeVTable>>,//ref is leaked box
+    inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<RawNativeVTable>>,
+    //ref is leaked box
+    resolved_to_entry: HashMap<NonNull<c_void>, Vec<(Arc<RuntimeClass<'gc>>, MethodNumber)>>,
 }
 
 static mut VTABLE_ALLOCS: u64 = 0;
@@ -121,7 +124,8 @@ static mut VTABLE_ALLOCS: u64 = 0;
 impl<'gc> VTables<'gc> {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new()
+            inner: HashMap::new(),
+            resolved_to_entry: Default::default(),
         }
     }
 
@@ -138,9 +142,17 @@ impl<'gc> VTables<'gc> {
         )
     }
 
-    pub fn vtable_register_entry(&mut self, rc: Arc<RuntimeClass<'gc>>, method_number: MethodNumber, entry: VTableEntry, vtable_from_region: NonNull<RawNativeVTable>) -> NonNull<RawNativeVTable> {
+    pub fn update_address(&mut self, from: NonNull<c_void>, to: NonNull<c_void>) {
+        if let Some(addresses) = self.resolved_to_entry.remove(&from) {
+            for (rc, method_number) in addresses {
+                self.vtable_register_entry(rc, method_number, VTableEntry { address: Some(to) });
+            }
+        }
+    }
+
+    pub fn vtable_register_entry(&mut self, rc: Arc<RuntimeClass<'gc>>, method_number: MethodNumber, entry: VTableEntry) -> NonNull<RawNativeVTable> {
+        self.resolved_to_entry.entry(entry.address.unwrap()).or_default().push((rc.clone(), method_number));
         let raw_native_table = self.lookup_or_new_vtable(rc);
-        assert_eq!(raw_native_table, vtable_from_region);
         VTable::update_vtable(raw_native_table, move |mut vtable| {
             vtable.set_entry(method_number, entry);
             vtable

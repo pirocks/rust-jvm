@@ -1,3 +1,4 @@
+use std::arch::x86_64::_rdtsc;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -108,8 +109,12 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     }
 
     pub fn lookup_method_ir_method_id(&self, method_id: MethodId) -> IRMethodID {
+        self.try_lookup_method_ir_method_id(method_id).unwrap()
+    }
+
+    pub fn try_lookup_method_ir_method_id(&self, method_id: MethodId) -> Option<IRMethodID> {
         let inner = self.inner.read().unwrap();
-        *inner.most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap()
+        inner.most_up_to_date_ir_method_id_for_method_id.get(&method_id).cloned()
     }
 
     pub fn try_lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> Option<IRMethodID> {
@@ -156,6 +161,8 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
     pub fn add_method_if_needed(&'vm_life self, jvm: &'vm_life JVMState<'vm_life>, resolver: &MethodResolver<'vm_life>, method_id: MethodId) {
         let compile_guard = jvm.perf_metrics.compilation_start();
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
+            let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it|self.ir.lookup_ir_method_id_pointer(it));
+            let tsc_start = unsafe {_rdtsc()};
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
             // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
@@ -204,8 +211,16 @@ impl<'vm_life> JavaVMStateWrapper<'vm_life> {
                 byte_code_ir_mapping,
                 associated_method_id: method_id,
             });
-            self.function_call_targets.read().unwrap().update_target(method_id,self.ir.lookup_ir_method_id_pointer(ir_method_id),self.modication_lock.acquire());
+            let new_address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
+            self.function_call_targets.read().unwrap().update_target(method_id, new_address, self.modication_lock.acquire());
+            if let Some(prev_address) = prev_address{
+                jvm.vtable.lock().unwrap().update_address(prev_address, new_address);
+            }
             drop(write_guard);
+            let tsc_end = unsafe {_rdtsc()};
+            // if tsc_end - tsc_start > 1_000_000{
+            //     dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            // }
         }
     }
 
