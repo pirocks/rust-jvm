@@ -6,8 +6,9 @@ use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::NativeJavaValue;
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::ir_to_java_layer::compiler::fields::field_type_to_register_size;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
+use crate::compiler::fields::field_type_to_register_size;
+use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
 pub fn sastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data, CPDType::ShortType)

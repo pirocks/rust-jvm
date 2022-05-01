@@ -8,16 +8,15 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::{MethodId};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::method_shape::MethodShape;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-pub fn invokespecial<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn invokespecial<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -46,10 +45,8 @@ pub fn invokespecial<'vm_life>(
                     },
                 }]))
         }
-        Some((rc, loader)) => {
-            let view = rc.view();
-            let (method_id, is_native) = resolver.lookup_special(&class_cpdtype, method_name, descriptor.clone()).unwrap();
-            let num_args = descriptor.arg_types.len();
+        Some((_rc, _loader)) => {
+            let (method_id, _is_native) = resolver.lookup_special(&class_cpdtype, method_name, descriptor.clone()).unwrap();
             let maybe_address = resolver.lookup_ir_method_id_and_address(method_id);
             match maybe_address {
                 None => {
@@ -67,8 +64,7 @@ pub fn invokespecial<'vm_life>(
                 }
                 Some((ir_method_id, address)) => {
                     recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
-                    let new_frame_size = get_native_or_regular_frame_size(resolver, method_id);
-                    let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
+                    let arg_from_to_offsets = virtual_and_special_arg_offsets(method_frame_data, &current_instr_data, descriptor);
                     Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
@@ -90,17 +86,8 @@ pub fn invokespecial<'vm_life>(
     }
 }
 
-fn get_native_or_regular_frame_size(resolver: &MethodResolver, method_id: MethodId) -> usize {
-    if resolver.is_native(method_id) {
-        resolver.lookup_native_method_layout(method_id).full_frame_size()
-    } else {
-        let target_method_layout = resolver.lookup_partial_method_layout(method_id);
-        target_method_layout.full_frame_size()
-    }
-}
-
-pub fn invokestatic<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn invokestatic<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -129,10 +116,8 @@ pub fn invokestatic<'vm_life>(
                     },
                 }]))
         }
-        Some((method_id, is_native)) => {
-            let num_args = descriptor.arg_types.len();
-            let new_frame_size = get_native_or_regular_frame_size(resolver, method_id);
-            let arg_from_to_offsets = static_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor, method_id);
+        Some((method_id, _is_native)) => {
+            let arg_from_to_offsets = static_arg_offsets(method_frame_data, &current_instr_data, descriptor);
             Either::Right(match resolver.lookup_ir_method_id_and_address(method_id) {
                 None => {
                     recompile_conditions.add_condition(NeedsRecompileIf::FunctionCompiled { method_id });
@@ -175,8 +160,8 @@ pub fn invokestatic<'vm_life>(
 }
 
 
-pub fn invokevirtual<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn invokevirtual<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -213,9 +198,8 @@ pub fn invokevirtual<'vm_life>(
     };
     let num_args = descriptor.arg_types.len();
 
-    let method_shape_id = resolver.lookup_virtual(target_class_type, method_name, descriptor.clone());
     // todo investigate size of table for invokevirtual without tagging.
-    let arg_from_to_offsets = virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor);
+    let arg_from_to_offsets = virtual_and_special_arg_offsets(method_frame_data, &current_instr_data, descriptor);
     //todo fix the generated lookup
     return Either::Right(array_into_iter([restart_point,
         IRInstr::VTableLookupOrExit {
@@ -249,8 +233,8 @@ pub fn invokevirtual<'vm_life>(
         after_call_restart_point]));
 }
 
-pub fn invoke_interface(
-    resolver: &MethodResolver,
+pub fn invoke_interface<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -280,7 +264,7 @@ pub fn invoke_interface(
                     },
                 }, after_call_restart_point]))
         }
-        Some((target_method_id, is_native)) => {
+        Some((target_method_id, _is_native)) => {
             Either::Left(
                 array_into_iter([
                     restart_point,
@@ -300,7 +284,7 @@ pub fn invoke_interface(
                     IRInstr::IRCall {
                         temp_register_1: Register(1),
                         temp_register_2: Register(2),
-                        arg_from_to_offsets: virtual_and_special_arg_offsets(resolver, method_frame_data, &current_instr_data, descriptor),
+                        arg_from_to_offsets: virtual_and_special_arg_offsets(method_frame_data, &current_instr_data, descriptor),
                         return_value: if descriptor.return_type.is_void() {
                             None
                         } else {
@@ -320,7 +304,7 @@ pub fn invoke_interface(
     }
 }
 
-fn virtual_and_special_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+fn virtual_and_special_arg_offsets<'vm>(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
     let mut local_var_i = 0;
@@ -346,7 +330,7 @@ fn virtual_and_special_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>
 }
 
 
-fn static_arg_offsets<'vm_life>(resolver: &MethodResolver<'vm_life>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor, target_method_id: MethodId) -> Vec<(FramePointerOffset, FramePointerOffset)> {
+fn static_arg_offsets<'vm>(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, descriptor: &CMethodDescriptor) -> Vec<(FramePointerOffset, FramePointerOffset)> {
     let num_args = descriptor.arg_types.len();
     let mut arg_from_to_offsets = vec![];
     let mut local_var_i = 0;

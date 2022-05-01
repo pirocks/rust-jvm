@@ -95,7 +95,7 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
         }
         let pc = self.pc(jvm)?;
 
-        let function_frame_type = jvm.function_frame_type_data_no_tops.read().unwrap();
+        let function_frame_type = &jvm.function_frame_type_data.read().unwrap().no_tops;
         let this_function = function_frame_type.get(&methodid).unwrap();
         //todo issue here is that we can't use instruct pointer b/c we might have iterated up through vm call and instruct pointer will be saved.
         Ok(this_function.get(&pc).unwrap().unwrap_full_frame().stack_map.len() as u16)
@@ -107,7 +107,7 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
             panic!()
         }
         let pc = self.pc(jvm)?;
-        let function_frame_type = jvm.function_frame_type_data_no_tops.read().unwrap();
+        let function_frame_type = &jvm.function_frame_type_data.read().unwrap().no_tops;
         let stack_map = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().unwrap_full_frame().stack_map;
         let mut res = vec![];
         for vtype in &stack_map.data {
@@ -122,7 +122,7 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
             panic!()
         }
         let pc = self.pc(jvm)?;
-        let function_frame_type = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let function_frame_type = &jvm.function_frame_type_data.read().unwrap().tops;
         let locals = &function_frame_type.get(&methodid).unwrap().get(&pc).unwrap().unwrap_full_frame().locals;
         Ok(locals.len() as u16)
     }
@@ -310,8 +310,8 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
     }
 }
 
-pub struct StackIter<'vm_life, 'l> {
-    jvm: &'vm_life JVMState<'vm_life>,
+pub struct StackIter<'vm, 'l> {
+    jvm: &'vm JVMState<'vm>,
     current_frame: *mut c_void,
     java_stack: &'l JavaStack,
     top: *mut c_void,
@@ -330,7 +330,7 @@ impl<'l, 'k> StackIter<'l, 'k> {
     }
 }
 
-impl<'vm_life> Iterator for StackIter<'vm_life, '_> {
+impl<'vm> Iterator for StackIter<'vm, '_> {
     type Item = StackEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -611,7 +611,7 @@ impl<'gc> LocalVarsRef<'gc, '_, '_> {
                 assert!(i < num_args);
                 if jvm.is_native_by_method_id(method_id) {
                     if let Some(pc) = *pc {
-                        let function_frame_data_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+                        let function_frame_data_guard = &jvm.function_frame_type_data.read().unwrap().tops;
                         let function_frame_data = match function_frame_data_guard.get(&method_id) {
                             Some(function_frame_data) => {
                                 let frame = function_frame_data.get(&pc).unwrap();
@@ -740,7 +740,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
                 let method_id = frame_view.ir_ref.method_id().expect("local vars should have method id probably");
                 let pc = pc.unwrap();
-                let function_frame_data_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
+                let function_frame_data_guard = &jvm.function_frame_type_data.read().unwrap().no_tops;
                 let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
                 let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
                 frame.unwrap_full_frame().stack_map.data.iter().map(|vtype| vtype.to_runtime_type()).rev().collect()
@@ -754,7 +754,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
                 let method_id = frame_view.ir_ref.method_id().expect("local vars should have method id probably");
                 let pc = pc.unwrap();
-                let function_frame_data_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
+                let function_frame_data_guard = &jvm.function_frame_type_data.read().unwrap().no_tops;
                 let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
                 let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
                 frame.unwrap_partial_inferred_frame().operand_stack.iter().map(|vtype| *vtype).collect()
@@ -919,7 +919,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     pub fn full_frame_available(&self, jvm: &'gc JVMState<'gc>) -> bool{
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
-        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
         let function_frame_type = read_guard.get(&method_id).unwrap();
         let frame = function_frame_type.get(&pc).unwrap();
         frame.try_unwrap_full_frame().is_some()
@@ -928,7 +928,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     pub fn local_var_simplified_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<SimplifiedVType>{
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
-        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
         let function_frame_type = read_guard.get(&method_id).unwrap();
         function_frame_type.get(&pc).unwrap().unwrap_partial_inferred_frame().local_vars.clone()
     }
@@ -936,7 +936,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     pub fn local_var_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<VType> {
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
-        let read_guard = jvm.function_frame_type_data_with_tops.read().unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
         let function_frame_type = read_guard.get(&method_id).unwrap();
         function_frame_type.get(&pc).unwrap().unwrap_full_frame().locals.deref().clone()
     }

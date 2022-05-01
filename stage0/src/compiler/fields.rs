@@ -13,9 +13,9 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::ir_to_java_layer::compiler::instance_of_and_casting::checkcast_impl;
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::compiler::instance_of_and_casting::checkcast_impl;
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub const fn field_type_to_register_size(cpd_type: CPDType) -> Size {
     match cpd_type {
@@ -43,8 +43,8 @@ pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size {
     }
 }
 
-pub fn putfield<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn putfield<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     mut current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -69,7 +69,6 @@ pub fn putfield<'vm_life>(
             }]))
         }
         Some((rc, _)) => {
-            let string_pool = &resolver.jvm.string_pool;
             let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
@@ -78,12 +77,12 @@ pub fn putfield<'vm_life>(
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let field_size = field_type_to_register_size(field_type);
             Either::Right(array_into_iter([restart_point]).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
-                Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, field_type, to_put_value_offset))
+                Either::Left(checkcast_impl(resolver, &mut current_instr_data, field_type, to_put_value_offset))
             } else {
                 Either::Right(iter::empty())
             })
                 .chain(if resolver.debug_checkcast_assertions() {
-                    Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, object_ptr_offset))
+                    Either::Left(checkcast_impl(resolver, &mut current_instr_data, cpd_type, object_ptr_offset))
                 } else {
                     Either::Right(iter::empty())
                 })
@@ -117,8 +116,8 @@ pub fn putfield<'vm_life>(
 }
 
 
-pub fn getfield<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn getfield<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     mut current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -153,7 +152,7 @@ pub fn getfield<'vm_life>(
             Either::Right(array_into_iter([
                 restart_point]).chain(
                 if resolver.debug_checkcast_assertions() {
-                    Either::Right(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, object_ptr_offset))
+                    Either::Right(checkcast_impl(resolver, &mut current_instr_data, cpd_type, object_ptr_offset))
                 } else {
                     Either::Left(iter::empty())
                 }
@@ -178,7 +177,7 @@ pub fn getfield<'vm_life>(
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
             ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
-                Either::Left(checkcast_impl(resolver, method_frame_data, &mut current_instr_data, field_type, to_get_value_offset))
+                Either::Left(checkcast_impl(resolver, &mut current_instr_data, field_type, to_get_value_offset))
             } else {
                 Either::Right(array_into_iter([]))
             }))

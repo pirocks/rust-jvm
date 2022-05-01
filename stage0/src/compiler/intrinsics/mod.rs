@@ -3,17 +3,16 @@ use another_jit_vm_ir::compiler::{BitwiseLogicType, IRInstr, Size};
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::MethodId;
-use crate::jit::state::Labeler;
-use crate::MethodResolver;
+use crate::compiler_common::MethodResolver;
 
-pub fn gen_intrinsic_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, layout: &NativeStackframeMemoryLayout, labeler: &Labeler, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
+pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
     let (desc, method_name, class_name) = resolver.using_method_view_impl(method_id, |method_view| {
         Some((method_view.desc().clone(), method_view.name(), method_view.classview().name().try_unwrap_name()?))//todo handle intrinsics on arrays
     })?;
 
-    if method_name == MethodName::method_hashCode() && desc == CompressedMethodDescriptor::empty_args(CPDType::IntType) {
+    if method_name == MethodName::method_hashCode() && desc == CompressedMethodDescriptor::empty_args(CPDType::IntType) && class_name == CClassName::object(){
         let temp = Register(1);
         let res = Register(0);
         let shift_amount = Register(2);

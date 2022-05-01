@@ -6,7 +6,7 @@ use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
 use crate::JavaValueCommon;
-use crate::method_table::from_jmethod_id;
+use method_table::from_jmethod_id;
 use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::interface::{push_type_to_operand_stack_new};

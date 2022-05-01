@@ -4,17 +4,16 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::memory_regions::{BaseAddressAndMask};
 use rust_jvm_common::compressed_classfile::CPDType;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-pub fn checkcast(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, mut current_instr_data: CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
+pub fn checkcast<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &JavaCompilerMethodAndFrameData, mut current_instr_data: CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
     let frame_pointer_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
-    checkcast_impl(resolver, method_frame_data, &mut current_instr_data, cpdtype, frame_pointer_offset)
+    checkcast_impl(resolver, &mut current_instr_data, cpdtype, frame_pointer_offset)
 }
 
-pub(crate) fn checkcast_impl(
-    resolver: &MethodResolver,
-    method_frame_data: &JavaCompilerMethodAndFrameData,
+pub fn checkcast_impl<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     current_instr_data: &mut CurrentInstructionCompilerData,
     cpdtype: CPDType,
     frame_pointer_offset: FramePointerOffset
@@ -57,7 +56,7 @@ pub(crate) fn checkcast_impl(
     res.into_iter()
 }
 
-pub fn instanceof(resolver: &MethodResolver, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
+pub fn instanceof<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, cpdtype: CPDType) -> impl Iterator<Item=IRInstr> {
     let cpdtype_id = resolver.get_cpdtype_id(cpdtype);
     array_into_iter([
         IRInstr::VMExit2 {

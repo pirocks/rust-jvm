@@ -21,6 +21,7 @@ gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 add-only-static-vec = { path = "../add-only-static-vec" }
 perf-metrics = { path = "../perf-metrics" }
 java5-verifier = { path = "../java5-verifier" }
+stage0 = { path = "../stage0" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git', branch = "updated", features = ["system"] }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
@@ -28,6 +29,7 @@ rangemap = { git = "https://github.com/pirocks/rangemap.git" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
+method-table = { path = "../method-table" }
 metered = "0.8"
 serde_yaml = "0.8"
 num-traits = "0.2"

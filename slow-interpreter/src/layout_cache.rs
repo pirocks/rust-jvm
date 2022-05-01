@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use rust_jvm_common::MethodId;
-use crate::ir_to_java_layer::compiler::YetAnotherLayoutImpl;
+use stage0::compiler_common::YetAnotherLayoutImpl;
 
 pub struct LayoutCache{
     inner: HashMap<MethodId, YetAnotherLayoutImpl>

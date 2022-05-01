@@ -40,21 +40,21 @@ impl<'gc> InterpreterState<'gc> {
     }
 }
 
-pub enum InterpreterStateGuard<'vm_life, 'l> {
+pub enum InterpreterStateGuard<'vm, 'l> {
     //todo these internals need to change to reflect that we need to halt thread to get current rbp.
     RemoteInterpreterState {
-        int_state: Option<MutexGuard<'l, InterpreterState<'vm_life>>>,
-        thread: Arc<JavaThread<'vm_life>>,
+        int_state: Option<MutexGuard<'l, InterpreterState<'vm>>>,
+        thread: Arc<JavaThread<'vm>>,
         registered: bool,
-        jvm: &'vm_life JVMState<'vm_life>,
+        jvm: &'vm JVMState<'vm>,
     },
     LocalInterpreterState {
         int_state: IRStackMut<'l>,
-        thread: Arc<JavaThread<'vm_life>>,
+        thread: Arc<JavaThread<'vm>>,
         registered: bool,
-        jvm: &'vm_life JVMState<'vm_life>,
+        jvm: &'vm JVMState<'vm>,
         current_exited_pc: Option<ByteCodeOffset>,
-        throw: Option<AllocatedHandle<'vm_life>>
+        throw: Option<AllocatedHandle<'vm>>
     },
 }
 
@@ -595,14 +595,14 @@ pub struct SavedAssertState {
     data: Vec<*const c_void>,
 }
 
-pub struct JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData: 'vm_life> {
-    ir: IRFrameIterRef<'l, 'h, 'vm_life, ExtraData>,
-    jvm: &'vm_life JVMState<'vm_life>,
+pub struct JavaFrameIterRef<'l, 'h, 'vm, ExtraData: 'vm> {
+    ir: IRFrameIterRef<'l, 'h, 'vm, ExtraData>,
+    jvm: &'vm JVMState<'vm>,
     current_pc: Option<ByteCodeOffset>,
 }
 
-impl<'l, 'h, 'vm_life, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm_life, ExtraData> {
-    type Item = StackEntryRef<'vm_life, 'l>;
+impl<'l, 'h, 'vm, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm, ExtraData> {
+    type Item = StackEntryRef<'vm, 'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.ir.next().map(|ir_frame_ref| {

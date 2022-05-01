@@ -783,6 +783,12 @@ dependencies = [
 [[package]]
 name = "method-table"
 version = "0.1.0"
+dependencies = [
+ "by_address",
+ "jvmti-jni-bindings",
+ "runtime-class-stuff",
+ "rust-jvm-common",
+]
 
 [[package]]
 name = "minimal-lexical"
@@ -962,6 +968,10 @@ checksum = "97ba99ba6393e2c3734791401b66902d981cb03bf190af674ca69949b6d5fb15"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "options"
+version = "0.1.0"
 
 [[package]]
 name = "parking_lot"
@@ -1268,6 +1278,7 @@ dependencies = [
  "lock_api",
  "memoffset",
  "metered",
+ "method-table",
  "nix",
  "num",
  "num-derive 0.3.3",
@@ -1280,6 +1291,7 @@ dependencies = [
  "rust-jvm-common",
  "serde_yaml",
  "sketch-jvm-version-of-utf8",
+ "stage0",
  "thread-priority",
  "threads",
  "verification",
@@ -1296,6 +1308,22 @@ checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 [[package]]
 name = "stage0"
 version = "0.1.0"
+dependencies = [
+ "another-jit-vm",
+ "another-jit-vm-ir",
+ "by_address",
+ "classfile-view",
+ "gc-memory-layout-common",
+ "itertools",
+ "java5-verifier",
+ "jvmti-jni-bindings",
+ "method-table",
+ "runtime-class-stuff",
+ "rust-jvm-common",
+ "sketch-jvm-version-of-utf8",
+ "verification",
+ "wtf8",
+]
 
 [[package]]
 name = "static-rc"

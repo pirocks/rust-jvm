@@ -5,10 +5,10 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-pub fn ldc_string<'vm_life>(resolver: &MethodResolver<'vm_life>,
+pub fn ldc_string<'vm>(resolver: &impl MethodResolver<'vm>,
                             method_frame_data: &JavaCompilerMethodAndFrameData,
                             current_instr_data: &CurrentInstructionCompilerData,
                             restart_point_generator: &mut RestartPointGenerator,
@@ -30,7 +30,7 @@ pub fn ldc_string<'vm_life>(resolver: &MethodResolver<'vm_life>,
                 }
             }])
         }
-        Some((loaded_class, loader)) => {
+        Some((_loaded_class, _loader)) => {
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::NewString {
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
@@ -42,7 +42,7 @@ pub fn ldc_string<'vm_life>(resolver: &MethodResolver<'vm_life>,
     }
 }
 
-pub fn ldc_class<'vm_life>(resolver: &MethodResolver<'vm_life>,
+pub fn ldc_class<'vm>(resolver: &impl MethodResolver<'vm>,
                            method_frame_data: &JavaCompilerMethodAndFrameData,
                            current_instr_data: &CurrentInstructionCompilerData,
                            restart_point_generator: &mut RestartPointGenerator,
@@ -65,7 +65,7 @@ pub fn ldc_class<'vm_life>(resolver: &MethodResolver<'vm_life>,
                 }
             }])
         }
-        Some((loaded_class, loader)) => {
+        Some((_loaded_class, _loader)) => {
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::NewClass {
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),

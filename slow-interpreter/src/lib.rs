@@ -36,7 +36,7 @@ use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedHandle;
@@ -95,7 +95,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
     let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver { jvm, loader: main_loader }, main_method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
     let local_var_array = setup_program_args(&jvm, int_state, args);
     initial_local_var_array[0] = local_var_array.new_java_value();

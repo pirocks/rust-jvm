@@ -33,7 +33,7 @@ use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::java_values::JavaValue;
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::{StackEntryPush};
@@ -171,7 +171,7 @@ impl<'gc> ThreadState<'gc> {
         let method_views = system_view.lookup_method_name(MethodName::method_initializeSystemClass());
         let init_method_view = method_views.first().unwrap().clone();
         let method_id = jvm.method_table.write().unwrap().get_method_id(system_class.clone(), init_method_view.method_i());
-        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: LoaderName::BootstrapLoader }, method_id);
+        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader }, method_id);
         let mut locals = vec![];
         for _ in 0..init_method_view.code_attribute().unwrap().max_locals {
             locals.push(NewJavaValue::Top);
@@ -230,7 +230,7 @@ impl<'gc> ThreadState<'gc> {
         })
     }
 
-    pub fn bootstrap_main_thread<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, threads: &'vm_life Threads<'vm_life>) -> Arc<JavaThread<'vm_life>> {
+    pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>) -> Arc<JavaThread<'vm>> {
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
@@ -404,15 +404,15 @@ thread_local! {
 }
 
 
-pub struct JavaThread<'vm_life> {
+pub struct JavaThread<'vm> {
     pub java_tid: JavaThreadId,
-    underlying_thread: Thread<'vm_life>,
-    thread_object: RwLock<Option<JThread<'vm_life>>>,
-    pub interpreter_state: Mutex<InterpreterState<'vm_life>>,
+    underlying_thread: Thread<'vm>,
+    thread_object: RwLock<Option<JThread<'vm>>>,
+    pub interpreter_state: Mutex<InterpreterState<'vm>>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
-    pub safepoint_state: SafePoint<'vm_life>,
+    pub safepoint_state: SafePoint<'vm>,
     pub thread_status: RwLock<ThreadStatus>,
 }
 

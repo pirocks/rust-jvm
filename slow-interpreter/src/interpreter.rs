@@ -12,7 +12,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition};
 use crate::java_values::native_to_new_java_value;
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
@@ -36,7 +36,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
         let view = interpreter_state.current_class_view(jvm).clone();
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
-        let resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
+        let resolver = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader };
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
         assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));

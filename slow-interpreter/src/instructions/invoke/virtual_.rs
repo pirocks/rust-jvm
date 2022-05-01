@@ -13,7 +13,7 @@ use crate::interpreter::{run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::new_java_values::{NewJavaValueHandle};
 use runtime_class_stuff::RuntimeClass;
 use crate::rust_jni::interface::misc::get_all_methods;
@@ -49,7 +49,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_method_i = target_method.method_i();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(),target_method_i);
-    let method_resolver = MethodResolver { jvm, loader: interpreter_state.current_loader(jvm) };
+    let method_resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();

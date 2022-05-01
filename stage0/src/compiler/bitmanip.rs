@@ -1,7 +1,8 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{BitwiseLogicType, IRInstr, Size};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
+use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
 pub fn lshl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let shift_amount = Register(1);
@@ -92,7 +93,6 @@ pub fn ior(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
 pub fn iand(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value1 = Register(1);
     let value2 = Register(2);
-    let mask = Register(3);
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2, size: Size::int() },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1, size: Size::int() },

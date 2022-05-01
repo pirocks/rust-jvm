@@ -21,6 +21,7 @@ use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
@@ -42,7 +43,7 @@ use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter, get_st
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use crate::ir_to_java_layer::compiler::{JavaCompilerMethodAndFrameData, RecompileConditions};
+use stage0::compiler::{RecompileConditions};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
@@ -50,10 +51,11 @@ use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue}
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
-use crate::method_table::MethodTable;
 use crate::native_allocation::NativeAllocator;
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use runtime_class_stuff::RuntimeClass;
+use stage0::compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
+use stage0::compiler_common::JavaCompilerMethodAndFrameData;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
@@ -63,7 +65,6 @@ use crate::string_exit_cache::StringExitCache;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
-use crate::verifier_frames::SunkVerifierFrames;
 
 
 pub static mut JVM: Option<&'static JVMState> = None;
@@ -105,8 +106,9 @@ pub struct JVMState<'gc> {
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc>, Vec<StackTraceElement<'gc>>>>,
-    pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
-    pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
+    // pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
+    // pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
+    pub function_frame_type_data: RwLock<FunctionFrameData>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
     pub method_shapes: MethodShapeIDs,
@@ -307,8 +309,6 @@ impl<'gc> JVMState<'gc> {
             resolved_method_handles: RwLock::new(HashMap::new()),
             include_name_field: AtomicBool::new(false),
             stacktraces_by_throwable: RwLock::new(HashMap::new()),
-            function_frame_type_data_no_tops: Default::default(),
-            function_frame_type_data_with_tops: Default::default(),
             java_vm_state: JavaVMStateWrapper::new(),
             java_function_frame_data: Default::default(),
             object_monitors: Default::default(),
@@ -323,6 +323,10 @@ impl<'gc> JVMState<'gc> {
             invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
             invoke_interface_lookup_cache: RwLock::new(InvokeInterfaceLookupCache::new()),
             string_exit_cache: RwLock::new(StringExitCache::new()),
+            function_frame_type_data: RwLock::new(FunctionFrameData{
+                no_tops: Default::default(),
+                tops: Default::default()
+            })
         };
         (args, jvm)
     }
@@ -346,8 +350,8 @@ impl<'gc> JVMState<'gc> {
             for (offset, _) in code.instructions.iter() {
                 assert!(verification_types_without_top.contains_key(offset));
             }
-            self.function_frame_type_data_no_tops.write().unwrap().insert(method_id, verification_types_without_top);
-            self.function_frame_type_data_with_tops.write().unwrap().insert(method_id, verification_types.iter().map(|(offset, frame)| {
+            self.function_frame_type_data.write().unwrap().no_tops.insert(method_id, verification_types_without_top);
+            self.function_frame_type_data.write().unwrap().tops.insert(method_id, verification_types.iter().map(|(offset, frame)| {
                 (*offset, SunkVerifierFrames::FullFrame(frame.clone()))
             }).collect());
         }
@@ -641,8 +645,8 @@ impl<'gc> JVMState<'gc> {
     }
 }
 
-pub struct BootstrapLoaderClassGetter<'vm_life, 'l> {
-    jvm: &'l JVMState<'vm_life>,
+pub struct BootstrapLoaderClassGetter<'vm, 'l> {
+    jvm: &'l JVMState<'vm>,
 }
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {

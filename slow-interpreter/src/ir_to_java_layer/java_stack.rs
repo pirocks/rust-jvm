@@ -10,9 +10,9 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JavaValue, JVMState};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 
-pub struct OwnedJavaStack<'vm_life> {
-    jvm: &'vm_life JVMState<'vm_life>,
-    java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>,
+pub struct OwnedJavaStack<'vm> {
+    jvm: &'vm JVMState<'vm>,
+    java_vm_state: &'vm JavaVMStateWrapper<'vm>,
     pub(crate) inner: OwnedIRStack,
 }
 
@@ -90,15 +90,15 @@ impl JavaStackPosition {
     }
 }
 
-impl<'vm_life> OwnedJavaStack<'vm_life> {
-    pub fn new(java_vm_state: &'vm_life JavaVMStateWrapper<'vm_life>, jvm: &'vm_life JVMState<'vm_life>) -> Self {
+impl<'vm> OwnedJavaStack<'vm> {
+    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>, jvm: &'vm JVMState<'vm>) -> Self {
         Self {
             jvm,
             java_vm_state,
             inner: OwnedIRStack::new(),
         }
     }
-    pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm_life JVMState<'vm_life>) -> RuntimeJavaStackFrameRef<'_, 'vm_life> {
+    pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm JVMState<'vm>) -> RuntimeJavaStackFrameRef<'_, 'vm> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         let ir_method_id = ir_frame.ir_method_id();
         let max_locals = if let Some(method_id) = ir_frame.method_id() {
@@ -121,13 +121,13 @@ impl<'vm_life> OwnedJavaStack<'vm_life> {
 
 
 
-pub struct RuntimeJavaStackFrameRef<'l, 'vm_life> {
+pub struct RuntimeJavaStackFrameRef<'l, 'vm> {
     pub(crate) ir_ref: IRFrameRef<'l>,
-    pub(crate) jvm: &'vm_life JVMState<'vm_life>,
+    pub(crate) jvm: &'vm JVMState<'vm>,
 }
 
-impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
-    pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm_life> {
+impl<'vm> RuntimeJavaStackFrameRef<'_, 'vm> {
+    pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm> {
         let res = self.ir_ref.read_at_offset(offset);
         NativeJavaValue{as_u64:res}
         /*match rtype {
@@ -145,32 +145,32 @@ impl<'vm_life> RuntimeJavaStackFrameRef<'_, 'vm_life> {
         }*/
     }
 
-    pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm_life> {
+    pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm> {
         todo!()
         /*let offset = FramePointerOffset(self.max_locals.unwrap() as usize * size_of::<u64>() + n * size_of::<u64>());
         self.read_target(offset, rtype)*/
     }
 
-    pub fn nth_local(&self, n: usize) -> NativeJavaValue<'vm_life> {
+    pub fn nth_local(&self, n: usize) -> NativeJavaValue<'vm> {
         let offset = FramePointerOffset(n * size_of::<u64>());
         self.read_target(offset)
     }
 }
 
-pub struct RuntimeJavaStackFrameMut<'l, 'vm_life> {
+pub struct RuntimeJavaStackFrameMut<'l, 'vm> {
     pub ir_mut: IRFrameMut<'l>,
-    pub(crate) jvm: &'vm_life JVMState<'vm_life>,
+    pub(crate) jvm: &'vm JVMState<'vm>,
 }
 
-impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm_life> {
-    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm_life> {
+impl<'k, 'l, 'vm, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm> {
+    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm> {
         RuntimeJavaStackFrameRef {
             ir_ref: self.ir_mut.downgrade_owned(),
             jvm: self.jvm,
         }
     }
 
-    fn write_target(&mut self, offset: FramePointerOffset, jv: JavaValue<'vm_life>) {
+    fn write_target(&mut self, offset: FramePointerOffset, jv: JavaValue<'vm>) {
         let to_write = match jv {
             JavaValue::Long(long) => { long as u64 }
             JavaValue::Int(int) => { int as u64 }
@@ -195,12 +195,12 @@ impl<'k, 'l, 'vm_life, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l
         self.ir_mut.write_at_offset(offset, to_write);
     }
 
-    pub fn set_nth_local(&mut self, n: usize, jv: JavaValue<'vm_life>) {
+    pub fn set_nth_local(&mut self, n: usize, jv: JavaValue<'vm>) {
         let offset = FramePointerOffset(n * size_of::<u64>());
         todo!()
     }
 
-    pub fn set_nth_stack_pointer(&mut self, n: usize, jv: JavaValue<'vm_life>) {
+    pub fn set_nth_stack_pointer(&mut self, n: usize, jv: JavaValue<'vm>) {
         todo!()
     }
 

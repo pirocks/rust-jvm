@@ -9,7 +9,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::jvmti::{get_interpreter_state, get_state};
 use crate::jvmti::from_object;
-use crate::method_table::from_jmethod_id;
+use method_table::from_jmethod_id;
 use crate::stack_entry::StackEntry;
 
 /// Get Frame Count

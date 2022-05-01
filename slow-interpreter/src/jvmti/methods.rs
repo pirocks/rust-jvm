@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jboolean, jclass, jint, jlocation, jmethodID, jvmtiEnv,
 
 use crate::class_objects::get_or_create_class_object;
 use crate::jvmti::{get_interpreter_state, get_state};
-use crate::method_table::from_jmethod_id;
+use method_table::from_jmethod_id;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID, name_ptr: *mut *mut ::std::os::raw::c_char, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {

@@ -21,9 +21,10 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
-use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolver, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
+use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::native::run_native_method;
@@ -75,7 +76,7 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
             drop(read_guard);
             let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_name, method_desc).unwrap();
             let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
-            let resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+            let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
             if jvm.is_native_by_method_id(resolved_method_id) {
                 let args_jv_handle = virtual_args_extract(jvm, method_desc.arg_types.as_slice(), object_ref);
@@ -129,7 +130,7 @@ pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("RunNativeSpecial");
     }
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let class_view = rc.view();
     let method_view = class_view.method_view_i(method_i);
@@ -329,7 +330,7 @@ fn invoke_virtual_full<'gc>(
     };
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, name, &desc, rc.clone()).unwrap();
     let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), method_i);
-    let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+    let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
         jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     }
@@ -521,7 +522,7 @@ pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     }
     let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
-    let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+    let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
     if jvm.exit_trace_options.tracing_enabled() {
@@ -558,7 +559,7 @@ pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, int_
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("CompileFunctionAndRecompileCurrent");
     }
-    let method_resolver = MethodResolver { jvm, loader: int_state.current_loader(jvm) };
+    let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile);
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
@@ -592,7 +593,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
     }
     assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
     let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {

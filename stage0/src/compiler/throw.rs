@@ -1,7 +1,8 @@
 use another_jit_vm_ir::compiler::IRInstr;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
+use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
 pub fn athrow(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_into_iter([IRInstr::VMExit2 {

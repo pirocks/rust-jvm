@@ -1,163 +1,42 @@
 use std::collections::HashMap;
-use std::mem::size_of;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use itertools::{Either, Itertools};
+use itertools::{Either};
 
-use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
+use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::layout::{NativeStackframeMemoryLayout};
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
-use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::code::{CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::CPDType;
 
-use crate::ir_to_java_layer::compiler::allocate::{anewarray, multianewarray, new, newarray};
-use crate::ir_to_java_layer::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
-use crate::ir_to_java_layer::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
-use crate::ir_to_java_layer::compiler::array_store::{aastore, bastore, castore, dastore, fastore, iastore, lastore, sastore};
-use crate::ir_to_java_layer::compiler::arrays::arraylength;
-use crate::ir_to_java_layer::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
-use crate::ir_to_java_layer::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
-use crate::ir_to_java_layer::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
-use crate::ir_to_java_layer::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
-use crate::ir_to_java_layer::compiler::fields::{getfield, putfield};
-use crate::ir_to_java_layer::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dmul, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fsub};
-use crate::ir_to_java_layer::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
-use crate::ir_to_java_layer::compiler::instance_of_and_casting::{checkcast, instanceof};
-use crate::ir_to_java_layer::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
-use crate::ir_to_java_layer::compiler::intrinsics::gen_intrinsic_ir;
-use crate::ir_to_java_layer::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
-use crate::ir_to_java_layer::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
-use crate::ir_to_java_layer::compiler::local_var_loads::{aload_n, dload_n, fload_n, iload_n, lload_n};
-use crate::ir_to_java_layer::compiler::local_var_stores::{astore_n, dstore_n, fstore_n, istore_n, lstore_n};
-use crate::ir_to_java_layer::compiler::monitors::{monitor_enter, monitor_exit};
-use crate::ir_to_java_layer::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
-use crate::ir_to_java_layer::compiler::static_fields::{getstatic, putstatic};
-use crate::ir_to_java_layer::compiler::throw::athrow;
-use crate::jit::MethodResolver;
-use crate::jit::state::Labeler;
-use crate::JVMState;
-use crate::verifier_frames::SunkVerifierFrames;
+use crate::compiler::allocate::{anewarray, multianewarray, new, newarray};
+use crate::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
+use crate::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
+use crate::compiler::array_store::{aastore, bastore, castore, dastore, fastore, iastore, lastore, sastore};
+use crate::compiler::arrays::arraylength;
+use crate::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
+use crate::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
+use crate::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
+use crate::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
+use crate::compiler::fields::{getfield, putfield};
+use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dmul, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fsub};
+use crate::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
+use crate::compiler::instance_of_and_casting::{checkcast, instanceof};
+use crate::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
+use crate::compiler::intrinsics::gen_intrinsic_ir;
+use crate::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
+use crate::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
+use crate::compiler::local_var_loads::{aload_n, dload_n, fload_n, iload_n, lload_n};
+use crate::compiler::local_var_stores::{astore_n, dstore_n, fstore_n, istore_n, lstore_n};
+use crate::compiler::monitors::{monitor_enter, monitor_exit};
+use crate::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
+use crate::compiler::static_fields::{getstatic, putstatic};
+use crate::compiler::throw::athrow;
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-// all metadata needed to compile to ir, excluding resolver stuff
-pub struct JavaCompilerMethodAndFrameData {
-    should_trace_instructions: bool,
-    layout: YetAnotherLayoutImpl,
-    index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
-    current_method_id: MethodId,
-}
-
-impl JavaCompilerMethodAndFrameData {
-    pub fn new<'vm_life>(jvm: &'vm_life JVMState<'vm_life>, method_id: MethodId) -> Self {
-        let function_frame_type_guard = jvm.function_frame_type_data_no_tops.read().unwrap();
-        let frames = function_frame_type_guard.get(&method_id).unwrap();
-        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let view = rc.view();
-        let method_view = view.method_view_i(method_i);
-        let code = method_view.code_attribute().unwrap();
-        Self {
-            should_trace_instructions: jvm.instruction_trace_options.should_trace(method_id, jvm),
-            layout: YetAnotherLayoutImpl::new(frames, code),
-            index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
-            current_method_id: method_id,
-        }
-    }
-
-    pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
-        self.layout.operand_stack_entry(index, from_end)
-    }
-
-    pub fn is_category_2(&self, index: ByteCodeIndex, from_end: u16) -> bool {
-        self.layout.is_category_2(index, from_end)
-    }
-
-    pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
-        self.layout.local_var_entry(index, local_var_index)
-    }
-
-    pub fn full_frame_size(&self) -> usize {
-        self.layout.full_frame_size()
-    }
-}
-
-pub struct PartialYetAnotherLayoutImpl {
-    max_locals: u16,
-    max_stack: u16,
-}
-
-impl PartialYetAnotherLayoutImpl {
-    pub fn new(code: &CompressedCode) -> Self {
-        Self {
-            max_locals: code.max_locals,
-            max_stack: code.max_stack,
-        }
-    }
-
-    pub fn full_frame_size(&self) -> usize {
-        full_frame_size_impl(self.max_locals, self.max_stack)
-    }
-}
-
-pub struct YetAnotherLayoutImpl {
-    max_locals: u16,
-    max_stack: u16,
-    stack_depth_by_index: Vec<u16>,
-    is_type_2_computational_type: Vec<Vec<bool>>,
-    code_by_index: Vec<CompressedInstruction>,
-}
-
-impl YetAnotherLayoutImpl {
-    pub fn new(frames_no_top: &HashMap<ByteCodeOffset, SunkVerifierFrames>, code: &CompressedCode) -> Self {
-        for (offset, _) in code.instructions.iter() {
-            assert!(frames_no_top.contains_key(&offset));
-        }
-        let stack_depth = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
-            // assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
-            frame.stack_depth_no_tops()/*stack_map.len()*/ as u16
-        }).collect();
-        let computational_type = frames_no_top.iter().sorted_by_key(|(offset, _)| *offset).enumerate().map(|(i, (_offset, frame))| {
-            /*assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
-            frame.stack_map.iter().map(|vtype| Self::is_type_2_computational_type(vtype)).collect()*/
-            frame.is_category_2_no_tops()
-        }).collect();
-        Self {
-            max_locals: code.max_locals,
-            max_stack: code.max_stack,
-            stack_depth_by_index: stack_depth,
-            is_type_2_computational_type: computational_type,
-            code_by_index: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).map(|(_, instr)| instr.clone()).collect(),
-        }
-    }
-
-
-    pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
-        if index.0 as usize >= self.stack_depth_by_index.len() {
-            dbg!(&self.code_by_index[index.0 as usize]);
-        }
-        FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals + self.stack_depth_by_index[index.0 as usize] - from_end - 1) as usize * size_of::<u64>())//-1 b/c stack depth is a len
-    }
-
-    pub fn is_category_2(&self, index: ByteCodeIndex, from_end: u16) -> bool {
-        let category_2_array = &self.is_type_2_computational_type[index.0 as usize];
-        *category_2_array.iter().nth(from_end as usize).unwrap()
-    }
-
-    pub fn local_var_entry(&self, index: ByteCodeIndex, local_var_index: u16) -> FramePointerOffset {
-        assert!(local_var_index <= self.max_locals);
-        FramePointerOffset(FRAME_HEADER_END_OFFSET + local_var_index as usize * size_of::<u64>())
-    }
-
-    pub fn full_frame_size(&self) -> usize {
-        let max_locals = self.max_locals;
-        let max_stack = self.max_stack;
-        full_frame_size_impl(max_locals, max_stack)
-    }
-}
-
-fn full_frame_size_impl(max_locals: u16, max_stack: u16) -> usize {
-    FRAME_HEADER_END_OFFSET + (max_locals + max_stack) as usize * size_of::<u64>()
-}
 
 pub struct CurrentInstructionCompilerData<'l, 'k> {
     current_index: ByteCodeIndex,
@@ -165,6 +44,27 @@ pub struct CurrentInstructionCompilerData<'l, 'k> {
     current_offset: ByteCodeOffset,
     compiler_labeler: &'k mut CompilerLabeler<'l>,
 }
+
+
+pub struct Labeler {
+    current_label: AtomicU32,
+}
+
+impl Labeler {
+    pub fn new() -> Self {
+        Self {
+            current_label: AtomicU32::new(0)
+        }
+    }
+
+    pub fn new_label(&self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
+        let current_label = self.current_label.fetch_add(1, Ordering::SeqCst);
+        let res = LabelName(current_label);
+        labels_vec.push(IRLabel { name: res });
+        res
+    }
+}
+
 
 pub struct CompilerLabeler<'l> {
     labeler: &'l Labeler,
@@ -202,7 +102,7 @@ impl RecompileConditions {
         }
     }
 
-    pub fn should_recompile<'gc>(&self, method_id: MethodId, method_resolver: &MethodResolver<'gc>) -> bool {
+    pub fn should_recompile<'gc>(&self, method_id: MethodId, method_resolver: &impl MethodResolver<'gc>) -> bool {
         match self.conditions.get(&method_id) {
             None => {
                 return true;
@@ -252,7 +152,7 @@ pub enum NeedsRecompileIf {
 }
 
 impl NeedsRecompileIf {
-    pub fn should_recompile<'gc>(&self, method_resolver: &MethodResolver<'gc>) -> bool {
+    pub fn should_recompile<'gc>(&self, method_resolver: &impl MethodResolver<'gc>) -> bool {
         match self {
             NeedsRecompileIf::FunctionRecompiled { function_method_id, current_ir_method_id } => {
                 let (ir_method_id, _address) = method_resolver.lookup_ir_method_id_and_address(*function_method_id).unwrap();
@@ -268,10 +168,10 @@ impl NeedsRecompileIf {
     }
 }
 
-pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_id: MethodId, recompile_conditions: &mut MethodRecompileConditions, ir_method_id: IRMethodID) -> Vec<IRInstr> {
+pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<IRInstr> {
     //todo handle synchronized
     let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
-    if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, labeler, method_id,ir_method_id) {
+    if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, method_id, ir_method_id) {
         return intrinsic_ir;
     }
 
@@ -307,7 +207,7 @@ pub fn native_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Lab
     res
 }
 
-pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
+pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0), IRInstr::IRStart {
         temp_register: Register(1),
@@ -432,7 +332,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
                 this_function_ir.extend(const_64(method_frame_data, current_instr_data, -1i64 as u64))
             }
             CompressedInstructionInfo::goto_(offset) => {
-                this_function_ir.extend(goto_(method_frame_data, current_instr_data, *offset as i32))
+                this_function_ir.extend(goto_(current_instr_data, *offset as i32))
             }
             CompressedInstructionInfo::new(ccn) => {
                 this_function_ir.extend(new(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *ccn))
@@ -440,7 +340,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::dup => {
                 this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
-            CompressedInstructionInfo::putfield { name, desc, target_class } => {
+            CompressedInstructionInfo::putfield { name, desc:_, target_class } => {
                 this_function_ir.extend(putfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
@@ -449,7 +349,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, *classname_ref_type))
             }
-            CompressedInstructionInfo::putstatic { name, desc, target_class } => {
+            CompressedInstructionInfo::putstatic { name, desc:_, target_class } => {
                 this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
@@ -571,7 +471,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::if_icmpgt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
             }
-            CompressedInstructionInfo::getstatic { name, desc, target_class } => {
+            CompressedInstructionInfo::getstatic { name, desc:_, target_class } => {
                 this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name));
             }
             CompressedInstructionInfo::if_icmplt(offset) => {
@@ -787,7 +687,7 @@ pub fn compile_to_ir<'vm_life>(resolver: &MethodResolver<'vm_life>, labeler: &La
             CompressedInstructionInfo::fload(index) => {
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))
             }
-            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
+            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count:_ } => {
                 this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::pop => {

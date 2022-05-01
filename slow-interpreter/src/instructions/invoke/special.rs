@@ -10,7 +10,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::{setup_virtual_args2};
 use crate::interpreter::{run_function, WasException};
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
@@ -49,7 +49,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         setup_virtual_args2(int_state, &parsed_descriptor, &mut args, max_locals, input_args);
         assert!(args[0].unwrap_object().is_some());
         let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
-        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: int_state.current_loader(jvm) }, method_id);
+        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         let mut function_call_frame = int_state.push_frame(next_entry);
         match run_function(jvm, int_state, &mut function_call_frame) {

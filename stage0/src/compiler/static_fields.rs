@@ -3,11 +3,11 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-pub fn putstatic<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn putstatic<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -30,7 +30,7 @@ pub fn putstatic<'vm_life>(
                     },
                 }])
         }
-        Some((rc, loader)) => {
+        Some((rc, _loader)) => {
             let field_id = resolver.get_field_id(rc, name);
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {
@@ -45,8 +45,8 @@ pub fn putstatic<'vm_life>(
 }
 
 
-pub fn getstatic<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn getstatic<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -69,7 +69,7 @@ pub fn getstatic<'vm_life>(
                     },
                 }])
         }
-        Some((rc, loader)) => {
+        Some((rc, _loader)) => {
             let rc_type = resolver.get_cpdtype_id(rc.cpdtype());
             array_into_iter([restart_point,
                 IRInstr::VMExit2 {

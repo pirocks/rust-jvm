@@ -1,6 +1,7 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
+use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
 pub fn i2l(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let from_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);

@@ -1,8 +1,6 @@
 use std::ops::Deref;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
-use another_jit_vm_ir::compiler::{IRLabel, LabelName};
 use gc_memory_layout_common::layout::ObjectMemoryLayout;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use runtime_class_stuff::RuntimeClass;
@@ -64,25 +62,6 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
             }
         }
         RuntimeClass::Top => panic!(),
-    }
-}
-
-pub struct Labeler {
-    current_label: AtomicU32,
-}
-
-impl Labeler {
-    pub fn new() -> Self {
-        Self {
-            current_label: AtomicU32::new(0)
-        }
-    }
-
-    pub fn new_label(&self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
-        let current_label = self.current_label.fetch_add(1, Ordering::SeqCst);
-        let res = LabelName(current_label);
-        labels_vec.push(IRLabel { name: res });
-        res
     }
 }
 

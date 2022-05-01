@@ -11,7 +11,7 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
 use crate::interpreter::{run_function, WasException};
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use crate::stack_entry::StackEntryPush;
@@ -49,7 +49,7 @@ pub fn invoke_static_impl<'l, 'gc>(
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_class_view = target_class.view();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver{ jvm, loader: interpreter_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) }, method_id);
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();

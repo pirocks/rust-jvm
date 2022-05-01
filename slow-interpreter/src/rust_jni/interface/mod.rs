@@ -28,6 +28,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::FieldId;
 use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LoaderName};
+use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
@@ -66,7 +67,6 @@ use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object, to_object_new};
 use crate::utils::throw_npe;
-use crate::verifier_frames::SunkVerifierFrames;
 
 //todo this should be in state impl
 thread_local! {
@@ -736,8 +736,8 @@ pub fn define_class_safe<'gc, 'l>(
                 let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)| {
                     (*offset, SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
                 }).collect::<HashMap<_, _>>();
-                jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, frames_no_tops);
-                jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, frames_tops);
+                jvm.function_frame_type_data.write().unwrap().no_tops.insert(method_id, frames_no_tops);
+                jvm.function_frame_type_data.write().unwrap().tops.insert(method_id, frames_tops);
             }
         }
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),

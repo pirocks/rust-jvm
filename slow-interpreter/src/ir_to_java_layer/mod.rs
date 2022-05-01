@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::Hash;
 
-use another_jit_vm::{IRMethodID};
+use another_jit_vm::IRMethodID;
 use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
@@ -14,7 +14,6 @@ use crate::{InterpreterStateGuard, JavaValue, JVMState};
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
 
-pub mod compiler;
 pub mod java_stack;
 pub mod vm_exit_abi;
 
@@ -56,11 +55,11 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
 
 pub enum JavaExitAction {}
 
-pub enum VMExitEvent<'vm_life> {
+pub enum VMExitEvent<'vm> {
     Allocate { size: usize, return_to: *mut c_void },
     TopLevelExitEvent {
         //todo when this stuff is registers can't have gc.
-        _return: JavaValue<'vm_life>
+        _return: JavaValue<'vm>
     },
 }
 

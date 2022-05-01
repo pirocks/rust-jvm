@@ -8,7 +8,7 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolver, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
@@ -50,7 +50,7 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
 
     let method_i = clinit.method_i() as u16;
     let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolver { jvm, loader: int_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
 
 
     let new_stack = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
@@ -77,7 +77,7 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
     };
 }
 
-pub fn prepare_class<'vm_life, 'l, 'k>(jvm: &'vm_life JVMState<'vm_life>, int_state: &'_ mut InterpreterStateGuard<'vm_life, 'l>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm_life, 'k>) {
+pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Class(cn) = classfile.type_() {
             jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)

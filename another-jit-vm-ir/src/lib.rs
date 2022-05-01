@@ -41,7 +41,7 @@ pub mod ir_stack;
 pub mod ir_to_native;
 
 
-pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
+pub struct IRVMStateInner<'vm, ExtraData: 'vm> {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
@@ -55,12 +55,12 @@ pub struct IRVMStateInner<'vm_life, ExtraData: 'vm_life> {
     // index
     opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
-    pub handler: OnceCell<ExitHandlerType<'vm_life, ExtraData>>,
+    pub handler: OnceCell<ExitHandlerType<'vm, ExtraData>>,
 
     reserved_ir_method_id: HashSet<IRMethodID>,
 }
 
-impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
+impl<'vm, ExtraData: 'vm> IRVMStateInner<'vm, ExtraData> {
     pub fn new() -> Self {
         Self {
             ir_method_id_max: IRMethodID(0),
@@ -100,13 +100,13 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMStateInner<'vm_life, ExtraData> {
     }
 }
 
-pub struct IRVMState<'vm_life, ExtraData: 'vm_life> {
-    native_vm: VMState<'vm_life, u64, ExtraData>,
-    pub inner: RwLock<IRVMStateInner<'vm_life, ExtraData>>,
+pub struct IRVMState<'vm, ExtraData: 'vm> {
+    native_vm: VMState<'vm, u64, ExtraData>,
+    pub inner: RwLock<IRVMStateInner<'vm, ExtraData>>,
 }
 
 //todo make this not an arc for perf
-pub type ExitHandlerType<'vm_life, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm_life, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm_life>;
+pub type ExitHandlerType<'vm, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm>;
 
 
 pub enum IRVMExitAction {
@@ -129,7 +129,7 @@ pub enum IRVMExitAction {
     },
 }
 
-impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
+impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
     pub fn lookup_opaque_ir_method_id(&self, opaque_id: OpaqueID) -> IRMethodID {
         let mut guard = self.inner.write().unwrap();
         match guard.opaque_method_to_or_method_id.get(&opaque_id) {
@@ -275,7 +275,7 @@ impl<'vm_life, ExtraData: 'vm_life> IRVMState<'vm_life, ExtraData> {
         current_ir_id
     }
 
-    pub fn add_function(&'vm_life self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID, code_modification_handle: CodeModificationHandle) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>, HashMap<MethodId, Vec<FunctionCallTarget>>) {
+    pub fn add_function(&'vm self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID, code_modification_handle: CodeModificationHandle) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>, HashMap<MethodId, Vec<FunctionCallTarget>>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
         let (code_assembler, assembly_index_to_ir_instruct_index, restart_points, call_modification_points) = add_function_from_ir(&instructions);

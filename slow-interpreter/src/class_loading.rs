@@ -18,6 +18,7 @@ use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
+use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
@@ -29,13 +30,12 @@ use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value};
-use crate::jit::MethodResolver;
+use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::runtime_class::{initialize_class, prepare_class, static_vars};
-use crate::verifier_frames::SunkVerifierFrames;
 
 //todo only use where spec says
 pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
@@ -282,8 +282,8 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                         let frames_no_tops = res.inferred_frames().iter().map(|(offset, frame)| {
                             (*offset, SunkVerifierFrames::PartialInferredFrame(frame.no_tops()))
                         }).collect::<HashMap<_, _>>();
-                        jvm.function_frame_type_data_no_tops.write().unwrap().insert(method_id, frames_no_tops);
-                        jvm.function_frame_type_data_with_tops.write().unwrap().insert(method_id, frames_tops);
+                        jvm.function_frame_type_data.write().unwrap().no_tops.insert(method_id, frames_no_tops);
+                        jvm.function_frame_type_data.write().unwrap().tops.insert(method_id, frames_tops);
                     }
                 }
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => {
@@ -291,7 +291,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                 }
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
             };
-            let method_resolver = MethodResolver { jvm, loader: LoaderName::BootstrapLoader };
+            let method_resolver = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader };
             // for method in class_view.methods() {
             //     if method.code_attribute().is_some() {
             //         let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method.method_i());

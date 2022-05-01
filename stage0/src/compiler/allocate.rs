@@ -7,10 +7,10 @@ use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::ir_to_java_layer::compiler::{array_into_iter, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::jit::MethodResolver;
+use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
-pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
+pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                      method_frame_data: &JavaCompilerMethodAndFrameData,
                      current_instr_data: &CurrentInstructionCompilerData,
                      restart_point_generator: &mut RestartPointGenerator,
@@ -31,7 +31,7 @@ pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
                 },
             }])
         }
-        Some((loaded_class, loader)) => {
+        Some((_loaded_class, _loader)) => {
             array_into_iter([restart_point, IRInstr::VMExit2 {
                 exit_type: IRVMExitType::AllocateObject {
                     class_type: cpd_type_id,
@@ -44,8 +44,8 @@ pub fn new<'vm_life>(resolver: &MethodResolver<'vm_life>,
 }
 
 
-pub fn anewarray<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn anewarray<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -69,7 +69,7 @@ pub fn anewarray<'vm_life>(
                     },
                 }]))
         }
-        Some((loaded_class, loader)) => {
+        Some((_loaded_class, _loader)) => {
             // runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
             //todo allocation should be done in vm exit
             let array_type = resolver.get_cpdtype_id(array_type);
@@ -89,8 +89,8 @@ pub fn anewarray<'vm_life>(
 }
 
 
-pub fn newarray<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn newarray<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -110,8 +110,8 @@ pub fn newarray<'vm_life>(
 }
 
 
-pub fn multianewarray<'vm_life>(
-    resolver: &MethodResolver<'vm_life>,
+pub fn multianewarray<'vm>(
+    resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: &CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
@@ -135,7 +135,7 @@ pub fn multianewarray<'vm_life>(
                     },
                 }]))
         }
-        Some((loaded_class, loader)) => {
+        Some((_loaded_class, _loader)) => {
             // runtime_class_to_allocated_object_type(&loaded_class,loader,todo!(),todo!());
             //todo allocation should be done in vm exit
             let elem_type = array_type.unwrap_ref_type().recursively_unwrap_array_type();

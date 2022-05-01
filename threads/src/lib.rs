@@ -21,9 +21,9 @@ use crate::signal::{pthread_self, pthread_t, SI_QUEUE, siginfo_t};
 
 // type TID = usize;
 
-pub struct Threads<'vm_life> {
+pub struct Threads<'vm> {
     this_thread: &'static LocalKey<RefCell<Option<Arc<Thread<'static>>>>>,
-    scope: Scope<'vm_life>,
+    scope: Scope<'vm>,
 }
 
 static mut THERE_CAN_ONLY_BE_ONE_THREADS: bool = false;
@@ -32,12 +32,12 @@ thread_local! {
     static THIS_THREAD: RefCell<Option<Arc<Thread<'static>>>> = RefCell::new(None);
 }
 
-impl<'vm_life> Threads<'vm_life> {
+impl<'vm> Threads<'vm> {
     pub fn this_thread(&self) -> Arc<Thread> {
         self.this_thread.with(|thread| unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) })
     }
 
-    pub fn new(scope: Scope<'vm_life>) -> Threads<'vm_life> {
+    pub fn new(scope: Scope<'vm>) -> Threads<'vm> {
         unsafe {
             if THERE_CAN_ONLY_BE_ONE_THREADS {
                 panic!()
@@ -50,7 +50,7 @@ impl<'vm_life> Threads<'vm_life> {
         res
     }
 
-    pub fn create_thread(&'vm_life self, name: Option<String>) -> Thread<'vm_life> {
+    pub fn create_thread(&'vm self, name: Option<String>) -> Thread<'vm> {
         let join_status = Arc::new(RwLock::new(JoinStatus {
             finished_mutex: Mutex::new(()),
             alive: AtomicBool::new(false),
@@ -89,8 +89,8 @@ impl<'vm_life> Threads<'vm_life> {
     }
 }
 
-pub struct ThreadStartInfo<'vm_life> {
-    func: Box<dyn FnOnce(Box<dyn Any>) -> () + 'vm_life>,
+pub struct ThreadStartInfo<'vm> {
+    func: Box<dyn FnOnce(Box<dyn Any>) -> () + 'vm>,
     data: Box<dyn Any>,
 }
 
@@ -99,13 +99,13 @@ unsafe impl Send for ThreadStartInfo<'_> {}
 unsafe impl Sync for ThreadStartInfo<'_> {}
 
 #[derive(Debug)]
-pub struct Thread<'vm_life> {
+pub struct Thread<'vm> {
     started: AtomicBool,
     join_status: Arc<RwLock<JoinStatus>>,
     pause: PauseStatus,
     pthread_id: Option<pthread_t>,
-    rust_join_handle: Option<ScopedJoinHandle<'vm_life, ()>>,
-    thread_start_channel_send: Option<Mutex<Sender<ThreadStartInfo<'vm_life>>>>,
+    rust_join_handle: Option<ScopedJoinHandle<'vm, ()>>,
+    thread_start_channel_send: Option<Mutex<Sender<ThreadStartInfo<'vm>>>>,
 }
 
 #[derive(Debug)]
@@ -122,8 +122,8 @@ pub struct JoinStatus {
     thread_finished: Condvar,
 }
 
-impl<'vm_life> Thread<'vm_life> {
-    pub fn start_thread<T: 'vm_life>(&self, func: Box<T>, data: Box<dyn Any>)
+impl<'vm> Thread<'vm> {
+    pub fn start_thread<T: 'vm>(&self, func: Box<T>, data: Box<dyn Any>)
         where
             T: FnOnce(Box<dyn Any>),
     {
@@ -162,8 +162,8 @@ impl<'vm_life> Thread<'vm_life> {
     }
 }
 
-pub enum SignalReason<'vm_life> {
-    Pause(*const Threads<'vm_life>),
+pub enum SignalReason<'vm> {
+    Pause(*const Threads<'vm>),
     Event(AnEvent),
 }
 
@@ -172,7 +172,7 @@ pub struct AnEvent {
     pub data: *mut c_void,
 }
 
-impl<'vm_life> Threads<'vm_life> {
+impl<'vm> Threads<'vm> {
     fn init_signal_handler(&self) {
         unsafe {
             #[allow(clippy::transmuting_null)]
