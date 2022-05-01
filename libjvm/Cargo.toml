@@ -20,7 +20,6 @@ sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 lazy_static = "1.4"
-heapsize = "0.4"
 libc = "0.2"
 num_cpus = "1"
 regex = "1"

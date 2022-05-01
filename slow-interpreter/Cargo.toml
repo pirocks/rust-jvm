@@ -14,7 +14,6 @@ classfile-view = { path = "../classfile-view" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 threads = { path = "../threads" }
-type-safe-proc-macro-utils = { path = "../type-safe-proc-macro-utils" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 another-jit-vm = { path = "../another-jit-vm" }
 another-jit-vm-ir = { path = "../another-jit-vm-ir" }
@@ -36,17 +35,14 @@ num-derive = "0.3"
 lazy_static = "1.4"
 libc = "0.2"
 regex = "1"
-va_list = "0.1"
 lock_api = "0.4"
 parking_lot = "0.12"
 thread-priority = "0.2"
 nix = "0.23"
-errno = "0.2"
 num = "0.4"
 by_address = "1"
 bimap = "0.6"
 itertools = "0.10"
-closure = "0.3"
 wtf8 = "0.1"
 memoffset = "0.6"
 

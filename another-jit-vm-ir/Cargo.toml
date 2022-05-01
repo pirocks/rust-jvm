@@ -1,7 +1,7 @@
 [package]
 name = "another-jit-vm-ir"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,7 +13,6 @@ add-only-static-vec = { path = "../add-only-static-vec" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 vtable = { path = "../vtable" }
-bimap = "0.6"
 libc = "0.2"
 num-derive = "0.3"
 num-traits = "0.2"

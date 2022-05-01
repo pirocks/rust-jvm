@@ -1,7 +1,7 @@
 [package]
 name = "gc-memory-layout-common"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,7 +16,6 @@ vtable = { path = "../vtable" }
 nix = "0.23"
 libc = "0.2"
 itertools = "0.10"
-num-integer = "0.1"
 static_assertions = "1"
 
 [dependencies.iced-x86]

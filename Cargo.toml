@@ -10,14 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 jvm = { path = "./libjvm" }
-jvmti-jni-bindings = { path = "./jvmti-jni-bindings" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
-
-[dev-dependencies]
-classfile-writer = { path = "./classfile-writer" }
-wtf8 = "0.1"
-tempdir = "0.3"
-ntest = "0.7"
 
 [workspace]
 members = [
@@ -43,5 +36,6 @@ members = [
     "java5-verifier",
     "runtime-class-stuff",
     "vtable",
-    "interface-vtable"
+    "interface-vtable",
+    "stage0"
 ]

@@ -1,11 +1,8 @@
 [package]
-name = "java5-verifier"
+name = "stage0"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-jvm-common = { path = "../rust-jvm-common" }
-classfile-view = { path = "../classfile-view" }
-itertools = "0.10"
