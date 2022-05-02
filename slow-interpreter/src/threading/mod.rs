@@ -113,7 +113,7 @@ impl<'gc> ThreadState<'gc> {
                     jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
                 }
                 let push_guard = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"main thread temp stack frame")); //todo think this is correct, check
-                //handle any excpetions from here
+                //handle any exceptions from here
                 int_state.pop_frame(jvm, push_guard, false);
                 let main_frame_guard = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"main thread main frame"));
                 run_main(args, jvm, &mut int_state).unwrap();
@@ -197,21 +197,8 @@ impl<'gc> ThreadState<'gc> {
         let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
         let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
-        // let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(" log4j.rootLogger".to_string())).expect("todo");
-        // let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("OFF".to_string())).expect("todo");
 
-        // System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
-        // let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("sun.reflect.noInflation".to_string())).expect("todo");
-        // let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
-        //
-        // System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
-        //
-        // let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("sun.reflect.inflationThreshold".to_string())).expect("todo");
-        // let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("1000000".to_string())).expect("todo");
-        // //
-        // System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
-
-        //todo should handle excpetions here
+        //todo should handle exceptions here
         int_state.pop_frame(jvm, init_frame_guard, false);
         if !jvm.config.compiled_mode_active {
         }
@@ -318,7 +305,7 @@ impl<'gc> ThreadState<'gc> {
     pub fn try_get_monitor(&self, monitor: jrawMonitorID) -> Option<Arc<Monitor2>> {
         let monitors_read_guard = self.monitors.read().unwrap();
         let monitor = monitors_read_guard.get(monitor as usize).cloned();
-        std::mem::drop(monitors_read_guard);
+        drop(monitors_read_guard);
         monitor
     }
 

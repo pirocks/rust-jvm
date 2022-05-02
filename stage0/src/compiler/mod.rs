@@ -340,7 +340,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::dup => {
                 this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
-            CompressedInstructionInfo::putfield { name, desc:_, target_class } => {
+            CompressedInstructionInfo::putfield { name, desc: _, target_class } => {
                 this_function_ir.extend(putfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
@@ -349,7 +349,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, *classname_ref_type))
             }
-            CompressedInstructionInfo::putstatic { name, desc:_, target_class } => {
+            CompressedInstructionInfo::putstatic { name, desc: _, target_class } => {
                 this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
@@ -471,7 +471,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::if_icmpgt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
             }
-            CompressedInstructionInfo::getstatic { name, desc:_, target_class } => {
+            CompressedInstructionInfo::getstatic { name, desc: _, target_class } => {
                 this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name));
             }
             CompressedInstructionInfo::if_icmplt(offset) => {
@@ -687,7 +687,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::fload(index) => {
                 this_function_ir.extend(fload_n(method_frame_data, &current_instr_data, *index as u16))
             }
-            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count:_ } => {
+            CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count: _ } => {
                 this_function_ir.extend(invoke_interface(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, method_name, descriptor, classname_ref_type))
             }
             CompressedInstructionInfo::pop => {

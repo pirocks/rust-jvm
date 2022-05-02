@@ -37,6 +37,5 @@ members = [
     "runtime-class-stuff",
     "vtable",
     "interface-vtable",
-    "stage0",
-    "options"
+    "stage0"
 ]
