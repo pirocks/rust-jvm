@@ -2,19 +2,20 @@ use iced_x86::code_asm::{CodeAssembler, rax, rbp};
 use another_jit_vm::{Register, VMState};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use vtable::generate_vtable_access;
-use crate::{gen_vm_exit, InvokeVirtualResolve, IRVMExitType, Size};
+use crate::{gen_vm_exit_impl, InvokeVirtualResolve, IRVMExitType, JmpChangeToEq, Size};
 
-pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exit_type: &IRVMExitType, possibly_null: Register) {
+pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exit_type: &IRVMExitType, possibly_null: Register, editable: bool) -> Option<JmpChangeToEq> {
     let mut after_exit_label = assembler.create_label();
     assembler.xor(temp_register.to_native_64(), temp_register.to_native_64()).unwrap();
     assembler.cmp(temp_register.to_native_64(), possibly_null.to_native_64()).unwrap();
     assembler.jne(after_exit_label).unwrap();
-    gen_vm_exit(assembler, npe_exit_type);
+    let res = gen_vm_exit_impl(assembler, npe_exit_type, editable);
     assembler.nop_1(rax).unwrap();
     assembler.set_label(&mut after_exit_label).unwrap();
+    res
 }
 
-pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Register, size: Size) {
+pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Register, size: Size, _editable: bool) {
     let mut not_out_of_bounds = assembler.create_label();
     match size {
         Size::Byte => assembler.cmp(index.to_native_8(), length.to_native_8()).unwrap(),

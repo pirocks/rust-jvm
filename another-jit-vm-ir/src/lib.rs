@@ -14,7 +14,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, ConstantOffsets, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler};
+use iced_x86::code_asm::{CodeAssembler, rax};
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, IRMethodID, MethodImplementationID, NativeInstructionLocation, VMExitEvent, VMState};
@@ -278,7 +278,8 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
     pub fn add_function(&'vm self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID, code_modification_handle: CodeModificationHandle) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>, HashMap<MethodId, Vec<FunctionCallTarget>>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
-        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points, call_modification_points) = add_function_from_ir(&instructions);
+        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points, call_modification_points) =
+            add_function_from_ir(&instructions, true);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS/*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
@@ -316,7 +317,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
 }
 
 
-fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
+fn add_function_from_ir(instructions: &[IRInstr], editable: bool) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut ir_instruct_index_to_assembly_instruction_index = Vec::new();
     let mut labels = HashMap::new();
@@ -325,7 +326,8 @@ fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRI
     for (i, instruction) in instructions.iter().enumerate() {
         let assembly_instruction_index_start = AssemblyInstructionIndex(assembler.instructions().len());
         let ir_instruction_index = IRInstructIndex(i);
-        let assembler_function_call_modification_point = single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index);
+        let assembler_function_call_modification_point =
+            single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index, editable);
         assembler_function_call_modification_points.extend(assembler_function_call_modification_point.into_iter());
         let assembly_instruction_index_end = AssemblyInstructionIndex(assembler.instructions().len());
         assert!(!(assembly_instruction_index_start..assembly_instruction_index_end).is_empty());
@@ -336,12 +338,34 @@ fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRI
     (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points, assembler_function_call_modification_points)
 }
 
+#[must_use]
+pub struct JmpChangeToEq {
+    assembler_instruction_len: AssemblyInstructionIndex,
+}
+
+fn gen_vm_exit_editable(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) -> JmpChangeToEq {
+    gen_vm_exit_impl(assembler, exit_type, true).unwrap()
+}
+
 fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
+    let res = gen_vm_exit_impl(assembler, exit_type, false);
+    assert!(res.is_none())
+}
+
+#[must_use]
+fn gen_vm_exit_impl(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, editable: bool) -> Option<JmpChangeToEq> {
+    let mut res = None;
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
     let registers = exit_type.registers_to_save();
+    if editable {
+        assembler.cmp(rax, rax).unwrap();
+        res = Some(JmpChangeToEq { assembler_instruction_len: AssemblyInstructionIndex(assembler.instructions().len()) });
+        assembler.jne(after_exit_label.clone()).unwrap();
+    }
     exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+    res
 }
 
 

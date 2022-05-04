@@ -216,7 +216,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 associated_method_id: method_id,
             });
             let new_address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
-            self.function_call_targets.read().unwrap().update_target(method_id, new_address, self.modication_lock.acquire());
+            self.function_call_targets.read().unwrap().update_target(method_id, None, new_address, self.modication_lock.acquire());
             if let Some(prev_address) = prev_address {
                 jvm.vtable.lock().unwrap().update_address(prev_address, new_address);
             }
