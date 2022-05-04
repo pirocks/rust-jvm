@@ -19,15 +19,76 @@ impl<'gc> InheritanceTree<'gc> {
 
 }
 
-pub struct ClassNode<'gc>{
+pub struct ClassNode<'gc> {
     left: InheritanceTreeNode<'gc>,
     right: InheritanceTreeNode<'gc>,
     class: Arc<RuntimeClass<'gc>>,
 }
 
+pub trait HasLeftAndRight<'gc>{
+    fn left(&self) -> &InheritanceTreeNode<'gc>;
+    fn right(&self) -> &InheritanceTreeNode<'gc>;
+    fn num_growth_points(&self) -> u64 {
+        (match &self.left() {
+            InheritanceTreeNode::Class(class) => class.num_growth_points(),
+            InheritanceTreeNode::GrowthNode => 1,
+            InheritanceTreeNode::GrownNode(node) => node.num_growth_points()
+        }) + (
+            match &self.right() {
+                InheritanceTreeNode::Class(class) => class.num_growth_points(),
+                InheritanceTreeNode::GrowthNode => 1,
+                InheritanceTreeNode::GrownNode(node) => node.num_growth_points()
+            })
+    }
+}
+
+impl <'gc> HasLeftAndRight<'gc> for ClassNode<'gc>{
+    fn left(&self) -> &InheritanceTreeNode<'gc> {
+        &self.left
+    }
+
+    fn right(&self) -> &InheritanceTreeNode<'gc> {
+        &self.right
+    }
+}
+
+impl<'gc> ClassNode<'gc> {
+    pub fn num_direct_children(&self) -> u64 {
+        self.left.num_direct_children_impl() + self.right.num_direct_children_impl()
+    }
+
+    fn find_free_growth_node(&mut self) -> &mut InheritanceTreeNode{
+
+    }
+
+    pub fn insert_subclass(&mut self, to_insert: Arc<RuntimeClass<'gc>>) {
+        match self.left {
+            InheritanceTreeNode::Class(_) => {}
+            InheritanceTreeNode::GrowthNode => {}
+            InheritanceTreeNode::GrownNode(_) => {}
+        }
+
+
+    }
+}
+
 pub struct GrownNode<'gc> {
     left: InheritanceTreeNode<'gc>,
     right: InheritanceTreeNode<'gc>,
+}
+
+impl <'gc> HasLeftAndRight<'gc> for GrownNode<'gc>{
+    fn left(&self) -> &InheritanceTreeNode<'gc> {
+        &self.left
+    }
+
+    fn right(&self) -> &InheritanceTreeNode<'gc> {
+        &self.right
+    }
+}
+
+impl<'gc> GrownNode<'gc> {
+
 }
 
 pub enum InheritanceTreeNode<'gc> {
@@ -39,7 +100,7 @@ pub enum InheritanceTreeNode<'gc> {
 impl<'gc> InheritanceTreeNode<'gc> {
     pub fn left_or_right(&self, left_or_right: LeftOrRight) -> Option<&InheritanceTreeNode<'gc>> {
         Some(match self {
-            InheritanceTreeNode::Class(ClassNode{ left, right, class }) => {
+            InheritanceTreeNode::Class(ClassNode { left, right, class }) => {
                 match left_or_right {
                     LeftOrRight::Left => {
                         left
@@ -49,7 +110,7 @@ impl<'gc> InheritanceTreeNode<'gc> {
                     }
                 }
             }
-            InheritanceTreeNode::GrownNode(GrownNode{ left, right }) => {
+            InheritanceTreeNode::GrownNode(GrownNode { left, right }) => {
                 match left_or_right {
                     LeftOrRight::Left => {
                         left
@@ -64,6 +125,21 @@ impl<'gc> InheritanceTreeNode<'gc> {
             }
         })
     }
+
+    fn num_direct_children_impl(&self) -> u64 {
+        match self {
+            InheritanceTreeNode::Class(ClassNode{ left, right, class }) => {
+                1
+            }
+            InheritanceTreeNode::GrowthNode => {
+                0
+            }
+            InheritanceTreeNode::GrownNode(GrownNode{ left, right }) => {
+                left.num_direct_children_impl() + right.num_direct_children_impl()
+            }
+        }
+    }
+
 }
 
 
@@ -118,6 +194,4 @@ impl TreePath {
 }
 
 #[cfg(test)]
-pub mod test{
-
-}
+pub mod test {}
