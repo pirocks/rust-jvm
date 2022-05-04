@@ -565,6 +565,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "inheritance-tree"
+version = "0.1.0"
+dependencies = [
+ "runtime-class-stuff",
+]
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"

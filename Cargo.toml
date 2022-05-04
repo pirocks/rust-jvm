@@ -38,5 +38,6 @@ members = [
     "vtable",
     "interface-vtable",
     "stage0",
-    "stage0-editable"
+    "stage0-editable",
+    "inheritance-tree"
 ]
