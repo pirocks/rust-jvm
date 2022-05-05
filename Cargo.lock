@@ -1155,6 +1155,7 @@ dependencies = [
 name = "rust-jvm"
 version = "0.1.0"
 dependencies = [
+ "inheritance-tree",
  "jvm",
  "libloading 0.6.5",
 ]
