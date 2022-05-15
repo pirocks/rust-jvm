@@ -9,7 +9,7 @@ pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exi
     assembler.xor(temp_register.to_native_64(), temp_register.to_native_64()).unwrap();
     assembler.cmp(temp_register.to_native_64(), possibly_null.to_native_64()).unwrap();
     assembler.jne(after_exit_label).unwrap();
-    let res = gen_vm_exit_impl(assembler, npe_exit_type, editable);
+    let res = gen_vm_exit_impl(assembler, npe_exit_type, editable, false);
     assembler.nop_1(rax).unwrap();
     assembler.set_label(&mut after_exit_label).unwrap();
     res

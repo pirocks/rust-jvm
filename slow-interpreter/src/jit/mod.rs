@@ -11,7 +11,7 @@ use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -298,5 +298,9 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn debug_checkcast_assertions(&self) -> bool {
         self.jvm.checkcast_debug_assertions
+    }
+
+    fn string_pool(&self) -> &CompressedClassfileStringPool {
+        &self.jvm.string_pool
     }
 }

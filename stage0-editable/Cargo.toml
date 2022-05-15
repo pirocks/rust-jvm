@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 another-jit-vm = { path = "../another-jit-vm" }
+another-jit-vm-ir = { path = "../another-jit-vm-ir" }
+rust-jvm-common = { path = "../rust-jvm-common" }

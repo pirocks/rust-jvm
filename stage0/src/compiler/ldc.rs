@@ -27,7 +27,8 @@ pub fn ldc_string<'vm>(resolver: &impl MethodResolver<'vm>,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset
-                }
+                },
+                should_skip: false
             }])
         }
         Some((_loaded_class, _loader)) => {
@@ -36,7 +37,8 @@ pub fn ldc_string<'vm>(resolver: &impl MethodResolver<'vm>,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                     compressed_wtf8_buf: str,
                     java_pc: current_instr_data.current_offset
-                }
+                },
+                should_skip: false
             }])
         }
     }
@@ -62,7 +64,8 @@ pub fn ldc_class<'vm>(resolver: &impl MethodResolver<'vm>,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset
-                }
+                },
+                should_skip: false
             }])
         }
         Some((_loaded_class, _loader)) => {
@@ -71,7 +74,8 @@ pub fn ldc_class<'vm>(resolver: &impl MethodResolver<'vm>,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                     type_: cpd_type_id,
                     java_pc: current_instr_data.current_offset
-                }
+                },
+                should_skip: false
             }])
         }
     }

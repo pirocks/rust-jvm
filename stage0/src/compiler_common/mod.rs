@@ -12,7 +12,7 @@ use method_table::MethodTable;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -170,4 +170,5 @@ pub trait MethodResolver<'gc> {
     fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber;
     fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask>;
     fn debug_checkcast_assertions(&self) -> bool;
+    fn string_pool(&self) -> &CompressedClassfileStringPool;
 }

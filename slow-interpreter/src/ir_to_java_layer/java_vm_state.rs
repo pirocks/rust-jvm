@@ -57,7 +57,10 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn add_top_level_vm_exit(&'vm self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm, ExtraData>, &mut ExtraData
         let ir_method_id = self.ir.reserve_method_id();
-        let (ir_method_id, restart_points, _) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, ir_method_id, self.modication_lock.acquire());
+        let (ir_method_id, restart_points, _) = self.ir.add_function(vec![IRInstr::VMExit2 {
+            exit_type: IRVMExitType::TopLevelReturn {},
+            should_skip: false,
+        }], FRAME_HEADER_END_OFFSET, ir_method_id, self.modication_lock.acquire());
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }

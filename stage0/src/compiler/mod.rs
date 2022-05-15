@@ -187,10 +187,11 @@ pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodI
         res.push(IRInstr::VMExit2 {
             exit_type: IRVMExitType::RunStaticNativeNew {
                 method_id,
-            }
+            },
+            should_skip: false,
         });
     } else {
-        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id } });
+        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }, should_skip: false });
     }
     res.push(IRInstr::Return {
         return_val: if desc.return_type.is_void() {
@@ -237,11 +238,25 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         let mut this_function_ir = vec![];
         if let Some(prev_offset) = prev_offset {
             if method_frame_data.should_trace_instructions {
-                this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionAfter { method_id: method_frame_data.current_method_id, offset: prev_offset, java_pc: current_instr_data.current_offset } });
+                this_function_ir.push(IRInstr::VMExit2 {
+                    exit_type: IRVMExitType::TraceInstructionAfter {
+                        method_id: method_frame_data.current_method_id,
+                        offset: prev_offset,
+                        java_pc: current_instr_data.current_offset,
+                    },
+                    should_skip: false,
+                });
             }
         }
         if method_frame_data.should_trace_instructions {
-            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::TraceInstructionBefore { method_id: method_frame_data.current_method_id, offset: current_offset, java_pc: current_instr_data.current_offset } });
+            this_function_ir.push(IRInstr::VMExit2 {
+                exit_type: IRVMExitType::TraceInstructionBefore {
+                    method_id: method_frame_data.current_method_id,
+                    offset: current_offset,
+                    java_pc: current_instr_data.current_offset,
+                },
+                should_skip: false,
+            });
         }
         match &compressed_instruction.info {
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
@@ -340,8 +355,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::dup => {
                 this_function_ir.extend(dup(method_frame_data, current_instr_data))
             }
-            CompressedInstructionInfo::putfield { name, desc: _, target_class } => {
-                this_function_ir.extend(putfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
+            CompressedInstructionInfo::putfield { name, desc, target_class } => {
+                let known_target_type = desc.0;
+                this_function_ir.extend(putfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name, known_target_type))
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokespecial(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, *classname_ref_type))

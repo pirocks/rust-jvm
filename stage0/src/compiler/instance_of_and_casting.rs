@@ -50,7 +50,8 @@ pub fn checkcast_impl<'vm>(
             value: frame_pointer_offset,
             cpdtype: cpdtype_id,
             java_pc: current_instr_data.current_offset
-        }
+        },
+        should_skip: false
     });
     res.push(IRInstr::Label(IRLabel{ name: checkcast_succeeds }));
     res.into_iter()
@@ -65,7 +66,8 @@ pub fn instanceof<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &
                 res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 cpdtype: cpdtype_id,
                 java_pc: current_instr_data.current_offset
-            }
+            },
+            should_skip: false
         }
     ])
 }

@@ -195,6 +195,6 @@ pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
             size: Size::int()
         });
     }
-    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo });
+    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo, should_skip: false });
     res.into_iter()
 }

@@ -546,9 +546,9 @@ dependencies = [
 
 [[package]]
 name = "iced-x86"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0909b90ac9fb561b496133348f34719bd63aaeac03d8fafaeef13752721a7ad9"
+checksum = "158f5204401d08f91d19176112146d75e99b3cf745092e268fa7be33e09adcec"
 dependencies = [
  "lazy_static",
  "static_assertions",
@@ -1318,6 +1318,7 @@ dependencies = [
  "by_address",
  "classfile-view",
  "gc-memory-layout-common",
+ "iced-x86",
  "itertools",
  "java5-verifier",
  "jvmti-jni-bindings",
@@ -1334,6 +1335,8 @@ name = "stage0-editable"
 version = "0.1.0"
 dependencies = [
  "another-jit-vm",
+ "another-jit-vm-ir",
+ "rust-jvm-common",
 ]
 
 [[package]]

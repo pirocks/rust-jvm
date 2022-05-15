@@ -101,8 +101,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
             ir_return(assembler, *return_val, *temp_register_1, *temp_register_2, *temp_register_3, *temp_register_4, frame_size);
         }
-        IRInstr::VMExit2 { exit_type } => {
-            gen_vm_exit_impl(assembler, exit_type, editable);
+        IRInstr::VMExit2 { exit_type, should_skip } => {
+            gen_vm_exit_impl(assembler, exit_type, editable, *should_skip);
         }
         IRInstr::NOP => {
             assembler.nop().unwrap();
@@ -238,6 +238,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::VTableLookupOrExit { resolve_exit } => {
             vtable_lookup_or_exit(assembler, resolve_exit)
+        }
+        /*IRInstr::ChangeableConst64bit { .. } => {
+            todo!()
+        }*/
+        IRInstr::OneTimeChangeablePutField { .. } => {
+            todo!()
         }
     }
     None

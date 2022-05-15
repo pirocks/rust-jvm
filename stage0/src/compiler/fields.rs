@@ -1,7 +1,7 @@
 use std::iter;
 use std::mem::size_of;
 
-use itertools::Either;
+use itertools::{Either};
 
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
@@ -42,7 +42,27 @@ pub const fn runtime_type_to_size(rtype: &RuntimeType) -> Size {
         RuntimeType::TopType => panic!()
     }
 }
+/*
+struct PutFieldRecomp {
+    field_type: CPDType,
+    field_number: FieldNumber,
+    class_type: CPDType,
+}
 
+pub fn calc_putfield_size_needed() -> usize {
+    let mut assembler = CodeAssembler::new(64).unwrap();
+    let mut labels = HashMap::new();
+    let mut restart_points = HashMap::new();
+    for ir_instr in put_field_impl() {
+        single_ir_to_native(&mut assembler,&ir_instr,&mut labels, &mut restart_points,IRInstructIndex(0),true)
+    }
+    let res = assembler.assemble(0).unwrap();
+    res.len()
+}*/
+
+//todo have single changeable/skippable putfield ir instruction, easier to change, give it an id that can be updated as needed
+// need mapping loaded class to modified putfield.
+// need offsets for where needs to be modified
 pub fn putfield<'vm>(
     resolver: &impl MethodResolver<'vm>,
     method_frame_data: &JavaCompilerMethodAndFrameData,
@@ -51,7 +71,9 @@ pub fn putfield<'vm>(
     recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
+    known_target_type: CPDType
 ) -> impl Iterator<Item=IRInstr> {
+    //todo turn this into a skipable vmexit
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
@@ -65,17 +87,21 @@ pub fn putfield<'vm>(
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset
-                }
+                },
+                should_skip: false
             }]))
         }
         Some((rc, _)) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            // dbg!(field_type.jvm_representation(&resolver.string_pool()));
+            // assert_eq!(field_type, known_target_type);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
             let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 1);
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let field_size = field_type_to_register_size(field_type);
+            let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
             Either::Right(array_into_iter([restart_point]).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
                 Either::Left(checkcast_impl(resolver, &mut current_instr_data, field_type, to_put_value_offset))
             } else {
@@ -107,7 +133,7 @@ pub fn putfield<'vm>(
                         to: class_ref_register,
                         size: Size::pointer(),
                     },
-                    IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
+                    IRInstr::Const64bit { to: offset, const_: field_number },
                     IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
                     IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
                 ])))
@@ -137,8 +163,9 @@ pub fn getfield<'vm>(
                     class: obj_cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
-                    java_pc: current_instr_data.current_offset
-                }
+                    java_pc: current_instr_data.current_offset,
+                },
+                should_skip: false
             }]))
         }
         Some((rc, _)) => {

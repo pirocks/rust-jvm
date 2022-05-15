@@ -1,4 +1,6 @@
 use std::ffi::c_void;
+use std::sync::atomic::AtomicU64;
+use std::sync::Mutex;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
 use rust_jvm_common::MethodId;
@@ -59,6 +61,22 @@ pub enum BitwiseLogicType {
     Logical,
 }
 
+pub struct ChangeableConst64Entries {
+    entries: Mutex<Vec<ChangeableConst64Entry>>,
+}
+
+impl ChangeableConst64Entries {
+    pub fn new_entry(&self, entry: u64) -> ChangeableConst64Entry {
+        let mut mutex_guard = self.entries.lock().unwrap();
+        let res_ref = Box::leak(box AtomicU64::new(entry));
+        mutex_guard.push(ChangeableConst64Entry(res_ref));
+        ChangeableConst64Entry(res_ref)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ChangeableConst64Entry(&'static AtomicU64);
+
 #[derive(Debug, Clone)]
 pub enum IRInstr {
     LoadFPRelative { from: FramePointerOffset, to: Register, size: Size },
@@ -100,6 +118,7 @@ pub enum IRInstr {
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
+    OneTimeChangeablePutField {},
     SignExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     ZeroExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     BranchToLabel { label: LabelName },
@@ -119,7 +138,10 @@ pub enum IRInstr {
     VTableLookupOrExit {
         resolve_exit: IRVMExitType
     },
-    VMExit2 { exit_type: IRVMExitType },
+    VMExit2 {
+        exit_type: IRVMExitType,
+        should_skip: bool
+    },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
         temp_register_1: Register,
@@ -129,12 +151,12 @@ pub enum IRInstr {
         target_address: IRCallTarget,
         current_frame_size: usize,
     },
-    IRStart{
+    IRStart {
         temp_register: Register,
         ir_method_id: IRMethodID,
         method_id: MethodId,
         frame_size: usize,
-        num_locals: usize
+        num_locals: usize,
     },
     NOP,
     DebuggerBreakpoint,
@@ -151,7 +173,7 @@ pub enum FloatCompareMode {
 pub enum IRCallTarget {
     Constant {
         address: *const c_void,
-        method_id: MethodId
+        method_id: MethodId,
     },
     Variable {
         address: Register,
@@ -224,7 +246,7 @@ impl IRInstr {
             IRInstr::RestartPoint(id) => {
                 format!("RestartPoint #{}", id.0)
             }
-            IRInstr::VMExit2 { exit_type } => {
+            IRInstr::VMExit2 { exit_type, should_skip:_ } => {
                 format!("VMExit2-{}", match exit_type {
                     IRVMExitType::AllocateObjectArray_ { .. } => { "AllocateObjectArray_" }
                     IRVMExitType::NPE { .. } => { "NPE" }
@@ -385,6 +407,12 @@ impl IRInstr {
             }
             IRInstr::IRStart { .. } => {
                 "IRStart".to_string()
+            }
+            /*IRInstr::ChangeableConst64bit { .. } => {
+                "ChangeableConst64bit".to_string()
+            }*/
+            IRInstr::OneTimeChangeablePutField { .. } => {
+                "OneTimeChangeablePutField".to_string()
             }
         }
     }

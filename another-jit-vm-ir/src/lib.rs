@@ -343,17 +343,17 @@ pub struct JmpChangeToEq {
     assembler_instruction_len: AssemblyInstructionIndex,
 }
 
-fn gen_vm_exit_editable(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) -> JmpChangeToEq {
-    gen_vm_exit_impl(assembler, exit_type, true).unwrap()
+fn gen_vm_exit_editable(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, should_skip: bool) -> JmpChangeToEq {
+    gen_vm_exit_impl(assembler, exit_type, true, should_skip).unwrap()
 }
 
-fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
-    let res = gen_vm_exit_impl(assembler, exit_type, false);
+fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, should_skip: bool) {
+    let res = gen_vm_exit_impl(assembler, exit_type, false, should_skip);
     assert!(res.is_none())
 }
 
 #[must_use]
-fn gen_vm_exit_impl(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, editable: bool) -> Option<JmpChangeToEq> {
+fn gen_vm_exit_impl(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, editable: bool, should_skip: bool) -> Option<JmpChangeToEq> {
     let mut res = None;
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
@@ -361,7 +361,11 @@ fn gen_vm_exit_impl(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, edi
     if editable {
         assembler.cmp(rax, rax).unwrap();
         res = Some(JmpChangeToEq { assembler_instruction_len: AssemblyInstructionIndex(assembler.instructions().len()) });
-        assembler.jne(after_exit_label.clone()).unwrap();
+        if should_skip{
+            assembler.je(after_exit_label.clone()).unwrap();
+        }else {
+            assembler.jne(after_exit_label.clone()).unwrap();
+        }
     }
     exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);

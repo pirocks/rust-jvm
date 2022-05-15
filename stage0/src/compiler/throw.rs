@@ -9,6 +9,7 @@ pub fn athrow(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
         exit_type: IRVMExitType::Throw {
             to_throw_obj_offset: method_frame_data.operand_stack_entry(current_instr_data.current_index,0),
             java_pc: current_instr_data.current_offset
-        }
+        },
+        should_skip: false
     }])
 }
