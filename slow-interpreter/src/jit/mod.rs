@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
+use another_jit_vm_ir::skippable_exits::SkipableExitID;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -302,5 +303,9 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn string_pool(&self) -> &CompressedClassfileStringPool {
         &self.jvm.string_pool
+    }
+
+    fn new_skipable_exit_id(&self) -> SkipableExitID {
+        self.jvm.java_vm_state.ir.skipable_exits.write().unwrap().new_id()
     }
 }

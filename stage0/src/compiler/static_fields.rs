@@ -28,7 +28,7 @@ pub fn putstatic<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }])
         }
         Some((rc, _loader)) => {
@@ -40,7 +40,7 @@ pub fn putstatic<'vm>(
                         value: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }])
         }
     }
@@ -69,7 +69,7 @@ pub fn getstatic<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }])
         }
         Some((rc, _loader)) => {
@@ -82,7 +82,7 @@ pub fn getstatic<'vm>(
                         res_value: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }])
         }
     }

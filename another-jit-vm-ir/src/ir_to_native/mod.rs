@@ -7,7 +7,7 @@ use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mu
 use crate::ir_to_native::integer_compare::{int_compare, sized_integer_compare};
 use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir_store_fp_relative};
 use crate::ir_to_native::special::{bounds_check, npe_check, vtable_lookup_or_exit};
-use crate::{gen_vm_exit_impl, IRInstr, IRInstructIndex, LabelName, RestartPointID};
+use crate::{AssemblySkipableExits, gen_vm_exit_impl, IRInstr, IRInstructIndex, LabelName, RestartPointID};
 
 pub mod bit_manipulation;
 pub mod integer_arithmetic;
@@ -23,7 +23,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                            labels: &mut HashMap<LabelName, CodeLabel>,
                            restart_points: &mut HashMap<RestartPointID, IRInstructIndex>,
                            ir_instr_index: IRInstructIndex,
-                           editable: bool,
+                           skipable_exits: &mut AssemblySkipableExits,
 ) -> Option<AssemblerFunctionCallTarget> {
     match instruction {
         IRInstr::LoadFPRelative { from, to, size } => {
@@ -101,8 +101,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::Return { return_val, temp_register_1, temp_register_2, temp_register_3, temp_register_4, frame_size } => {
             ir_return(assembler, *return_val, *temp_register_1, *temp_register_2, *temp_register_3, *temp_register_4, frame_size);
         }
-        IRInstr::VMExit2 { exit_type, should_skip } => {
-            gen_vm_exit_impl(assembler, exit_type, editable, *should_skip);
+        IRInstr::VMExit2 { exit_type, skipable_exit_id } => {
+            gen_vm_exit_impl(assembler, skipable_exits, exit_type, *skipable_exit_id, false);
         }
         IRInstr::NOP => {
             assembler.nop().unwrap();
@@ -129,7 +129,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             ir_function_start(assembler, *temp_register, *ir_method_id, *method_id, *frame_size, *num_locals)
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
-            npe_check(assembler, *temp_register, npe_exit_type, *possibly_null, editable);
+            npe_check(assembler, skipable_exits, *temp_register, npe_exit_type, *possibly_null, None);
         }
         IRInstr::RestartPoint(restart_point_id) => {
             assembler.nop_1(rbx).unwrap();
@@ -148,7 +148,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             shift_right(assembler, *res, *a, *cl_aka_register_2, *size, *signed)
         }
         IRInstr::BoundsCheck { length, index, size } => {
-            bounds_check(assembler, *length, *index, *size, editable);
+            bounds_check(assembler, *length, *index, *size, false);
         }
         IRInstr::MulConst { res, a, size, signed } => {
             mul_const(assembler, *res, a, *size, signed);

@@ -29,6 +29,7 @@ use rust_jvm_common::opaque_id_table::OpaqueID;
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
 use crate::ir_stack::{IRFrameMut, IRStackMut};
 use crate::ir_to_native::single_ir_to_native;
+use crate::skippable_exits::{AssemblySkipableExit, AssemblySkipableExits, SkipableExit, SkipableExitID, SkipableExits};
 use crate::vm_exit_abi::IRVMExitType;
 use crate::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use crate::vm_exit_abi::runtime_input::RuntimeVMExitInput;
@@ -39,6 +40,7 @@ pub mod compiler;
 pub mod vm_exit_abi;
 pub mod ir_stack;
 pub mod ir_to_native;
+pub mod skippable_exits;
 
 
 pub struct IRVMStateInner<'vm, ExtraData: 'vm> {
@@ -103,6 +105,7 @@ impl<'vm, ExtraData: 'vm> IRVMStateInner<'vm, ExtraData> {
 pub struct IRVMState<'vm, ExtraData: 'vm> {
     native_vm: VMState<'vm, u64, ExtraData>,
     pub inner: RwLock<IRVMStateInner<'vm, ExtraData>>,
+    pub skipable_exits: RwLock<SkipableExits>,
 }
 
 //todo make this not an arc for perf
@@ -189,6 +192,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         Self {
             native_vm,
             inner: RwLock::new(IRVMStateInner::new()),
+            skipable_exits: RwLock::new(SkipableExits::new()),
         }
     }
 
@@ -275,11 +279,19 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         current_ir_id
     }
 
+    fn convert_to_raw_ptr(base_address: BaseAddress, new_instruction_offsets: &[IRInstructNativeOffset],instruction_number: usize ) -> *mut c_void{
+        unsafe { base_address.0.offset(new_instruction_offsets[instruction_number].0 as isize) }
+    }
+
     pub fn add_function(&'vm self, instructions: Vec<IRInstr>, frame_size: usize, ir_method_id: IRMethodID, code_modification_handle: CodeModificationHandle) -> (IRMethodID, HashMap<RestartPointID, IRInstructIndex>, HashMap<MethodId, Vec<FunctionCallTarget>>) {
         assert!(frame_size >= FRAME_HEADER_END_OFFSET);
         let mut inner_guard = self.inner.write().unwrap();
-        let (code_assembler, assembly_index_to_ir_instruct_index, restart_points, call_modification_points) =
-            add_function_from_ir(&instructions, true);
+        let (code_assembler,
+            assembly_index_to_ir_instruct_index,
+            restart_points,
+            call_modification_points,
+            assembly_skipable_exits) =
+            add_function_from_ir(&instructions);
         let base_address = self.native_vm.get_new_base_address();
         let block = InstructionBlock::new(code_assembler.instructions(), base_address.0 as u64);
         let result = BlockEncoder::encode(64, block, BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS/*| BlockEncoderOptions::DONT_FIX_BRANCHES*/).unwrap();//issue here is probably that labels aren't being defined but are being jumped to.
@@ -302,7 +314,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                             AssemblerRuntimeModificationTarget::MovQ { instruction_number } => {
                                 let constant_offset: &ConstantOffsets = &result.constant_offsets[instruction_number];
                                 assert!(constant_offset.has_immediate());
-                                let raw_ptr = base_address.0.offset(new_instruction_offsets[instruction_number].0 as isize)
+                                let raw_ptr = Self::convert_to_raw_ptr(base_address, new_instruction_offsets.as_slice(), instruction_number)
                                     .offset(constant_offset.immediate_offset() as isize);
                                 function_call_targets.entry(method_id).or_default().push(FunctionCallTarget(raw_ptr as *mut *const c_void));
                             }
@@ -312,22 +324,31 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
             }
         }
 
+        let mut skipable_exit_guards = self.skipable_exits.write().unwrap();
+        for (skipable_exit_id, AssemblySkipableExit{ assembly_instruct_idx }) in assembly_skipable_exits.inner {
+            let jump_address_raw = Self::convert_to_raw_ptr(base_address, new_instruction_offsets.as_slice(), assembly_instruct_idx);
+            skipable_exit_guards.sink_exit(skipable_exit_id, SkipableExit {
+                jump_address: jump_address_raw
+            });
+        }
+
         (ir_method_id, restart_points, function_call_targets)
     }
 }
 
 
-fn add_function_from_ir(instructions: &[IRInstr], editable: bool) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
+fn add_function_from_ir(instructions: &[IRInstr]) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>, AssemblySkipableExits) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut ir_instruct_index_to_assembly_instruction_index = Vec::new();
     let mut labels = HashMap::new();
     let mut restart_points = HashMap::new();
     let mut assembler_function_call_modification_points = vec![];
+    let mut skipable_exits = AssemblySkipableExits::new();
     for (i, instruction) in instructions.iter().enumerate() {
         let assembly_instruction_index_start = AssemblyInstructionIndex(assembler.instructions().len());
         let ir_instruction_index = IRInstructIndex(i);
         let assembler_function_call_modification_point =
-            single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index, editable);
+            single_ir_to_native(&mut assembler, instruction, &mut labels, &mut restart_points, ir_instruction_index, &mut skipable_exits);
         assembler_function_call_modification_points.extend(assembler_function_call_modification_point.into_iter());
         let assembly_instruction_index_end = AssemblyInstructionIndex(assembler.instructions().len());
         assert!(!(assembly_instruction_index_start..assembly_instruction_index_end).is_empty());
@@ -335,7 +356,7 @@ fn add_function_from_ir(instructions: &[IRInstr], editable: bool) -> (CodeAssemb
             ir_instruct_index_to_assembly_instruction_index.push((ir_instruction_index, assembly_index));
         }
     }
-    (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points, assembler_function_call_modification_points)
+    (assembler, ir_instruct_index_to_assembly_instruction_index, restart_points, assembler_function_call_modification_points, skipable_exits)
 }
 
 #[must_use]
@@ -343,33 +364,23 @@ pub struct JmpChangeToEq {
     assembler_instruction_len: AssemblyInstructionIndex,
 }
 
-fn gen_vm_exit_editable(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, should_skip: bool) -> JmpChangeToEq {
-    gen_vm_exit_impl(assembler, exit_type, true, should_skip).unwrap()
-}
-
-fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, should_skip: bool) {
-    let res = gen_vm_exit_impl(assembler, exit_type, false, should_skip);
-    assert!(res.is_none())
-}
-
-#[must_use]
-fn gen_vm_exit_impl(assembler: &mut CodeAssembler, exit_type: &IRVMExitType, editable: bool, should_skip: bool) -> Option<JmpChangeToEq> {
-    let mut res = None;
+fn gen_vm_exit_impl(assembler: &mut CodeAssembler, skipable_exits: &mut AssemblySkipableExits, exit_type: &IRVMExitType, skipable_exit_id: Option<SkipableExitID>, should_skip: bool) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
     let registers = exit_type.registers_to_save();
-    if editable {
+    if let Some(skipable_exit_id) = skipable_exit_id {
         assembler.cmp(rax, rax).unwrap();
-        res = Some(JmpChangeToEq { assembler_instruction_len: AssemblyInstructionIndex(assembler.instructions().len()) });
-        if should_skip{
+        skipable_exits.inner.insert(skipable_exit_id, AssemblySkipableExit {
+            assembly_instruct_idx: assembler.instructions().len()
+        });
+        if should_skip {
             assembler.je(after_exit_label.clone()).unwrap();
-        }else {
+        } else {
             assembler.jne(after_exit_label.clone()).unwrap();
         }
     }
     exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
-    res
 }
 
 

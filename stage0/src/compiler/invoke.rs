@@ -43,7 +43,7 @@ pub fn invokespecial<'vm>(
                         restart_point_id: restart_point_id_class_load,
                         java_pc: current_instr_data.current_offset,
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
         Some((_rc, _loader)) => {
@@ -59,7 +59,7 @@ pub fn invokespecial<'vm>(
                             restart_point_id: restart_point_id_function_address,
                             java_pc: current_instr_data.current_offset,
                         },
-                        should_skip: false
+                        skipable_exit_id: None
                     };
                     //todo have restart point ids for matching same restart points
                     Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
@@ -116,7 +116,7 @@ pub fn invokestatic<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
         Some((method_id, _is_native)) => {
@@ -131,7 +131,7 @@ pub fn invokestatic<'vm>(
                             restart_point_id: restart_point_id_function_address,
                             java_pc: current_instr_data.current_offset,
                         },
-                        should_skip: false
+                        skipable_exit_id: None
                     };
                     //todo have restart point ids for matching same restart points
                     Either::Left(array_into_iter([class_init_restart_point,
@@ -197,7 +197,7 @@ pub fn invokevirtual<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }, after_call_restart_point]));
         }
     };
@@ -267,7 +267,7 @@ pub fn invoke_interface<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }, after_call_restart_point]))
         }
         Some((target_method_id, _is_native)) => {
@@ -286,7 +286,7 @@ pub fn invoke_interface<'vm>(
                             },
                             java_pc: current_instr_data.current_offset,
                         },
-                        should_skip: false
+                        skipable_exit_id: None
                     },
                     IRInstr::IRCall {
                         temp_register_1: Register(1),

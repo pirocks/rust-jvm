@@ -188,10 +188,10 @@ pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodI
             exit_type: IRVMExitType::RunStaticNativeNew {
                 method_id,
             },
-            should_skip: false,
+            skipable_exit_id: None,
         });
     } else {
-        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }, should_skip: false });
+        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id }, skipable_exit_id: None });
     }
     res.push(IRInstr::Return {
         return_val: if desc.return_type.is_void() {
@@ -244,7 +244,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                         offset: prev_offset,
                         java_pc: current_instr_data.current_offset,
                     },
-                    should_skip: false,
+                    skipable_exit_id: None,
                 });
             }
         }
@@ -255,7 +255,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                     offset: current_offset,
                     java_pc: current_instr_data.current_offset,
                 },
-                should_skip: false,
+                skipable_exit_id: None,
             });
         }
         match &compressed_instruction.info {

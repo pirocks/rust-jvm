@@ -6,6 +6,7 @@ use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethod
 use rust_jvm_common::MethodId;
 
 use crate::IRVMExitType;
+use crate::skippable_exits::SkipableExitID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Size {
@@ -140,7 +141,7 @@ pub enum IRInstr {
     },
     VMExit2 {
         exit_type: IRVMExitType,
-        should_skip: bool
+        skipable_exit_id: Option<SkipableExitID>,
     },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
@@ -246,7 +247,7 @@ impl IRInstr {
             IRInstr::RestartPoint(id) => {
                 format!("RestartPoint #{}", id.0)
             }
-            IRInstr::VMExit2 { exit_type, should_skip:_ } => {
+            IRInstr::VMExit2 { exit_type, skipable_exit_id: _ } => {
                 format!("VMExit2-{}", match exit_type {
                     IRVMExitType::AllocateObjectArray_ { .. } => { "AllocateObjectArray_" }
                     IRVMExitType::NPE { .. } => { "NPE" }

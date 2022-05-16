@@ -29,7 +29,7 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset
                 },
-                should_skip: false
+                skipable_exit_id: None
             }])
         }
         Some((_loaded_class, _loader)) => {
@@ -39,7 +39,7 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                     java_pc: current_instr_data.current_offset
                 },
-                should_skip: false
+                skipable_exit_id: None
             }])
         }
     }
@@ -69,7 +69,7 @@ pub fn anewarray<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
         Some((_loaded_class, _loader)) => {
@@ -86,7 +86,7 @@ pub fn anewarray<'vm>(
                         arr_res,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
     }
@@ -137,7 +137,7 @@ pub fn multianewarray<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
         Some((_loaded_class, _loader)) => {
@@ -156,7 +156,7 @@ pub fn multianewarray<'vm>(
                         arr_res,
                         java_pc: current_instr_data.current_offset
                     },
-                    should_skip: false
+                    skipable_exit_id: None
                 }]))
         }
     }

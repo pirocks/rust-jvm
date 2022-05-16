@@ -613,7 +613,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
 
 #[must_use]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct BaseAddress(pub *const c_void);
+pub struct BaseAddress(pub *mut c_void);
 
 pub struct VMExitLabel {
     pub before_exit_label: CodeLabel,

@@ -71,13 +71,14 @@ pub fn putfield<'vm>(
     recompile_conditions: &mut MethodRecompileConditions,
     target_class: CClassName,
     name: FieldName,
-    known_target_type: CPDType
+    _known_target_type: CPDType,
 ) -> impl Iterator<Item=IRInstr> {
     //todo turn this into a skipable vmexit
     let cpd_type = (target_class).into();
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let cpd_type_id_obj = resolver.get_cpdtype_id(cpd_type);
+    let skipable_exit_id = resolver.new_skipable_exit_id();
     match resolver.lookup_type_inited_initing(&cpd_type) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
@@ -86,15 +87,13 @@ pub fn putfield<'vm>(
                     class: cpd_type_id_obj,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
-                    java_pc: current_instr_data.current_offset
+                    java_pc: current_instr_data.current_offset,
                 },
-                should_skip: false
+                skipable_exit_id: Some(skipable_exit_id),
             }]))
         }
         Some((rc, _)) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
-            // dbg!(field_type.jvm_representation(&resolver.string_pool()));
-            // assert_eq!(field_type, known_target_type);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
@@ -121,7 +120,9 @@ pub fn putfield<'vm>(
                     IRInstr::NPECheck {
                         possibly_null: class_ref_register,
                         temp_register: to_put_value,
-                        npe_exit_type: IRVMExitType::NPE { java_pc: current_instr_data.current_offset },
+                        npe_exit_type: IRVMExitType::NPE {
+                            java_pc: current_instr_data.current_offset
+                        },
                     },
                     IRInstr::LoadFPRelative {
                         from: to_put_value_offset,
@@ -133,9 +134,20 @@ pub fn putfield<'vm>(
                         to: class_ref_register,
                         size: Size::pointer(),
                     },
-                    IRInstr::Const64bit { to: offset, const_: field_number },
-                    IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
+                    IRInstr::Const64bit {
+                        to: offset,
+                        const_: field_number,
+                    },
+                    IRInstr::Add {
+                        res: class_ref_register,
+                        a: offset,
+                        size: Size::pointer(),
+                    },
+                    IRInstr::Store {
+                        to_address: class_ref_register,
+                        from: to_put_value,
+                        size: field_size,
+                    }
                 ])))
         }
     }
@@ -165,7 +177,7 @@ pub fn getfield<'vm>(
                     restart_point_id,
                     java_pc: current_instr_data.current_offset,
                 },
-                should_skip: false
+                skipable_exit_id: None,
             }]))
         }
         Some((rc, _)) => {

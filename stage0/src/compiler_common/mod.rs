@@ -5,6 +5,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
+use another_jit_vm_ir::skippable_exits::SkipableExitID;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
@@ -171,4 +172,5 @@ pub trait MethodResolver<'gc> {
     fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask>;
     fn debug_checkcast_assertions(&self) -> bool;
     fn string_pool(&self) -> &CompressedClassfileStringPool;
+    fn new_skipable_exit_id(&self) -> SkipableExitID;
 }

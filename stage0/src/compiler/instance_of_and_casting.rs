@@ -51,7 +51,7 @@ pub fn checkcast_impl<'vm>(
             cpdtype: cpdtype_id,
             java_pc: current_instr_data.current_offset
         },
-        should_skip: false
+        skipable_exit_id: None
     });
     res.push(IRInstr::Label(IRLabel{ name: checkcast_succeeds }));
     res.into_iter()
@@ -67,7 +67,7 @@ pub fn instanceof<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &
                 cpdtype: cpdtype_id,
                 java_pc: current_instr_data.current_offset
             },
-            should_skip: false
+            skipable_exit_id: None
         }
     ])
 }

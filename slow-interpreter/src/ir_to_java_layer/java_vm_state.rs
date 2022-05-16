@@ -59,7 +59,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         let ir_method_id = self.ir.reserve_method_id();
         let (ir_method_id, restart_points, _) = self.ir.add_function(vec![IRInstr::VMExit2 {
             exit_type: IRVMExitType::TopLevelReturn {},
-            should_skip: false,
+            skipable_exit_id: None,
         }], FRAME_HEADER_END_OFFSET, ir_method_id, self.modication_lock.acquire());
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
