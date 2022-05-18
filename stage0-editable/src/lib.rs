@@ -1,4 +1,9 @@
 use another_jit_vm::code_modification::{CodeModificationHandle, EditAction};
+use another_jit_vm_ir::changeable_const::{ChangeableConst, ChangeableConstID};
+
+
+// put struct edit action
+// set editable const to correct field number
 
 
 

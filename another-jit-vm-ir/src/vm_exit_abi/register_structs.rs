@@ -202,6 +202,9 @@ impl InitClassAndRecompile {
     pub const TO_RECOMPILE: Register = Register(3);
     pub const RESTART_POINT_ID: Register = Register(4);
     pub const JAVA_PC: Register = Register(5);
+    pub const EDIT_VM_EDIT_ACTION: Register = Register(6);
+    pub const AFTER_EXIT: Register = Register(7);
+    pub const SKIPABLE_EXIT_ID: Register = Register(8);
 }
 
 pub struct CompileFunctionAndRecompileCurrent;

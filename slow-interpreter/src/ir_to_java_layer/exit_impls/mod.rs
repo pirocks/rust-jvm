@@ -9,6 +9,8 @@ use libc::{memset, rand};
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::IRVMExitAction;
+use another_jit_vm_ir::skipable_exits::SkipableExitID;
+use another_jit_vm_ir::vm_exit_abi::IRVMEditAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::ResolvedInterfaceVTableEntry;
@@ -21,6 +23,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use stage0::compiler::fields::recursively_find_field_number_and_type;
 use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
@@ -510,25 +513,44 @@ pub fn log_frame_pointer_offset_value(jvm: &JVMState, value: u64, return_to_ptr:
 }
 
 #[inline(never)]
-pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, class_type: CPDTypeID, current_method_id: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
+pub fn init_class_and_recompile<'gc>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    class_type: CPDTypeID,
+    current_method_id: MethodId,
+    restart_point: RestartPointID,
+    vm_edit_action: &Option<Box<IRVMEditAction>>,
+    after_exit: *mut c_void,
+    skipable_exit_id: Option<SkipableExitID>
+) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    unsafe {
-        if rand() < 10_000 && cpdtype.short_representation(&jvm.string_pool) == "agp" {
-            int_state.debug_print_stack_trace(jvm);
-        }
-    }
     let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
-    let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
-    if jvm.exit_trace_options.tracing_enabled() {
-        eprintln!("InitClassAndRecompile done");
+    return match vm_edit_action {
+        None => {
+            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
+            let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
+            if jvm.exit_trace_options.tracing_enabled() {
+                eprintln!("InitClassAndRecompile done");
+            }
+            IRVMExitAction::RestartAtPtr { ptr: restart_point }
+        }
+        Some(box IRVMEditAction::PutField { field_number_id, name }) => {
+            let skipable_exit_id = skipable_exit_id.unwrap();
+            let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
+            let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
+            jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, field_number);
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(skipable_exit_id);
+            if jvm.exit_trace_options.tracing_enabled() {
+                eprintln!("InitClassAndRecompile done");
+            }
+            IRVMExitAction::RestartAtPtr { ptr: after_exit }
+        }
     }
-    IRVMExitAction::RestartAtPtr { ptr: restart_point }
 }
 
 #[inline(never)]

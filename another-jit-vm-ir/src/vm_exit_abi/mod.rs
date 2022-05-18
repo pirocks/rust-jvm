@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::num::NonZeroU8;
+use std::ptr::null_mut;
 
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 
@@ -10,13 +11,23 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+use crate::changeable_const::ChangeableConstID;
 
 use crate::compiler::RestartPointID;
+use crate::SkipableExitID;
 use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, NPE, PutStatic, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::RawVMExitType;
 
 pub mod register_structs;
 pub mod runtime_input;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum IRVMEditAction {
+    PutField {
+        field_number_id: ChangeableConstID,
+        name: FieldName,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum IRVMExitType {
@@ -62,6 +73,8 @@ pub enum IRVMExitType {
         this_method_id: MethodId,
         restart_point_id: RestartPointID,
         java_pc: ByteCodeOffset,
+        edit_action: Option<IRVMEditAction>,
+        skipable_exit_id: Option<SkipableExitID>,
     },
     RunStaticNative {
         //todo should I actually use these args?
@@ -228,12 +241,20 @@ impl IRVMExitType {
                 assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(), *target_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::InitClassAndRecompile { class, this_method_id, restart_point_id, java_pc, } => {
+            IRVMExitType::InitClassAndRecompile { class, this_method_id, restart_point_id, java_pc, edit_action, skipable_exit_id } => {
                 assembler.mov(rax, RawVMExitType::InitClassAndRecompile as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::EDIT_VM_EDIT_ACTION.to_native_64(),
+                              edit_action.clone().map(|edit_action| Box::into_raw(Box::new(edit_action)))
+                                  .unwrap_or(null_mut()) as u64,
+                ).unwrap();
+                assembler.mov(InitClassAndRecompile::SKIPABLE_EXIT_ID.to_native_64(),
+                              skipable_exit_id.clone().map(|skipable_exit_id| skipable_exit_id.0)
+                                  .unwrap_or(u64::MAX)).unwrap();
+                assembler.lea(InitClassAndRecompile::AFTER_EXIT.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::NPE { .. } => {
                 assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
@@ -535,7 +556,7 @@ impl IRVMExitType {
                 HashSet::from([Register(0), LoadClassAndRecompile::TO_RECOMPILE, LoadClassAndRecompile::CPDTYPE_ID, LoadClassAndRecompile::RESTART_POINT_ID])
             }
             IRVMExitType::InitClassAndRecompile { .. } => {
-                HashSet::from([Register(0), InitClassAndRecompile::TO_RECOMPILE, InitClassAndRecompile::CPDTYPE_ID, InitClassAndRecompile::RESTART_POINT_ID])
+                HashSet::from([Register(0), InitClassAndRecompile::TO_RECOMPILE, InitClassAndRecompile::CPDTYPE_ID, InitClassAndRecompile::RESTART_POINT_ID, InitClassAndRecompile::JAVA_PC, InitClassAndRecompile::EDIT_VM_EDIT_ACTION, InitClassAndRecompile::AFTER_EXIT, InitClassAndRecompile::SKIPABLE_EXIT_ID])
             }
             IRVMExitType::RunStaticNative { .. } => {
                 HashSet::from([Register(0), RunStaticNative::RES, RunStaticNative::RESTART_IP, RunStaticNative::ARG_START, RunStaticNative::METHODID, RunStaticNative::NUM_ARGS])

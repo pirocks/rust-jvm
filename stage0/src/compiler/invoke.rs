@@ -115,6 +115,8 @@ pub fn invokestatic<'vm>(
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
+                        edit_action: None,
+                        skipable_exit_id: None
                     },
                     skipable_exit_id: None
                 }]))
@@ -196,6 +198,8 @@ pub fn invokevirtual<'vm>(
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
+                        edit_action: None,
+                        skipable_exit_id: None
                     },
                     skipable_exit_id: None
                 }, after_call_restart_point]));
@@ -266,6 +270,8 @@ pub fn invoke_interface<'vm>(
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
+                        edit_action: None,
+                        skipable_exit_id: None
                     },
                     skipable_exit_id: None
                 }, after_call_restart_point]))

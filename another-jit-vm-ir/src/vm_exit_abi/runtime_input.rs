@@ -13,7 +13,8 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
-use crate::RestartPointID;
+use crate::{RestartPointID, SkipableExitID};
+use crate::vm_exit_abi::IRVMEditAction;
 use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, PutStatic, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
@@ -93,6 +94,9 @@ pub enum RuntimeVMExitInput {
         restart_point: RestartPointID,
         rbp: *const c_void,
         pc: ByteCodeOffset,
+        vm_edit_action: Option<Box<IRVMEditAction>>,
+        after_exit: *mut c_void,
+        skipable_exit_id: Option<SkipableExitID>
     },
     RunStaticNative {
         method_id: MethodId,
@@ -279,12 +283,27 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::InitClassAndRecompile => {
+                let skippable_exit_id = register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::SKIPABLE_EXIT_ID);
                 RuntimeVMExitInput::InitClassAndRecompile {
                     class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
                     rbp: register_state.saved_registers_without_ip.rbp,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::JAVA_PC) as u16),
+                    vm_edit_action: match NonNull::new(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::EDIT_VM_EDIT_ACTION) as *mut IRVMEditAction) {
+                        None => {
+                            None
+                        }
+                        Some(vm_edit_action) => {
+                            unsafe { Some(Box::from_raw(vm_edit_action.as_ptr())) }
+                        }
+                    },
+                    after_exit: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::AFTER_EXIT) as *mut c_void,
+                    skipable_exit_id: if skippable_exit_id == u64::MAX{
+                        None
+                    }else {
+                        Some(SkipableExitID(skippable_exit_id))
+                    }
                 }
             }
             RawVMExitType::LogFramePointerOffsetValue => {

@@ -4,9 +4,10 @@ use std::sync::Mutex;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
 use rust_jvm_common::MethodId;
+use crate::changeable_const::ChangeableConstID;
 
 use crate::IRVMExitType;
-use crate::skippable_exits::SkipableExitID;
+use crate::skipable_exits::SkipableExitID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Size {
@@ -119,7 +120,8 @@ pub enum IRInstr {
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
-    OneTimeChangeablePutField {},
+    ChangeableConst64bit { to: Register, const_id: ChangeableConstID },
+    // OneTimeChangeablePutField {},
     SignExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     ZeroExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     BranchToLabel { label: LabelName },
@@ -412,8 +414,11 @@ impl IRInstr {
             /*IRInstr::ChangeableConst64bit { .. } => {
                 "ChangeableConst64bit".to_string()
             }*/
-            IRInstr::OneTimeChangeablePutField { .. } => {
+            /*IRInstr::OneTimeChangeablePutField { .. } => {
                 "OneTimeChangeablePutField".to_string()
+            }*/
+            IRInstr::ChangeableConst64bit { .. } => {
+                "ChangeableConst64bit".to_string()
             }
         }
     }

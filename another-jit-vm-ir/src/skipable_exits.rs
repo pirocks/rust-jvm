@@ -1,26 +1,27 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::intrinsics::atomic_xchg;
 use libc::c_void;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct SkipableExitID(u64);
+pub struct SkipableExitID(pub(crate) u64);
 
 
 pub struct AssemblySkipableExit {
-    pub(crate) assembly_instruct_idx: usize
+    pub(crate) assembly_instruct_idx: usize,
 }
 
 pub struct SkipableExit {
     pub(crate) jump_address: *mut c_void,
 }
 
-pub struct AssemblySkipableExits{
-    pub inner: HashMap<SkipableExitID, AssemblySkipableExit>
+pub struct AssemblySkipableExits {
+    pub inner: HashMap<SkipableExitID, AssemblySkipableExit>,
 }
 
-impl AssemblySkipableExits{
-    pub fn new() -> Self{
-        Self{
+impl AssemblySkipableExits {
+    pub fn new() -> Self {
+        Self {
             inner: HashMap::new()
         }
     }
@@ -47,5 +48,15 @@ impl SkipableExits {
 
     pub fn sink_exit(&mut self, skipable_exit_id: SkipableExitID, skipable_exit: SkipableExit) {
         self.inner.insert(skipable_exit_id, skipable_exit);
+    }
+
+    pub fn skip_exit(&self, skipable_exit_id: SkipableExitID) {
+        let jump_address = self.inner.get(&skipable_exit_id).unwrap().jump_address as *mut u8;
+        let target_opcode_byte = unsafe { jump_address.offset(1) };
+        let byte_expected = 0x85u8;
+        unsafe {
+            assert_eq!(target_opcode_byte.read(), byte_expected);
+            atomic_xchg(target_opcode_byte, 0x84u8);
+        }
     }
 }

@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
-use another_jit_vm_ir::skippable_exits::SkipableExitID;
+use another_jit_vm_ir::changeable_const::ChangeableConstID;
+use another_jit_vm_ir::skipable_exits::SkipableExitID;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -307,5 +308,9 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn new_skipable_exit_id(&self) -> SkipableExitID {
         self.jvm.java_vm_state.ir.skipable_exits.write().unwrap().new_id()
+    }
+
+    fn new_changeable_const64(&self, value: u64) -> ChangeableConstID {
+        self.jvm.java_vm_state.ir.changeable_consts.write().unwrap().add_const64(value)
     }
 }

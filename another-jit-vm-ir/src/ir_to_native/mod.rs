@@ -7,7 +7,7 @@ use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mu
 use crate::ir_to_native::integer_compare::{int_compare, sized_integer_compare};
 use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir_store_fp_relative};
 use crate::ir_to_native::special::{bounds_check, npe_check, vtable_lookup_or_exit};
-use crate::{AssemblySkipableExits, gen_vm_exit_impl, IRInstr, IRInstructIndex, LabelName, RestartPointID};
+use crate::{AssemblySkipableExits, ChangeableConsts, gen_vm_exit_impl, IRInstr, IRInstructIndex, LabelName, RestartPointID};
 
 pub mod bit_manipulation;
 pub mod integer_arithmetic;
@@ -24,6 +24,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                            restart_points: &mut HashMap<RestartPointID, IRInstructIndex>,
                            ir_instr_index: IRInstructIndex,
                            skipable_exits: &mut AssemblySkipableExits,
+                           changeable_consts: &ChangeableConsts
 ) -> Option<AssemblerFunctionCallTarget> {
     match instruction {
         IRInstr::LoadFPRelative { from, to, size } => {
@@ -242,8 +243,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         /*IRInstr::ChangeableConst64bit { .. } => {
             todo!()
         }*/
-        IRInstr::OneTimeChangeablePutField { .. } => {
+        /*IRInstr::OneTimeChangeablePutField { .. } => {
             todo!()
+        }*/
+        IRInstr::ChangeableConst64bit { to, const_id } => {
+            assembler.mov(to.to_native_64(), changeable_consts.raw_ptr(*const_id) as u64).unwrap();
+            assembler.mov(to.to_native_64(), to.to_native_64() + 0).unwrap();
         }
     }
     None
