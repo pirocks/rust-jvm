@@ -2,6 +2,7 @@ use std::ffi::{c_void};
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
+use std::sync::atomic::Ordering;
 
 use itertools::{Itertools};
 use libc::{memset, rand};
@@ -550,6 +551,18 @@ pub fn init_class_and_recompile<'gc>(
             }
             IRVMExitAction::RestartAtPtr { ptr: after_exit }
         }
+        Some(box IRVMEditAction::GetField { field_number_id, name }) => {
+            let skipable_exit_id = skipable_exit_id.unwrap();
+            let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
+            let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
+            jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, dbg!(field_number));
+            unsafe { dbg!(jvm.java_vm_state.ir.changeable_consts.read().unwrap().raw_ptr(*field_number_id).read().load(Ordering::SeqCst)); }
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(skipable_exit_id);
+            if jvm.exit_trace_options.tracing_enabled() {
+                eprintln!("InitClassAndRecompile done");
+            }
+            IRVMExitAction::RestartAtPtr { ptr: after_exit }
+        }
     }
 }
 
@@ -565,13 +578,6 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &
     let field_name = field_view.field_name();
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
     let njv = native_to_new_java_value(native_jv, &field_view.field_type(), jvm);
-    // if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
-    //     dbg!(alloc.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
-    //     // let rc = alloc.unwrap_normal_object().runtime_class(jvm);
-    //     // if instance_of_exit_impl(jvm, field_view.field_type(), Some(alloc.unwrap_normal_object())) == 0 {
-    //     //     panic!()
-    //     // }
-    // }
     static_vars_guard.set(field_name, njv);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
 }

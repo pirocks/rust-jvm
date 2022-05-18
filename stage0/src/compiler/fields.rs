@@ -107,7 +107,6 @@ pub fn putfield<'vm>(
         Some((rc, _)) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
-
             known_target_type_matches_field_type(known_target_type, field_type);
             let field_number_const_id = resolver.new_changeable_const64(field_number);
             Either::Right(put_field_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, restart_point, field_type, field_number_const_id, known_target_type))
@@ -182,6 +181,104 @@ fn put_field_impl<'vm>(
         ]))
 }
 
+pub fn getfield<'vm>(
+    resolver: &impl MethodResolver<'vm>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    mut current_instr_data: CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
+    target_class: CClassName,
+    name: FieldName,
+    known_target_type: CPDType,
+) -> impl Iterator<Item=IRInstr> {
+    let cpd_type = (target_class).into();
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let obj_cpd_type_id = resolver.get_cpdtype_id(cpd_type);
+    let skipable_exit_id = resolver.new_skipable_exit_id();
+    match resolver.lookup_type_inited_initing(&cpd_type) {
+        None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
+            let field_number_const_id = resolver.new_changeable_const64(u64::MAX);
+            let after_exit = get_field_impl(resolver,
+                                            method_frame_data,
+                                            &mut current_instr_data,
+                                            cpd_type,
+                                            restart_point.clone(),
+                                            known_target_type,
+                                            field_number_const_id);
+            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: obj_cpd_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id,
+                    java_pc: current_instr_data.current_offset,
+                    edit_action: Some(IRVMEditAction::GetField { field_number_id: field_number_const_id, name }),
+                    skipable_exit_id: Some(skipable_exit_id),
+                },
+                skipable_exit_id: Some(skipable_exit_id),
+            }]).chain(after_exit))
+        }
+        Some((rc, _)) => {
+            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            known_target_type_matches_field_type(known_target_type, field_type);
+            let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
+            let field_number_const_id = resolver.new_changeable_const64(field_number);
+            Either::Right(get_field_impl(resolver, method_frame_data, &mut current_instr_data, cpd_type, restart_point, field_type, field_number_const_id))
+        }
+    }
+}
+
+fn get_field_impl<'vm>(
+    resolver: &impl MethodResolver<'vm>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    mut current_instr_data: &mut CurrentInstructionCompilerData,
+    cpd_type: CPDType,
+    restart_point: IRInstr,
+    field_type: CPDType,
+    field_number_const_id: ChangeableConstID,
+) -> impl Iterator<Item=IRInstr> {
+    let field_size = field_type_to_register_size(field_type);
+    let class_ref_register = Register(1);
+    let to_get_value = Register(2);
+    let offset = Register(3);
+    let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
+    let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
+    array_into_iter([
+        restart_point]).chain(
+        if resolver.debug_checkcast_assertions() {
+            Either::Right(checkcast_impl(resolver, &mut current_instr_data, cpd_type, object_ptr_offset))
+        } else {
+            Either::Left(iter::empty())
+        }
+    ).chain(array_into_iter([
+        IRInstr::LoadFPRelative {
+            from: object_ptr_offset,
+            to: class_ref_register,
+            size: Size::pointer(),
+        },
+        IRInstr::NPECheck {
+            possibly_null: class_ref_register,
+            temp_register: to_get_value,
+            npe_exit_type: IRVMExitType::NPE { java_pc: current_instr_data.current_offset },
+        },
+        IRInstr::LoadFPRelative {
+            from: object_ptr_offset,
+            to: class_ref_register,
+            size: Size::pointer(),
+        },
+        IRInstr::ChangeableConst64bit { to: offset, const_id: field_number_const_id },
+        IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
+        IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
+        IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
+    ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
+        Either::Left(checkcast_impl(resolver, &mut current_instr_data, field_type, to_get_value_offset))
+    } else {
+        Either::Right(array_into_iter([]))
+    })
+}
+
+
 fn known_target_type_matches_field_type(known_target_type: CPDType, field_type: CPDType) {
     match known_target_type.to_runtime_type() {
         None => {
@@ -208,79 +305,6 @@ fn known_target_type_matches_field_type(known_target_type: CPDType, field_type: 
                     }
                 }
             }
-        }
-    }
-}
-
-
-pub fn getfield<'vm>(
-    resolver: &impl MethodResolver<'vm>,
-    method_frame_data: &JavaCompilerMethodAndFrameData,
-    mut current_instr_data: CurrentInstructionCompilerData,
-    restart_point_generator: &mut RestartPointGenerator,
-    recompile_conditions: &mut MethodRecompileConditions,
-    target_class: CClassName,
-    name: FieldName,
-) -> impl Iterator<Item=IRInstr> {
-    let cpd_type = (target_class).into();
-    let restart_point_id = restart_point_generator.new_restart_point();
-    let restart_point = IRInstr::RestartPoint(restart_point_id);
-    let obj_cpd_type_id = resolver.get_cpdtype_id(cpd_type);
-    match resolver.lookup_type_inited_initing(&cpd_type) {
-        None => {
-            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: cpd_type });
-            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
-                exit_type: IRVMExitType::InitClassAndRecompile {
-                    class: obj_cpd_type_id,
-                    this_method_id: method_frame_data.current_method_id,
-                    restart_point_id,
-                    java_pc: current_instr_data.current_offset,
-                    edit_action: None,
-                    skipable_exit_id: None
-                },
-                skipable_exit_id: None,
-            }]))
-        }
-        Some((rc, _)) => {
-            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
-            let class_ref_register = Register(1);
-            let to_get_value = Register(2);
-            let offset = Register(3);
-            let object_ptr_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
-            let to_get_value_offset = method_frame_data.operand_stack_entry(current_instr_data.next_index, 0);
-            let field_size = field_type_to_register_size(field_type);
-            Either::Right(array_into_iter([
-                restart_point]).chain(
-                if resolver.debug_checkcast_assertions() {
-                    Either::Right(checkcast_impl(resolver, &mut current_instr_data, cpd_type, object_ptr_offset))
-                } else {
-                    Either::Left(iter::empty())
-                }
-            ).chain(array_into_iter([
-                IRInstr::LoadFPRelative {
-                    from: object_ptr_offset,
-                    to: class_ref_register,
-                    size: Size::pointer(),
-                },
-                IRInstr::NPECheck {
-                    possibly_null: class_ref_register,
-                    temp_register: to_get_value,
-                    npe_exit_type: IRVMExitType::NPE { java_pc: current_instr_data.current_offset },
-                },
-                IRInstr::LoadFPRelative {
-                    from: object_ptr_offset,
-                    to: class_ref_register,
-                    size: Size::pointer(),
-                },
-                IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
-                IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
-                IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
-            ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
-                Either::Left(checkcast_impl(resolver, &mut current_instr_data, field_type, to_get_value_offset))
-            } else {
-                Either::Right(array_into_iter([]))
-            }))
         }
     }
 }

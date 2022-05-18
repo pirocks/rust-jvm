@@ -34,7 +34,10 @@ impl ChangeableConsts {
     }
 
     pub fn change_const64(&self, id: ChangeableConstID, new_val: u64) {
-        unsafe { self.inner.get(&id).unwrap().inner.read().store(new_val, Ordering::SeqCst) }
+        unsafe {
+            self.inner.get(&id).unwrap().inner.as_ref().unwrap().store(new_val, Ordering::SeqCst);
+            assert_eq!(self.inner.get(&id).unwrap().inner.as_ref().unwrap().load(Ordering::SeqCst), new_val);
+        }
     }
 
     pub fn add_const64(&mut self, new_val: u64) -> ChangeableConstID {

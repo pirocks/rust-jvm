@@ -413,8 +413,8 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::ifnonnull(offset) => {
                 this_function_ir.extend(if_nonnull(method_frame_data, current_instr_data, *offset as i32))
             }
-            CompressedInstructionInfo::getfield { name, desc: _, target_class } => {
-                this_function_ir.extend(getfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
+            CompressedInstructionInfo::getfield { name, desc, target_class } => {
+                this_function_ir.extend(getfield(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name, desc.0))
             }
             //todo handle implicit monitor enters on synchronized  functions
             CompressedInstructionInfo::monitorenter => {

@@ -26,6 +26,10 @@ pub enum IRVMEditAction {
     PutField {
         field_number_id: ChangeableConstID,
         name: FieldName,
+    },
+    GetField {
+        field_number_id: ChangeableConstID,
+        name: FieldName,
     }
 }
 
@@ -556,7 +560,7 @@ impl IRVMExitType {
                 HashSet::from([Register(0), LoadClassAndRecompile::TO_RECOMPILE, LoadClassAndRecompile::CPDTYPE_ID, LoadClassAndRecompile::RESTART_POINT_ID])
             }
             IRVMExitType::InitClassAndRecompile { .. } => {
-                HashSet::from([Register(0), InitClassAndRecompile::TO_RECOMPILE, InitClassAndRecompile::CPDTYPE_ID, InitClassAndRecompile::RESTART_POINT_ID, InitClassAndRecompile::JAVA_PC, InitClassAndRecompile::EDIT_VM_EDIT_ACTION, InitClassAndRecompile::AFTER_EXIT, InitClassAndRecompile::SKIPABLE_EXIT_ID])
+                InitClassAndRecompile::all_registers()
             }
             IRVMExitType::RunStaticNative { .. } => {
                 HashSet::from([Register(0), RunStaticNative::RES, RunStaticNative::RESTART_IP, RunStaticNative::ARG_START, RunStaticNative::METHODID, RunStaticNative::NUM_ARGS])

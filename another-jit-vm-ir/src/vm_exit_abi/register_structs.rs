@@ -207,6 +207,12 @@ impl InitClassAndRecompile {
     pub const SKIPABLE_EXIT_ID: Register = Register(8);
 }
 
+impl ExitRegisterStruct for InitClassAndRecompile {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::CPDTYPE_ID, Self::TO_RECOMPILE, Self::RESTART_POINT_ID, Self::JAVA_PC, Self::EDIT_VM_EDIT_ACTION, Self::AFTER_EXIT, Self::SKIPABLE_EXIT_ID])
+    }
+}
+
 pub struct CompileFunctionAndRecompileCurrent;
 
 impl CompileFunctionAndRecompileCurrent {
