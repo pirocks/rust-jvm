@@ -14,7 +14,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use crate::changeable_const::ChangeableConstID;
 
 use crate::compiler::RestartPointID;
-use crate::SkipableExitID;
+use crate::{SkipableExitID};
 use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, NPE, PutStatic, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::RawVMExitType;
 
@@ -26,10 +26,16 @@ pub enum IRVMEditAction {
     PutField {
         field_number_id: ChangeableConstID,
         name: FieldName,
+        skipable_exit: SkipableExitID,
     },
     GetField {
         field_number_id: ChangeableConstID,
         name: FieldName,
+        skipable_exit: SkipableExitID,
+    },
+    FunctionRecompileAndCallLocationUpdate{
+        method_id: MethodId,
+        skipable_exit: SkipableExitID,
     }
 }
 
@@ -78,7 +84,6 @@ pub enum IRVMExitType {
         restart_point_id: RestartPointID,
         java_pc: ByteCodeOffset,
         edit_action: Option<IRVMEditAction>,
-        skipable_exit_id: Option<SkipableExitID>,
     },
     RunStaticNative {
         //todo should I actually use these args?
@@ -119,6 +124,7 @@ pub enum IRVMExitType {
         target_method_id: MethodId,
         restart_point_id: RestartPointID,
         java_pc: ByteCodeOffset,
+        edit_action: Option<IRVMEditAction>,
     },
     TopLevelReturn,
     Todo,
@@ -238,26 +244,27 @@ impl IRVMExitType {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
                 assembler.mov(rax, RawVMExitType::TopLevelReturn as u64).unwrap();
             }
-            IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, restart_point_id, java_pc } => {
+            IRVMExitType::CompileFunctionAndRecompileCurrent {
+                current_method_id,
+                target_method_id,
+                restart_point_id,
+                java_pc,
+                edit_action,
+            } => {
                 assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(), *current_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(), *target_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                Self::gen_edit_action(assembler, edit_action, CompileFunctionAndRecompileCurrent::EDIT_VM_EDIT_ACTION);
             }
-            IRVMExitType::InitClassAndRecompile { class, this_method_id, restart_point_id, java_pc, edit_action, skipable_exit_id } => {
+            IRVMExitType::InitClassAndRecompile { class, this_method_id, restart_point_id, java_pc, edit_action } => {
                 assembler.mov(rax, RawVMExitType::InitClassAndRecompile as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-                assembler.mov(InitClassAndRecompile::EDIT_VM_EDIT_ACTION.to_native_64(),
-                              edit_action.clone().map(|edit_action| Box::into_raw(Box::new(edit_action)))
-                                  .unwrap_or(null_mut()) as u64,
-                ).unwrap();
-                assembler.mov(InitClassAndRecompile::SKIPABLE_EXIT_ID.to_native_64(),
-                              skipable_exit_id.clone().map(|skipable_exit_id| skipable_exit_id.0)
-                                  .unwrap_or(u64::MAX)).unwrap();
+                Self::gen_edit_action(assembler, edit_action, InitClassAndRecompile::EDIT_VM_EDIT_ACTION);
                 assembler.lea(InitClassAndRecompile::AFTER_EXIT.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::NPE { .. } => {
@@ -442,6 +449,13 @@ impl IRVMExitType {
                 assembler.lea(RunSpecialNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
         }
+    }
+
+    fn gen_edit_action(assembler: &mut CodeAssembler, edit_action: &Option<IRVMEditAction>, edit_action_register: Register) {
+        assembler.mov(edit_action_register.to_native_64(),
+                      edit_action.clone().map(|edit_action| Box::into_raw(Box::new(edit_action)))
+                          .unwrap_or(null_mut()) as u64,
+        ).unwrap()
     }
 
     pub fn to_register_struct(&self) -> impl ExitRegisterStruct {

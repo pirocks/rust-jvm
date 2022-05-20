@@ -204,12 +204,11 @@ impl InitClassAndRecompile {
     pub const JAVA_PC: Register = Register(5);
     pub const EDIT_VM_EDIT_ACTION: Register = Register(6);
     pub const AFTER_EXIT: Register = Register(7);
-    pub const SKIPABLE_EXIT_ID: Register = Register(8);
 }
 
 impl ExitRegisterStruct for InitClassAndRecompile {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::CPDTYPE_ID, Self::TO_RECOMPILE, Self::RESTART_POINT_ID, Self::JAVA_PC, Self::EDIT_VM_EDIT_ACTION, Self::AFTER_EXIT, Self::SKIPABLE_EXIT_ID])
+        HashSet::from([Register(0), Self::CPDTYPE_ID, Self::TO_RECOMPILE, Self::RESTART_POINT_ID, Self::JAVA_PC, Self::EDIT_VM_EDIT_ACTION, Self::AFTER_EXIT])
     }
 }
 
@@ -220,11 +219,13 @@ impl CompileFunctionAndRecompileCurrent {
     pub const TO_RECOMPILE: Register = Register(3);
     pub const RESTART_POINT_ID: Register = Register(4);
     pub const JAVA_PC: Register = Register(5);
+    pub const EDIT_VM_EDIT_ACTION: Register = Register(6);
+    pub const SKIPABLE_EXIT_ID: Register = Register(7);
 }
 
 impl ExitRegisterStruct for CompileFunctionAndRecompileCurrent {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), CompileFunctionAndRecompileCurrent::TO_RECOMPILE, CompileFunctionAndRecompileCurrent::CURRENT, CompileFunctionAndRecompileCurrent::RESTART_POINT_ID, Self::JAVA_PC])
+        HashSet::from([Register(0), Self::TO_RECOMPILE, Self::CURRENT, Self::RESTART_POINT_ID, Self::JAVA_PC,Self::EDIT_VM_EDIT_ACTION, Self::SKIPABLE_EXIT_ID])
     }
 }
 

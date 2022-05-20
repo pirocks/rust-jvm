@@ -84,15 +84,15 @@ impl<'gc> JavaVMStateWrapperInner<'gc> {
             RuntimeVMExitInput::CompileFunctionAndRecompileCurrent {
                 current_method_id,
                 to_recompile,
-                restart_point, pc: _
+                restart_point, pc: _, vm_edit_action, skipable_exit_id
             } => {
-                exit_impls::compile_function_and_recompile_current(jvm, int_state.unwrap(), *current_method_id, *to_recompile, *restart_point)
+                exit_impls::compile_function_and_recompile_current(jvm, int_state.unwrap(), *current_method_id, *to_recompile, *restart_point,vm_edit_action, *skipable_exit_id)
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::put_static(jvm, field_id, value_ptr, return_to_ptr)
             }
-            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp, pc: _, vm_edit_action, after_exit, skipable_exit_id, } => {
-                exit_impls::init_class_and_recompile(jvm, int_state.unwrap(), *class_type, *current_method_id, *restart_point, &vm_edit_action, *after_exit, *skipable_exit_id)
+            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp, pc: _, vm_edit_action, after_exit, } => {
+                exit_impls::init_class_and_recompile(jvm, int_state.unwrap(), *class_type, *current_method_id, *restart_point, &vm_edit_action, *after_exit)
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
             RuntimeVMExitInput::LogFramePointerOffsetValue { value, return_to_ptr, pc: _ } => {

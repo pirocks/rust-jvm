@@ -98,8 +98,7 @@ pub fn putfield<'vm>(
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset,
-                    edit_action: Some(IRVMEditAction::PutField { field_number_id: field_number_const_id, name }),
-                    skipable_exit_id: Some(skipable_exit_id)
+                    edit_action: Some(IRVMEditAction::PutField { field_number_id: field_number_const_id, name, skipable_exit: skipable_exit_id  }),
                 },
                 skipable_exit_id: Some(skipable_exit_id),
             }]).chain(after_exit))
@@ -213,8 +212,7 @@ pub fn getfield<'vm>(
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset,
-                    edit_action: Some(IRVMEditAction::GetField { field_number_id: field_number_const_id, name }),
-                    skipable_exit_id: Some(skipable_exit_id),
+                    edit_action: Some(IRVMEditAction::GetField { field_number_id: field_number_const_id, name, skipable_exit: skipable_exit_id }),
                 },
                 skipable_exit_id: Some(skipable_exit_id),
             }]).chain(after_exit))

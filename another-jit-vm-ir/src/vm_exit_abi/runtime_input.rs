@@ -5,6 +5,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 use add_only_static_vec::AddOnlyId;
+use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileString, CPDType};
@@ -96,7 +97,6 @@ pub enum RuntimeVMExitInput {
         pc: ByteCodeOffset,
         vm_edit_action: Option<Box<IRVMEditAction>>,
         after_exit: *mut c_void,
-        skipable_exit_id: Option<SkipableExitID>
     },
     RunStaticNative {
         method_id: MethodId,
@@ -117,6 +117,8 @@ pub enum RuntimeVMExitInput {
         to_recompile: MethodId,
         restart_point: RestartPointID,
         pc: ByteCodeOffset,
+        vm_edit_action: Option<Box<IRVMEditAction>>,
+        skipable_exit_id: Option<SkipableExitID>,
     },
     PutStatic {
         value_ptr: *mut c_void,
@@ -268,6 +270,8 @@ impl RuntimeVMExitInput {
                     to_recompile: register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID)),
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(CompileFunctionAndRecompileCurrent::JAVA_PC) as u16),
+                    vm_edit_action: Self::get_vm_edit_action(register_state, CompileFunctionAndRecompileCurrent::EDIT_VM_EDIT_ACTION),
+                    skipable_exit_id: Self::get_skipable_exit_id(register_state, CompileFunctionAndRecompileCurrent::SKIPABLE_EXIT_ID)
                 }
             }
             RawVMExitType::NPE => {
@@ -283,27 +287,14 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::InitClassAndRecompile => {
-                let skippable_exit_id = register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::SKIPABLE_EXIT_ID);
                 RuntimeVMExitInput::InitClassAndRecompile {
                     class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
                     rbp: register_state.saved_registers_without_ip.rbp,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::JAVA_PC) as u16),
-                    vm_edit_action: match NonNull::new(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::EDIT_VM_EDIT_ACTION) as *mut IRVMEditAction) {
-                        None => {
-                            None
-                        }
-                        Some(vm_edit_action) => {
-                            unsafe { Some(Box::from_raw(vm_edit_action.as_ptr())) }
-                        }
-                    },
+                    vm_edit_action: Self::get_vm_edit_action(register_state, InitClassAndRecompile::EDIT_VM_EDIT_ACTION),
                     after_exit: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::AFTER_EXIT) as *mut c_void,
-                    skipable_exit_id: if skippable_exit_id == u64::MAX{
-                        None
-                    }else {
-                        Some(SkipableExitID(skippable_exit_id))
-                    }
                 }
             }
             RawVMExitType::LogFramePointerOffsetValue => {
@@ -475,6 +466,27 @@ impl RuntimeVMExitInput {
 
             }
         }
+    }
+
+    fn get_vm_edit_action(register_state: &SavedRegistersWithIP, vm_edit_action_register: Register) -> Option<Box<IRVMEditAction>> {
+        match NonNull::new(register_state.saved_registers_without_ip.get_register(vm_edit_action_register) as *mut IRVMEditAction) {
+            None => {
+                None
+            }
+            Some(vm_edit_action) => {
+                unsafe { Some(Box::from_raw(vm_edit_action.as_ptr())) }
+            }
+        }
+    }
+
+    fn get_skipable_exit_id(register_state: &SavedRegistersWithIP, skipable_exit_id_register: Register) -> Option<SkipableExitID> {
+        let skipable_exit_id = register_state.saved_registers_without_ip.get_register(skipable_exit_id_register);
+        let skipable_exit_id = if skipable_exit_id == u64::MAX {
+            None
+        } else {
+            Some(SkipableExitID(skipable_exit_id))
+        };
+        skipable_exit_id
     }
 
     pub fn exiting_pc(&self) -> Option<ByteCodeOffset> {

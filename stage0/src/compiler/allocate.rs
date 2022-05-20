@@ -29,7 +29,6 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                     restart_point_id,
                     java_pc: current_instr_data.current_offset,
                     edit_action: None,
-                    skipable_exit_id: None
                 },
                 skipable_exit_id: None
             }])
@@ -71,7 +70,6 @@ pub fn anewarray<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
                         edit_action: None,
-                        skipable_exit_id: None
                     },
                     skipable_exit_id: None
                 }]))
@@ -141,7 +139,6 @@ pub fn multianewarray<'vm>(
                         restart_point_id,
                         java_pc: current_instr_data.current_offset,
                         edit_action: None,
-                        skipable_exit_id: None
                     },
                     skipable_exit_id: None
                 }]))

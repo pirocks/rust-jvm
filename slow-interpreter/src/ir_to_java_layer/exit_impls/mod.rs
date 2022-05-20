@@ -1,8 +1,8 @@
+use std::arch::x86_64::__cpuid;
 use std::ffi::{c_void};
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::atomic::Ordering;
 
 use itertools::{Itertools};
 use libc::{memset, rand};
@@ -521,8 +521,7 @@ pub fn init_class_and_recompile<'gc>(
     current_method_id: MethodId,
     restart_point: RestartPointID,
     vm_edit_action: &Option<Box<IRVMEditAction>>,
-    after_exit: *mut c_void,
-    skipable_exit_id: Option<SkipableExitID>
+    after_exit: *mut c_void
 ) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile");
@@ -540,28 +539,28 @@ pub fn init_class_and_recompile<'gc>(
             }
             IRVMExitAction::RestartAtPtr { ptr: restart_point }
         }
-        Some(box IRVMEditAction::PutField { field_number_id, name }) => {
-            let skipable_exit_id = skipable_exit_id.unwrap();
+        Some(box IRVMEditAction::PutField { field_number_id, name, skipable_exit }) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
             let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
             jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, field_number);
-            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(skipable_exit_id);
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(*skipable_exit);
             if jvm.exit_trace_options.tracing_enabled() {
                 eprintln!("InitClassAndRecompile done");
             }
             IRVMExitAction::RestartAtPtr { ptr: after_exit }
         }
-        Some(box IRVMEditAction::GetField { field_number_id, name }) => {
-            let skipable_exit_id = skipable_exit_id.unwrap();
+        Some(box IRVMEditAction::GetField { field_number_id, name, skipable_exit }) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
             let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
-            jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, dbg!(field_number));
-            unsafe { dbg!(jvm.java_vm_state.ir.changeable_consts.read().unwrap().raw_ptr(*field_number_id).read().load(Ordering::SeqCst)); }
-            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(skipable_exit_id);
+            jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, field_number);
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(*skipable_exit);
             if jvm.exit_trace_options.tracing_enabled() {
                 eprintln!("InitClassAndRecompile done");
             }
             IRVMExitAction::RestartAtPtr { ptr: after_exit }
+        }
+        Some(box IRVMEditAction::FunctionRecompileAndCallLocationUpdate { .. }) => {
+            panic!("not expected on InitClassAndRecompile")
         }
     }
 }
@@ -583,15 +582,39 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &
 }
 
 #[inline(never)]
-pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
+pub fn compile_function_and_recompile_current<'gc>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    current_method_id: MethodId,
+    to_recompile: MethodId,
+    restart_point: RestartPointID,
+    vm_edit_action: &Option<Box<IRVMEditAction>>,
+    option: Option<SkipableExitID>
+) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("CompileFunctionAndRecompileCurrent");
     }
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile);
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
-    let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
-    IRVMExitAction::RestartAtPtr { ptr: restart_point }
+    match vm_edit_action {
+        None => {
+            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile);
+            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
+            let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
+            return IRVMExitAction::RestartAtPtr { ptr: restart_point }
+        }
+        Some(box IRVMEditAction::FunctionRecompileAndCallLocationUpdate { method_id, skipable_exit }) => {
+            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *method_id);
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(*skipable_exit);
+            let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
+            //use cpuid here until I have modification lock for skipable exit
+            let _ = unsafe {__cpuid(0)};
+            return IRVMExitAction::RestartAtPtr { ptr: restart_point };
+            todo!()
+        }
+        _ => {
+            panic!("Not expected")
+        }
+    }
 }
 
 #[inline(never)]

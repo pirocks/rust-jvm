@@ -52,11 +52,12 @@ impl SkipableExits {
 
     pub fn skip_exit(&self, skipable_exit_id: SkipableExitID) {
         let jump_address = self.inner.get(&skipable_exit_id).unwrap().jump_address as *mut u8;
-        let target_opcode_byte = unsafe { jump_address.offset(1) };
-        let byte_expected = 0x85u8;
+        let target_opcode_byte = unsafe { jump_address.offset(0) };
+        // let byte_expected_1 = 0x85u8;
+        let byte_expected_2 = 0x75u8;
         unsafe {
-            assert_eq!(target_opcode_byte.read(), byte_expected);
-            atomic_xchg(target_opcode_byte, 0x84u8);
+            assert!(target_opcode_byte.read() == byte_expected_2);
+            atomic_xchg(target_opcode_byte, 0x74u8);
         }
     }
 }

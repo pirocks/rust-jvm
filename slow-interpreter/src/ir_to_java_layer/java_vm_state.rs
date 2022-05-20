@@ -209,7 +209,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
-            let (ir_method_id, restart_points, function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modication_lock.acquire());
+            let (ir_method_id, restart_points, function_call_targets) =
+                self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modication_lock.acquire());
             self.function_call_targets.write().unwrap().sink_targets(function_call_targets);
             let mut write_guard = self.inner.write().unwrap();
             write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
