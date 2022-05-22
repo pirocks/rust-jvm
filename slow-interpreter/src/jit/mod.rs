@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
@@ -312,5 +313,9 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn new_changeable_const64(&self, value: u64) -> ChangeableConstID {
         self.jvm.java_vm_state.ir.changeable_consts.write().unwrap().add_const64(value)
+    }
+
+    fn changeable_const_value(&self, id: ChangeableConstID) -> u64 {
+        unsafe { self.jvm.java_vm_state.ir.changeable_consts.read().unwrap().raw_ptr(id).as_ref().unwrap().load(Ordering::SeqCst) }
     }
 }

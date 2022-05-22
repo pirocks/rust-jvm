@@ -1,3 +1,4 @@
+use std::arch::x86_64::__cpuid;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::intrinsics::atomic_xchg;
@@ -56,8 +57,9 @@ impl SkipableExits {
         // let byte_expected_1 = 0x85u8;
         let byte_expected_2 = 0x75u8;
         unsafe {
-            assert!(target_opcode_byte.read() == byte_expected_2);
+            assert!(target_opcode_byte.read() == byte_expected_2 || target_opcode_byte.read() == 0x74u8);
             atomic_xchg(target_opcode_byte, 0x74u8);
+            __cpuid(0);
         }
     }
 }

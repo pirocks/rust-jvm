@@ -1,19 +1,16 @@
-use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::null;
 
 use itertools::Either;
 
 use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
-use another_jit_vm_ir::vm_exit_abi::{IRVMEditAction, IRVMExitType};
+use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::method_shape::MethodShape;
-use rust_jvm_common::MethodId;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
@@ -92,102 +89,7 @@ pub fn invokespecial<'vm>(
     }
 }
 
-pub fn invokestatic<'vm>(
-    resolver: &impl MethodResolver<'vm>,
-    method_frame_data: &JavaCompilerMethodAndFrameData,
-    current_instr_data: CurrentInstructionCompilerData,
-    restart_point_generator: &mut RestartPointGenerator,
-    recompile_conditions: &mut MethodRecompileConditions,
-    method_name: MethodName,
-    descriptor: &CMethodDescriptor,
-    classname_ref_type: &CPRefType,
-) -> impl Iterator<Item=IRInstr> {
-    let restart_point_id = restart_point_generator.new_restart_point();
-    let class_init_restart_point = IRInstr::RestartPoint(restart_point_id);
-    let restart_point_id_function_address = restart_point_generator.new_restart_point();
-    let restart_point_function_address = IRInstr::RestartPoint(restart_point_id_function_address);
-    let class_as_cpdtype = classname_ref_type.to_cpdtype();
-    match resolver.lookup_static(class_as_cpdtype.clone(), method_name, descriptor.clone()) {
-        None => {
-            let cpdtype_id = resolver.get_cpdtype_id(class_as_cpdtype);
-            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: class_as_cpdtype });
-            Either::Left(array_into_iter([class_init_restart_point,
-                restart_point_function_address,
-                IRInstr::VMExit2 {
-                    exit_type: IRVMExitType::InitClassAndRecompile {
-                        class: cpdtype_id,
-                        this_method_id: method_frame_data.current_method_id,
-                        restart_point_id,
-                        java_pc: current_instr_data.current_offset,
-                        edit_action: None,
-                    },
-                    skipable_exit_id: None,
-                }]))
-        }
-        Some((method_id, _is_native)) => {
-            let arg_from_to_offsets = static_arg_offsets(method_frame_data, &current_instr_data, descriptor);
-            Either::Right(match resolver.lookup_ir_method_id_and_address(method_id) {
-                None => {
-                    recompile_conditions.add_condition(NeedsRecompileIf::FunctionCompiled { method_id });
-                    let function_recompile_skipable_exit_id = resolver.new_skipable_exit_id();
-                    let after_exit = static_ir_call_impl(method_frame_data,
-                                                         &current_instr_data,
-                                                         descriptor,
-                                                         method_id,
-                                                         arg_from_to_offsets,
-                                                         None);
-                    let exit_instr = IRInstr::VMExit2 {
-                        exit_type: IRVMExitType::CompileFunctionAndRecompileCurrent {
-                            current_method_id: method_frame_data.current_method_id,
-                            target_method_id: method_id,
-                            restart_point_id: restart_point_id_function_address,
-                            java_pc: current_instr_data.current_offset,
-                            edit_action: Some(IRVMEditAction::FunctionRecompileAndCallLocationUpdate { method_id, skipable_exit: function_recompile_skipable_exit_id }),
-                        },
-                        skipable_exit_id: Some(function_recompile_skipable_exit_id),
-                    };
-                    //todo have restart point ids for matching same restart points
-                    Either::Left(array_into_iter([class_init_restart_point,
-                        restart_point_function_address,
-                        exit_instr])
-                        .chain(after_exit))
-                }
-                Some((ir_method_id, address)) => {
-                    recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
-                    Either::Right(array_into_iter([class_init_restart_point, restart_point_function_address]).chain(static_ir_call_impl(method_frame_data, &current_instr_data, descriptor, method_id, arg_from_to_offsets, Some(address))))
-                }
-            })
-        }
-    }
-}
-
-fn static_ir_call_impl(
-    method_frame_data: &JavaCompilerMethodAndFrameData,
-    current_instr_data: &CurrentInstructionCompilerData,
-    descriptor: &CMethodDescriptor,
-    method_id: MethodId,
-    arg_from_to_offsets: Vec<(FramePointerOffset, FramePointerOffset)>,
-    address: Option<*const c_void>,
-) -> impl Iterator<Item=IRInstr> {
-    let ir_call = IRInstr::IRCall {
-        temp_register_1: Register(1),
-        temp_register_2: Register(2),
-        arg_from_to_offsets,
-        return_value: if descriptor.return_type.is_void() {
-            None
-        } else {
-            Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
-        },
-        //todo needs to call the method target modifier register directly somehow in skippable vmexit for this
-        target_address: IRCallTarget::Constant {
-            address: address.unwrap_or(null()),
-            method_id,
-        },
-        current_frame_size: method_frame_data.full_frame_size(),
-    };
-    array_into_iter([ir_call])
-}
-
+pub mod invokestatic;
 
 pub fn invokevirtual<'vm>(
     resolver: &impl MethodResolver<'vm>,

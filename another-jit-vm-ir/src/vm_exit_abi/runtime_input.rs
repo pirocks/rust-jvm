@@ -22,12 +22,12 @@ use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, 
 #[repr(u64)]
 pub enum RawVMExitType {
     AllocateObjectArray = 1,
-    MultiAllocateObjectArray,
-    AllocateObject,
-    LoadClassAndRecompile,
-    InitClassAndRecompile,
-    RunStaticNative,
-    TopLevelReturn,
+    MultiAllocateObjectArray = 2,
+    AllocateObject = 3,
+    LoadClassAndRecompile = 4,
+    InitClassAndRecompile = 5,
+    RunStaticNative = 6,
+    TopLevelReturn = 7,
     CompileFunctionAndRecompileCurrent,
     NPE,
     PutStatic,
@@ -95,7 +95,7 @@ pub enum RuntimeVMExitInput {
         restart_point: RestartPointID,
         rbp: *const c_void,
         pc: ByteCodeOffset,
-        vm_edit_action: Option<Box<IRVMEditAction>>,
+        vm_edit_action: Option<&'static IRVMEditAction>,
         after_exit: *mut c_void,
     },
     RunStaticNative {
@@ -117,7 +117,7 @@ pub enum RuntimeVMExitInput {
         to_recompile: MethodId,
         restart_point: RestartPointID,
         pc: ByteCodeOffset,
-        vm_edit_action: Option<Box<IRVMEditAction>>,
+        vm_edit_action: Option<&'static IRVMEditAction>,
         skipable_exit_id: Option<SkipableExitID>,
     },
     PutStatic {
@@ -468,13 +468,13 @@ impl RuntimeVMExitInput {
         }
     }
 
-    fn get_vm_edit_action(register_state: &SavedRegistersWithIP, vm_edit_action_register: Register) -> Option<Box<IRVMEditAction>> {
+    fn get_vm_edit_action(register_state: &SavedRegistersWithIP, vm_edit_action_register: Register) -> Option<&'static IRVMEditAction> {
         match NonNull::new(register_state.saved_registers_without_ip.get_register(vm_edit_action_register) as *mut IRVMEditAction) {
             None => {
                 None
             }
             Some(vm_edit_action) => {
-                unsafe { Some(Box::from_raw(vm_edit_action.as_ptr())) }
+                unsafe { Some(vm_edit_action.as_ref()) }
             }
         }
     }

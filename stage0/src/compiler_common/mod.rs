@@ -175,4 +175,5 @@ pub trait MethodResolver<'gc> {
     fn string_pool(&self) -> &CompressedClassfileStringPool;
     fn new_skipable_exit_id(&self) -> SkipableExitID;
     fn new_changeable_const64(&self, value: u64) -> ChangeableConstID;
+    fn changeable_const_value(&self, id: ChangeableConstID) -> u64;
 }

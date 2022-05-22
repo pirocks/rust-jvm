@@ -7,11 +7,12 @@ use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 use another_jit_vm::{FramePointerOffset, Register};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
+use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use crate::changeable_const::ChangeableConstID;
+use crate::changeable_const::{ChangeableConstID};
 
 use crate::compiler::RestartPointID;
 use crate::{SkipableExitID};
@@ -21,7 +22,7 @@ use crate::vm_exit_abi::runtime_input::RawVMExitType;
 pub mod register_structs;
 pub mod runtime_input;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IRVMEditAction {
     PutField {
         field_number_id: ChangeableConstID,
@@ -33,10 +34,17 @@ pub enum IRVMEditAction {
         name: FieldName,
         skipable_exit: SkipableExitID,
     },
-    FunctionRecompileAndCallLocationUpdate{
+    FunctionRecompileAndCallLocationUpdate {
         method_id: MethodId,
         skipable_exit: SkipableExitID,
-    }
+    },
+    StaticFunctionRecompileFromInitClass {
+        skipable_exit: SkipableExitID,
+        changeable_function_address_const_id: ChangeableConstID,
+        method_name: MethodName,
+        descriptor: CMethodDescriptor,
+        classname_ref_type: CPRefType,
+    },
 }
 
 #[derive(Debug, Clone)]

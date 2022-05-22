@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use itertools::{Either};
 
 use another_jit_vm::{IRMethodID, Register};
+use another_jit_vm_ir::changeable_const::ChangeableConstID;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::{NativeStackframeMemoryLayout};
@@ -27,7 +28,8 @@ use crate::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
 use crate::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
 use crate::compiler::intrinsics::gen_intrinsic_ir;
-use crate::compiler::invoke::{invoke_interface, invokespecial, invokestatic, invokevirtual};
+use crate::compiler::invoke::{invoke_interface, invokespecial, invokevirtual};
+use crate::compiler::invoke::invokestatic::invokestatic;
 use crate::compiler::ldc::{ldc_class, ldc_double, ldc_float, ldc_integer, ldc_long, ldc_string};
 use crate::compiler::local_var_loads::{aload_n, dload_n, fload_n, iload_n, lload_n};
 use crate::compiler::local_var_stores::{astore_n, dstore_n, fstore_n, istore_n, lstore_n};
@@ -146,6 +148,10 @@ pub enum NeedsRecompileIf {
     FunctionCompiled {
         method_id: MethodId
     },
+    ChangeableConstChanged{
+        from: u64,
+        changeable_const: ChangeableConstID
+    },
     ClassLoaded {
         class: CPDType
     },
@@ -163,6 +169,9 @@ impl NeedsRecompileIf {
             }
             NeedsRecompileIf::ClassLoaded { class } => {
                 method_resolver.lookup_type_inited_initing(class).is_some()
+            }
+            NeedsRecompileIf::ChangeableConstChanged { from, changeable_const } => {
+                method_resolver.changeable_const_value(*changeable_const) != *from
             }
         }
     }

@@ -6,7 +6,7 @@ use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethod
 use rust_jvm_common::MethodId;
 use crate::changeable_const::ChangeableConstID;
 
-use crate::IRVMExitType;
+use crate::{IRVMExitType};
 use crate::skipable_exits::SkipableExitID;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -181,6 +181,12 @@ pub enum IRCallTarget {
     Variable {
         address: Register,
     },
+    RegisteredUnknown {
+        method_id: MethodId
+    },
+    UnRegistered{
+        changeable_const: ChangeableConstID
+    }
 }
 
 impl IRInstr {

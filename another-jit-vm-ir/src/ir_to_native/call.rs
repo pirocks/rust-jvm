@@ -4,7 +4,7 @@ use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_E
 use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRuntimeModificationTarget};
 use gc_memory_layout_common::layout::{FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET, FrameHeader};
 use rust_jvm_common::MethodId;
-use crate::IRCallTarget;
+use crate::{ChangeableConsts, IRCallTarget};
 
 pub fn ir_return(assembler: &mut CodeAssembler, return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: &usize) {
     if let Some(return_register) = return_val {
@@ -37,7 +37,7 @@ pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register,
     assembler.lea(rsp, rbp - frame_size).unwrap();
 }
 
-pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_register_2: Register, arg_from_to_offsets: &Vec<(FramePointerOffset, FramePointerOffset)>, return_value: Option<FramePointerOffset>, target_address: IRCallTarget, current_frame_size: usize) -> Option<AssemblerFunctionCallTarget> {
+pub fn ir_call(assembler: &mut CodeAssembler,changeable_consts: &ChangeableConsts, temp_register_1: Register, temp_register_2: Register, arg_from_to_offsets: &Vec<(FramePointerOffset, FramePointerOffset)>, return_value: Option<FramePointerOffset>, target_address: IRCallTarget, current_frame_size: usize) -> Option<AssemblerFunctionCallTarget> {
     assert!(current_frame_size >= size_of::<FrameHeader>());
     let temp_register = temp_register_1.to_native_64();
     let return_to_rbp = temp_register_2.to_native_64();
@@ -61,6 +61,16 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
             let mov_position = assembler.instructions().len();
             assembler.mov(temp_register, address as u64).unwrap();
             Some((mov_position, method_id))
+        }
+        IRCallTarget::RegisteredUnknown { method_id } => {
+            let mov_position = assembler.instructions().len();
+            assembler.mov(temp_register, 0u64).unwrap();
+            Some((mov_position, method_id))
+        }
+        IRCallTarget::UnRegistered { changeable_const }=> {
+            assembler.mov(temp_register,changeable_consts.raw_ptr(changeable_const) as u64).unwrap();
+            assembler.mov(temp_register, temp_register + 0).unwrap();
+            None
         }
         IRCallTarget::Variable { address, .. } => {
             assembler.mov(temp_register, address.to_native_64()).unwrap();

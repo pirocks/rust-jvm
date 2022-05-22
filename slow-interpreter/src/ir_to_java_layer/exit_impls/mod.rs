@@ -520,7 +520,7 @@ pub fn init_class_and_recompile<'gc>(
     class_type: CPDTypeID,
     current_method_id: MethodId,
     restart_point: RestartPointID,
-    vm_edit_action: &Option<Box<IRVMEditAction>>,
+    vm_edit_action: Option<&'static IRVMEditAction>,
     after_exit: *mut c_void
 ) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
@@ -539,7 +539,7 @@ pub fn init_class_and_recompile<'gc>(
             }
             IRVMExitAction::RestartAtPtr { ptr: restart_point }
         }
-        Some(box IRVMEditAction::PutField { field_number_id, name, skipable_exit }) => {
+        Some(IRVMEditAction::PutField { field_number_id, name, skipable_exit }) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
             let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
             jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, field_number);
@@ -549,7 +549,7 @@ pub fn init_class_and_recompile<'gc>(
             }
             IRVMExitAction::RestartAtPtr { ptr: after_exit }
         }
-        Some(box IRVMEditAction::GetField { field_number_id, name, skipable_exit }) => {
+        Some(IRVMEditAction::GetField { field_number_id, name, skipable_exit }) => {
             let (field_number, field_type) = recursively_find_field_number_and_type(inited.unwrap_class_class(), *name);
             let field_number = (field_number.0 as usize * size_of::<jlong>()) as u64;
             jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*field_number_id, field_number);
@@ -559,7 +559,17 @@ pub fn init_class_and_recompile<'gc>(
             }
             IRVMExitAction::RestartAtPtr { ptr: after_exit }
         }
-        Some(box IRVMEditAction::FunctionRecompileAndCallLocationUpdate { .. }) => {
+        Some(IRVMEditAction::StaticFunctionRecompileFromInitClass { skipable_exit, changeable_function_address_const_id, method_name, descriptor, classname_ref_type }) => {
+            let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
+            let (method_id, _) = resolver.lookup_static((classname_ref_type).to_cpdtype(), *method_name, descriptor.clone()).unwrap();
+            jvm.java_vm_state.add_method_if_needed(jvm, &resolver,method_id);
+            let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
+            let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id).as_ptr() as u64;
+            jvm.java_vm_state.ir.changeable_consts.read().unwrap().change_const64(*changeable_function_address_const_id, address);
+            jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(*skipable_exit);
+            IRVMExitAction::RestartAtPtr { ptr: after_exit }
+        }
+        Some(IRVMEditAction::FunctionRecompileAndCallLocationUpdate { .. }) => {
             panic!("not expected on InitClassAndRecompile")
         }
     }
@@ -588,7 +598,7 @@ pub fn compile_function_and_recompile_current<'gc>(
     current_method_id: MethodId,
     to_recompile: MethodId,
     restart_point: RestartPointID,
-    vm_edit_action: &Option<Box<IRVMEditAction>>,
+    vm_edit_action: &Option<&'static IRVMEditAction>,
     option: Option<SkipableExitID>
 ) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
@@ -602,7 +612,7 @@ pub fn compile_function_and_recompile_current<'gc>(
             let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
             return IRVMExitAction::RestartAtPtr { ptr: restart_point }
         }
-        Some(box IRVMEditAction::FunctionRecompileAndCallLocationUpdate { method_id, skipable_exit }) => {
+        Some(IRVMEditAction::FunctionRecompileAndCallLocationUpdate { method_id, skipable_exit }) => {
             jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, *method_id);
             jvm.java_vm_state.ir.skipable_exits.read().unwrap().skip_exit(*skipable_exit);
             let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);

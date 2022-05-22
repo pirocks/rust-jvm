@@ -550,7 +550,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
             out("ymm15") _,
             )
         }
-        // eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
+        // eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?} r0:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip, jit_context.guest_registers.saved_registers_without_ip.rax);
         self.generate_exit_event(jit_context.guest_registers/*, extra*/)
     }
 

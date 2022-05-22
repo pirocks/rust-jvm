@@ -122,7 +122,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             target_address,
             current_frame_size
         } => {
-            return ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size);
+            return ir_call(assembler,changeable_consts, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size);
         }
         IRInstr::IRStart {
             temp_register, ir_method_id, method_id, frame_size, num_locals
