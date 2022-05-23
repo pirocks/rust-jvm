@@ -81,7 +81,7 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
 
 static mut IN_TO_STRING: bool = false;
 
-fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
+fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGuard<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
     let obj_type = obj.runtime_class(jvm).cpdtype();
     unsafe {
         if obj_type == CClassName::string().into() {

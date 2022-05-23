@@ -564,6 +564,7 @@ pub struct JVMTIState {
     pub tags: RwLock<HashMap<jobject, jlong>>,
 }
 
+#[allow(unused)]
 struct LivePoolGetterImpl<'gc> {
     jvm: &'gc JVMState<'gc>,
 }

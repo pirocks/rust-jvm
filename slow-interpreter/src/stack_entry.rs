@@ -39,14 +39,13 @@ pub struct RuntimeClassClassId(usize);
 #[derive(Clone, Copy)]
 pub struct FrameView<'gc, 'l> {
     frame_ptr: *mut c_void,
-    call_stack: &'l OwnedJavaStack<'gc>,
+    _call_stack: &'l OwnedJavaStack<'gc>,
     phantom_data: PhantomData<&'gc ()>,
-    current_ip: *mut c_void,
 }
 
 impl<'gc, 'l> FrameView<'gc, 'l> {
-    pub fn new(ptr: *mut c_void, call_stack: &'l mut OwnedJavaStack<'gc>, current_ip: *mut c_void) -> Self {
-        let res = Self { frame_ptr: ptr, call_stack, phantom_data: PhantomData::default(), current_ip };
+    pub fn new(ptr: *mut c_void, call_stack: &'l mut OwnedJavaStack<'gc>) -> Self {
+        let res = Self { frame_ptr: ptr, _call_stack: call_stack, phantom_data: PhantomData::default() };
         let _header = res.get_header();
         res
     }
@@ -311,33 +310,31 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
     }
 }
 
-pub struct StackIter<'vm, 'l> {
+pub struct StackIter<'vm> {
     jvm: &'vm JVMState<'vm>,
     current_frame: *mut c_void,
-    java_stack: &'l JavaStack,
     top: *mut c_void,
     current_ip: Option<*mut c_void>,
 }
 
-impl<'l, 'k> StackIter<'l, 'k> {
+impl<'l, 'k> StackIter<'l> {
     pub fn new(jvm: &'l JVMState<'l>, java_stack: &'k JavaStack) -> Self {
         Self {
             jvm,
             current_frame: java_stack.current_frame_ptr(),
-            java_stack,
             top: java_stack.top,
             current_ip: None,
         }
     }
 }
 
-impl<'vm> Iterator for StackIter<'vm, '_> {
+impl<'vm> Iterator for StackIter<'vm> {
     type Item = StackEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_frame != self.top && self.current_ip != Some(0x0000010080000000 as *mut c_void) {
             //todo cnstant
-            let frame_view = FrameView::new(self.current_frame, todo!(), self.current_ip.unwrap_or(self.java_stack.saved_registers.unwrap().instruction_pointer));
+            let frame_view = FrameView::new(self.current_frame, todo!());
             let header = frame_view.get_header();
             self.current_ip = Some(header.prev_rip);
             let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));

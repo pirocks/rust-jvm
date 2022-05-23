@@ -1,9 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use jvmti_jni_bindings::jlong;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewJavaValueHandle};
-use crate::instructions::invoke::static_::invoke_static_impl;
+use crate::{InterpreterStateGuard, JVMState, NewJavaValueHandle};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum InterpreterJavaValue {

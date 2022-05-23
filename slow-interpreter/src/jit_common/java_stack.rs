@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Debug;
 use std::ptr::null_mut;
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
-use classfile_view::view::ptype_view::PTypeView;
 use gc_memory_layout_common::layout::{FrameHeader};
 use jvmti_jni_bindings::jobject;
 
@@ -31,7 +29,6 @@ pub struct TopOfFrame(pub *mut c_void);
 pub struct JavaStack {
     pub top: *mut c_void,
     pub saved_registers: Option<SavedRegisters>,
-    operand_stack_type_info: HashMap<TopOfFrame, Vec<PTypeView>>,
 }
 
 pub const STACK_LOCATION: usize = 0x1_000_000_000usize;

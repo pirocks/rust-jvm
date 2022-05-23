@@ -192,8 +192,8 @@ impl<'gc> GcManagedObject<'gc> {
     pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc JVMState<'gc>) -> Self {
         let handle = jvm.gc.register_root_reentrant(jvm, raw_ptr);
         dbg!(&handle);
-        todo!();
-        let guard = jvm.gc.memory_region.lock().unwrap();
+        todo!()
+        /*let guard = jvm.gc.memory_region.lock().unwrap();
         let allocated_type = guard.find_object_allocated_type(raw_ptr);
         let obj = match allocated_type {
             AllocatedObjectType::Class { size, name, loader, vtable:_ } => {
@@ -244,7 +244,7 @@ impl<'gc> GcManagedObject<'gc> {
                 panic!()
             }
         };
-        Self { obj, raw_ptr, gc: jvm.gc, jvm }
+        Self { obj, raw_ptr, gc: jvm.gc, jvm }*/
     }
 
     pub fn from_native_assert_already_registered(raw_ptr: NonNull<c_void>, gc: &'gc GC<'gc>) -> Self {

@@ -164,7 +164,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         // assert_eq!(loader_name, self.loader);
         Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
     }

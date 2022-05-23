@@ -6,7 +6,6 @@ use another_jit_vm::IRMethodID;
 use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
-use another_jit_vm_ir::vm_exit_abi::VMExitTypeWithArgs;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
@@ -31,13 +30,12 @@ pub struct JavaVMStateMethod {
     associated_method_id: MethodId,
 }
 
-pub struct JavaVMStateWrapperInner<'gc> {
+pub struct JavaVMStateWrapperInner {
     most_up_to_date_ir_method_id_for_method_id: HashMap<MethodId, IRMethodID>,
     methods: HashMap<IRMethodID, JavaVMStateMethod>,
-    method_exit_handlers: HashMap<ExitNumber, Box<dyn for<'l> Fn(&'gc JVMState<'gc>, &mut InterpreterStateGuard<'l, 'gc>, MethodId, &VMExitTypeWithArgs) -> JavaExitAction>>,
 }
 
-impl<'gc> JavaVMStateWrapperInner<'gc> {
+impl JavaVMStateWrapperInner {
     pub fn java_method_for_ir_method_id(&self, ir_method_id: IRMethodID) -> &JavaVMStateMethod {
         self.methods.get(&ir_method_id).unwrap()
     }
@@ -63,9 +61,9 @@ pub enum VMExitEvent<'vm> {
     },
 }
 
-impl<'gc> JavaVMStateWrapperInner<'gc> {
+impl JavaVMStateWrapperInner {
     #[inline(never)]
-    fn handle_vm_exit<'l>(jvm: &'gc JVMState<'gc>, int_state: Option<&mut InterpreterStateGuard<'gc, 'l>>, vm_exit_type: &RuntimeVMExitInput) -> IRVMExitAction {
+    fn handle_vm_exit<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: Option<&mut InterpreterStateGuard<'gc, 'l>>, vm_exit_type: &RuntimeVMExitInput) -> IRVMExitAction {
         // let exit_guard = jvm.perf_metrics.vm_exit_start();
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address, pc: _ } => {

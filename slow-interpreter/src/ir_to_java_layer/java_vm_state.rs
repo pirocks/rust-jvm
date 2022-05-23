@@ -16,12 +16,12 @@ use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use stage0::compiler::{compile_to_ir, Labeler, native_to_ir};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::ir_to_java_layer::{ByteCodeIRMapping, ExitNumber, JavaVMStateMethod, JavaVMStateWrapperInner};
+use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 
 pub struct JavaVMStateWrapper<'vm> {
     pub ir: IRVMState<'vm, ()>,
-    pub inner: RwLock<JavaVMStateWrapperInner<'vm>>,
+    pub inner: RwLock<JavaVMStateWrapperInner>,
     // should be per thread
     labeler: Labeler,
     function_call_targets: RwLock<FunctionCallTargetsByFunction>,
@@ -35,7 +35,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             inner: RwLock::new(JavaVMStateWrapperInner {
                 most_up_to_date_ir_method_id_for_method_id: Default::default(),
                 methods: Default::default(),
-                method_exit_handlers: Default::default(),
             }),
             labeler: Labeler::new(),
             function_call_targets: RwLock::new(FunctionCallTargetsByFunction::new()),
@@ -63,12 +62,11 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     }
 
     pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> u64 {
-        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        let view = rc.view();
-        let method_view = view.method_view_i(method_i);
-        let method_name = method_view.name().0.to_str(&jvm.string_pool);
-        let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
-        let desc_str = method_view.desc_str().to_str(&jvm.string_pool);
+        // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        // let view = rc.view();
+        // let method_view = view.method_view_i(method_i);
+        // let method_name = method_view.name().0.to_str(&jvm.string_pool);
+        // let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
         // eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
         let current_frame_pointer = int_state.current_frame().frame_view.ir_ref.frame_ptr();
@@ -159,10 +157,10 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
 impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId) {
-        let compile_guard = jvm.perf_metrics.compilation_start();
+        // let compile_guard = jvm.perf_metrics.compilation_start();
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
             let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it| self.ir.lookup_ir_method_id_pointer(it));
-            let tsc_start = unsafe { _rdtsc() };
+            // let tsc_start = unsafe { _rdtsc() };
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
             // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
@@ -221,7 +219,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 jvm.vtable.lock().unwrap().update_address(prev_address, new_address);
             }
             drop(write_guard);
-            let tsc_end = unsafe { _rdtsc() };
+            // let tsc_end = unsafe { _rdtsc() };
             // if tsc_end - tsc_start > 1_000_000{
             //     dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             // }
@@ -231,8 +229,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     #[inline(never)]
     fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut) -> IRVMExitAction {
         let ir_stack_mut: IRStackMut = ir_stack_mut;
-        let frame_ptr = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
-        let ir_num = ExitNumber(ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rax as u64);
         // let read_guard = self.inner.read().unwrap();
         // let ir_method_id = ir_vm_exit_event.ir_method;
         // let method = read_guard.methods.get(&ir_method_id).unwrap();

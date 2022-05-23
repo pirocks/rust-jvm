@@ -11,7 +11,6 @@ use crate::{JavaValue, JVMState};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 
 pub struct OwnedJavaStack<'vm> {
-    jvm: &'vm JVMState<'vm>,
     java_vm_state: &'vm JavaVMStateWrapper<'vm>,
     pub(crate) inner: OwnedIRStack,
 }
@@ -91,27 +90,26 @@ impl JavaStackPosition {
 }
 
 impl<'vm> OwnedJavaStack<'vm> {
-    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>, jvm: &'vm JVMState<'vm>) -> Self {
+    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>) -> Self {
         Self {
-            jvm,
             java_vm_state,
             inner: OwnedIRStack::new(),
         }
     }
     pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm JVMState<'vm>) -> RuntimeJavaStackFrameRef<'_, 'vm> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
-        let ir_method_id = ir_frame.ir_method_id();
-        let max_locals = if let Some(method_id) = ir_frame.method_id() {
-            let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).cloned();
-            // assert_eq!(ir_method_id_2, ir_method_id);
-            if jvm.is_native_by_method_id(method_id) {
-                Some(jvm.num_args_by_method_id(method_id))
-            } else {
-                Some(jvm.max_locals_by_method_id(method_id))
-            }
-        } else {
-            None
-        };
+        // let ir_method_id = ir_frame.ir_method_id();
+        // let max_locals = if let Some(method_id) = ir_frame.method_id() {
+        //     let ir_method_id_2 = self.java_vm_state.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).cloned();
+        //     // assert_eq!(ir_method_id_2, ir_method_id);
+        //     if jvm.is_native_by_method_id(method_id) {
+        //         Some(jvm.num_args_by_method_id(method_id))
+        //     } else {
+        //         Some(jvm.max_locals_by_method_id(method_id))
+        //     }
+        // } else {
+        //     None
+        // };
         RuntimeJavaStackFrameRef {
             ir_ref: ir_frame,
             jvm,
@@ -177,39 +175,6 @@ impl<'k, 'l, 'vm, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm
         }
     }
 
-    fn write_target(&mut self, offset: FramePointerOffset, jv: JavaValue<'vm>) {
-        let to_write = match jv {
-            JavaValue::Long(long) => { long as u64 }
-            JavaValue::Int(int) => { int as u64 }
-            JavaValue::Short(short) => { short as u64 }
-            JavaValue::Byte(byte) => { byte as u64 }
-            JavaValue::Boolean(boolean) => { boolean as u64 }
-            JavaValue::Char(char) => { char as u64 }
-            JavaValue::Float(float) => { u32::from_le_bytes(float.to_le_bytes()) as u64 }
-            JavaValue::Double(double) => { u64::from_le_bytes(double.to_le_bytes()) }
-            JavaValue::Object(obj) => {
-                match obj {
-                    None => 0u64,
-                    Some(obj) => {
-                        obj.raw_ptr_usize() as u64
-                    }
-                }
-            }
-            JavaValue::Top => {
-                panic!()
-            }
-        };
-        self.ir_mut.write_at_offset(offset, to_write);
-    }
-
-    pub fn set_nth_local(&mut self, n: usize, jv: JavaValue<'vm>) {
-        let offset = FramePointerOffset(n * size_of::<u64>());
-        todo!()
-    }
-
-    pub fn set_nth_stack_pointer(&mut self, n: usize, jv: JavaValue<'vm>) {
-        todo!()
-    }
 
     pub fn assert_prev_rip<'gc>(&mut self, ir_method_ref: IRMethodID, jvm: &'gc JVMState<'gc>) {
         let method_pointer = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_ref);

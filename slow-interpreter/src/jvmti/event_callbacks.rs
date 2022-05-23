@@ -70,7 +70,7 @@ pub struct ThreadJVMTIEnabledStatus {
     class_prepare_enabled: bool,
     garbage_collection_finish_enabled: bool,
     breakpoint_enabled: bool,
-    frame_pop_enabled: bool,
+    _frame_pop_enabled: bool,
 }
 
 impl Default for ThreadJVMTIEnabledStatus {
@@ -81,7 +81,7 @@ impl Default for ThreadJVMTIEnabledStatus {
             class_prepare_enabled: false,
             garbage_collection_finish_enabled: false,
             breakpoint_enabled: false,
-            frame_pop_enabled: false,
+            _frame_pop_enabled: false,
         }
     }
 }

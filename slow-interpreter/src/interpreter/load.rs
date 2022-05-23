@@ -1,13 +1,7 @@
-use another_jit_vm_ir::vm_exit_abi::IRVMExitType::InitClassAndRecompile;
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
-
-use crate::{InterpreterStateGuard, JVMState, NewJavaValueHandle};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-use crate::java_values::JavaValue;
-use crate::stack_entry::{LocalVarsRef, StackEntryMut};
-use crate::utils::throw_array_out_of_bounds;
+
 
 pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let ref_: InterpreterJavaValue = current_frame.local_get(n, RuntimeType::object());

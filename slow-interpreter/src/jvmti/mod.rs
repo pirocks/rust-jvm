@@ -7,7 +7,6 @@ use rust_jvm_common::FieldId;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::get_thread_or_error;
-use crate::interpreter_state::AddFrameNotifyError;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
 use crate::jvmti::agent::*;
@@ -420,13 +419,14 @@ unsafe extern "C" fn notify_frame_pop(env: *mut jvmtiEnv, thread: jthread, depth
     let java_thread = get_thread_or_error!(jvm, thread).get_java_thread(jvm);
     let action = |int_state: &mut InterpreterStateGuard| {
         //todo check thread opaque
-        match int_state.add_should_frame_pop_notify(depth as usize) {
+        /*match int_state.add_should_frame_pop_notify(depth as usize) {
             Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
             Err(err) => match err {
                 AddFrameNotifyError::Opaque => jvmtiError_JVMTI_ERROR_OPAQUE_FRAME,
                 AddFrameNotifyError::NothingAtDepth => jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
             },
-        }
+        }*/
+        jvmtiError_JVMTI_ERROR_NONE
     };
 
     if java_thread.is_this_thread() {

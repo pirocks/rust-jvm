@@ -33,7 +33,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
     let view  = final_target_class.view();
     let target_method = view.method_view_i(target_m_i);
     let mut args = vec![];
-    for _ in 0..target_method.code_attribute().map(|code|code.max_locals).unwrap_or(target_method.desc().count_local_vars_needed()){//todo dupe
+    for _ in 0..target_method.local_var_slots(){//todo dupe
         args.push(NewJavaValueHandle::Top)
     }
     let mut i = 1;
@@ -85,11 +85,6 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         match run_function(jvm, int_state, &mut function_call_frame) {
             Ok(res) => {
                 int_state.pop_frame(jvm, function_call_frame, false);
-                if !jvm.config.compiled_mode_active {
-                    if int_state.function_return() {
-                        int_state.set_function_return(false);
-                    }
-                }
                 Ok(res)
             }
             Err(WasException {}) => {

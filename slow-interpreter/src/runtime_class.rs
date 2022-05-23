@@ -134,7 +134,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     }
 
     pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
-        let cpd_type = self.types.get(&name).unwrap();
+        // let cpd_type = self.types.get(&name).unwrap();
         self.data_guard.insert(name, elem.to_native());
     }
 }

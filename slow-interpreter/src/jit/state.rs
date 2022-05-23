@@ -70,7 +70,6 @@ pub fn setup_args_from_current_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
     if is_virtual {
         todo!()
     }
-    let java_stack = int_state.java_stack();
     let mut args = vec![];
     for (i, _) in desc.arg_types.iter().enumerate() {
         let current_frame = int_state.current_frame();

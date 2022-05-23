@@ -21,6 +21,7 @@ use crate::threading::safepoints::Monitor2;
 pub mod single_instruction;
 pub mod real_interpreter_state;
 pub mod load;
+pub mod consts;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;

@@ -6,11 +6,10 @@ use std::ptr::{slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
-use another_jit_vm::FramePointerOffset;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use jvmti_jni_bindings::{jobject, jvalue};
+use jvmti_jni_bindings::{jobject};
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
@@ -33,7 +32,7 @@ pub struct InterpreterState<'gc> {
 impl<'gc> InterpreterState<'gc> {
     pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Self {
         InterpreterState {
-            call_stack: OwnedJavaStack::new(&jvm.java_vm_state, jvm),
+            call_stack: OwnedJavaStack::new(&jvm.java_vm_state),
             jvm,
             current_stack_position: JavaStackPosition::Top,
         }
@@ -72,27 +71,6 @@ pub struct OldInterpreterState{
 }
 
 impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
-    /*pub fn copy_with_new_stack_position(&self, new_stack_position: JavaStackPosition) -> Self {
-        let InterpreterStateGuard {
-            int_state: InterpreterState {
-                call_stack,
-                jvm,
-                current_stack_position
-            },
-            thread,
-            registered
-        } = self;
-        Self {
-            int_state: InterpreterState {
-                call_stack: call_stack.clone(),
-                jvm,
-                current_stack_position: new_stack_position,
-            },
-            thread: thread.clone(),
-            registered: false,
-        }
-    }*/
-
     pub fn registered(&self) -> bool {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { registered, .. } => *registered,
@@ -105,15 +83,6 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
             InterpreterStateGuard::RemoteInterpreterState { thread, .. } => thread.clone(),
             InterpreterStateGuard::LocalInterpreterState { thread, .. } => thread.clone()
         }
-    }
-
-    pub fn self_check(&self, jvm: &'gc JVMState<'gc>) {
-        todo!()
-        /*for stack_entry in self.cloned_stack_snapshot(jvm) {
-            for jv in stack_entry.operand_stack.iter().chain(stack_entry.local_vars.iter()) {
-                jv.self_check();
-            }
-        }*/
     }
 
     pub fn register_interpreter_state_guard(&mut self, jvm: &'gc JVMState<'gc>) -> OldInterpreterState {
@@ -142,11 +111,6 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     pub fn new(jvm: &'gc JVMState<'gc>, thread: Arc<JavaThread<'gc>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc>>) -> InterpreterStateGuard<'gc, 'interpreter_guard> {
         jvm.thread_state.int_state_guard_valid.with(|valid|valid.replace(false));
         Self::RemoteInterpreterState { int_state: Some(int_state), thread: thread.clone(), registered: true, jvm }
-    }
-
-    pub fn java_stack(&mut self) -> &mut OwnedJavaStack<'gc> {
-        todo!()
-        // &mut self.int_state.as_mut().unwrap().call_stack
     }
 
     pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
@@ -188,51 +152,12 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }
     }
 
-    pub fn raw_read_at_frame_pointer_offset(&self, offset: FramePointerOffset, expected_type: RuntimeType) -> JavaValue<'gc> {
-        /*let interpreter_state = self.int_state.as_ref().unwrap().deref();
-        match interpreter_state {
-            InterpreterState::Jit { call_stack, jvm } => {
-                let frame_ptr = call_stack.current_frame_ptr();
-                unsafe {
-                    let offseted = frame_ptr.offset(offset.0 as isize);
-                    FrameView::read_target(jvm, offseted, expected_type)
-                }
-            }
-        }*/
-        todo!()
-    }
-
-    pub fn raw_write_at_frame_pointer_offset(&self, offset: FramePointerOffset, jv: jvalue) {
-        /*let interpreter_state = self.int_state.as_ref().unwrap().deref();
-        match interpreter_state {
-            InterpreterState::Jit { call_stack, jvm } => {
-                let frame_ptr = call_stack.current_frame_ptr();
-                unsafe {
-                    let offseted = frame_ptr.offset(offset.0 as isize);
-                    FrameView::raw_write_target(offseted, jv);
-                }
-            }
-        }*/
-        todo!()
-    }
-
     pub fn push_current_operand_stack(&mut self, jval: JavaValue<'gc>) {
         self.current_frame_mut().push(jval)
     }
 
     pub fn pop_current_operand_stack(&mut self, expected_type: Option<RuntimeType>) -> JavaValue<'gc> {
         self.current_frame_mut().operand_stack_mut().pop(expected_type).unwrap()
-    }
-
-    pub fn previous_frame_mut(&mut self) -> StackEntryMut<'gc, '_> {
-        /*match self.int_state.as_mut().unwrap().deref_mut() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                let len = call_stack.len();
-                StackEntryMut::LegacyInterpreter { entry: &mut call_stack[len - 2] }
-            }*/
-            InterpreterState::Jit { call_stack, jvm } => StackEntryMut::Jit { frame_view: FrameView::new(call_stack.previous_frame_ptr(), call_stack, null_mut()), jvm },
-        }*/
-        todo!()
     }
 
     pub fn previous_frame(&self) -> Option<StackEntryRef<'gc, '_>> {
@@ -286,30 +211,6 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 *throw = val;
             }
         }
-    }
-
-    pub fn function_return(&mut self) -> bool {
-        /*let int_state = self.int_state.as_mut().unwrap();
-        match int_state.deref_mut() {
-            /*InterpreterState::LegacyInterpreter { function_return, .. } => {
-                *function_return
-            }*/
-            InterpreterState::Jit { call_stack, .. } => unsafe { call_stack.saved_registers().status_register.as_mut() }.unwrap().function_return,
-        }*/
-        todo!()
-    }
-
-    pub fn set_function_return(&mut self, to: bool) {
-        /*let int_state = self.int_state.as_mut().unwrap();
-        match int_state.deref_mut() {
-            /*InterpreterState::LegacyInterpreter { function_return, .. } => {
-                *function_return = to;
-            }*/
-            InterpreterState::Jit { call_stack, .. } => unsafe {
-                call_stack.saved_registers().status_register.as_mut().unwrap().function_return = to;
-            },
-        }*/
-        todo!()
     }
 
     pub fn throw(&self) -> Option<&'_ AllocatedNormalObjectHandle<'gc>> {
@@ -393,7 +294,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 };
                 FramePushGuard {
                     _correctly_exited: false,
-                    prev_stack_location: JavaStackPosition::Top,
+                    _prev_stack_location: JavaStackPosition::Top,
                     ir_frame_push_guard,
                 }
             }
@@ -417,34 +318,13 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }
     }
 
-    pub fn call_stack_depth(&self) -> usize {
-        /*match self.int_state.as_ref().unwrap().deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),*/
-            InterpreterState::Jit { call_stack, .. } => unsafe { call_stack.call_stack_depth() },
-        }*/
-        todo!()
-    }
-
-    pub fn set_current_pc(&mut self, new_pc: ByteCodeOffset) {
-        todo!()
-        // self.current_frame_mut().set_pc(new_pc);
-    }
-
     pub fn current_pc(&self) -> Option<ByteCodeOffset> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { current_exited_pc, .. } => {
-                current_exited_pc.clone()
+                *current_exited_pc
             }
         }
-    }
-
-    pub fn set_current_pc_offset(&mut self, new_offset: i32) {
-        self.current_frame_mut().set_pc_offset(new_offset)
-    }
-
-    pub fn current_pc_offset(&self) -> i32 {
-        self.current_frame().pc_offset()
     }
 
     pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> CPIndex {
@@ -507,48 +387,6 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 StackEntry::Java { method_id: frame.frame_view.ir_ref.method_id().unwrap() }
             }
         }).collect_vec()
-    }
-
-    pub fn depth(&self) -> usize {
-        /*match self.int_state.as_ref().unwrap().deref() {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.len(),*/
-            InterpreterState::Jit { .. } => todo!(),
-        }*/
-        todo!()
-    }
-
-    pub fn add_should_frame_pop_notify(&mut self, depth: usize) -> Result<(), AddFrameNotifyError> {
-        /*let call_stack_depth = self.call_stack_depth();
-        let int_state = self.int_state.as_mut().unwrap().deref_mut();
-        if depth >= call_stack_depth {
-            return Err(NothingAtDepth);
-        }
-        let entry: &StackEntry = &match int_state {
-            /*InterpreterState::LegacyInterpreter { call_stack, .. } => {
-                &call_stack[depth]
-            }*/
-            InterpreterState::Jit { .. } => todo!(),
-        };
-        if entry.is_native() || entry.try_class_pointer().is_none() {
-            return Err(Opaque);
-        }
-        match int_state {
-            /*InterpreterState::LegacyInterpreter { should_frame_pop_notify, .. } => {
-                should_frame_pop_notify.insert(depth);
-            }*/
-            InterpreterState::Jit { .. } => todo!(),
-        };
-        Ok(())*/
-        todo!()
-    }
-
-    pub fn frame_state_assert_save(&self) -> SavedAssertState {
-        match self {
-            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
-            InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
-                unsafe { self.frame_state_assert_save_from(int_state.current_rsp.add(size_of::<u64>())) }
-            }
-        }
     }
 
     pub fn frame_state_assert_save_from(&self, from_inclusive: *const c_void) -> SavedAssertState {
@@ -650,7 +488,7 @@ pub enum AddFrameNotifyError {
 #[must_use = "Must handle frame push guard. "]
 pub struct FramePushGuard {
     _correctly_exited: bool,
-    prev_stack_location: JavaStackPosition,
+    _prev_stack_location: JavaStackPosition,
     pub ir_frame_push_guard: IRPushFrameGuard,
 }
 

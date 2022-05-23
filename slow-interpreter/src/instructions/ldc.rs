@@ -56,9 +56,6 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     if interpreter_state.throw().is_some() {
         unimplemented!()
     }
-    if interpreter_state.function_return() {
-        interpreter_state.set_function_return(false);
-    }
     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
     Ok(())
 }

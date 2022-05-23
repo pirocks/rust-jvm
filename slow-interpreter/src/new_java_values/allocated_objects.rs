@@ -92,7 +92,6 @@ impl <'gc>AllocatedArrayObjectHandle<'gc>{
 
     pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
         assert!(i < self.len());
-        let jvm = self.jvm;
         let ptr = self.ptr;
         let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
         unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native()) };
@@ -278,7 +277,7 @@ impl<'gc> AllocatedHandle<'gc> {
 
     pub fn duplicate_discouraged(&self) -> Self {
         match self {
-            AllocatedHandle::Array(arr) => {
+            AllocatedHandle::Array(_arr) => {
                 todo!()
             }
             AllocatedHandle::NormalObject(handle) => {
@@ -289,7 +288,7 @@ impl<'gc> AllocatedHandle<'gc> {
 }
 
 impl Debug for AllocatedHandle<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }

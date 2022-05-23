@@ -1,18 +1,19 @@
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{JVMState};
 use crate::function_instruction_count::FunctionExecutionCounter;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
+use crate::interpreter::consts::{iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1};
 use crate::interpreter::load::aload;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    interpreter_state: &'_ mut RealInterpreterStateGuard<'gc, 'l,'k>,
+    interpreter_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
     instruct: &CInstructionInfo,
-    function_counter: &FunctionExecutionCounter
-) -> PostInstructionAction<'gc>{
+    function_counter: &FunctionExecutionCounter,
+) -> PostInstructionAction<'gc> {
     function_counter.increment();
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -110,7 +111,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::iadd => iadd(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iaload => iaload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iand => iand(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::iastore => iastore(jvm, interpreter_state),
+        CInstructionInfo::iastore => iastore(jvm, interpreter_state),*/
         CInstructionInfo::iconst_m1 => iconst_m1(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iconst_0 => iconst_0(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iconst_1 => iconst_1(jvm, interpreter_state.current_frame_mut()),
@@ -118,6 +119,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::iconst_3 => iconst_3(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iconst_4 => iconst_4(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::iconst_5 => iconst_5(jvm, interpreter_state.current_frame_mut()),
+        /*
         CInstructionInfo::idiv => idiv(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::if_acmpeq(offset) => if_acmpeq(jvm, interpreter_state.current_frame_mut(), *offset),
         CInstructionInfo::if_acmpne(offset) => if_acmpne(jvm, interpreter_state.current_frame_mut(), *offset),

@@ -270,10 +270,7 @@ pub fn invoke_virtual_resolve<'gc>(
             let res = invoke_virtual_full(
                 jvm,
                 int_state,
-                object_ref_ptr,
                 method_number,
-                native_method_restart_point,
-                native_method_res,
                 name,
                 &desc,
                 allocated_type,
@@ -306,10 +303,7 @@ pub fn invoke_virtual_resolve<'gc>(
 fn invoke_virtual_full<'gc>(
     jvm: &'gc JVMState<'gc>,
     int_state: &mut InterpreterStateGuard<'gc, '_>,
-    object_ref_ptr: *const c_void,
     method_number: MethodNumber,
-    native_method_restart_point: RestartPointID,
-    native_method_res: *mut c_void,
     name: MethodName,
     desc: &CMethodDescriptor,
     allocated_type: AllocatedObjectType,
@@ -336,8 +330,8 @@ fn invoke_virtual_full<'gc>(
     }
 
     {
-        let view = resolved_rc.view();
-        let method_view = view.method_view_i(method_i);
+        // let view = resolved_rc.view();
+        // let method_view = view.method_view_i(method_i);
         // dbg!(method_view.name().0.to_str(&jvm.string_pool));
         // dbg!(method_view.desc_str().to_str(&jvm.string_pool));
         // dbg!(rc.view().name().jvm_representation(&jvm.string_pool));
@@ -349,17 +343,15 @@ fn invoke_virtual_full<'gc>(
         // dbg!(resolved_rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(4)).unwrap().to_jvm_representation(&jvm.string_pool));
         // dbg!(rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(5)).unwrap().to_jvm_representation(&jvm.string_pool));
         // dbg!(rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(4)).unwrap().to_jvm_representation(&jvm.string_pool));
-        let resolved_method_number = resolved_rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
-        let prior_method_number = rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
+        // let resolved_method_number = resolved_rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
+        // let prior_method_number = rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
         // assert_eq!(resolved_method_number, prior_method_number);
     }
 
 
     let ResolvedInvokeVirtual {
         address,
-        ir_method_id,
-        method_id,
-        new_frame_size
+        ..
     } = match jvm.java_vm_state.lookup_resolved_invoke_virtual(method_id, &method_resolver) {
         Ok(resolved) => {
             resolved
@@ -441,7 +433,6 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-    let object_size = object_type.size();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
     unsafe {
         libc::memset(allocated_object.as_ptr(), 0, object_size);
@@ -466,7 +457,6 @@ pub fn trace_instruction_after<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Int
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-static mut NUM: usize = 0;
 
 pub fn trace_instruction_before(jvm: &JVMState, method_id: MethodId, return_to_ptr: *const c_void, bytecode_offset: ByteCodeOffset) -> IRVMExitAction {
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -638,7 +628,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let throwable = exception_object_handle.cast_throwable();
     let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     dbg!(exception_as_string.to_rust_string(jvm));
-    let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
+    // let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
     for current_frame in int_state.frame_iter() {
         let rc = match current_frame.try_class_pointer(jvm) {
             None => continue,

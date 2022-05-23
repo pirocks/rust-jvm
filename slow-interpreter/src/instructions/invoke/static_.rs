@@ -39,7 +39,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     let target_method = view.method_view_i(target_method_i);
 
     let mut args = vec![];
-    let max_locals = target_method.code_attribute().map(|code|code.max_locals).unwrap_or(target_method.desc().count_local_vars_needed());
+    let max_locals = target_method.local_var_slots();
     for _ in 0..max_locals {
         args.push(NewJavaValueHandle::Top);
     }

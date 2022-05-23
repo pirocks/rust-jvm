@@ -77,7 +77,6 @@ pub mod native_to_ir_layer;
 pub mod ir_to_java_layer;
 pub mod new_java_values;
 pub mod known_type_to_address_mappings;
-pub mod layout_cache;
 pub mod string_exit_cache;
 pub mod function_instruction_count;
 

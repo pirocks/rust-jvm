@@ -133,6 +133,10 @@ impl MethodView<'_> {
     pub fn get_annotation_default_bytes(&self) -> Option<Vec<u8>>{
         self.method_info().annotation_default().map(|annotations|annotation_default_to_bytes(annotations.clone()))
     }
+
+    pub fn local_var_slots(&self) -> u16{
+        self.code_attribute().map(|code|code.max_locals).unwrap_or(self.desc().count_local_vars_needed())
+    }
 }
 
 pub enum MethodIterator<'l> {
