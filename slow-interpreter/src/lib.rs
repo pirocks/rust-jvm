@@ -79,6 +79,7 @@ pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod layout_cache;
 pub mod string_exit_cache;
+pub mod function_instruction_count;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

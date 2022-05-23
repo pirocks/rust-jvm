@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -10,42 +11,88 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::call_vmentry;
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::{PostInstructionAction, run_function, WasException};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
+use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, ref_type: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn run_invoke_static<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l,'k>,
+    ref_type: CPRefType,
+    expected_method_name: MethodName,
+    expected_descriptor: &CMethodDescriptor,
+) -> PostInstructionAction<'gc> {
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
-    let target_class = match check_initing_or_inited_class(jvm, int_state, ref_type.to_cpdtype()) {
+    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), ref_type.to_cpdtype()) {
         Ok(x) => x,
-        Err(WasException {}) => return,
+        Err(exception) => return PostInstructionAction::Exception { exception },
     };
-    let (target_method_i, final_target_method) = find_target_method(jvm, int_state, expected_method_name, &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(jvm, int_state.inner(), expected_method_name, &expected_descriptor, target_class);
 
-    let _ = invoke_static_impl(
+    let view = final_target_method.view();
+    let target_method = view.method_view_i(target_method_i);
+
+    let mut args = vec![];
+    let max_locals = target_method.code_attribute().map(|code|code.max_locals).unwrap_or(target_method.desc().count_local_vars_needed());
+    for _ in 0..max_locals {
+        args.push(NewJavaValueHandle::Top);
+    }
+    let mut i = 0;
+    /*
+    for ptype in expected_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        match &popped {
+            NewJavaValueHandle::Long(_) | NewJavaValueHandle::Double(_) => i += 1,
+            _ => {}
+        }
+        args[i] = popped;
+        i += 1;
+    }
+    args[0..i].reverse();
+*/
+    for ptype in expected_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+
+    let res = invoke_static_impl(
         jvm,
-        int_state,
+        int_state.inner(),
         &expected_descriptor,
         final_target_method.clone(),
         target_method_i,
         &final_target_method.view().method_view_i(target_method_i),
-        todo!()
+        args.iter().map(|handle|handle.as_njv()).collect_vec(),
     );
+    match res {
+        Ok(Some(res)) => {
+            int_state.current_frame_mut().push(todo!()/*res*/);
+        }
+        Ok(None) => {
+
+        }
+        Err(WasException{}) => {
+            return PostInstructionAction::Exception { exception: WasException{} }
+        }
+    }
+    PostInstructionAction::Next {}
 }
 
 pub fn invoke_static_impl<'l, 'gc>(
     jvm: &'gc JVMState<'gc>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc>>,
     target_method_i: u16,
     target_method: &MethodView,
-    args: Vec<NewJavaValue<'gc,'_>>
+    args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_class_view = target_class.view();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
@@ -86,8 +133,8 @@ pub fn invoke_static_impl<'l, 'gc>(
     } else {
         match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
-                return Ok(res)
-            },
+                return Ok(res);
+            }
             Err(_) => todo!(),
         }
     }

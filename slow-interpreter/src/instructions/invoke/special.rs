@@ -1,36 +1,66 @@
 use std::sync::Arc;
+use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::{setup_virtual_args2};
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::{PostInstructionAction, run_function, WasException};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
+use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::stack_entry::StackEntryPush;
 
-pub fn invoke_special<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) {
-    let target_class = match check_initing_or_inited_class(jvm, int_state, method_class_name.into()) {
+pub fn invoke_special<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    method_class_name: CClassName,
+    method_name: MethodName,
+    parsed_descriptor: &CMethodDescriptor
+) -> PostInstructionAction<'gc> {
+    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), method_class_name.into()) {
         Ok(x) => x,
-        Err(WasException {}) => return,
+        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
     };
-    let (target_m_i, final_target_class) = find_target_method(jvm, int_state, method_name, &parsed_descriptor, target_class);
-    let _ = invoke_special_impl(jvm, int_state, &parsed_descriptor, target_m_i, final_target_class.clone(), todo!());
+    let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
+    let view  = final_target_class.view();
+    let target_method = view.method_view_i(target_m_i);
+    let mut args = vec![];
+    for _ in 0..target_method.code_attribute().map(|code|code.max_locals).unwrap_or(target_method.desc().count_local_vars_needed()){//todo dupe
+        args.push(NewJavaValueHandle::Top)
+    }
+    let mut i = 1;
+    for ptype in parsed_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+    args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
+    match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh|njvh.as_njv()).collect_vec()){
+        Ok(res) => {
+
+            return PostInstructionAction::Next {}
+        }
+        Err(WasException{}) => {
+            PostInstructionAction::Exception { exception: WasException{} }
+        }
+    }
 }
 
 pub fn invoke_special_impl<'k, 'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     parsed_descriptor: &CMethodDescriptor,
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc>>,
-    input_args: Vec<NewJavaValue<'gc,'k>>
+    input_args: Vec<NewJavaValue<'gc, 'k>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);

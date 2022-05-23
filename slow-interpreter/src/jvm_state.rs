@@ -59,6 +59,7 @@ use stage0::compiler_common::JavaCompilerMethodAndFrameData;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
+use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::string_exit_cache::StringExitCache;
@@ -122,6 +123,7 @@ pub struct JVMState<'gc> {
     pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
     pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
     pub string_exit_cache: RwLock<StringExitCache<'gc>>,
+    pub function_execution_count: FunctionInstructionExecutionCount
 }
 
 
@@ -326,7 +328,8 @@ impl<'gc> JVMState<'gc> {
             function_frame_type_data: RwLock::new(FunctionFrameData{
                 no_tops: Default::default(),
                 tops: Default::default()
-            })
+            }),
+            function_execution_count: FunctionInstructionExecutionCount::new()
         };
         (args, jvm)
     }

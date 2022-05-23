@@ -324,6 +324,11 @@ impl<'l> IRFrameMut<'l> {
         }
     }
 
+    pub fn write_data(&self, index: usize, data: u64) {
+        let data_raw_ptr = unsafe { self.ptr.sub(FRAME_HEADER_END_OFFSET).sub(index * size_of::<u64>()) as *mut u64 };
+        unsafe { data_raw_ptr.write(data); }
+    }
+
     pub fn write_at_offset(&mut self, offset: FramePointerOffset, to_write: u64) {
         unsafe { (self.ptr.offset(-(offset.0 as isize)) as *mut u64).write(to_write) }
     }

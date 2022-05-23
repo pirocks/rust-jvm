@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use bimap::BiMap;
 use by_address::ByAddress;
-use itertools::Itertools;
+use itertools::{Itertools};
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 
 use classfile_view::view::HasAccessFlags;
@@ -31,6 +31,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
 use runtime_class_stuff::RuntimeClass;
+use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);
@@ -533,14 +534,8 @@ impl<'gc, 'l> StackEntryMut<'gc, 'l> {
         todo!()
     }
 
-    pub fn operand_stack_mut<'k>(&'k mut self) -> OperandStackMut<'gc, 'l> {
-        /*match self {
-            /*StackEntryMut::LegacyInterpreter { entry, .. } => {
-                OperandStackMut::LegacyInterpreter { operand_stack: entry.operand_stack_mut() }
-            }*/
-            StackEntryMut::Jit { frame_view, jvm } => OperandStackMut::Jit { frame_view, jvm },
-        }*/
-        todo!()
+    pub fn operand_stack_mut(self) -> OperandStackMut<'gc, 'l> {
+        OperandStackMut { frame_view: self.frame_view }
     }
 
     pub fn operand_stack_ref<'k>(&'k mut self, _jvm: &'gc JVMState<'gc>) -> OperandStackRef<'gc, 'l, 'k> {
@@ -617,19 +612,21 @@ impl<'gc> LocalVarsRef<'gc, '_, '_> {
                                 let frame = function_frame_data.get(&pc).unwrap();
                                 let verification_data_expected_frame_data = frame.unwrap_full_frame().locals[i as usize].to_runtime_type();
                                 assert_eq!(verification_data_expected_frame_data, expected_type);
-                            },
-                            None => {
-
-                            },
+                            }
+                            None => {}
                         };
-
                     }
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv,expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv, expected_type, jvm)
             }
         }
+    }
+
+    pub fn interpreter_get(&self, i: u16, rtype: RuntimeType) -> InterpreterJavaValue {
+        let raw = unsafe { self.raw_get(i) };
+        InterpreterJavaValue::from_raw(raw, rtype)
     }
 
     pub unsafe fn raw_get(&self, i: u16) -> u64 {
@@ -697,6 +694,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
         }
     }
 
+
     fn num_locals(&self) -> u16 {
         match self {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
@@ -707,6 +705,11 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 }.num_vars()
             }
         }
+    }
+
+    pub fn interpreter_get(&self, from_start: u16, rtype: RuntimeType) -> InterpreterJavaValue {
+        let raw = unsafe { self.raw_get(from_start).as_u64 };
+        InterpreterJavaValue::from_raw(raw, rtype)
     }
 
     pub fn get(&'_ self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
@@ -730,7 +733,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert!(self.types().iter().rev().nth(from_end as usize).unwrap().compatible_with_dumb(&expected_type));
                 let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv,expected_type, jvm)
+                native_to_new_java_value_rtype(native_jv, expected_type, jvm)
             }
         }
     }
@@ -774,7 +777,7 @@ pub struct OperandStackMut<'gc, 'l> {
     pub(crate) frame_view: RuntimeJavaStackFrameMut<'l, 'gc>,
 }
 
-impl <'gc, 'l> OperandStackMut<'gc, 'l> {
+impl<'gc, 'l> OperandStackMut<'gc, 'l> {
     pub fn push(&mut self, j: JavaValue<'gc>) {
         /*match self {
             /*OperandStackMut::LegacyInterpreter { operand_stack, .. } => {
@@ -812,6 +815,17 @@ impl <'gc, 'l> OperandStackMut<'gc, 'l> {
             OperandStackMut::Jit { frame_view, jvm } => frame_view.operand_stack_length(jvm).unwrap(),
         }) as usize*/
         todo!()
+    }
+
+    pub unsafe fn raw_write(&mut self, from_start: u16, val: u64) {
+        let method_id = self.frame_view.downgrade().ir_ref.method_id().unwrap();
+        let max_locals = self.frame_view.jvm.max_locals_by_method_id(method_id);
+        self.frame_view.ir_mut.write_data((max_locals as usize + from_start as usize) as usize, val);//todo replace this with a layout lookup thing again
+    }
+
+    pub fn interpreter_set(&mut self, from_start: u16, val: InterpreterJavaValue) {
+        let raw = val.to_raw();
+        unsafe { self.raw_write(from_start, val.to_raw()) }
     }
 }
 
@@ -916,7 +930,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
         }
     }
 
-    pub fn full_frame_available(&self, jvm: &'gc JVMState<'gc>) -> bool{
+    pub fn full_frame_available(&self, jvm: &'gc JVMState<'gc>) -> bool {
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
         let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
@@ -925,7 +939,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
         frame.try_unwrap_full_frame().is_some()
     }
 
-    pub fn local_var_simplified_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<SimplifiedVType>{
+    pub fn local_var_simplified_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<SimplifiedVType> {
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let pc = self.pc(jvm);
         let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
@@ -951,7 +965,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
         assert!(self.is_native_method());
         let method_id = self.frame_view.ir_ref.method_id().unwrap();
         let max_locals = self.frame_view.jvm.num_local_vars_native(method_id);
-        let layout = NativeStackframeMemoryLayout{ num_locals: max_locals };
+        let layout = NativeStackframeMemoryLayout { num_locals: max_locals };
         let raw_u64 = self.frame_view.ir_ref.read_at_offset(layout.data_entry());
         raw_u64 as usize as *mut c_void as *mut NativeFrameInfo
     }
@@ -999,8 +1013,8 @@ impl<'gc> StackEntry {
     pub fn try_class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Option<Arc<RuntimeClass<'gc>>> {
         match self {
             StackEntry::Native { method_id } |
-                StackEntry::Java { method_id } => {
-                let (rc, method_id )= jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
+            StackEntry::Java { method_id } => {
+                let (rc, method_id) = jvm.method_table.read().unwrap().try_lookup(*method_id).unwrap();
                 return Some(rc);
             }
             StackEntry::Opaque { .. } => None,
@@ -1092,7 +1106,7 @@ impl<'gc> StackEntry {
         todo!()
     }
 
-    pub fn is_opaque_frame(&self, jvm : &'gc JVMState<'gc>) -> bool {
+    pub fn is_opaque_frame(&self, jvm: &'gc JVMState<'gc>) -> bool {
         self.try_class_pointer(jvm).is_none() || self.try_method_i().is_none() || self.is_native()
     }
 

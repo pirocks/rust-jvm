@@ -163,9 +163,16 @@ pub struct RuntimeJavaStackFrameMut<'l, 'vm> {
 }
 
 impl<'k, 'l, 'vm, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm> {
-    pub fn downgrade(self) -> RuntimeJavaStackFrameRef<'l, 'vm> {
+    pub fn downgrade_owned(self) -> RuntimeJavaStackFrameRef<'l, 'vm> {
         RuntimeJavaStackFrameRef {
             ir_ref: self.ir_mut.downgrade_owned(),
+            jvm: self.jvm,
+        }
+    }
+
+    pub fn downgrade<'new_l>(&'new_l self) -> RuntimeJavaStackFrameRef<'new_l, 'vm> {
+        RuntimeJavaStackFrameRef {
+            ir_ref: self.ir_mut.downgrade(),
             jvm: self.jvm,
         }
     }
