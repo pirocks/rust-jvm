@@ -251,7 +251,6 @@ pub fn invoke_virtual_resolve<'gc>(
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeVirtualResolve");
     }
-    let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
     //todo this is probably wrong what if there's a class with a same name private method?
     // like surely I need to start at the classname specified in the bytecode
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
@@ -279,7 +278,6 @@ pub fn invoke_virtual_resolve<'gc>(
             res
         }
         Some(res) => {
-            dbg!(return_to_ptr);
             res
         }
     };

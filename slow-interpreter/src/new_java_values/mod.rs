@@ -2,6 +2,7 @@ use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 use std::sync::Arc;
+use itertools::Itertools;
 
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CPDType};
@@ -9,6 +10,8 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
+use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
+use crate::java_values::{default_value_njv};
 use crate::new_java_values::allocated_objects::{AllocatedHandle, AllocatedNormalObjectHandle, AllocatedObject};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
@@ -112,11 +115,54 @@ impl<'gc> NewJavaValueHandle<'gc> {
         Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: empty_byte_array, elems: vec![] })))
     }
 
+    pub fn new_default_array(jvm: &'gc JVMState<'gc>, len: i32, whole_array_runtime_class: Arc<RuntimeClass<'gc>>, elem_type: CPDType) -> Self{
+        let elems = (0..len).map(|_|default_value_njv(&elem_type)).collect_vec();
+        Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems })))
+    }
+
     pub fn try_unwrap_object_alloc(self) -> Option<Option<AllocatedHandle<'gc>>> {
         match self {
             NewJavaValueHandle::Null => Some(None),
             NewJavaValueHandle::Object(obj) => Some(Some(obj)),
             _ => None
+        }
+    }
+
+    pub fn to_interpreter_jv(&self) -> InterpreterJavaValue{
+        match self {
+            NewJavaValueHandle::Long(long) => {
+                InterpreterJavaValue::Long(*long)
+            }
+            NewJavaValueHandle::Int(int) => {
+                InterpreterJavaValue::Int(*int)
+            }
+            NewJavaValueHandle::Short(short) => {
+                InterpreterJavaValue::Int(*short as i32)
+            }
+            NewJavaValueHandle::Byte(byte) => {
+                InterpreterJavaValue::Int(*byte as i32)
+            }
+            NewJavaValueHandle::Boolean(bool) => {
+                InterpreterJavaValue::Int(*bool as i32)
+            }
+            NewJavaValueHandle::Char(char) => {
+                InterpreterJavaValue::Int(*char as i32)
+            }
+            NewJavaValueHandle::Float(float) => {
+                InterpreterJavaValue::Float(*float)
+            }
+            NewJavaValueHandle::Double(double) => {
+                InterpreterJavaValue::Double(*double)
+            }
+            NewJavaValueHandle::Null => {
+                InterpreterJavaValue::Object(None)
+            }
+            NewJavaValueHandle::Object(obj) => {
+                InterpreterJavaValue::Object(Some(obj.ptr()))
+            }
+            NewJavaValueHandle::Top => {
+                panic!()
+            }
         }
     }
 }
@@ -218,7 +264,20 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
     }
 
     pub fn unwrap_normal_object(&self) -> Option<&'l AllocatedNormalObjectHandle<'gc>>{
-        todo!()
+        if let NewJavaValue::AllocObject(obj) = self {
+            match obj {
+                AllocatedObject::Handle(handle) => {
+                    if let AllocatedHandle::NormalObject(normal_object) = handle {
+                        return Some(normal_object)
+                    }
+                }
+                AllocatedObject::NormalObject(normal_object) => {
+                    return Some(normal_object)
+                }
+                AllocatedObject::ArrayObject(_) => {}
+            }
+        };
+        return None
     }
 
     pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc ,'l>> {

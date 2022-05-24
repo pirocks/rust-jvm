@@ -7,7 +7,6 @@ use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{NonNull, null, null_mut};
-use std::slice;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -16,7 +15,7 @@ use itertools::{Itertools, repeat_n};
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
-use gc_memory_layout_common::memory_regions::{AllocatedObjectType, MemoryRegions};
+use gc_memory_layout_common::memory_regions::{MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;

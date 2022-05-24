@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -9,13 +10,15 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush};
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::{PostInstructionAction, run_function, WasException};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::{NewJavaValueHandle};
 use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
+use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
 
@@ -23,9 +26,42 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) {
+pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc>{
     //let the main instruction check intresstate inste
-    let _ = invoke_virtual(jvm, int_state, method_name, expected_descriptor,todo!());
+    let mut args = vec![];
+    for _ in 0..(expected_descriptor.arg_types.len() + 1){//todo dupe
+        args.push(NewJavaValueHandle::Top)
+    }
+    let mut i = 1;
+    for ptype in expected_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+    args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
+    let base_object_class = args[0].as_njv().unwrap_normal_object().unwrap().runtime_class(jvm);
+    let current_loader = int_state.inner().current_frame().loader(jvm);
+    let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
+    let view = resolved_rc.view();
+    let method_view = view.method_view_i(method_i);
+    let args_len = args.len() as u16;
+    for _ in args_len..method_view.local_var_slots(){
+        args.push(NewJavaValueHandle::Top);
+    }
+
+    let args = args.iter().map(|handle| handle.as_njv()).collect_vec();
+    match invoke_virtual(jvm, int_state.inner(), method_name, expected_descriptor, args){
+        Ok(Some(res)) => {
+            int_state.current_frame_mut().push(res.to_interpreter_jv());
+            PostInstructionAction::Next {}
+        }
+        Ok(None) => {
+            PostInstructionAction::Next {}
+        }
+        Err(err) => {
+            PostInstructionAction::Exception{ exception: WasException{} }
+        }
+    }
 }
 
 pub fn invoke_virtual_method_i<'gc, 'l>(
@@ -83,16 +119,16 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         // setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
-        match run_function(jvm, interpreter_state, &mut frame_for_function) {
+        return match run_function(jvm, interpreter_state, &mut frame_for_function) {
             Ok(res) => {
                 assert!(!interpreter_state.throw().is_some());
                 interpreter_state.pop_frame(jvm, frame_for_function, false);
-                return Ok(res);
+                Ok(res)
             }
             Err(WasException {}) => {
                 assert!(interpreter_state.throw().is_some());
                 interpreter_state.pop_frame(jvm, frame_for_function, true);
-                return Err(WasException {});
+                Err(WasException {})
             }
         }
     } else {

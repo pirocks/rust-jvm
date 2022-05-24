@@ -22,6 +22,10 @@ pub mod single_instruction;
 pub mod real_interpreter_state;
 pub mod load;
 pub mod consts;
+pub mod fields;
+pub mod new;
+pub mod dup;
+pub mod ldc;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;

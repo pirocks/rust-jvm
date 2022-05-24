@@ -1,4 +1,3 @@
-use std::arch::x86_64::_rdtsc;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;

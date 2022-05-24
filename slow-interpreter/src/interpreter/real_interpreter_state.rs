@@ -16,7 +16,7 @@ impl InterpreterJavaValue {
     pub fn from_raw(raw: u64, rtype: RuntimeType) -> Self {
         match rtype {
             RuntimeType::IntType => {
-                todo!()
+                Self::Int(raw as i32)
             }
             RuntimeType::FloatType => {
                 todo!()
@@ -25,7 +25,7 @@ impl InterpreterJavaValue {
                 todo!()
             }
             RuntimeType::LongType => {
-                todo!()
+                Self::Long(raw as i64)
             }
             RuntimeType::Ref(_) => {
                 Self::Object(NonNull::new(raw as *mut c_void))
