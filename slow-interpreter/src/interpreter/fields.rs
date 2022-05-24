@@ -13,7 +13,7 @@ use crate::interpreter::{PostInstructionAction};
 use crate::runtime_class::static_vars;
 
 //
-pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc,'l,'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
+pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let mut entry_mut = int_state.current_frame_mut();
     let field_value = entry_mut.pop(field_descriptor.0.to_runtime_type().unwrap());
@@ -21,10 +21,10 @@ pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
     PostInstructionAction::Next {}
 }
 
-pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc,'l,'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc>{
+pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
     let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let (field_number,_) = recursively_find_field_number_and_type(target_class.unwrap_class_class(),field_name);
+    let (field_number, _) = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name);
     let mut entry_mut = int_state.current_frame_mut();
     let val = entry_mut.pop(field_type.to_runtime_type().unwrap());
     let object_ref = entry_mut.pop(RuntimeType::object());
@@ -35,7 +35,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
                     Some(x) => {
                         let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
                         raw_field_ptr.write(val.to_raw());
-                    },
+                    }
                     None => {
                         todo!()/*return throw_npe(jvm, int_state);*/
                     }
@@ -89,15 +89,21 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
 //     };
 //     Ok(field_value)
 // }
-//
-// pub fn get_field(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field_class_name: CClassName, field_name: FieldName, _field_desc: &CompressedFieldDescriptor, _debug: bool) {
-//     let target_class_pointer = assert_inited_or_initing_class(jvm, field_class_name.into());
-//     let object_ref = int_state.current_frame_mut().pop(Some(RuntimeType::object()));
-//     match object_ref {
-//         JavaValue::Object(o) => {
-//             let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name);
-//             int_state.current_frame_mut().push(res);
-//         }
-//         _ => panic!(),
-//     }
-// }
+
+pub fn get_field<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor, _debug: bool) -> PostInstructionAction<'gc>{
+    let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
+    let (field_number, _) = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name);
+    let object_ref = int_state.current_frame_mut().pop(RuntimeType::object());
+    unsafe {
+        match object_ref {
+            InterpreterJavaValue::Object(Some(x)) => {
+                let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
+                let res = InterpreterJavaValue::from_raw(raw_field_ptr.read(), field_desc.0.to_runtime_type().unwrap());
+                /*let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name);*/
+                int_state.current_frame_mut().push(res);
+                PostInstructionAction::Next {}
+            }
+            _ => panic!(),
+        }
+    }
+}

@@ -73,7 +73,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     );
     match res {
         Ok(Some(res)) => {
-            int_state.current_frame_mut().push(todo!()/*res*/);
+            int_state.current_frame_mut().push(res.to_interpreter_jv());
         }
         Ok(None) => {
 

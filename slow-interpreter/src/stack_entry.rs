@@ -462,54 +462,16 @@ pub struct StackEntryMut<'gc, 'l> {
 }
 
 impl<'gc, 'l> StackEntryMut<'gc, 'l> {
-    pub fn set_pc(&mut self, new_pc: u16) {
-        /*match self {
-            /*StackEntryMut::LegacyInterpreter { entry, .. } => {
-                *entry.pc_mut() = new_pc;
-            }*/
-            StackEntryMut::Jit { frame_view, .. } => {
-                *frame_view.pc_mut() = new_pc;
-            }
+    pub fn local_vars_mut<'k>(&'k mut self, jvm: &'gc JVMState<'gc>) -> LocalVarsMut<'gc, 'l, 'k> {
+        LocalVarsMut::Jit { frame_view: &mut self.frame_view, jvm }
+    }
+
+    pub fn local_vars<'k>(&'k self, jvm: &'gc JVMState<'gc>) -> LocalVarsRef<'gc, 'l, 'k> {
+        todo!()/*LocalVarsRef::Jit {
+            frame_view: &self.frame_view.downgrade(),
+            jvm,
+            pc: None,
         }*/
-        todo!()
-    }
-
-    pub fn pc_offset_mut(&mut self) -> &mut i32 {
-        /*match self {
-            /*StackEntryMut::LegacyInterpreter { entry, .. } => {
-                entry.pc_offset_mut()
-            }*/
-            StackEntryMut::Jit { frame_view, .. } => frame_view.pc_offset_mut(),
-        }*/
-        todo!()
-    }
-
-    pub fn to_ref(&self) -> StackEntryRef<'gc, 'l> {
-        StackEntryRef { frame_view: todo!(), pc: todo!() }
-    }
-
-    pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
-        self.to_ref().class_pointer(jvm).clone()
-    }
-
-    pub fn local_vars_mut<'k>(&'k mut self) -> LocalVarsMut<'gc, 'l, 'k> {
-        /*match self {
-            /*StackEntryMut::LegacyInterpreter { entry } => {
-                LocalVarsMut::LegacyInterpreter { vars: entry.local_vars_mut(jvm) }
-            }*/
-            StackEntryMut::Jit { frame_view, jvm } => LocalVarsMut::Jit { frame_view, jvm },
-        }*/
-        todo!()
-    }
-
-    pub fn local_vars<'k>(&'k self) -> LocalVarsRef<'gc, 'l, 'k> {
-        /*match self {
-            /*StackEntryMut::LegacyInterpreter { entry } => {
-                LocalVarsRef::LegacyInterpreter { vars: entry.local_vars_mut(jvm) }
-            }*/
-            StackEntryMut::Jit { frame_view, jvm } => LocalVarsRef::Jit { frame_view, jvm },
-        }*/
-        todo!()
     }
 
     pub fn push(&mut self, j: JavaValue<'gc>) {
@@ -570,14 +532,30 @@ pub enum LocalVarsMut<'gc, 'l, 'k> {
     /*LegacyInterpreter {
         vars: &'l mut Vec<JavaValue<'gc>>
     },*/
-    Jit { frame_view: &'k mut FrameView<'gc, 'l>, jvm: &'gc JVMState<'gc> },
+    Jit {
+        frame_view: &'k mut RuntimeJavaStackFrameMut<'l, 'gc>,
+        jvm: &'gc JVMState<'gc>,
+    },
 }
 
 impl<'gc, 'l, 'k> LocalVarsMut<'gc, 'l, 'k> {
     pub fn set<'irrelevant>(&mut self, i: u16, to: NewJavaValue<'gc, 'irrelevant>) {
         match self {
             /*LocalVarsMut::LegacyInterpreter { .. } => todo!(),*/
-            LocalVarsMut::Jit { frame_view, jvm } => frame_view.set_local_var(jvm, i, to.to_jv()),
+            LocalVarsMut::Jit { frame_view, jvm } => todo!()/*frame_view.set_local_var(jvm, i, to.to_jv()),*/
+        }
+    }
+
+    //todo move this and/or refactor
+    pub fn interpreter_set(&mut self, i: u16, ijv: InterpreterJavaValue) {
+        unsafe { self.raw_set(i, ijv.to_raw()) };
+    }
+
+    pub unsafe fn raw_set(&mut self, i: u16, raw: u64) {
+        match self {
+            LocalVarsMut::Jit { jvm, frame_view, } => {
+                frame_view.ir_mut.write_data(i as usize, raw)
+            }
         }
     }
 }
@@ -912,14 +890,6 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     }
 
     pub fn local_vars<'k>(&'k self, jvm: &'gc JVMState<'gc>) -> LocalVarsRef<'gc, 'l, 'k> {
-        /*match self {
-            /*            StackEntryRef::LegacyInterpreter { entry } => {
-                            LocalVarsRef::LegacyInterpreter { vars: entry.local_vars(jvm) }
-                        }
-            */
-            StackEntryRef::Jit { frame_view } => LocalVarsRef::Jit { frame_view, jvm },
-        }*/
-
         LocalVarsRef::Jit {
             frame_view: &self.frame_view,
             jvm,

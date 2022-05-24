@@ -16,6 +16,8 @@
 #![feature(once_cell)]
 
 
+extern crate core;
+
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

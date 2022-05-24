@@ -26,6 +26,8 @@ pub mod fields;
 pub mod new;
 pub mod dup;
 pub mod ldc;
+pub mod store;
+pub mod branch;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;

@@ -68,6 +68,17 @@ impl InterpreterJavaValue {
             InterpreterJavaValue::Object(obj) => obj.map(|nonnull| nonnull.as_ptr() as u64).unwrap_or(0)
         }
     }
+
+    pub fn unwrap_int(&self) -> i32{
+        match self {
+            InterpreterJavaValue::Int(int) => {
+                *int
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
 }
 
 pub struct RealInterpreterStateGuard<'gc, 'l, 'k> {
@@ -123,5 +134,11 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
         let current_frame = self.inner.interpreter_state.current_frame();
         let local_vars = current_frame.local_vars(self.inner.jvm);
         local_vars.interpreter_get(i, rtype)
+    }
+
+    pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue)  {
+        let mut current_frame = self.inner.interpreter_state.current_frame_mut();
+        let mut local_vars = current_frame.local_vars_mut(self.inner.jvm);
+        local_vars.interpreter_set(i, local)
     }
 }
