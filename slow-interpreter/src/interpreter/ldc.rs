@@ -60,17 +60,18 @@ pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: 
 //     Ok(())
 // }
 //
-// pub fn ldc2_w(jvm: &'gc JVMState<'gc>, mut current_frame: StackEntryMut<'gc, 'l>, ldc2w: &CompressedLdc2W) {
-//     match ldc2w {
-//         CompressedLdc2W::Long(l) => {
-//             current_frame.push(JavaValue::Long(*l));
-//         }
-//         CompressedLdc2W::Double(d) => {
-//             current_frame.push(JavaValue::Double(*d));
-//         }
-//         _ => {}
-//     }
-// }
+pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc>{
+    let mut current_frame = int_state.current_frame_mut();
+    match ldc2w {
+        CompressedLdc2W::Long(l) => {
+            current_frame.push(InterpreterJavaValue::Long(*l));
+        }
+        CompressedLdc2W::Double(d) => {
+            current_frame.push(InterpreterJavaValue::Double(*d));
+        }
+    }
+    PostInstructionAction::Next {}
+}
 
 pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) -> PostInstructionAction<'gc> {
     match either {

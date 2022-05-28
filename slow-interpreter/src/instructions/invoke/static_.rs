@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use itertools::Itertools;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -15,13 +15,17 @@ use crate::interpreter::{PostInstructionAction, run_function, WasException};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::interpreter::single_instruction::dump_frame;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l,'k>,
+    method: &MethodView,
+    code: &CompressedCode,
     ref_type: CPRefType,
     expected_method_name: MethodName,
     expected_descriptor: &CMethodDescriptor,
@@ -56,12 +60,21 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     }
     args[0..i].reverse();
 */
+    // dbg!(expected_method_name.0.to_str(&jvm.string_pool));
+    // dbg!(int_state.current_stack_depth_from_start);
+    // int_state.inner().debug_print_stack_trace(jvm);
+    if method.classview().name().unwrap_name() == CClassName::string(){
+        dump_frame(int_state, method, code);
+        // eprintln!("{}",instruct.better_debug_string(&jvm.string_pool));
+    }
+    dbg!(expected_descriptor.jvm_representation(&jvm.string_pool));
     for ptype in expected_descriptor.arg_types.iter().rev() {
-        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        let popped = int_state.current_frame_mut().pop(dbg!(ptype.to_runtime_type().unwrap())).to_new_java_handle(jvm);
         args[i] = popped;
         i += 1;
     }
 
+    args[0..i].reverse();
     let res = invoke_static_impl(
         jvm,
         int_state.inner(),

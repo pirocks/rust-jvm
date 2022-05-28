@@ -28,7 +28,7 @@ pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc,'l>]) -> Vec<NewJavaVal
                 res.push(NewJavaValue::Top)
             }
             NewJavaValue::Top => {
-                panic!()
+                res.pop();
             }
             _ => {}
         }

@@ -28,6 +28,9 @@ pub mod dup;
 pub mod ldc;
 pub mod store;
 pub mod branch;
+pub mod special;
+pub mod conversion;
+pub mod arithmetic;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;
@@ -66,7 +69,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
             CompressedParsedDescriptorType::VoidType => None,
             return_type => {
                 let native_value = NativeJavaValue { as_u64: function_res };
-                Some(native_to_new_java_value(native_value, &return_type, jvm))
+                Some(native_to_new_java_value(native_value, *return_type, jvm))
             }
         })
     } else {
@@ -103,9 +106,10 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
     loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
-        match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter) {
-            PostInstructionAction::NextOffset { .. } => {
-                todo!()
+        match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code) {
+            PostInstructionAction::NextOffset { offset_change } => {
+                let next_offset = current_offset.0 as i32 + offset_change;
+                current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
                 return Ok(res)

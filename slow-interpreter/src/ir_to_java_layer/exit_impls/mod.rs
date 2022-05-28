@@ -52,7 +52,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     eprintln!("THROW AT:");
     int_state.debug_print_stack_trace(jvm);
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<NativeJavaValue<'gc>>().read() };
-    let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, &CClassName::object().into(), jvm);
+    let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, CClassName::object().into(), jvm);
     throw_impl(&jvm, int_state, exception_obj_handle)
 }
 
@@ -63,7 +63,7 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     }
     let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
     let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
-    let obj_jv_handle = native_to_new_java_value(obj_native_jv, &CPDType::object(), jvm);
+    let obj_jv_handle = native_to_new_java_value(obj_native_jv, CPDType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
     let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(target_method_id).unwrap();
     let class_view = target_rc.view();
@@ -167,7 +167,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
     todo!();*/
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = native_to_new_java_value(value, &CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     if let Some(handle) = value {
         let res_int = instance_of_exit_impl(jvm, cpdtype, Some(&handle));
@@ -192,7 +192,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     }
     let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
-    let value = native_to_new_java_value(value, &CClassName::object().into(), jvm);
+    let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
@@ -530,7 +530,7 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &
     let mut static_vars_guard = static_vars(rc.deref(), jvm);
     let field_name = field_view.field_name();
     let native_jv = *unsafe { (*value_ptr as *mut NativeJavaValue<'gc>).as_ref() }.unwrap();
-    let njv = native_to_new_java_value(native_jv, &field_view.field_type(), jvm);
+    let njv = native_to_new_java_value(native_jv, field_view.field_type(), jvm);
     // if let NewJavaValue::AllocObject(alloc) = njv.as_njv() {
     //     dbg!(alloc.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
     //     // let rc = alloc.unwrap_normal_object().runtime_class(jvm);
@@ -576,7 +576,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
         for (i, cpdtype) in (0..num_args).zip(arg_types.iter()) {
             let arg_ptr = arg_start.offset(-(i as isize) * size_of::<jlong>() as isize) as *const u64;//stack grows down
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm));
+            args_jv_handle.push(native_to_new_java_value(native_jv, *cpdtype, jvm));
         }
     }
     assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
@@ -673,7 +673,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 
 pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[CompressedParsedDescriptorType], mut arg_start: *const c_void) -> Vec<NewJavaValueHandle<'gc>> {
     let obj_ref_native = unsafe { arg_start.cast::<NativeJavaValue>().read() };
-    let obj_ref = native_to_new_java_value(obj_ref_native, &CClassName::object().into(), jvm);
+    let obj_ref = native_to_new_java_value(obj_ref_native, CClassName::object().into(), jvm);
     let mut args_jv_handle = vec![];
     args_jv_handle.push(obj_ref);
     unsafe {
@@ -681,7 +681,7 @@ pub fn virtual_args_extract<'gc>(jvm: &'gc JVMState<'gc>, arg_types: &[Compresse
         for (i, cpdtype) in (0..arg_types.len()).zip(arg_types.iter()) {
             let arg_ptr = arg_start.sub(i * size_of::<jlong>()) as *const u64;
             let native_jv = NativeJavaValue { as_u64: arg_ptr.read() };
-            args_jv_handle.push(native_to_new_java_value(native_jv, cpdtype, jvm));
+            args_jv_handle.push(native_to_new_java_value(native_jv, *cpdtype, jvm));
         }
     }
     args_jv_handle

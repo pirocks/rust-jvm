@@ -1,3 +1,4 @@
+use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -35,32 +36,34 @@ pub fn anewarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
 }
 
 pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, len: i32, elem_type: CPDType) -> Result<(), WasException> {
+    if len < 0 {
+        todo!("check array length");
+    }
     let whole_array_runtime_class = check_resolved_class(jvm, int_state.inner(), CPDType::array(elem_type))?;
     let new_array = NewJavaValueHandle::new_default_array(jvm, len, whole_array_runtime_class, elem_type);
     Ok(int_state.current_frame_mut().push(new_array.to_interpreter_jv()))
 }
 
-// pub fn newarray(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, a_type: Atype) {
-//     let count = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
-//     let type_ = match a_type {
-//         Atype::TChar => CPDType::CharType,
-//         Atype::TInt => CPDType::IntType,
-//         Atype::TByte => CPDType::ByteType,
-//         Atype::TBoolean => CPDType::BooleanType,
-//         Atype::TShort => CPDType::ShortType,
-//         Atype::TLong => CPDType::LongType,
-//         Atype::TDouble => CPDType::DoubleType,
-//         Atype::TFloat => CPDType::FloatType,
-//     };
-//     if count < 0 {
-//         todo!("check array length");
-//     }
-//     let new_array = match JavaValue::new_vec(jvm, int_state, count as usize, default_value(type_.clone()), type_) {
-//         Ok(arr) => arr,
-//         Err(WasException {}) => return,
-//     };
-//     int_state.push_current_operand_stack(JavaValue::Object(new_array));
-// }
+pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, a_type: Atype) -> PostInstructionAction<'gc> {
+    let count = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
+    let type_ = match a_type {
+        Atype::TChar => CPDType::CharType,
+        Atype::TInt => CPDType::IntType,
+        Atype::TByte => CPDType::ByteType,
+        Atype::TBoolean => CPDType::BooleanType,
+        Atype::TShort => CPDType::ShortType,
+        Atype::TLong => CPDType::LongType,
+        Atype::TDouble => CPDType::DoubleType,
+        Atype::TFloat => CPDType::FloatType,
+    };
+    if count < 0 {
+        todo!("check array length");
+    }
+    match a_new_array_from_name(jvm,int_state,count,type_) {
+        Ok(arr) => PostInstructionAction::Next {},
+        Err(WasException {}) => PostInstructionAction::Exception { exception: WasException{} },
+    }
+}
 
 // pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, dims: u8, type_: &CPDType) {
 //     if let Err(_) = check_resolved_class(jvm, int_state, type_.clone()) {

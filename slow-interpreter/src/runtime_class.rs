@@ -126,7 +126,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let cpd_type = self.types.get(&name)?;
         let native = *self.data_guard.get(&name)?;
-        Some(native_to_new_java_value(native, cpd_type, self.jvm))
+        Some(native_to_new_java_value(native, *cpd_type, self.jvm))
     }
 
     pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {

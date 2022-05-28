@@ -19,10 +19,10 @@ impl InterpreterJavaValue {
                 Self::Int(raw as i32)
             }
             RuntimeType::FloatType => {
-                todo!()
+                Self::Float(f32::from_bits(raw as u32))
             }
             RuntimeType::DoubleType => {
-                todo!()
+                Self::Double(f64::from_bits(raw))
             }
             RuntimeType::LongType => {
                 Self::Long(raw as i64)
@@ -79,12 +79,56 @@ impl InterpreterJavaValue {
             }
         }
     }
+
+    pub fn unwrap_object(&self) -> Option<NonNull<c_void>>{
+        match self {
+            InterpreterJavaValue::Object(o) => {
+                *o
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_long(&self) -> i64{
+        match self {
+            InterpreterJavaValue::Long(long) => {
+                *long
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_float(&self) -> f32{
+        match self {
+            InterpreterJavaValue::Float(float) => {
+                *float
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_double(&self) -> f64{
+        match self {
+            InterpreterJavaValue::Double(double) => {
+                *double
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
 }
 
 pub struct RealInterpreterStateGuard<'gc, 'l, 'k> {
     interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>,
     jvm: &'gc JVMState<'gc>,
-    current_stack_depth_from_start: u16,
+    pub current_stack_depth_from_start: u16,
 }
 
 impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
@@ -134,6 +178,12 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
         let current_frame = self.inner.interpreter_state.current_frame();
         let local_vars = current_frame.local_vars(self.inner.jvm);
         local_vars.interpreter_get(i, rtype)
+    }
+
+    pub fn operand_stack_get(&self, i: u16, rtype: RuntimeType) -> InterpreterJavaValue {
+        let current_frame = self.inner.interpreter_state.current_frame();
+        let operand_stack = current_frame.operand_stack(self.inner.jvm);
+        operand_stack.interpreter_get(i, rtype)
     }
 
     pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue)  {

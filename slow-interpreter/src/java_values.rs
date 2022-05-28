@@ -827,7 +827,7 @@ unsafe impl<'gc> Sync for Object<'gc, '_> {}
 impl<'gc, 'l> Object<'gc, 'l> {
     pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, s: FieldName) -> JavaValue<'gc> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let (field_number, rtype) = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
+        let (field_number, cpdtype) = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
             None => {
                 dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 dbg!(s.0.to_str(&jvm.string_pool));
@@ -837,7 +837,7 @@ impl<'gc, 'l> Object<'gc, 'l> {
         };
         let normal_object = self.unwrap_normal_object();
         let guard = normal_object.objinfo.fields.read().unwrap();
-        native_to_new_java_value(guard[field_number.0 as usize], rtype, jvm).to_jv()
+        native_to_new_java_value(guard[field_number.0 as usize], *cpdtype, jvm).to_jv()
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'l> {
@@ -971,7 +971,7 @@ impl<'gc> ArrayObject<'gc, '_> {
         let inner_type = &self.elem_type;
         todo!("layout");
         let native = *unsafe { self.elems_base.offset(i as isize).as_ref() }.unwrap();
-        native_to_new_java_value(native, inner_type, jvm).to_jv()
+        native_to_new_java_value(native, *inner_type, jvm).to_jv()
     }
 
     pub fn set_i(&mut self, jvm: &'gc JVMState<'gc>, i: i32, jv: JavaValue<'gc>) {
@@ -1001,7 +1001,7 @@ impl<'gc> ArrayObject<'gc, '_> {
 }
 
 
-pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: &CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
     unsafe {
         match ptype {
             CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),

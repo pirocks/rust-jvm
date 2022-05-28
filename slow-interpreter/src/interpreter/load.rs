@@ -1,6 +1,7 @@
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
+use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
+use crate::JVMState;
 
 
 pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
@@ -16,13 +17,14 @@ pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, '
     current_frame.push(ref_);
     PostInstructionAction::Next {}
 }
-/*
-pub fn iload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, RuntimeType::IntType);
-    java_val.unwrap_int();
-    current_frame.push(java_val)
-}
 
+pub fn iload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc>{
+    let java_val = int_state.current_frame_mut().local_get(n, RuntimeType::IntType);
+    java_val.unwrap_int();
+    int_state.current_frame_mut().push(java_val);
+    PostInstructionAction::Next {}
+}
+/*
 pub fn lload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars().get(n, RuntimeType::LongType);
     match java_val {

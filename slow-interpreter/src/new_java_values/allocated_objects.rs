@@ -87,7 +87,7 @@ impl <'gc>AllocatedArrayObjectHandle<'gc>{
         let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
         let native_jv = unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).read() };
         let cpdtype = self.elem_cpdtype();
-        native_to_new_java_value(native_jv,&cpdtype, jvm)
+        native_to_new_java_value(native_jv,cpdtype, jvm)
     }
 
     pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
@@ -182,7 +182,7 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
         unsafe {
             let native_jv = self.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
-            native_to_new_java_value(native_jv, &cpdtype, jvm)
+            native_to_new_java_value(native_jv, cpdtype, jvm)
         }
     }
 

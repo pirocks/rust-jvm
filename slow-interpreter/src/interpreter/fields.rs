@@ -1,15 +1,16 @@
 use std::mem::size_of;
 use std::ops::Deref;
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 
-use crate::{JVMState};
+use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle, WasException};
 use crate::class_loading::{assert_inited_or_initing_class};
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter::{PostInstructionAction};
+use crate::java_values::native_to_new_java_value;
 use crate::runtime_class::static_vars;
 
 //
@@ -50,45 +51,45 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     PostInstructionAction::Next {}
 }
 //
-// pub fn get_static(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field_class_name: CClassName, field_name: FieldName, _field_descriptor: &CFieldDescriptor) {
-//     //todo make sure class pointer is updated correctly
-//     let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name) {
-//         Ok(val) => val,
-//         Err(WasException {}) => return,
-//     } {
-//         None => {
-//             return;
-//         }
-//         Some(val) => val,
-//     };
-//     int_state.push_current_operand_stack(field_value);
-// }
-//
-// fn get_static_impl(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field_class_name: CClassName, field_name: FieldName) -> Result<Option<JavaValue<'gc>>, WasException> {
-//     let target_classfile = check_initing_or_inited_class(jvm, int_state, field_class_name.clone().into())?;
-//     //todo handle interfaces in setting as well
-//     for interfaces in target_classfile.view().interfaces() {
-//         let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone())?;
-//         if interface_lookup_res.is_some() {
-//             return Ok(interface_lookup_res);
-//         }
-//     }
-//     let temp = target_classfile.static_vars();
-//     let attempted_get = temp.get(&field_name);
-//     let field_value = match attempted_get {
-//         None => {
-//             let possible_super = target_classfile.view().super_name();
-//             match possible_super {
-//                 None => None,
-//                 Some(super_) => {
-//                     return get_static_impl(jvm, int_state, super_, field_name).into();
-//                 }
-//             }
-//         }
-//         Some(val) => val.clone().into(),
-//     };
-//     Ok(field_value)
-// }
+pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) ->PostInstructionAction<'gc>  {  //todo make sure class pointer is updated correctly
+    let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name,field_descriptor.0) {
+        Ok(val) => val,
+        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
+    } {
+        None => {
+            todo!()
+        }
+        Some(val) => val,
+    };
+    int_state.current_frame_mut().push(field_value.to_interpreter_jv());
+    PostInstructionAction::Next {}
+}
+
+fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+    let target_classfile = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
+    //todo handle interfaces in setting as well
+    for interfaces in target_classfile.view().interfaces() {
+        let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone(),cpdtype)?;
+        if interface_lookup_res.is_some() {
+            return Ok(interface_lookup_res);
+        }
+    }
+    let temp = target_classfile.unwrap_class_class().static_vars.read().unwrap();
+    let attempted_get = temp.get(&field_name);
+    let field_value = match attempted_get {
+        None => {
+            let possible_super = target_classfile.view().super_name();
+            match possible_super {
+                None => None,
+                Some(super_) => {
+                    return get_static_impl(jvm, int_state, super_, field_name,cpdtype).into();
+                }
+            }
+        }
+        Some(val) => Some(native_to_new_java_value(val.clone().into(),cpdtype,jvm))
+    };
+    Ok(field_value)
+}
 
 pub fn get_field<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor, _debug: bool) -> PostInstructionAction<'gc>{
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
