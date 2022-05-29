@@ -38,7 +38,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
         args[i] = popped;
         i += 1;
     }
-    args[1..].reverse();
+    args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
     let base_object_class = args[0].as_njv().unwrap_normal_object().unwrap().runtime_class(jvm);
     let current_loader = int_state.inner().current_frame().loader(jvm);
@@ -199,11 +199,11 @@ pub fn setup_virtual_args2<'gc, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard
     for input_arg in input_args[1..].iter().rev() {
         let value = input_arg.clone();
         match value.clone() {
-            NewJavaValue::Long(_) | NewJavaValue::Double(_) => {
-                args[i] = NewJavaValue::Top;
-                args[i + 1] = value;
-                i += 2
-            }
+            // NewJavaValue::Long(_) | NewJavaValue::Double(_) => {
+            //     args[i] = NewJavaValue::Top;
+            //     args[i + 1] = value;
+            //     i += 2
+            // }
             _ => {
                 args[i] = value;
                 i += 1

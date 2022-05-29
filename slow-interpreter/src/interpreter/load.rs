@@ -1,3 +1,6 @@
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
+use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
@@ -24,11 +27,11 @@ pub fn iload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
     int_state.current_frame_mut().push(java_val);
     PostInstructionAction::Next {}
 }
-/*
-pub fn lload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, RuntimeType::LongType);
+
+pub fn lload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc>{
+    let java_val = int_state.current_frame_mut().local_get(n, RuntimeType::LongType);
     match java_val {
-        JavaValue::Long(_) => {}
+        InterpreterJavaValue::Long(_) => {}
         _ => {
             dbg!(java_val);
             // current_frame.print_stack_trace();
@@ -36,9 +39,10 @@ pub fn lload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut
             panic!()
         }
     }
-    current_frame.push(java_val)
+    int_state.current_frame_mut().push(java_val);
+    PostInstructionAction::Next {}
 }
-
+/*
 pub fn fload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars().get(n, RuntimeType::FloatType);
     match java_val {
@@ -78,21 +82,24 @@ pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterS
     };
     current_frame.push(jv_res.clone())
 }
-
-pub fn caload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>) {
-    let index = int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_int();
-    let temp = int_state.pop_current_operand_stack(Some(CClassName::object().into()));
-    let unborrowed = temp.unwrap_array();
-    if index < 0 || index >= unborrowed.len() as i32 {
-        return throw_array_out_of_bounds(jvm, int_state, index);
+*/
+pub fn caload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let index = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
+    let temp = int_state.current_frame_mut().pop(CClassName::object().into());
+    let array_layout = ArrayMemoryLayout::from_cpdtype(CPDType::CharType);
+    let array_ptr = temp.unwrap_object().unwrap();
+    unsafe {
+        if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
+            todo!()
+            /*return throw_array_out_of_bounds(jvm, int_state, index);*/
+        }
     }
-    let as_int = match unborrowed.get_i(jvm, index) {
-        JavaValue::Char(c) => c as i32,
-        _ => panic!(),
-    };
-    int_state.push_current_operand_stack(JavaValue::Int(as_int))
+    let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
+    let res = InterpreterJavaValue::from_raw(unsafe { (res_ptr as *mut u16).read() } as u64, RuntimeType::IntType);
+    int_state.current_frame_mut().push(res);
+    PostInstructionAction::Next {}
 }
-
+/*
 pub fn iaload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
     let index = current_frame.pop(Some(RuntimeType::IntType)).unwrap_int();
     let temp = current_frame.pop(Some(RuntimeType::object()));

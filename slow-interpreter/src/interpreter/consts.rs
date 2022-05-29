@@ -16,7 +16,7 @@ use crate::jvm_state::JVMState;
 //     current_frame.push(JavaValue::Float(2.0));
 // }
 //
-pub fn bipush<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, b: i8)-> PostInstructionAction<'gc>  {
+pub fn bipush<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, b: i8) -> PostInstructionAction<'gc> {
     current_frame.push(InterpreterJavaValue::Int(b as i32));
     PostInstructionAction::Next {}
 }
@@ -25,6 +25,7 @@ pub fn sipush<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Inter
     current_frame.push(InterpreterJavaValue::Int(val as i32));
     PostInstructionAction::Next {}
 }
+
 //
 pub fn aconst_null<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     current_frame.push(InterpreterJavaValue::Object(None));
@@ -78,7 +79,8 @@ pub fn iconst_m1<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: In
 //     current_frame.push(JavaValue::Int(-1))
 // }
 //
-// pub fn lconst(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, i: i64) {
-//     current_frame.push(JavaValue::Long(i))
-// }
-//
+pub fn lconst<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, i: i64) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Long(i));
+    PostInstructionAction::Next {}
+}
+

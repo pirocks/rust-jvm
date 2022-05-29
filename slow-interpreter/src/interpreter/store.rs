@@ -10,6 +10,13 @@ pub fn astore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
     PostInstructionAction::Next {}
 }
 
+pub fn istore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc>{
+    let mut current_frame = int_state.current_frame_mut();
+    let object_ref = current_frame.pop(RuntimeType::IntType);
+    current_frame.local_set(n, object_ref);
+    PostInstructionAction::Next {}
+}
+
 pub fn lstore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) {
     /*let val = current_frame.pop(Some(RuntimeType::LongType));
     match val {

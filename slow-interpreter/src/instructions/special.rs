@@ -6,12 +6,13 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
-use crate::interpreter::WasException;
-use crate::java_values::{GcManagedObject, JavaValue};
+use crate::interpreter::{PostInstructionAction, WasException};
+use crate::java_values::{GcManagedObject};
 use crate::java_values::Object::{Array, Object};
 use runtime_class_stuff::RuntimeClass;
+use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 
 pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedHandle<'gc>>) -> jint {
     match obj {
@@ -43,9 +44,9 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
                     if actual_base_type == expected_class_type && actual_num_nested_arrs == expected_num_nested_arrs {
                         1
                     } else {
-                        if actual_num_nested_arrs == expected_num_nested_arrs{
-                            if inherits_from_cpdtype(jvm,&assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()),expected_class_type.to_cpdtype()){
-                                return 1
+                        if actual_num_nested_arrs == expected_num_nested_arrs {
+                            if inherits_from_cpdtype(jvm, &assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
+                                return 1;
                             }
                         }
                         dbg!(actual_num_nested_arrs);
@@ -60,14 +61,14 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let object_class = assert_inited_or_initing_class(jvm,(object).into());
+                    let object_class = assert_inited_or_initing_class(jvm, (object).into());
                     if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
                         1
                     } else {
                         0
                     }
                 }
-                CompressedParsedRefType::Array{ .. } => {
+                CompressedParsedRefType::Array { .. } => {
                     0
                 }
             }
@@ -75,20 +76,20 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
     }
 }
 
-pub fn invoke_instanceof<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, cpdtype: &CPDType) {
-    let possibly_null = int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object();
-    if let Some(unwrapped) = possibly_null {
-        let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
-        if let Err(WasException {}) = instance_of_impl(jvm, int_state, unwrapped, instance_of_class_type) {
-            return;
-        }
-    } else {
-        int_state.push_current_operand_stack(JavaValue::Int(0));
-        return;
-    }
+pub fn invoke_instanceof<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpdtype: &CPDType) -> PostInstructionAction<'gc> {
+    let interpreter_jv = int_state.current_frame_mut().pop(CClassName::object().into());
+    let possibly_null = interpreter_jv.unwrap_object();
+    let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
+    let res_int = instance_of_exit_impl(jvm, *cpdtype, interpreter_jv.to_new_java_handle(jvm).unwrap_object().as_ref());
+    int_state.current_frame_mut().push(InterpreterJavaValue::Int(res_int));
+    PostInstructionAction::Next {}
 }
 
-pub fn instance_of_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
+pub fn instance_of_impl<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {
@@ -96,12 +97,12 @@ pub fn instance_of_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
                     if instance_of_class_name == CClassName::serializable() || instance_of_class_name == CClassName::cloneable() {
                         unimplemented!() //todo need to handle serializable and the like
                     } else {
-                        int_state.push_current_operand_stack(JavaValue::Int(0))
+                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(0))
                     }
                 }
-                CPRefType::Array{ base_type, num_nested_arrs } => {
+                CPRefType::Array { base_type, num_nested_arrs } => {
                     if todo!()/*a.deref() == &array.elem_type*/ {
-                        int_state.push_current_operand_stack(JavaValue::Int(1))
+                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(1))
                     }
                 }
             }
@@ -109,15 +110,15 @@ pub fn instance_of_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
         Object(object) => {
             match instance_of_class_type {
                 CPRefType::Class(instance_of_class_name) => {
-                    let instanceof_class = check_resolved_class(jvm, int_state, instance_of_class_name.into())?; //todo check if this should be here
+                    let instanceof_class = check_resolved_class(jvm, int_state.inner(), instance_of_class_name.into())?; //todo check if this should be here
                     let object_class = object.objinfo.class_pointer.clone();
                     if todo!()/*inherits_from(jvm, int_state, &object_class, &instanceof_class)?*/ {
-                        int_state.push_current_operand_stack(JavaValue::Int(1))
+                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(1))
                     } else {
-                        int_state.push_current_operand_stack(JavaValue::Int(0))
+                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(0))
                     }
                 }
-                CPRefType::Array{ .. } => int_state.push_current_operand_stack(JavaValue::Int(0)),
+                CPRefType::Array { .. } => int_state.current_frame_mut().push(InterpreterJavaValue::Int(0)),
             }
         }
     };
@@ -155,7 +156,7 @@ pub fn inherits_from_cpdtype<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<Runtim
 
     for (_, i) in inherits.view().interfaces().enumerate() {
         let interface = runtime_interface_class(jvm, i);
-        interfaces_match |= inherits_from_cpdtype(jvm,  &interface, parent);
+        interfaces_match |= inherits_from_cpdtype(jvm, &interface, parent);
     }
 
     (match runtime_super_class(jvm, inherits) {
@@ -187,7 +188,7 @@ pub fn inherits_from<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'
 
     for (_, i) in inherits.view().interfaces().enumerate() {
         let interface = runtime_interface_class(jvm, i);
-        interfaces_match |= inherits_from(jvm,  &interface, &parent);
+        interfaces_match |= inherits_from(jvm, &interface, &parent);
     }
 
     (match runtime_super_class(jvm, inherits) {
