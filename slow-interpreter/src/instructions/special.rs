@@ -12,7 +12,7 @@ use crate::interpreter::{PostInstructionAction, WasException};
 use crate::java_values::{GcManagedObject};
 use crate::java_values::Object::{Array, Object};
 use runtime_class_stuff::RuntimeClass;
-use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
+use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 
 pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedHandle<'gc>>) -> jint {
     match obj {
@@ -76,14 +76,12 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
     }
 }
 
-pub fn invoke_instanceof<'gc, 'l, 'k>(
-    jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpdtype: &CPDType) -> PostInstructionAction<'gc> {
-    let interpreter_jv = int_state.current_frame_mut().pop(CClassName::object().into());
+pub fn invoke_instanceof<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
+    let interpreter_jv = current_frame.pop(CClassName::object().into());
     let possibly_null = interpreter_jv.unwrap_object();
     let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
-    let res_int = instance_of_exit_impl(jvm, *cpdtype, interpreter_jv.to_new_java_handle(jvm).unwrap_object().as_ref());
-    int_state.current_frame_mut().push(InterpreterJavaValue::Int(res_int));
+    let res_int = instance_of_exit_impl(jvm, cpdtype, interpreter_jv.to_new_java_handle(jvm).unwrap_object().as_ref());
+    current_frame.push(InterpreterJavaValue::Int(res_int));
     PostInstructionAction::Next {}
 }
 

@@ -3,7 +3,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDT
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
+use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 use crate::JVMState;
 
 
@@ -67,9 +67,9 @@ pub fn dload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
 }
 
 
-fn generic_array_load<'gc, 'l, 'k, T: Into<u64>>(int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
-    let index = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
-    let temp = int_state.current_frame_mut().pop(CClassName::object().into());
+fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
+    let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
+    let temp = current_frame.pop(CClassName::object().into());
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     let array_ptr = temp.unwrap_object().unwrap();
     unsafe {
@@ -80,47 +80,47 @@ fn generic_array_load<'gc, 'l, 'k, T: Into<u64>>(int_state: &'_ mut RealInterpre
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
     let res = InterpreterJavaValue::from_raw(unsafe { (res_ptr as *mut T).read() }.into(), array_sub_type.to_runtime_type().unwrap());
-    int_state.current_frame_mut().push(res);
+    current_frame.push(res);
     PostInstructionAction::Next {}
 }
 
 
-pub fn caload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn caload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::CharType;
-    generic_array_load::<u16>(int_state, array_sub_type)
+    generic_array_load::<u16>(current_frame, array_sub_type)
 }
 
-pub fn aaload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn aaload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::CharType;
-    generic_array_load::<u64>(int_state, array_sub_type)
+    generic_array_load::<u64>(current_frame, array_sub_type)
 }
 
-pub fn iaload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn iaload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::IntType;
-    generic_array_load::<u32>(int_state, array_sub_type)
+    generic_array_load::<u32>(current_frame, array_sub_type)
 }
 
-pub fn faload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn faload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::FloatType;
-    generic_array_load::<u32>(int_state, array_sub_type)
+    generic_array_load::<u32>(current_frame, array_sub_type)
 }
 
-pub fn daload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn daload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::DoubleType;
-    generic_array_load::<u64>(int_state, array_sub_type)
+    generic_array_load::<u64>(current_frame, array_sub_type)
 }
 
-pub fn laload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn laload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::LongType;
-    generic_array_load::<u64>(int_state, array_sub_type)
+    generic_array_load::<u64>(current_frame, array_sub_type)
 }
 
-pub fn saload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn saload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ShortType;
-    generic_array_load::<u16>(int_state, array_sub_type)
+    generic_array_load::<u16>(current_frame, array_sub_type)
 }
 
-pub fn baload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+pub fn baload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ByteType;
-    generic_array_load::<u8>(int_state, array_sub_type)
+    generic_array_load::<u8>(current_frame, array_sub_type)
 }

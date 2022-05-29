@@ -22,7 +22,7 @@ pub fn arraylength<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: 
 pub fn checkcast<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
     let obj = int_state.current_frame_mut().pop(RuntimeType::object());
     int_state.current_frame_mut().push(obj);
-    invoke_instanceof(jvm,int_state,&cpdtype);
+    invoke_instanceof(jvm,int_state.current_frame_mut(),cpdtype);
     let res = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
     int_state.current_frame_mut().push(obj);
     if res == 0{
