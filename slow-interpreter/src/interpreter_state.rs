@@ -251,6 +251,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
                 let ir_frame_push_guard = match frame {
                     StackEntryPush::Java { operand_stack, local_vars, method_id } => {
+                        assert_eq!(jvm.num_local_var_slots(method_id) as usize, local_vars.len());
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
                         for local_var in local_vars {

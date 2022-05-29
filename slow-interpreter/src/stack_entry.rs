@@ -396,7 +396,7 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
 
     pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> Self {
         let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
-        assert!(args.len() <= max_locals as usize);
+        assert_eq!(args.len(), max_locals as usize);
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
         assert!(jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_some());
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&class_pointer);

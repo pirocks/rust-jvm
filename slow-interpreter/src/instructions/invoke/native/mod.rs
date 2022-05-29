@@ -44,57 +44,10 @@ pub fn run_native_method<'gc, 'l, 'k>(
     args: Vec<NewJavaValue<'gc,'k>>
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let view = &class.view();
-    // let before = int_state.current_frame().operand_stack(jvm).len();
     assert_inited_or_initing_class(jvm, view.type_());
-    // assert_eq!(before, int_state.current_frame().operand_stack(jvm).len());
     let method = view.method_view_i(method_i);
-    /*if !method.is_static() {
-        assert_ne!(before, 0);
-    }*/
     assert!(method.is_native());
-
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
-    // dbg!(&method_as_string);
-    /*let noise = vec![
-        "arraycopy",
-        "getClass",
-        "hashCode",
-        "getComponentType",
-        "getSuperclass",
-        "newArray",
-        "clone",
-        "compareAndSwapObject",
-        "identityHashCode",
-        "nanoTime",
-        "getObjectVolatile",
-        "compareAndSwapLong",
-        "intern",
-        "doPrivileged",
-        "invoke0",
-        "getDeclaredMethods0",
-        "putObjectVolatile",
-        "desiredAssertionStatus0",
-        "getName0",
-        "compareAndSwapInt",
-        "getCallerClass",
-        "getModifiers",
-        "isInstance",
-        "findBootstrapClass",
-        "findLoadedClass0",
-        "getStackTraceElement",
-        "objectFieldOffset",
-        "getDeclaringClass0",
-        "getEnclosingMethod0",
-        "isArray",
-        "init",
-        "isPrimitive",
-        "isInterface",
-    ]
-        .into_iter()
-        .collect::<HashSet<_>>();
-    if !noise.contains(method_as_string.as_str()) {
-        // int_state.debug_print_stack_trace(jvm);
-    }*/
     let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, correct_args(args.as_slice())));
     assert!(int_state.current_frame().is_native_method());
     let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());

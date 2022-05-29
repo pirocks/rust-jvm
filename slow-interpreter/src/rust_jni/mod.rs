@@ -88,6 +88,7 @@ pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interp
 
     let temp_vec = vec![CClassName::object().into()];
     let args_and_type = if suppress_runtime_class {
+        assert_eq!(args.len(), md.arg_types.len() + 1);
         args.iter().zip(temp_vec.iter().chain(md.arg_types.iter())).collect::<Vec<_>>()
     } else {
         args.iter().zip(md.arg_types.iter()).collect::<Vec<_>>()

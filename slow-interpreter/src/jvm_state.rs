@@ -549,6 +549,13 @@ impl<'gc> JVMState<'gc> {
         method_view.desc().arg_types.len() as u16
     }
 
+    pub fn num_local_var_slots(&self, method_id: MethodId) -> u16 {
+        let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        method_view.local_var_slots()
+    }
+
     pub fn num_local_vars_native(&self, method_id: MethodId) -> u16 {
         let (rc, method_i) = self.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let view = rc.view();

@@ -40,3 +40,40 @@ fn fcmp_common<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Inte
         panic!()
     }
 }
+
+
+
+pub fn dcmpl<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    let val2 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
+    if val2.is_nan() || val1.is_nan() {
+        current_frame.push(InterpreterJavaValue::Int(-1));
+    }
+    dcmp_common(jvm, current_frame, val2, val1);
+    PostInstructionAction::Next {}
+}
+
+pub fn dcmpg<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+    let val2 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
+    let val1 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
+    if val2.is_nan() || val1.is_nan() {
+        current_frame.push(InterpreterJavaValue::Int(-1));
+    }
+    dcmp_common(jvm, current_frame, val2, val1);
+    PostInstructionAction::Next {}
+}
+
+
+fn dcmp_common<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, val2: f64, val1: f64) {
+    let res = if val1 > val2 {
+        1
+    } else if val1 == val2 {
+        0
+    } else if val1 < val2 {
+        -1
+    } else {
+        unreachable!()
+    };
+    current_frame.push(InterpreterJavaValue::Int(res));
+}
+

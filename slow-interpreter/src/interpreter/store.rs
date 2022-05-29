@@ -4,61 +4,74 @@ use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::interpreter::real_interpreter_state::{InterpreterFrame, RealInterpreterStateGuard};
 use crate::JVMState;
 
-pub fn astore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc> {
-    let mut current_frame = int_state.current_frame_mut();
-    let object_ref = current_frame.pop(RuntimeType::object());
+fn generic_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16, runtime_type: RuntimeType) -> PostInstructionAction<'gc> {
+    let object_ref = current_frame.pop(runtime_type);
     current_frame.local_set(n, object_ref);
     PostInstructionAction::Next {}
 }
 
-pub fn istore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc> {
-    let mut current_frame = int_state.current_frame_mut();
-    let object_ref = current_frame.pop(RuntimeType::IntType);
-    current_frame.local_set(n, object_ref);
-    PostInstructionAction::Next {}
+pub fn astore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+    let runtime_type = RuntimeType::object();
+    generic_store(current_frame, n, runtime_type)
 }
 
-pub fn lstore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) {
-    /*let val = current_frame.pop(Some(RuntimeType::LongType));
-    match val {
-        JavaValue::Long(_) => {}
-        _ => {
-            dbg!(&val);
-            panic!()
-        }
-    }
-    current_frame.local_vars_mut().set(n, val);*/
-    todo!()
+pub fn istore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+    let runtime_type = RuntimeType::IntType;
+    generic_store(current_frame, n, runtime_type)
 }
 
-pub fn dstore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) {
-    /*let jv = current_frame.pop(Some(RuntimeType::DoubleType));
-    match jv {
-        JavaValue::Double(_) => {}
-        _ => {
-            dbg!(&jv);
-            panic!()
-        }
-    }
-    current_frame.local_vars_mut().set(n, jv);*/
-    todo!()
+pub fn lstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+    let runtime_type = RuntimeType::LongType;
+    generic_store(current_frame, n, runtime_type)
 }
 
-pub fn fstore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) {
-    /*let jv: JavaValue<'gc_life> = current_frame.pop(Some(RuntimeType::FloatType));
-    jv.unwrap_float();
-    let mut vars_mut: LocalVarsMut<'gc_life,'l,'_> = current_frame.local_vars_mut();
-    vars_mut.set(n, jv);*/
-    todo!()
+pub fn dstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+    let runtime_type = RuntimeType::DoubleType;
+    generic_store(current_frame, n, runtime_type)
+}
+
+pub fn fstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+    let runtime_type = RuntimeType::FloatType;
+    generic_store(current_frame, n, runtime_type)
 }
 
 
 pub fn castore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
     let array_sub_type = CPDType::CharType;
     generic_array_store::<u16>(int_state, array_sub_type)
+}
+
+pub fn fastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::FloatType;
+    generic_array_store::<u32>(int_state, array_sub_type)
+}
+
+pub fn dastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::DoubleType;
+    generic_array_store::<u64>(int_state, array_sub_type)
+}
+
+pub fn bastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::ByteType;
+    generic_array_store::<u8>(int_state, array_sub_type)
+}
+
+pub fn lastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::LongType;
+    generic_array_store::<u64>(int_state, array_sub_type)
+}
+
+pub fn sastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::ShortType;
+    generic_array_store::<u64>(int_state, array_sub_type)
+}
+
+pub fn iastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+    let array_sub_type = CPDType::IntType;
+    generic_array_store::<u32>(int_state, array_sub_type)
 }
 
 pub fn aastore<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{

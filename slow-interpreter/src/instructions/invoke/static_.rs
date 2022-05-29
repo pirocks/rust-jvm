@@ -10,7 +10,7 @@ use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaV
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
-use crate::instructions::invoke::virtual_::call_vmentry;
+use crate::instructions::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::{PostInstructionAction, run_function, WasException};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
@@ -128,6 +128,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
+        let args = fixup_args(args,max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state, &mut function_call_frame) {

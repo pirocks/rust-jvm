@@ -26,10 +26,10 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc>{
+pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
     //let the main instruction check intresstate inste
     let mut args = vec![];
-    for _ in 0..(expected_descriptor.arg_types.len() + 1){//todo dupe
+    for _ in 0..(expected_descriptor.arg_types.len() + 1) {//todo dupe
         args.push(NewJavaValueHandle::Top)
     }
     let mut i = 1;
@@ -46,12 +46,12 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
     let view = resolved_rc.view();
     let method_view = view.method_view_i(method_i);
     let args_len = args.len() as u16;
-    for _ in args_len..method_view.local_var_slots(){
+    for _ in args_len..method_view.local_var_slots() {
         args.push(NewJavaValueHandle::Top);
     }
 
     let args = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    match invoke_virtual(jvm, int_state.inner(), method_name, expected_descriptor, args){
+    match invoke_virtual(jvm, int_state.inner(), method_name, expected_descriptor, args) {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
             PostInstructionAction::Next {}
@@ -60,32 +60,32 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
             PostInstructionAction::Next {}
         }
         Err(err) => {
-            PostInstructionAction::Exception{ exception: WasException{} }
+            PostInstructionAction::Exception { exception: WasException {} }
         }
     }
 }
 
 pub fn invoke_virtual_method_i<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc>>,
     target_method: &MethodView,
-    args: Vec<NewJavaValue<'gc,'_>>
+    args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
 fn invoke_virtual_method_i_impl<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc>>,
     target_method: &MethodView,
-    args: Vec<NewJavaValue<'gc,'_>>
+    args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let target_method_i = target_method.method_i();
-    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(),target_method_i);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
     let method_resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     if target_method.is_signature_polymorphic() {
@@ -110,14 +110,14 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     if target_method.is_native() {
         match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
-                return Ok(res)
-            },
+                return Ok(res);
+            }
             Err(_) => todo!(),
         }
     } else if !target_method.is_abstract() {
         // let mut args = vec![];
-        // let max_locals = target_method.code_attribute().unwrap().max_locals;
-        // setup_virtual_args(interpreter_state, expected_descriptor, &mut args, max_locals);
+        let max_locals = target_method.code_attribute().unwrap().max_locals;
+        let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
         return match run_function(jvm, interpreter_state, &mut frame_for_function) {
@@ -131,14 +131,35 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
                 interpreter_state.pop_frame(jvm, frame_for_function, true);
                 Err(WasException {})
             }
-        }
+        };
     } else {
         dbg!(target_method.is_abstract());
         panic!()
     }
 }
 
-pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, vmentry: MemberName<'gc>) -> Result<JavaValue<'gc>, WasException> {
+pub fn fixup_args<'gc, 'l>(args: Vec<NewJavaValue<'gc, 'l>>, max_locals: u16) -> Vec<NewJavaValue<'gc, 'l>> {
+    let mut res_args = (0..max_locals).map(|_| NewJavaValue::Top).collect_vec();
+    let mut i = 0;
+    for arg in args {
+        res_args[i] = arg.clone();
+        i += 1;
+        match arg {
+            NewJavaValue::Long(_) |
+            NewJavaValue::Double(_) => {
+                res_args[i] = NewJavaValue::Top;
+                i += 1;
+            }
+            NewJavaValue::Top => {
+                i -= 1;
+            }
+            _ => {}
+        }
+    }
+    res_args
+}
+
+pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, vmentry: MemberName<'gc>) -> Result<JavaValue<'gc>, WasException> {
     assert_eq!(vmentry.clone().java_value().to_type(), CClassName::member_name().into());
     let flags = vmentry.get_flags(jvm) as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
@@ -165,7 +186,7 @@ pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     }
 }
 
-pub fn setup_virtual_args<'gc, 'l>(int_state: &'_ mut InterpreterStateGuard<'gc,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc>>, max_locals: u16) {
+pub fn setup_virtual_args<'gc, 'l>(int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc>>, max_locals: u16) {
     let mut current_frame = int_state.current_frame_mut();
     for _ in 0..max_locals {
         args.push(JavaValue::Top);
@@ -191,7 +212,7 @@ pub fn setup_virtual_args<'gc, 'l>(int_state: &'_ mut InterpreterStateGuard<'gc,
     args[0] = current_frame.pop(Some(CClassName::object().into()));
 }
 
-pub fn setup_virtual_args2<'gc, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard<'gc,'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<NewJavaValue<'gc,'k>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc,'k>>) {
+pub fn setup_virtual_args2<'gc, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<NewJavaValue<'gc, 'k>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc, 'k>>) {
     for _ in 0..max_locals {
         args.push(NewJavaValue::Top);
     }
@@ -221,10 +242,10 @@ args should be on the stack
 */
 pub fn invoke_virtual<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     method_name: MethodName,
     md: &CMethodDescriptor,
-    args: Vec<NewJavaValue<'gc,'_>>
+    args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
@@ -270,8 +291,8 @@ pub fn invoke_virtual<'gc, 'l>(
     invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args)
 }
 
-pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException> {
-    if let Some(res) = jvm.invoke_virtual_lookup_cache.read().unwrap().lookup(c.clone(), method_name, md.clone()){
+pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException> {
+    if let Some(res) = jvm.invoke_virtual_lookup_cache.read().unwrap().lookup(c.clone(), method_name, md.clone()) {
         return Ok(res);
     }
     let all_methods = get_all_methods(jvm, int_state, c.clone(), true)?;
@@ -314,6 +335,6 @@ pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mu
             panic!()
         });
     let res = (final_target_class.clone(), *new_i);
-    jvm.invoke_virtual_lookup_cache.write().unwrap().add_entry(c, method_name, md.clone(),res.clone());
+    jvm.invoke_virtual_lookup_cache.write().unwrap().add_entry(c, method_name, md.clone(), res.clone());
     Ok(res)
 }

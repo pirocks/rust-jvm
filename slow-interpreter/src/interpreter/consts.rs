@@ -70,18 +70,16 @@ pub fn iconst_m1<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     PostInstructionAction::Next {}
 }
 
-// pub fn dconst_1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Double(1.0))
-// }
-//
-// pub fn dconst_0(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Double(0.0))
-// }
-//
-// pub fn iconst_m1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Int(-1))
-// }
-//
+pub fn dconst_1<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Double(1.0));
+    PostInstructionAction::Next {}
+}
+
+pub fn dconst_0<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Double(0.0));
+    PostInstructionAction::Next {}
+}
+
 pub fn lconst<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, i: i64) -> PostInstructionAction<'gc> {
     current_frame.push(InterpreterJavaValue::Long(i));
     PostInstructionAction::Next {}
