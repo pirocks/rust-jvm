@@ -336,25 +336,25 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
                 RuntimeType::LongType
             }
             NewJavaValue::Int(_) => {
-                todo!()
+                RuntimeType::IntType
             }
             NewJavaValue::Short(_) => {
-                todo!()
+                RuntimeType::IntType
             }
             NewJavaValue::Byte(_) => {
-                todo!()
+                RuntimeType::IntType
             }
             NewJavaValue::Boolean(_) => {
                 RuntimeType::IntType
             }
             NewJavaValue::Char(_) => {
-                todo!()
+                RuntimeType::IntType
             }
             NewJavaValue::Float(_) => {
-                todo!()
+                RuntimeType::FloatType
             }
             NewJavaValue::Double(_) => {
-                todo!()
+                RuntimeType::DoubleType
             }
             NewJavaValue::Null => {
                 RuntimeType::Ref(RuntimeRefType::NullType)
@@ -366,7 +366,7 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
                 RuntimeType::Ref(obj.unwrap_normal_object().runtime_class(jvm).view().name().to_runtime_type())
             }
             NewJavaValue::Top => {
-                todo!()
+                RuntimeType::TopType
             }
         }
     }

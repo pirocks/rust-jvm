@@ -154,13 +154,13 @@ pub fn ishr<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     PostInstructionAction::Next {}
 }
 
-// pub fn iushr(int_state: &'_ mut InterpreterStateGuard<'gc,'l>) {
-//     let mut current_frame = int_state.current_frame_mut();
-//     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int() as u32;
-//     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int() as u32;
-//     let res = value1 >> (value2 & 31);
-//     current_frame.push(InterpreterJavaValue::Int(res as i32));
-// }
+pub fn iushr<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int() as u32;
+    let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int() as u32;
+    let res = value1 >> (value2 & 31);
+    current_frame.push(InterpreterJavaValue::Int(res as i32));
+    PostInstructionAction::Next {}
+}
 
 pub fn isub<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = Wrapping(current_frame.pop(RuntimeType::IntType).unwrap_int());

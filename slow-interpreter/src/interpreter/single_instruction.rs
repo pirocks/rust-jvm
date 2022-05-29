@@ -1,15 +1,18 @@
 use itertools::Either;
+use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JVMState};
 use crate::function_instruction_count::FunctionExecutionCounter;
+use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
 use crate::instructions::special::invoke_instanceof;
-use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, ixor, ladd, land, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lxor};
+use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lxor};
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
@@ -36,10 +39,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     function_counter.increment();
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
-    // if method.classview().name().unwrap_name() == CClassName::string() || method.classview().name().unwrap_name().0.to_str(&jvm.string_pool).as_str() == "java/util/Arrays" {
-    //     dump_frame(interpreter_state, method, code);
-    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    // }
+    if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
+        dump_frame(interpreter_state, method, code);
+        eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -125,7 +128,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::frem => frem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::freturn => {
             PostInstructionAction::Return { res: Some(interpreter_state.current_frame_mut().pop(RuntimeType::FloatType).to_new_java_handle(jvm)) }
-        },
+        }
         CInstructionInfo::fstore(i) => fstore(jvm, interpreter_state.current_frame_mut(), *i as u16),
         CInstructionInfo::fstore_0 => fstore(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::fstore_1 => fstore(jvm, interpreter_state.current_frame_mut(), 1),
@@ -186,7 +189,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state.current_frame_mut(), *cp),
         // CInstructionInfo::invokedynamic(cp) => invoke_dynamic(jvm, interpreter_state, *cp),
-        // CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),*/
+        CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor),
         CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type: _ } => {
@@ -206,7 +209,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::istore_2 => istore(jvm, interpreter_state.current_frame_mut(), 2),
         CInstructionInfo::istore_3 => istore(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::isub => isub(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::iushr => iushr(interpreter_state),
+        CInstructionInfo::iushr => iushr(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::ixor => ixor(jvm, interpreter_state.current_frame_mut()),
         // CInstructionInfo::jsr(target) => jsr(interpreter_state, *target as i32),
         // CInstructionInfo::jsr_w(target) => jsr(interpreter_state, *target),
@@ -263,7 +266,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::nop => {
             PostInstructionAction::Next {}
         }
-        // CInstructionInfo::pop => pop(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::pop => {
+            interpreter_state.current_frame_mut().pop(RuntimeType::LongType);
+            PostInstructionAction::Next {}
+        }
         // CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),*/
         CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),

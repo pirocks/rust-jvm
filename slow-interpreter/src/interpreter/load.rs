@@ -79,7 +79,8 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(mut current_frame: Interpre
         }
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
-    let res = InterpreterJavaValue::from_raw(unsafe { (res_ptr as *mut T).read() }.into(), array_sub_type.to_runtime_type().unwrap());
+    let read_u64 = unsafe { (res_ptr as *mut T).read() }.into();
+    let res = InterpreterJavaValue::from_raw(read_u64, array_sub_type.to_runtime_type().unwrap());
     current_frame.push(res);
     PostInstructionAction::Next {}
 }
@@ -91,7 +92,7 @@ pub fn caload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: Interpret
 }
 
 pub fn aaload<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
-    let array_sub_type = CPDType::CharType;
+    let array_sub_type = CPDType::object();
     generic_array_load::<u64>(current_frame, array_sub_type)
 }
 

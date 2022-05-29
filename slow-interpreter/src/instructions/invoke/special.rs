@@ -45,8 +45,11 @@ pub fn invoke_special<'gc, 'l, 'k>(
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
     match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh|njvh.as_njv()).collect_vec()){
-        Ok(res) => {
-
+        Ok(Some(res)) => {
+            int_state.current_frame_mut().push(res.to_interpreter_jv());
+            return PostInstructionAction::Next {}
+        }
+        Ok(None) => {
             return PostInstructionAction::Next {}
         }
         Err(WasException{}) => {

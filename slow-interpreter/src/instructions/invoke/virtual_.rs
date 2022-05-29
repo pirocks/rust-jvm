@@ -287,7 +287,6 @@ pub fn invoke_virtual<'gc, 'l>(
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    assert_eq!(args.len(), target_method.local_var_slots() as usize);
     invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args)
 }
 
