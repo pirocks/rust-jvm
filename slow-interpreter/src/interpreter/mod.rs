@@ -31,6 +31,7 @@ pub mod branch;
 pub mod special;
 pub mod conversion;
 pub mod arithmetic;
+pub mod cmp;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;
@@ -106,7 +107,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
     loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
-        match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code) {
+        match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;
                 current_offset.0 = next_offset as u16;

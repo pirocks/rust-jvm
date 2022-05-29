@@ -14,7 +14,7 @@ use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::{AllocatedHandle, JavaValueCommon};
+use crate::{AllocatedHandle, JavaValueCommon, MethodResolverImpl};
 
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{JavaValue};
@@ -266,6 +266,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
+                        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl{ jvm: jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ }, method_id);
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);

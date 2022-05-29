@@ -1,5 +1,5 @@
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
@@ -21,14 +21,14 @@ pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, '
     PostInstructionAction::Next {}
 }
 
-pub fn iload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc>{
+pub fn iload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = int_state.current_frame_mut().local_get(n, RuntimeType::IntType);
     java_val.unwrap_int();
     int_state.current_frame_mut().push(java_val);
     PostInstructionAction::Next {}
 }
 
-pub fn lload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc>{
+pub fn lload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = int_state.current_frame_mut().local_get(n, RuntimeType::LongType);
     match java_val {
         InterpreterJavaValue::Long(_) => {}
@@ -42,19 +42,20 @@ pub fn lload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
     int_state.current_frame_mut().push(java_val);
     PostInstructionAction::Next {}
 }
-/*
-pub fn fload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
-    let java_val = current_frame.local_vars().get(n, RuntimeType::FloatType);
+
+pub fn fload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, n: u16) -> PostInstructionAction<'gc> {
+    let java_val = int_state.current_frame_mut().local_get(n, RuntimeType::FloatType);
     match java_val {
-        JavaValue::Float(_) => {}
+        InterpreterJavaValue::Float(_) => {}
         _ => {
             dbg!(java_val);
             panic!()
         }
     }
-    current_frame.push(java_val)
+    int_state.current_frame_mut().push(java_val);
+    PostInstructionAction::Next {}
 }
-
+/*
 pub fn dload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>, n: u16) {
     let java_val = current_frame.local_vars().get(n, RuntimeType::DoubleType);
     match java_val {
@@ -83,10 +84,15 @@ pub fn aaload(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterS
     current_frame.push(jv_res.clone())
 }
 */
-pub fn caload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc>{
+pub fn caload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+    let array_sub_type = CPDType::CharType;
+    generic_array_load::<u16>(int_state, array_sub_type)
+}
+
+fn generic_array_load<'gc, 'l, 'k, T: Into<u64>>(int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
     let index = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
     let temp = int_state.current_frame_mut().pop(CClassName::object().into());
-    let array_layout = ArrayMemoryLayout::from_cpdtype(CPDType::CharType);
+    let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     let array_ptr = temp.unwrap_object().unwrap();
     unsafe {
         if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
@@ -95,9 +101,14 @@ pub fn caload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
         }
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
-    let res = InterpreterJavaValue::from_raw(unsafe { (res_ptr as *mut u16).read() } as u64, RuntimeType::IntType);
+    let res = InterpreterJavaValue::from_raw(unsafe { (res_ptr as *mut T).read() }.into(), array_sub_type.to_runtime_type().unwrap());
     int_state.current_frame_mut().push(res);
     PostInstructionAction::Next {}
+}
+
+pub fn aaload<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
+    let array_sub_type = CPDType::CharType;
+    generic_array_load::<u64>(int_state, array_sub_type)
 }
 /*
 pub fn iaload(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {

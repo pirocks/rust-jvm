@@ -109,33 +109,38 @@ impl MethodView<'_> {
         })
     }
 
-    pub fn method_shape(&self) -> MethodShape{
-        MethodShape{
+    pub fn method_shape(&self) -> MethodShape {
+        MethodShape {
             name: self.name(),
-            desc: self.desc().clone()
+            desc: self.desc().clone(),
         }
     }
 
-    pub fn method_shape_id(&self, method_shapes: &MethodShapeIDs) -> MethodShapeID{
+    pub fn method_shape_id(&self, method_shapes: &MethodShapeIDs) -> MethodShapeID {
         method_shapes.lookup_method_shape_id(self.method_shape())
     }
 
-    pub fn get_annotation_bytes(&self) -> Option<Vec<u8>>{
-        self.method_info().runtime_visible_annotations().map(|annotations|runtime_annotations_to_bytes(annotations.annotations.clone()))
+    pub fn get_annotation_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().runtime_visible_annotations().map(|annotations| runtime_annotations_to_bytes(annotations.annotations.clone()))
     }
 
-    pub fn get_parameter_annotation_bytes(&self) -> Option<Vec<u8>>{
-        self.method_info().parameter_annotations().map(|annotations|{
+    pub fn get_parameter_annotation_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().parameter_annotations().map(|annotations| {
             parameter_annotations_to_bytes(annotations.clone().parameter_annotations)
         })
     }
 
-    pub fn get_annotation_default_bytes(&self) -> Option<Vec<u8>>{
-        self.method_info().annotation_default().map(|annotations|annotation_default_to_bytes(annotations.clone()))
+    pub fn get_annotation_default_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().annotation_default().map(|annotations| annotation_default_to_bytes(annotations.clone()))
     }
 
-    pub fn local_var_slots(&self) -> u16{
-        self.code_attribute().map(|code|code.max_locals).unwrap_or(self.desc().count_local_vars_needed())
+    pub fn local_var_slots(&self) -> u16 {
+        let local_vars = self.desc().count_local_vars_needed() + if self.is_static() {
+            0
+        } else {
+            1
+        };
+        self.code_attribute().map(|code| code.max_locals).unwrap_or(local_vars)
     }
 }
 

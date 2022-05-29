@@ -3,19 +3,22 @@ use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJa
 
 use crate::jvm_state::JVMState;
 
-//
-// pub fn fconst_0(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Float(0.0));
-// }
-//
-// pub fn fconst_1(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Float(1.0));
-// }
-//
-// pub fn fconst_2(jvm: &'gc_life JVMState<'gc_life>, mut current_frame: StackEntryMut<'gc_life, 'l>) {
-//     current_frame.push(JavaValue::Float(2.0));
-// }
-//
+
+pub fn fconst_0<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Float(0.0));
+    PostInstructionAction::Next {}
+}
+
+pub fn fconst_1<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Float(1.0));
+    PostInstructionAction::Next {}
+}
+
+pub fn fconst_2<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    current_frame.push(InterpreterJavaValue::Float(2.0));
+    PostInstructionAction::Next {}
+}
+
 pub fn bipush<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, b: i8) -> PostInstructionAction<'gc> {
     current_frame.push(InterpreterJavaValue::Int(b as i32));
     PostInstructionAction::Next {}

@@ -95,13 +95,13 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn push_frame<'vm_lfe, ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
+    pub fn push_frame<'vm_lfe, ExtraData>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], _ir_vm_state: &'_ IRVMState<'vm_lfe, ExtraData>) -> IRPushFrameGuard {
         unsafe {
-            if self.current_rsp != self.owned_ir_stack.native.mmaped_top && self.current_rbp != self.owned_ir_stack.native.mmaped_top {
-                let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
-                let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
-                assert_eq!(offset, expected_current_frame_size);
-            }
+            // if self.current_rsp != self.owned_ir_stack.native.mmaped_top && self.current_rbp != self.owned_ir_stack.native.mmaped_top {
+            //     let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
+            //     let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
+            //     assert_eq!(offset, expected_current_frame_size);
+            // }
             let prev_rbp = self.current_rbp;
             let prev_rsp = self.current_rsp;
             self.current_rbp = self.current_rsp;
