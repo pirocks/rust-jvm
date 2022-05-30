@@ -40,7 +40,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
     }
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
-    let base_object_class = args[0].as_njv().unwrap_normal_object().unwrap().runtime_class(jvm);
+    let base_object_class = args[0].as_njv().unwrap_object_alloc().unwrap().runtime_class(jvm);
     let current_loader = int_state.inner().current_frame().loader(jvm);
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
     let view = resolved_rc.view();
@@ -117,6 +117,9 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     } else if !target_method.is_abstract() {
         // let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
+        for arg in args.iter(){
+            dbg!(arg);
+        }
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let mut frame_for_function = interpreter_state.push_frame(next_entry);
@@ -142,18 +145,20 @@ pub fn fixup_args<'gc, 'l>(args: Vec<NewJavaValue<'gc, 'l>>, max_locals: u16) ->
     let mut res_args = (0..max_locals).map(|_| NewJavaValue::Top).collect_vec();
     let mut i = 0;
     for arg in args {
-        res_args[i] = arg.clone();
-        i += 1;
         match arg {
             NewJavaValue::Long(_) |
             NewJavaValue::Double(_) => {
+                res_args[i] = arg.clone();
+                i += 1;
                 res_args[i] = NewJavaValue::Top;
                 i += 1;
             }
             NewJavaValue::Top => {
-                i -= 1;
             }
-            _ => {}
+            _ => {
+                res_args[i] = arg.clone();
+                i += 1;
+            }
         }
     }
     res_args
@@ -220,11 +225,14 @@ pub fn setup_virtual_args2<'gc, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard
     for input_arg in input_args[1..].iter().rev() {
         let value = input_arg.clone();
         match value.clone() {
-            // NewJavaValue::Long(_) | NewJavaValue::Double(_) => {
-            //     args[i] = NewJavaValue::Top;
-            //     args[i + 1] = value;
-            //     i += 2
-            // }
+            NewJavaValue::Long(_) | NewJavaValue::Double(_) => {
+                args[i] = NewJavaValue::Top;
+                args[i + 1] = value;
+                i += 2
+            }
+            NewJavaValue::Top => {
+
+            }
             _ => {
                 args[i] = value;
                 i += 1

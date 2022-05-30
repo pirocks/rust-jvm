@@ -1,9 +1,8 @@
+use std::ops::Deref;
 use itertools::Either;
-use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JVMState};
 use crate::function_instruction_count::FunctionExecutionCounter;
@@ -12,7 +11,7 @@ use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
 use crate::instructions::special::invoke_instanceof;
-use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lxor};
+use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lxor};
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
@@ -26,6 +25,7 @@ use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter::special::{arraylength, checkcast};
 use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dstore, fastore, fstore, iastore, istore, lastore, lstore, sastore};
+use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -39,10 +39,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     function_counter.increment();
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
-    if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
-        dump_frame(interpreter_state, method, code);
-        eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    }
+    // if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
+    //     dump_frame(interpreter_state, method, code);
+    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -220,7 +220,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::laload => laload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::land => land(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lastore => lastore(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::lcmp => lcmp(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lcmp => lcmp(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lconst_0 => lconst(jvm, interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::lconst_1 => lconst(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::ldc(cldc2w) => ldc_w(jvm, interpreter_state, &cldc2w.as_ref()),
@@ -234,7 +234,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::lload_3 => lload(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::lmul => lmul(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lneg => lneg(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lookupswitch(ls) => invoke_lookupswitch(&ls, jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lor => lor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lrem => lrem(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lreturn => {
@@ -270,7 +270,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             interpreter_state.current_frame_mut().pop(RuntimeType::LongType);
             PostInstructionAction::Next {}
         }
-        // CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),*/
+        // CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
         // CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), *local_var_index as u16),
@@ -279,7 +279,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::sastore => sastore(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), *val),
         // CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
         // CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {

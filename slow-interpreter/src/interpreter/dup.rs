@@ -52,14 +52,14 @@ pub fn dup2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mut c
     } else {
         RuntimeType::IntType
     };
-    let value1 = current_frame.pop(value1_vtype); //in principle type doesn't matter todo pass it anyway
+    let value1 = current_frame.pop(RuntimeType::LongType); //in principle type doesn't matter but needs to be u64
     match value1_vtype {
         RuntimeType::LongType | RuntimeType::DoubleType => {
             current_frame.push(value1.clone());
             current_frame.push(value1);
         }
         _ => {
-            let value2 = current_frame.pop(RuntimeType::IntType);
+            let value2 = current_frame.pop(RuntimeType::LongType);
             current_frame.push(value2.clone());
             current_frame.push(value1.clone());
             current_frame.push(value2);

@@ -15,7 +15,7 @@ pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: 
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .unwrap_bool_strict()
+        .unwrap_int() as jboolean
 }
 
 pub unsafe extern "C" fn call_static_byte_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jbyte {

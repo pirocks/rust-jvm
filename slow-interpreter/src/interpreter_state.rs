@@ -166,12 +166,13 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 todo!()
             }
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
-                let current = int_state.previous_frame_ref();
-                let prev_method_id = int_state.previous_frame_ref().ir_method_id();
-                if prev_method_id.is_none() || prev_method_id.unwrap() == jvm.java_vm_state.ir.get_top_level_return_ir_method_id() {
-                    return None;
-                }
-                let (prev_method_id, prev_pc) = jvm.java_vm_state.lookup_ip(current.prev_rip())?;
+                // let current = int_state.previous_frame_ref();
+                // let prev_ir_method_id = int_state.previous_frame_ref().ir_method_id();
+                // int_state.previous_frame_ref().method_id()?;
+                // if prev_ir_method_id.is_none() || prev_ir_method_id.unwrap() == jvm.java_vm_state.ir.get_top_level_return_ir_method_id() {
+                //     return None;
+                // }
+                // let (prev_method_id, prev_pc) = jvm.java_vm_state.lookup_ip(current.prev_rip())?;
                 let prev_ir_frame = int_state.previous_frame_ref();
                 // assert_eq!(prev_ir_frame.method_id(), Some(prev_method_id));
                 Some(StackEntryRef {
@@ -179,7 +180,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         ir_ref: prev_ir_frame,
                         jvm,
                     },
-                    pc: Some(prev_pc),
+                    pc: None,
                 })
             }
         }

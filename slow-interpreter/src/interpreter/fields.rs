@@ -35,6 +35,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
                 match o {
                     Some(x) => {
                         let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
+                        assert_ne!(val.to_raw(), 0xDDDDDDDDDDDDDDDD);
                         raw_field_ptr.write(val.to_raw());
                     }
                     None => {
@@ -100,7 +101,7 @@ pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
             InterpreterJavaValue::Object(Some(x)) => {
                 let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
                 let res = InterpreterJavaValue::from_raw(raw_field_ptr.read(), field_desc.0.to_runtime_type().unwrap());
-                /*let res = o.unwrap().unwrap_normal_object().get_var(jvm, target_class_pointer, field_name);*/
+                eprintln!("{:X}",res.to_raw());
                 current_frame.push(res);
                 PostInstructionAction::Next {}
             }

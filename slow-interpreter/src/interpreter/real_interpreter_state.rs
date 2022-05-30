@@ -61,7 +61,7 @@ impl InterpreterJavaValue {
 
     pub fn to_raw(self) -> u64 {
         match self {
-            InterpreterJavaValue::Int(int) => int as u64,
+            InterpreterJavaValue::Int(int) => int as u32 as u64,
             InterpreterJavaValue::Long(long) => long as u64,
             InterpreterJavaValue::Float(float) => float.to_bits() as u64,
             InterpreterJavaValue::Double(double) => double.to_bits(),
