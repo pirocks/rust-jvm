@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::InterpreterStateGuard;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;

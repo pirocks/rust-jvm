@@ -5,7 +5,7 @@ pub mod reflection {
     use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::NewAsObjectOrJavaValue;
@@ -45,7 +45,7 @@ pub mod constant_pool {
     use crate::AllocatedHandle;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full};
     use crate::java::lang::class::JClass;

@@ -11,7 +11,7 @@ use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::JavaValueCommon;
 use crate::jit::MethodResolverImpl;

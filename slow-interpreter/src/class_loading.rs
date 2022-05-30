@@ -23,7 +23,7 @@ use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject};
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;

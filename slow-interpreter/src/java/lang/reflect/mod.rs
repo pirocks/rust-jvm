@@ -8,7 +8,7 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
@@ -127,7 +127,7 @@ pub mod method {
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
@@ -325,7 +325,7 @@ pub mod constructor {
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
@@ -483,7 +483,7 @@ pub mod field {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;

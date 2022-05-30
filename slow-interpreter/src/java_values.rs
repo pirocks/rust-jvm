@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
+use another_jit_vm_ir::WasException;
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::{MemoryRegions};
@@ -26,7 +27,6 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
-use crate::interpreter::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;

@@ -1,3 +1,4 @@
+use another_jit_vm_ir::WasException;
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -6,7 +7,7 @@ use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::{run_function};
 use crate::interpreter_util::new_object;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;

@@ -15,6 +15,7 @@ use libloading::Symbol;
 use num::Integer;
 use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IRStackMut;
+use another_jit_vm_ir::WasException;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -24,7 +25,7 @@ use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
-use crate::interpreter::{run_function, safepoint_check, WasException};
+use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::{InterpreterState};
 use crate::interpreter_util::{ new_object_full};
 use crate::invoke_interface::get_invoke_interface;

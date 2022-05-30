@@ -1,7 +1,8 @@
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::{JVMState, WasException};
+use crate::{JVMState};
+use another_jit_vm_ir::WasException;
 
 pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
     let exception_obj = {

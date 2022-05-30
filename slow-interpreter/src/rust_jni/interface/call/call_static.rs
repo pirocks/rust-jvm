@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::JavaValueCommon;
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
@@ -113,7 +113,7 @@ pub unsafe extern "C" fn call_static_boolean_method(env: *mut JNIEnv, _clazz: jc
         Err(WasException {}) => return jboolean::MAX,
     }
         .unwrap()
-        .unwrap_bool_strict()
+        .unwrap_int() as jboolean
 }
 
 pub unsafe extern "C" fn call_static_byte_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jbyte {

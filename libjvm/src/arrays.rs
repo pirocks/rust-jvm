@@ -7,7 +7,7 @@ use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use slow_interpreter::instructions::new::a_new_array_from_name;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::boolean::Boolean;
 use slow_interpreter::java::lang::byte::Byte;

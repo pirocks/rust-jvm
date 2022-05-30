@@ -44,7 +44,7 @@ pub mod properties {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};

@@ -1,4 +1,5 @@
 use itertools::Either;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::constant_info_view::{ConstantInfoView};
 use rust_jvm_common::compressed_classfile::{CPDType};
@@ -7,7 +8,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName};
 
 use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle};
 use crate::class_objects::get_or_create_class_object;
-use crate::interpreter::{PostInstructionAction, WasException};
+use crate::interpreter::{PostInstructionAction};
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::java::lang::string::JString;
 use crate::rust_jni::interface::string::intern_safe;

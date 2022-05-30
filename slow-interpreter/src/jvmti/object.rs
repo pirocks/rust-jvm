@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_OBJECT, jvmtiError_JVMTI_ERROR_NONE};
 
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::java::NewAsObjectOrJavaValue;

@@ -11,7 +11,7 @@ use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::class_loading::check_initing_or_inited_class;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::{JavaValueCommon, JVMState};
 use crate::new_java_values::NewJavaValueHandle;

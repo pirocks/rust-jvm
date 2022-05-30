@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -8,7 +9,7 @@ use classfile_view::view::method_view::MethodView;
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
-use crate::interpreter::{monitor_for_function, WasException};
+use crate::interpreter::{monitor_for_function};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;

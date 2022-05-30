@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::JavaValueCommon;
 use crate::rust_jni::interface::call::{call_nonstatic_method, VarargProvider};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};

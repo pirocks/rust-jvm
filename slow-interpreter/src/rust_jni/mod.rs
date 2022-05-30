@@ -23,7 +23,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::get_interface;

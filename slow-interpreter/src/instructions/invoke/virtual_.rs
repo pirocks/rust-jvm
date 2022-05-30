@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use itertools::Itertools;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -10,14 +11,14 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush};
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
-use crate::interpreter::{PostInstructionAction, run_function, WasException};
+use crate::interpreter::{PostInstructionAction, run_function};
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::{NewJavaValueHandle};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
+use rust_jvm_common::runtime_type::{RuntimeType};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::utils::run_static_or_virtual;
@@ -124,6 +125,9 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
             Ok(res) => {
                 assert!(!interpreter_state.throw().is_some());
                 interpreter_state.pop_frame(jvm, frame_for_function, false);
+               /* if let Some(res) = &res {
+                    eprintln!("{:X}", res.to_interpreter_jv().to_raw());
+                }*/
                 Ok(res)
             }
             Err(WasException {}) => {
@@ -150,8 +154,7 @@ pub fn fixup_args<'gc, 'l>(args: Vec<NewJavaValue<'gc, 'l>>, max_locals: u16) ->
                 res_args[i] = NewJavaValue::Top;
                 i += 1;
             }
-            NewJavaValue::Top => {
-            }
+            NewJavaValue::Top => {}
             _ => {
                 res_args[i] = arg.clone();
                 i += 1;
@@ -227,9 +230,7 @@ pub fn setup_virtual_args2<'gc, 'l, 'k>(int_state: &'_ mut InterpreterStateGuard
                 args[i + 1] = value;
                 i += 2
             }
-            NewJavaValue::Top => {
-
-            }
+            NewJavaValue::Top => {}
             _ => {
                 args[i] = value;
                 i += 1

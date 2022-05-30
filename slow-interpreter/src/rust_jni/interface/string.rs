@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::class_loading::assert_loaded_class;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue};

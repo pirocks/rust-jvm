@@ -3,7 +3,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class};
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::runtime_class::static_vars;
 

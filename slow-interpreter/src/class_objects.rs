@@ -3,7 +3,7 @@ use rust_jvm_common::loading::LoaderName;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_loaded_class_force_loader;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn get_or_create_class_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDType, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<AllocatedNormalObjectHandle<'gc>, WasException> {

@@ -19,7 +19,7 @@ use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::reflect::method::Method;

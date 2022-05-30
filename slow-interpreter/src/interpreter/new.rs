@@ -1,3 +1,4 @@
+use another_jit_vm_ir::WasException;
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -5,7 +6,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle};
 use crate::class_loading::{check_resolved_class};
-use crate::interpreter::{PostInstructionAction, WasException};
+use crate::interpreter::{PostInstructionAction};
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter_util::new_object;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_new_array_impl;

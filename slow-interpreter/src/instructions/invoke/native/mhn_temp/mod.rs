@@ -13,7 +13,7 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::field::Field;

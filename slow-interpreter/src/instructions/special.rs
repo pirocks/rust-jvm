@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::sync::Arc;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::interface_view::InterfaceView;
 use jvmti_jni_bindings::jint;
@@ -8,7 +9,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
-use crate::interpreter::{PostInstructionAction, WasException};
+use crate::interpreter::{PostInstructionAction};
 use crate::java_values::{GcManagedObject};
 use crate::java_values::Object::{Array, Object};
 use runtime_class_stuff::RuntimeClass;

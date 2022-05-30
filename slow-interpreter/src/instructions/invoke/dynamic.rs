@@ -10,7 +10,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java::lang::class::JClass;
 use crate::java::lang::invoke::lambda_form::LambdaForm;
 use crate::java::lang::invoke::method_handle::MethodHandle;

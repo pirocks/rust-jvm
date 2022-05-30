@@ -26,13 +26,14 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
-use crate::interpreter::{run_function, WasException};
+use crate::interpreter::{run_function};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;

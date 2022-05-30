@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::class_loader::ClassLoader;
 use slow_interpreter::java::NewAsObjectOrJavaValue;

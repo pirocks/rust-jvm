@@ -3,7 +3,7 @@
 #![allow(non_snake_case)]
 
 use runtime_class_stuff::ClassStatus;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 //all of these functions should be implemented in libjvm
 use crate::java_values::JavaValue;

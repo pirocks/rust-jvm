@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, RwLockWriteGuard};
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::RuntimeClass;
@@ -8,7 +9,7 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
+use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 

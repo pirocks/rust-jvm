@@ -637,6 +637,7 @@ dependencies = [
 name = "jvm"
 version = "0.1.0"
 dependencies = [
+ "another-jit-vm-ir",
  "argparse",
  "by_address",
  "classfile-parser",

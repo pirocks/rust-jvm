@@ -24,7 +24,7 @@ use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;

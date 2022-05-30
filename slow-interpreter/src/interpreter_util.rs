@@ -7,7 +7,7 @@ use rust_jvm_common::compressed_classfile::names::MethodName;
 use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::{default_value, JavaValue};
 use runtime_class_stuff::RuntimeClass;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;

@@ -11,7 +11,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};

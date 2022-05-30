@@ -7,7 +7,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
 use crate::instructions::invoke::special::invoke_special_impl;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;

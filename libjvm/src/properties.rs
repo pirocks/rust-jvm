@@ -7,7 +7,7 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::JavaValue;

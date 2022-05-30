@@ -1,5 +1,6 @@
 pub mod method_type {
     use std::sync::Arc;
+    use another_jit_vm_ir::WasException;
 
     use jvmti_jni_bindings::jint;
     use runtime_class_stuff::RuntimeClass;
@@ -8,7 +9,6 @@ pub mod method_type {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
     use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
     use crate::java::lang::class_loader::ClassLoader;
@@ -254,12 +254,12 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
     use crate::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::java::lang::invoke::method_type::MethodType;
@@ -349,7 +349,7 @@ pub mod method_handles {
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::interpreter::WasException;
+        use another_jit_vm_ir::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::class::JClass;
         use crate::java::lang::invoke::method_handle::MethodHandle;
@@ -455,7 +455,7 @@ pub mod lambda_form {
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::interpreter::WasException;
+        use another_jit_vm_ir::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java::lang::invoke::method_type::MethodType;
         use crate::java::lang::member_name::MemberName;
@@ -726,7 +726,7 @@ pub mod call_site {
 
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::instructions::invoke::virtual_::invoke_virtual;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::invoke::method_handle::MethodHandle;
     use crate::java_values::{GcManagedObject, JavaValue};

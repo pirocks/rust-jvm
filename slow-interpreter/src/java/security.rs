@@ -33,7 +33,7 @@ pub mod access_control_context {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::security::protection_domain::ProtectionDomain;

@@ -2,6 +2,7 @@ use std::ptr::null_mut;
 
 use by_address::ByAddress;
 use itertools::Itertools;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -12,7 +13,6 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
-use slow_interpreter::interpreter::WasException;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::java_values::{JavaValue, Object};

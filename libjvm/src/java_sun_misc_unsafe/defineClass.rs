@@ -10,7 +10,7 @@ use jvmti_jni_bindings::{jbyteArray, jclass, jint, jio_fprintf, JNIEnv, jobject,
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::NewJavaValueHandle;

@@ -9,7 +9,7 @@ use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_initing_or_inited_class;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::ArrayObject;
 use crate::utils::{lookup_method_parsed, throw_npe_res};
 

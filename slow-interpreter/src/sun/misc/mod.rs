@@ -6,7 +6,7 @@ pub mod unsafe_ {
 
     use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::java::lang::reflect::field::Field;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::runtime_class::static_vars;
@@ -51,7 +51,7 @@ pub mod launcher {
     use crate::AllocatedHandle;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::jvm_state::JVMState;
@@ -95,7 +95,7 @@ pub mod launcher {
         use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
         use crate::class_loading::check_initing_or_inited_class;
-        use crate::interpreter::WasException;
+        use another_jit_vm_ir::WasException;
         use crate::interpreter_state::InterpreterStateGuard;
         use crate::java_values::{GcManagedObject, JavaValue};
         use crate::jvm_state::JVMState;

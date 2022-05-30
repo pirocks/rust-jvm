@@ -12,7 +12,7 @@ use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;

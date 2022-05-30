@@ -14,7 +14,7 @@ use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descript
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::boolean::Boolean;
 use slow_interpreter::java::lang::byte::Byte;

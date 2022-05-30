@@ -23,7 +23,7 @@ use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::{JVMState};

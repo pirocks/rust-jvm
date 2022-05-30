@@ -5,7 +5,7 @@ pub mod throwable {
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
@@ -69,7 +69,7 @@ pub mod stack_trace_element {
 
     use crate::{AllocatedHandle, NewJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -127,7 +127,7 @@ pub mod member_name {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
@@ -304,7 +304,7 @@ pub mod class {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
@@ -430,7 +430,7 @@ pub mod class_loader {
     use crate::AllocatedHandle;
 
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
@@ -520,7 +520,7 @@ pub mod string {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, UnAllocatedObject};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
@@ -727,7 +727,7 @@ pub mod thread {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
@@ -911,7 +911,7 @@ pub mod thread_group {
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
@@ -1022,7 +1022,7 @@ pub mod class_not_found_exception {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::string::JString;
@@ -1069,7 +1069,7 @@ pub mod null_pointer_exception {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -1105,7 +1105,7 @@ pub mod array_out_of_bounds_exception {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1138,7 +1138,7 @@ pub mod illegal_argument_exception {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java_values::{JavaValue};
@@ -1191,7 +1191,7 @@ pub mod long {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1248,7 +1248,7 @@ pub mod int {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{ JavaValue};
@@ -1308,7 +1308,7 @@ pub mod short {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1366,7 +1366,7 @@ pub mod byte {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1423,7 +1423,7 @@ pub mod boolean {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1481,7 +1481,7 @@ pub mod char {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1539,7 +1539,7 @@ pub mod float {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1597,7 +1597,7 @@ pub mod double {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter::WasException;
+    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};

@@ -1,5 +1,6 @@
 use std::borrow::{Borrow};
 use std::sync::Arc;
+use another_jit_vm_ir::WasException;
 
 
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -11,7 +12,7 @@ use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::special::{instance_of_exit_impl_impl_impl};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::interpreter::single_instruction::run_single_instruction;
+use crate::interpreter::single_instruction::{run_single_instruction};
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition};
 use crate::java_values::native_to_new_java_value;
@@ -39,8 +40,7 @@ pub mod switch;
 pub mod pop;
 pub mod throw;
 
-#[derive(Clone, Copy, Debug)]
-pub struct WasException;
+
 
 
 pub struct FrameToRunOn {
@@ -53,7 +53,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
-    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 100000000000000 {
+    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 1 {
         let view = interpreter_state.current_class_view(jvm).clone();
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
@@ -64,7 +64,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
         if !jvm.instruction_trace_options.partial_tracing() {
             // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
         }
-        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id);
+        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id)?;
         // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
         //todo bug what if gc happens here
@@ -76,6 +76,9 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
             CompressedParsedDescriptorType::VoidType => None,
             return_type => {
                 let native_value = NativeJavaValue { as_u64: function_res };
+                /*unsafe {
+                    eprintln!("{:X}",native_value.as_u64);
+                }*/
                 Some(native_to_new_java_value(native_value, *return_type, jvm))
             }
         })
@@ -113,6 +116,12 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
+        // assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
+        if !(real_interpreter_state.current_stack_depth_from_start <= code.max_stack) {
+            dbg!(method.name().0.to_str(&jvm.string_pool));
+            dbg!(method.classview().name().unwrap_name().0.to_str(&jvm.string_pool));
+            panic!()
+        }
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;
@@ -122,6 +131,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
+                assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,
                     end_pc,
@@ -129,7 +139,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                     catch_type
                 } in code.exception_table.iter() {
                     let rc = real_interpreter_state.inner().throw().unwrap().runtime_class(jvm);
-
+                    // dump_frame(&mut real_interpreter_state,&method,code);
                     if *start_pc <= current_offset && current_offset < *end_pc{
                         let matches_class = match catch_type {
                             None => true,
@@ -141,6 +151,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                             current_offset = *handler_pc;
                             let throw_obj = real_interpreter_state.inner().throw().unwrap().duplicate_discouraged().new_java_handle();
                             real_interpreter_state.inner().set_throw(None);
+                            real_interpreter_state.current_stack_depth_from_start = 0;
                             real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
                             continue 'outer
                         }

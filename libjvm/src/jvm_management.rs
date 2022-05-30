@@ -11,7 +11,7 @@ use wtf8::Wtf8Buf;
 
 use jmm_bindings::jmmInterface_1_;
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
-use slow_interpreter::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;

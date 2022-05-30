@@ -8,7 +8,7 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
 use crate::jvm_state::{Classes, JVMState};
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};

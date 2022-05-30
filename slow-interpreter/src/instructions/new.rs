@@ -2,7 +2,7 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
 use crate::class_loading::{check_resolved_class};
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::java_values::{JavaValue};
 use crate::new_java_values::NewJavaValueHandle;
 

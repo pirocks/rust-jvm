@@ -8,7 +8,7 @@ use libc::{memset, rand};
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
-use another_jit_vm_ir::IRVMExitAction;
+use another_jit_vm_ir::{IRVMExitAction, WasException};
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::ResolvedInterfaceVTableEntry;
@@ -24,7 +24,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
-use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
+use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::native::run_native_method;
@@ -636,7 +636,12 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         let method_i = current_frame.method_i(jvm);
         let method_view = view.method_view_i(method_i);
         if let Some(code) = method_view.code_attribute() {
-            let current_pc = current_frame.pc(jvm);
+            let current_pc = match current_frame.try_pc(jvm){
+                None => {
+                    return IRVMExitAction::Exception{ throwable: throwable.normal_object.ptr }
+                }
+                Some(current_pc) => current_pc
+            };
             for CompressedExceptionTableElem {
                 start_pc,
                 end_pc,

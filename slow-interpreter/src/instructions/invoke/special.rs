@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use itertools::Itertools;
+use another_jit_vm_ir::WasException;
 
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
@@ -10,7 +11,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::{setup_virtual_args2};
-use crate::interpreter::{PostInstructionAction, run_function, WasException};
+use crate::interpreter::{PostInstructionAction, run_function};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;

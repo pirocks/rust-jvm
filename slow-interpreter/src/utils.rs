@@ -11,7 +11,7 @@ use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::boolean::Boolean;
 use crate::java::lang::byte::Byte;
@@ -27,20 +27,41 @@ use crate::new_java_values::{ NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
+    // dbg!(class.view().name().unwrap_name().0.to_str(&jvm.string_pool));
     lookup_method_parsed_impl(jvm, class, name, descriptor)
 }
 
 pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     let view = class.view();
+    // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
     let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| if m.is_signature_polymorphic() { true } else { m.desc() == descriptor }).collect::<Vec<_>>();
     assert!(filtered.len() <= 1);
     match filtered.iter().next() {
         None => {
-            let class_name = class.view().super_name().unwrap(); //todo is this unwrap safe?
+            let class_name = match class.view().super_name() {
+                Some(x) => x,
+                None => {
+                    // dbg!(name.0.to_str(&jvm.string_pool));
+                    // dbg!(descriptor.jvm_representation(&jvm.string_pool));
+                    // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
+                    return None
+                },
+            }; //todo is this unwrap safe?
             let lookup_type = CPDType::Class(class_name);
             let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
-            lookup_method_parsed_impl(jvm, super_class, name, descriptor)
+            match lookup_method_parsed_impl(jvm, super_class, name, descriptor){
+                None => {
+                    for interface in class.view().interfaces() {
+                        let interface_class = assert_inited_or_initing_class(jvm,interface.interface_name().into());
+                        if let Some(res) = lookup_method_parsed_impl(jvm, interface_class, name, descriptor) {
+                            return Some(res)
+                        }
+                    }
+                    None
+                }
+                Some(res) => Some(res)
+            }
         }
         Some(method_view) => Some((method_view.method_i(), class.clone())),
     }

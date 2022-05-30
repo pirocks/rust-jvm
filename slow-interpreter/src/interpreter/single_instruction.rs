@@ -16,7 +16,7 @@ use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmp
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2f, l2i};
-use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1};
+use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::interpreter::fields::{get_field, get_static, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
@@ -42,8 +42,12 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
     // if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
-    //     dump_frame(interpreter_state, method, code);
-    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) =="com/google/common/collect/StandardTable" &&
+    //     method.name().0.to_str(&jvm.string_pool) == "put"
+    //     {
+        dump_frame(interpreter_state, method, code);
+        eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     match instruct {
@@ -104,7 +108,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::dsub => dsub(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup => dup(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup_x2 => dup_x2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(),current_pc),
         // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),

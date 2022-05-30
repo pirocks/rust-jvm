@@ -36,7 +36,7 @@ use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::interpreter_util::new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;

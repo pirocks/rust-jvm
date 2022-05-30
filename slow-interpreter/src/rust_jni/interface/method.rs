@@ -6,7 +6,7 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::interpreter::WasException;
+use another_jit_vm_ir::WasException;
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::rust_jni::native_util::{from_jclass, get_interpreter_state, get_state};
 

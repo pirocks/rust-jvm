@@ -41,6 +41,9 @@ pub mod ir_stack;
 pub mod ir_to_native;
 
 
+#[derive(Clone, Copy, Debug)]
+pub struct WasException;
+
 pub struct IRVMStateInner<'vm, ExtraData: 'vm> {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
@@ -127,6 +130,9 @@ pub enum IRVMExitAction {
         //todo major abstraction leak
         diff: SavedRegistersWithIPDiff
     },
+    Exception {
+        throwable: NonNull<c_void>//todo gc handle this
+    }
 }
 
 impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
@@ -193,7 +199,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> u64 {
+    pub fn run_method<'g, 'l, 'f>(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -224,7 +230,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
                     let mut vm_exit_event = vm_exit_event;
                     vm_exit_event.indicate_okay_to_drop();
-                    return return_value;
+                    return Ok(return_value);
                 }
                 IRVMExitAction::RestartAtIndex { index: _ } => {
                     todo!()
@@ -237,6 +243,11 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                 }
                 IRVMExitAction::RestartWithRegisterState { diff } => {
                     launched_vm.return_to(vm_exit_event, diff)
+                }
+                IRVMExitAction::Exception{ throwable } => {
+                    let mut vm_exit_event = vm_exit_event;
+                    vm_exit_event.indicate_okay_to_drop();
+                    return Err(throwable)
                 }
             }
         }

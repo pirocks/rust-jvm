@@ -4,7 +4,7 @@ use std::mem::size_of;
 use std::sync::{Arc, RwLock};
 use another_jit_vm::code_modification::GlobalCodeEditingLock;
 use another_jit_vm::IRMethodID;
-use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState};
+use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, WasException};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
@@ -60,7 +60,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> u64 {
+    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> Result<u64,WasException> {
         // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         // let view = rc.view();
         // let method_view = view.method_view_i(method_i);
@@ -77,10 +77,17 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ());
+        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()){
+            Ok(res) => res,
+            Err(err_obj) => {
+                let obj = jvm.gc.register_root_reentrant(jvm,err_obj);
+                int_state.set_throw(Some(obj));
+                return Err(WasException{})
+            }
+        };
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
         // eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
-        res
+        Ok(res)
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
