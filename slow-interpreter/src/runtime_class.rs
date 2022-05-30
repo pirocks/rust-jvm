@@ -86,7 +86,7 @@ pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &'_ mut In
 
     for field in classfile.fields() {
         if field.is_static() {
-            let val = default_value(&field.field_type());
+            let val = default_value(field.field_type());
             res.set(field.field_name(), val);
         }
     }

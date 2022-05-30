@@ -194,7 +194,7 @@ impl CompressedParsedRefType {
         }
     }
 
-    pub fn to_cpdtype(&self) -> CPDType{
+    pub fn to_cpdtype(&self) -> CPDType {
         match *self {
             CompressedParsedRefType::Class(ccn) => CPDType::Class(ccn),
             CompressedParsedRefType::Array { base_type, num_nested_arrs } => CPDType::Array { base_type, num_nested_arrs }
@@ -475,11 +475,28 @@ impl CompressedParsedDescriptorType {
             num_nested_arrs: NonZeroU8::new(1).unwrap(),
         }
     }
+
+    pub fn n_nested_arrays(sub_type: Self, n: NonZeroU8) -> Self {
+        match sub_type {
+            CompressedParsedDescriptorType::BooleanType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::BooleanType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::ByteType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::ByteType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::ShortType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::ShortType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::CharType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::CharType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::IntType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::IntType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::LongType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::LongType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::FloatType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::FloatType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::DoubleType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::DoubleType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::VoidType => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::VoidType, num_nested_arrs: n },
+            CompressedParsedDescriptorType::Class(ccn) => CompressedParsedDescriptorType::Array { base_type: NonArrayCompressedParsedDescriptorType::Class(ccn), num_nested_arrs: n },
+            CompressedParsedDescriptorType::Array { base_type, num_nested_arrs } => CompressedParsedDescriptorType::Array { base_type, num_nested_arrs: NonZeroU8::new(n.get() + num_nested_arrs.get()).unwrap() },
+        }
+    }
+
     pub fn object() -> Self {
         Self::Class(CompressedClassName::object())
     }
 
-    pub fn is_double_or_long(&self) -> bool{
+    pub fn is_double_or_long(&self) -> bool {
         match self {
             CompressedParsedDescriptorType::BooleanType => false,
             CompressedParsedDescriptorType::ByteType => false,
@@ -653,7 +670,7 @@ impl Ord for CPDTypeOrderWrapper {
                 CPDType::VoidType => Ordering::Less,
                 CPDType::Class(ccn_other) => {
                     ccn.0.cmp(&ccn_other.0)
-                },
+                }
                 CPDType::Array { .. } => Ordering::Greater,
             }
             CPDType::Array { base_type: this_base_type, num_nested_arrs: this_num_nested_arrs } => match other.0 {
@@ -673,7 +690,7 @@ impl Ord for CPDTypeOrderWrapper {
                         Ordering::Equal => CPDTypeOrderWrapper(this_base_type.to_cpdtype()).cmp(&CPDTypeOrderWrapper(other_base_type.to_cpdtype())),
                         Ordering::Greater => Ordering::Greater
                     }
-                },
+                }
             }
         }
     }
@@ -716,7 +733,7 @@ impl CompressedMethodDescriptor {
     }
 
     pub fn count_local_vars_needed(&self) -> u16 {
-        self.arg_types.iter().map(|arg|{
+        self.arg_types.iter().map(|arg| {
             match arg {
                 CompressedParsedDescriptorType::BooleanType => 1,
                 CompressedParsedDescriptorType::ByteType => 1,

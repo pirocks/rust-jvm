@@ -389,7 +389,7 @@ impl<'gc> JVMState<'gc> {
         let fields_map_owned = (0..recursive_num_fields).map(|i| {
             let field_number = FieldNumber(i as u32);
             let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
-            let default_jv = default_value(&cpd_type);
+            let default_jv = default_value(*cpd_type);
             (field_number, default_jv)
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();

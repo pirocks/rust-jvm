@@ -325,7 +325,7 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         LoaderName::BootstrapLoader => NewJavaValueHandle::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
-        let fields_handles = JVMState::get_class_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(&type_))).collect::<Vec<_>>();
+        let fields_handles = JVMState::get_class_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(type_))).collect::<Vec<_>>();
         let fields = fields_handles.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
         let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: jvm.classes.read().unwrap().class_class.clone(), fields }));
         let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle.unwrap_normal_object());

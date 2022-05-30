@@ -39,7 +39,7 @@ fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: 
             };*/
             let name = field.field_name();
             let type_ = field.field_type();
-            let val = default_value(&type_);
+            let val = default_value(type_);
 
             object_pointer.set_var(current_class_pointer, field.field_name(), val.as_njv());
             // unsafe {

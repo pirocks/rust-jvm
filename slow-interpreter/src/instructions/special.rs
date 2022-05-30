@@ -27,6 +27,10 @@ pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDTyp
 
 pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: &'_ AllocatedHandle<'gc>) -> jint {
     let rc = obj.runtime_class(jvm);
+    instance_of_exit_impl_impl_impl(&jvm, instance_of_class_type, rc)
+}
+
+pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, rc: Arc<RuntimeClass>) -> jint {
     let actual_cpdtype = rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
         CompressedParsedRefType::Array { base_type: actual_base_type, num_nested_arrs: actual_num_nested_arrs } => {

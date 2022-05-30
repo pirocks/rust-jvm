@@ -13,6 +13,10 @@ pub enum InterpreterJavaValue {
 }
 
 impl InterpreterJavaValue {
+    pub fn null() -> Self{
+        Self::Object(None)
+    }
+
     pub fn from_raw(raw: u64, rtype: RuntimeType) -> Self {
         match rtype {
             RuntimeType::IntType => {
@@ -159,6 +163,8 @@ pub struct InterpreterFrame<'gc, 'l, 'k, 'j> {
 impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
     pub fn pop(&mut self, runtime_type: RuntimeType) -> InterpreterJavaValue {
         if self.inner.current_stack_depth_from_start < 1{
+            let jvm = self.inner.jvm;
+            self.inner.inner().debug_print_stack_trace(jvm);
             panic!()
         }
         self.inner.current_stack_depth_from_start -= 1;

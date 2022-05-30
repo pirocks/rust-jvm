@@ -147,7 +147,9 @@ pub fn invoke_static_impl<'l, 'gc>(
             Ok(res) => {
                 return Ok(res);
             }
-            Err(_) => todo!(),
+            Err(WasException{}) => {
+                return Err(WasException{})
+            },
         }
     }
 }

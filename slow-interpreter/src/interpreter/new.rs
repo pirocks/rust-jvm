@@ -3,11 +3,13 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{AllocatedHandle, check_initing_or_inited_class, JVMState, NewJavaValueHandle};
+use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle};
 use crate::class_loading::{check_resolved_class};
 use crate::interpreter::{PostInstructionAction, WasException};
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter_util::new_object;
+use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_new_array_impl;
+use crate::java_values::{default_value};
 
 pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, classname: CClassName)-> PostInstructionAction<'gc>  {
     let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), classname.into()) {
@@ -65,35 +67,20 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     }
 }
 
-// pub fn multi_a_new_array(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, dims: u8, type_: &CPDType) {
-//     if let Err(_) = check_resolved_class(jvm, int_state, type_.clone()) {
-//         return;
-//     };
-//     let mut dimensions = vec![];
-//     let mut unwrapped_type: CPDType = type_.clone();
-//     for _ in 0..dims {
-//         dimensions.push(int_state.current_frame_mut().pop(Some(RuntimeType::IntType)).unwrap_int());
-//     }
-//     for _ in 1..dims {
-//         unwrapped_type = unwrapped_type.unwrap_array_type().clone()
-//     }
-//     let mut current = JavaValue::null();
-//     let mut current_type = unwrapped_type;
-//     for len in dimensions {
-//         let next_type = CPDType::Ref(CPRefType::Array(box current_type));
-//         let mut new_vec = vec![];
-//         for _ in 0..len {
-//             new_vec.push(current.deep_clone(jvm))
-//         }
-//         drop(current);
-//         current = JavaValue::Object(
-//             jvm.allocate_object(Object::Array(match ArrayObject::new_array(jvm, int_state, new_vec, next_type.clone(), jvm.thread_state.new_monitor("monitor for a multi dimensional array".to_string())) {
-//                 Ok(arr) => arr,
-//                 Err(WasException {}) => return,
-//             }))
-//                 .into(),
-//         );
-//         current_type = next_type;
-//     }
-//     int_state.push_current_operand_stack(current);
-// }
+pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, dims: u8, type_: CPDType) -> PostInstructionAction<'gc>{
+    if let Err(_) = check_resolved_class(jvm, int_state.inner(), type_) {
+        return todo!();
+    };
+    let mut dimensions = vec![];
+    for _ in 0..dims {
+        dimensions.push(int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int());
+    }
+    dimensions.reverse();
+    let array_type = type_;
+    let elem_type = type_.unwrap_ref_type().recursively_unwrap_array_type();
+    let rc = check_initing_or_inited_class(jvm, int_state.inner(), array_type).unwrap();
+    let default = default_value(elem_type.to_cpdtype());
+    let res = multi_new_array_impl(jvm, rc.cpdtype(),dimensions.as_slice() ,default.as_njv());
+    int_state.current_frame_mut().push(res.to_interpreter_jv());
+    PostInstructionAction::Next {}
+}

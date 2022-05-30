@@ -4,10 +4,12 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 
 use crate::class_objects::get_or_create_class_object;
+use crate::instructions::special::{instance_of_exit_impl_impl_impl};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
@@ -34,6 +36,8 @@ pub mod arithmetic;
 pub mod cmp;
 pub mod wide;
 pub mod switch;
+pub mod pop;
+pub mod throw;
 
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;
@@ -49,7 +53,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
-    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 10000000000 {
+    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 100000000000000 {
         let view = interpreter_state.current_class_view(jvm).clone();
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
@@ -88,10 +92,10 @@ pub enum PostInstructionAction<'gc> {
     Return {
         res: Option<NewJavaValueHandle<'gc>>
     },
-    Exception{
+    Exception {
         exception: WasException
     },
-    Next{}
+    Next {},
 }
 
 pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
@@ -107,7 +111,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
-    loop {
+    'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
@@ -115,10 +119,34 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
-                return Ok(res)
+                return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
-                todo!()
+                for CompressedExceptionTableElem {
+                    start_pc,
+                    end_pc,
+                    handler_pc,
+                    catch_type
+                } in code.exception_table.iter() {
+                    let rc = real_interpreter_state.inner().throw().unwrap().runtime_class(jvm);
+
+                    if *start_pc <= current_offset && current_offset < *end_pc{
+                        let matches_class = match catch_type {
+                            None => true,
+                            Some(class_name) => {
+                                instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc) == 1
+                            }
+                        };
+                        if matches_class{
+                            current_offset = *handler_pc;
+                            let throw_obj = real_interpreter_state.inner().throw().unwrap().duplicate_discouraged().new_java_handle();
+                            real_interpreter_state.inner().set_throw(None);
+                            real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
+                            continue 'outer
+                        }
+                    }
+                }
+                return Err(WasException{})
             }
             PostInstructionAction::Next { .. } => {
                 current_offset.0 += current_instruct.instruction_size;

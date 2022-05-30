@@ -1252,7 +1252,7 @@ impl<'gc> Debug for NormalObject<'gc, '_> {
     }
 }
 
-pub fn default_value<'gc>(type_: &CPDType) -> NewJavaValueHandle<'gc> {
+pub fn default_value<'gc>(type_: CPDType) -> NewJavaValueHandle<'gc> {
     match type_ {
         CPDType::ByteType => NewJavaValueHandle::Byte(0),
         CPDType::CharType => NewJavaValueHandle::Char('\u{000000}' as u16),

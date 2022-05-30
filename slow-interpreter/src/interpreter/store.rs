@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-use std::fmt::Debug;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -79,7 +77,36 @@ pub fn aastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: Interpre
     generic_array_store::<u64>(current_frame, array_sub_type)
 }
 
-fn generic_array_store<'gc, 'l, 'k, 'j, T: TryFrom<u64>>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> where <T as TryFrom<u64>>::Error: Debug{
+trait CastFromU64{
+    fn cast(as_u64: u64) -> Self;
+}
+
+impl CastFromU64 for u64 {
+    fn cast(as_u64: u64) -> Self {
+        as_u64
+    }
+}
+
+impl CastFromU64 for u32 {
+    fn cast(as_u64: u64) -> Self {
+        as_u64 as u32
+    }
+}
+
+impl CastFromU64 for u16 {
+    fn cast(as_u64: u64) -> Self {
+        as_u64 as u16
+    }
+}
+
+impl CastFromU64 for u8 {
+    fn cast(as_u64: u64) -> Self {
+        as_u64 as u8
+    }
+}
+
+
+fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc>{
     let val = current_frame.pop(array_sub_type.to_runtime_type().unwrap()).to_raw();
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let arrar_ref_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {
@@ -89,7 +116,7 @@ fn generic_array_store<'gc, 'l, 'k, 'j, T: TryFrom<u64>>(mut current_frame: Inte
             /*return throw_npe(jvm, int_state);*/
         }
     };
-    let val = T::try_from(val).unwrap();
+    let val = T::cast(val);
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     unsafe {
         let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut T;

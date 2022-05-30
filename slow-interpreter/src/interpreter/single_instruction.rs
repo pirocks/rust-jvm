@@ -11,21 +11,23 @@ use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
 use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
 use crate::instructions::special::invoke_instanceof;
-use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lxor};
+use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2f, l2i};
-use crate::interpreter::dup::{dup, dup2, dup_x1};
+use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1};
 use crate::interpreter::fields::{get_field, get_static, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
-use crate::interpreter::new::{anewarray, new, newarray};
+use crate::interpreter::new::{anewarray, multi_a_new_array, new, newarray};
+use crate::interpreter::pop::pop2;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter::special::{arraylength, checkcast};
 use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dstore, fastore, fstore, iastore, istore, lastore, lstore, sastore};
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
+use crate::interpreter::throw::athrow;
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -65,7 +67,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::astore_1 => astore(jvm, interpreter_state.current_frame_mut(), 1),
         CInstructionInfo::astore_2 => astore(jvm, interpreter_state.current_frame_mut(), 2),
         CInstructionInfo::astore_3 => astore(jvm, interpreter_state.current_frame_mut(), 3),
-        // CInstructionInfo::athrow => athrow(jvm, interpreter_state),
+        CInstructionInfo::athrow => athrow(jvm, interpreter_state),
         CInstructionInfo::baload => baload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::bastore => bastore(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::bipush(b) => bipush(jvm, interpreter_state.current_frame_mut(), *b),
@@ -104,7 +106,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
         // CInstructionInfo::dup_x2 => dup_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
-        // CInstructionInfo::dup2_x1 => dup2_x1(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(),current_pc),
         // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
@@ -248,7 +250,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::lstore_2 => lstore(jvm, interpreter_state.current_frame_mut(), 2),
         CInstructionInfo::lstore_3 => lstore(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::lsub => lsub(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::lushr => lushr(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
@@ -260,7 +262,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             // interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
             PostInstructionAction::Next {}
         }
-        // CInstructionInfo::multianewarray { type_, dimensions } => multi_a_new_array(jvm, interpreter_state, dimensions.get(), type_),
+        CInstructionInfo::multianewarray { type_, dimensions } => multi_a_new_array(jvm, interpreter_state, dimensions.get(), *type_),
         CInstructionInfo::new(cn) => new(jvm, interpreter_state, *cn),
         CInstructionInfo::newarray(a_type) => newarray(jvm, interpreter_state, *a_type),
         CInstructionInfo::nop => {
@@ -270,7 +272,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             interpreter_state.current_frame_mut().pop(RuntimeType::LongType);
             PostInstructionAction::Next {}
         }
-        // CInstructionInfo::pop2 => pop2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::pop2 => pop2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(),current_pc),
         CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
         // CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), *local_var_index as u16),

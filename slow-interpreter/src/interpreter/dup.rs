@@ -69,37 +69,31 @@ pub fn dup2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mut c
     PostInstructionAction::Next {}
 }
 //
-// pub fn dup2_x1(jvm: &'gc JVMState<'gc>, method_id: MethodId, mut current_frame: StackEntryMut<'gc, 'l>) {
-//     let (rc, count) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-//     let current_pc = current_frame.to_ref().pc(jvm);
-//     let stack_frames = &jvm.function_frame_type_data.read().unwrap()[&method_id];
-//     let Frame { stack_map: OperandStack { data }, .. } = todo!(); //&stack_frames[&current_pc];
-//     let value1_vtype = data[0].clone();
-//     dbg!(&value1_vtype);
-//     let value1 = current_frame.pop(None); //in principle type doesn't matter todo pass it anyway
-//     match value1.to_type() {
-//         RuntimeType::LongType | RuntimeType::DoubleType => {
-//             let value2 = current_frame.pop(None);
-//             current_frame.push(value1.clone());
-//             current_frame.push(value2);
-//             current_frame.push(value1);
-//         }
-//         _ => {
-//             let value2 = current_frame.pop(None);
-//             let value3 = current_frame.pop(None);
-//             // match value2 {
-//             //     JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-//             //     _ => {}
-//             // };
-//             // match value3 {
-//             //     JavaValue::Long(_) | JavaValue::Double(_) => panic!(),
-//             //     _ => {}
-//             // };
-//             current_frame.push(value2.clone());
-//             current_frame.push(value1.clone());
-//             current_frame.push(value3);
-//             current_frame.push(value2);
-//             current_frame.push(value1);
-//         }
-//     }
-// }
+pub fn dup2_x1<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, current_pc: ByteCodeOffset)-> PostInstructionAction<'gc> {
+    let stack_frames = &jvm.function_frame_type_data.read().unwrap().no_tops[&method_id];
+    let category2 = &stack_frames[&current_pc].is_category_2_no_tops();
+    let value1_vtype = if category2[0] {
+        RuntimeType::LongType
+    } else {
+        RuntimeType::IntType
+    };
+    let value1 = current_frame.pop(RuntimeType::LongType); //in principle type doesn't matter todo pass it anyway
+    match value1_vtype {
+        RuntimeType::LongType | RuntimeType::DoubleType => {
+            let value2 = current_frame.pop(RuntimeType::LongType);
+            current_frame.push(value1.clone());
+            current_frame.push(value2);
+            current_frame.push(value1);
+        }
+        _ => {
+            let value2 = current_frame.pop(RuntimeType::LongType);
+            let value3 = current_frame.pop(RuntimeType::LongType);
+            current_frame.push(value2.clone());
+            current_frame.push(value1.clone());
+            current_frame.push(value3);
+            current_frame.push(value2);
+            current_frame.push(value1);
+        }
+    };
+    PostInstructionAction::Next {}
+}
