@@ -6,7 +6,7 @@ use rust_jvm_common::MethodId;
 
 use crate::JVMState;
 use crate::loading::Classpath;
-use crate::options::InstructionTraceOptions::{TraceNone};
+use crate::options::InstructionTraceOptions::{TraceAll, TraceNone};
 
 pub struct SharedLibraryPaths {
     pub(crate) libjava: OsString,
@@ -120,7 +120,10 @@ impl JVMOptions {
                 combined: "beg/a".to_string(),
             },*/
            MethodToTrace {
-               combined: "java/util/Map/put".to_string(),
+               combined: "java/util/ConcurrentHashMap/putVal".to_string(),
+           },
+           MethodToTrace {
+               combined: "java/util/ConcurrentHashMap/get".to_string(),
            },
         ].into_iter());*/
         let trace_options = TraceNone/*TraceMethods(trace_set)*/;

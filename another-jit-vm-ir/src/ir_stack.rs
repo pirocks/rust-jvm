@@ -51,7 +51,7 @@ impl<'k> OwnedIRStack {
 
     pub unsafe fn write_frame(&self, frame_pointer: *mut c_void, prev_rip: *const c_void, prev_rbp: *mut c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64]) {
         self.native.validate_frame_pointer(frame_pointer);
-        let prev_rip_ptr = frame_pointer.sub( FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
+        let prev_rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *mut *const c_void;
         prev_rip_ptr.write(prev_rip);
         let prev_rpb_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *mut *mut c_void;
         prev_rpb_ptr.write(prev_rbp);
@@ -207,9 +207,10 @@ impl<'l, 'h, 'vm, ExtraData: 'vm> Iterator for IRFrameIterRef<'l, 'h, 'vm, Extra
                 self.current_frame_ptr = None;
             } else {
                 let prev_ir_frame_ref = self.ir_stack.frame_at(res.prev_rbp());
-                let new_current_frame_size = prev_ir_frame_ref.frame_size(self.ir_vm_state);
-                if res.prev_rbp() != null_mut() {
-                    assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
+                if let Some(new_current_frame_size) = prev_ir_frame_ref.try_frame_size(self.ir_vm_state) {
+                    if res.prev_rbp() != null_mut() {
+                        assert_eq!(res.prev_rbp().offset_from(self.current_frame_ptr.unwrap()) as usize, new_current_frame_size);
+                    }
                 }
                 self.current_frame_ptr = Some(res.prev_rbp());
             }
@@ -274,14 +275,26 @@ impl IRFrameRef<'_> {
         res as *mut c_void
     }
 
-    pub fn frame_size<ExtraData>(&self, ir_vm_state: &IRVMState<ExtraData>) -> usize {
+    pub fn try_frame_size<ExtraData>(&self, ir_vm_state: &IRVMState<ExtraData>) -> Option<usize> {
         let ir_method_id = match self.ir_method_id() {
             Some(x) => x,
             None => {
-                return DEFAULT_FRAME_SIZE;
+                return None;
             }
         };
-        *ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap()
+        Some(*ir_vm_state.inner.read().unwrap().frame_sizes_by_ir_method_id.get(&ir_method_id).unwrap())
+    }
+
+
+    pub fn frame_size<ExtraData>(&self, ir_vm_state: &IRVMState<ExtraData>) -> usize {
+        match self.try_frame_size(ir_vm_state) {
+            None => {
+                return DEFAULT_FRAME_SIZE;
+            }
+            Some(res) => {
+                res
+            }
+        }
     }
 
     pub fn data(&self, index: usize) -> u64 {
@@ -370,8 +383,6 @@ pub struct UnPackedIRFrameHeader {
     // prev_rbp: *mut c_void,
     // prev_rip: *mut c_void,
 }
-
-
 
 
 unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {

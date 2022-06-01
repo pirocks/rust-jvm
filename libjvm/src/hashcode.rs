@@ -13,6 +13,7 @@ unsafe extern "system" fn JVM_IHashCode(env: *mut JNIEnv, obj: jobject) -> jint 
         return throw_npe(jvm, int_state);
     }
     let _64bit: u64 = object.unwrap().as_allocated_obj().raw_ptr_usize() as u64;
-    let hashcode = ((_64bit >> 32) as i32 ^ _64bit as i32);
-    hashcode
+    let hashcode = ((_64bit >> 32) as u32 ^ _64bit as u32);
+    hashcode as jint
+    //todo don't change without also changing intrinsics setup.
 }

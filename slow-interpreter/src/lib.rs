@@ -47,7 +47,7 @@ use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
-use crate::threading::JavaThread;
+use crate::threading::{JavaThread, ThreadState};
 
 pub mod function_call_targets_updating;
 pub mod java_values;
@@ -88,6 +88,8 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
+    ThreadState::debug_assertions(jvm,int_state, loader_obj);
+
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
     check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
@@ -116,7 +118,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
             todo!()
         }
     }
-    Result::Ok(())
+    Ok(())
 }
 
 fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {

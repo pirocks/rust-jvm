@@ -60,7 +60,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> Result<u64,WasException> {
+    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> Result<u64, WasException> {
         // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         // let view = rc.view();
         // let method_view = view.method_view_i(method_i);
@@ -77,12 +77,12 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()){
+        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()) {
             Ok(res) => res,
             Err(err_obj) => {
-                let obj = jvm.gc.register_root_reentrant(jvm,err_obj);
+                let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
                 int_state.set_throw(Some(obj));
-                return Err(WasException{})
+                return Err(WasException {});
             }
         };
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
@@ -165,6 +165,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId) {
         // let compile_guard = jvm.perf_metrics.compilation_start();
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
+            let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
+            dbg!(method_string);
             let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it| self.ir.lookup_ir_method_id_pointer(it));
             // let tsc_start = unsafe { _rdtsc() };
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
@@ -210,6 +212,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
+            // dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool));
+            // dbg!(full_frame_size);
             let (ir_method_id, restart_points, function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modication_lock.acquire());
             self.function_call_targets.write().unwrap().sink_targets(function_call_targets);
             let mut write_guard = self.inner.write().unwrap();
@@ -258,12 +262,13 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             if exiting_stack_pointer != mmaped_top {
                 let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
                 let frame_ref = int_state.current_frame().frame_view.ir_ref;
-                let expected_current_frame_size = frame_ref.frame_size(&jvm.java_vm_state.ir);
-                if offset != expected_current_frame_size {
-                    dbg!(offset);
-                    dbg!(expected_current_frame_size);
-                    dbg!(jvm.method_table.read().unwrap().lookup_method_string(frame_ref.method_id().unwrap(), &jvm.string_pool));
-                    panic!()
+                if let Some(expected_current_frame_size) = frame_ref.try_frame_size(&jvm.java_vm_state.ir) {
+                    if offset != expected_current_frame_size {
+                        dbg!(offset);
+                        dbg!(expected_current_frame_size);
+                        dbg!(jvm.method_table.read().unwrap().lookup_method_string(frame_ref.method_id().unwrap(), &jvm.string_pool));
+                        panic!()
+                    }
                 }
             }
         }

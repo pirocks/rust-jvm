@@ -29,6 +29,7 @@ use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::{InterpreterState};
 use crate::interpreter_util::{ new_object_full};
 use crate::invoke_interface::get_invoke_interface;
+use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
@@ -127,14 +128,15 @@ impl<'gc> ThreadState<'gc> {
         main_send
     }
 
-    fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>){
+    pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, loader_obj: ClassLoader<'gc>){
+        // dbg!("here");
+        // dbg!(loader_obj.hash_code(jvm, int_state).unwrap());
+        // dbg!(loader_obj.hash_code(jvm, int_state).unwrap());
+        // dbg!(loader_obj.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
+        // dbg!(loader_obj.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
         // let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
         // let res = jstring.hash_code(jvm, int_state).unwrap();
-        // assert_eq!(res, 111607186);
-        // let ptype = PType::Ref(ReferenceType::Class(ClassName::new("com/sun/org/apache/xerces/internal/dom/CoreDocumentImpl")));
-        // let _ = check_initing_or_inited_class(jvm,int_state,CPDType::from_ptype(&ptype, &jvm.string_pool)).unwrap();
         // let mut hash_map = ConcurrentHashMap::new(jvm, int_state);
-        // dbg!(hash_map.size_ctl(jvm));
         // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
         // let first_value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
         // hash_map.put_if_absent(jvm, int_state, first_key.new_java_value(),first_value.new_java_value());
@@ -158,6 +160,13 @@ impl<'gc> ThreadState<'gc> {
         // }
         // dbg!(hash_map.size_ctl(jvm));
         // hash_map.debug_print_table(jvm);
+        // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("sun.misc.Launcher$AppClassLoader@18b4aac2".to_string())).unwrap();
+        // let first_value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
+        // hash_map.put_if_absent(jvm, int_state, first_key.new_java_value(), first_value.new_java_value());
+        // let res = hash_map.get(jvm, int_state, first_key.new_java_value());
+        // dbg!(res.unwrap_object().is_some());
+        // hash_map.debug_print_table(jvm);
+        // panic!()
         //print sizeCtl after put if absent
     }
 
@@ -181,7 +190,6 @@ impl<'gc> ThreadState<'gc> {
         let mut init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         let _old = int_state.register_interpreter_state_guard(jvm);
-        Self::debug_assertions(jvm,int_state);
         match run_function(&jvm, int_state, &mut init_frame_guard) {
             Ok(_) => {}
             Err(_) => todo!(),

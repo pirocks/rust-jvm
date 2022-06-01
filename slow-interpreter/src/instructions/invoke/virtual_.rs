@@ -51,6 +51,8 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
         args.push(NewJavaValueHandle::Top);
     }
 
+    // TODO MAKE INTERPRETER USE SAME AFTER INSTRUCTION EXITS
+
     let args = args.iter().map(|handle| handle.as_njv()).collect_vec();
     match invoke_virtual(jvm, int_state.inner(), method_name, expected_descriptor, args) {
         Ok(Some(res)) => {
@@ -88,7 +90,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     let target_method_i = target_method.method_i();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
     let method_resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
+    // jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     if target_method.is_signature_polymorphic() {
         let current_frame = interpreter_state.current_frame();
 

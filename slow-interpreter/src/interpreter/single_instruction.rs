@@ -28,6 +28,7 @@ use crate::interpreter::special::{arraylength, checkcast};
 use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dstore, fastore, fstore, iastore, istore, lastore, lstore, sastore};
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
+use crate::interpreter::wide::wide;
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -42,14 +43,18 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
     // if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
-    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) =="com/google/common/collect/StandardTable" &&
-    //     method.name().0.to_str(&jvm.string_pool) == "put"
-    //     {
-        dump_frame(interpreter_state, method, code);
-        eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // if /*method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) =="com/google/common/collect/StandardTable" &&*/
+    // method.name().0.to_str(&jvm.string_pool) == "get" || method.name().0.to_str(&jvm.string_pool) == "putVal"
+    // {
+    //     dump_frame(interpreter_state, method, code);
+    // interpreter_state.inner().set_current_pc(Some(current_pc));
+    // dump_frame_contents(jvm, interpreter_state.inner());
+    // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // interpreter_state.inner().set_current_pc(None);
     // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
@@ -110,7 +115,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup_x2 => dup_x2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
-        CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(),current_pc),
+        CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
@@ -276,7 +281,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             interpreter_state.current_frame_mut().pop(RuntimeType::LongType);
             PostInstructionAction::Next {}
         }
-        CInstructionInfo::pop2 => pop2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(),current_pc),
+        CInstructionInfo::pop2 => pop2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
         // CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), *local_var_index as u16),
@@ -286,7 +291,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), *val),
         // CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
+        CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {
             PostInstructionAction::Return { res: None }

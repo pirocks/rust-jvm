@@ -240,6 +240,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP as AddOnlyVecIDType)
     }
 
+    pub const fn concurrent_hash_map_node() -> Self {
+        Self::from_raw_id(JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE as AddOnlyVecIDType)
+    }
+
     pub const fn deprecated() -> Self {
         Self::from_raw_id(JAVA_LANG_DEPRECATED as AddOnlyVecIDType)
     }
@@ -287,6 +291,7 @@ enum PredefinedStrings {
     JAVA_UTIL_PROPERTIES,
     JAVA_UTIL_HASHTABLE,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
+    JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE,
     JAVA_LANG_DEPRECATED,
     JAVA_LANG_THREAD,
     JAVA_LANG_THREADGROUP,
@@ -420,6 +425,7 @@ enum PredefinedStrings {
     method_toString,
     method_initializeSystemClass,
     method_putIfAbsent,
+    method_get,
 }
 
 impl PredefinedStrings {
@@ -587,6 +593,8 @@ impl PredefinedStrings {
             field_val => "val".to_string(),
             JAVA_LANG_DEPRECATED => "java/lang/Deprecated".to_string(),
             method_equals => "equals".to_string(),
+            method_get => "get".to_string(),
+            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE => "java/util/concurrent/ConcurrentHashMap$Node".to_string()
         }
     }
 }
@@ -986,5 +994,8 @@ impl MethodName {
     }
     pub fn method_putIfAbsent() -> Self {
         Self::from_raw_id(method_putIfAbsent)
+    }
+    pub fn method_get() -> Self {
+        Self::from_raw_id(method_get)
     }
 }

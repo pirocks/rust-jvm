@@ -324,6 +324,7 @@ fn invoke_virtual_full<'gc>(
     let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), method_i);
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
+        //todo needs way to exit to interpreter
         jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     }
 
@@ -463,9 +464,6 @@ pub fn trace_instruction_before(jvm: &JVMState, method_id: MethodId, return_to_p
     let code = method_view.code_attribute().unwrap();
     let instr = code.instructions.get(&bytecode_offset).unwrap();
     eprintln!("Before:{:?} {}", instr.info.better_debug_string(&jvm.string_pool), bytecode_offset.0);
-    if instr.info.better_debug_string(&jvm.string_pool) == "invokevirtual:java/lang/Class/()Ljava/lang/String;/getName" {
-        dbg!("here");
-    }
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
     }

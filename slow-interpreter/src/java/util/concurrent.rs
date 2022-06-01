@@ -1,5 +1,4 @@
 pub mod concurrent_hash_map {
-
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
@@ -48,14 +47,25 @@ pub mod concurrent_hash_map {
                 return_type: CPDType::object(),
             };
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
-            let args = vec![todo!()/*self.normal_object*/, key, value];
+            let args = vec![self.normal_object.new_java_value(), key, value];
             let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_putIfAbsent(), &desc, args).unwrap();
             res.unwrap()
         }
 
-        pub fn debug_print_table(&self, jvm: &'gc JVMState<'gc>) {
+        pub fn get(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, key: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc>{
+            let desc = CMethodDescriptor {
+                arg_types: vec![CPDType::object()],
+                return_type: CPDType::object(),
+            };
+            let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
+            let args = vec![self.normal_object.new_java_value(), key];
+            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_get(), &desc, args).unwrap();
+            res.unwrap()
+        }
+
+        pub fn debug_print_table(&self, jvm: &'gc JVMState<'gc>) -> Option<()> {
             let table = self.table(jvm);
-            let nonnull = table.unwrap_object_nonnull();
+            let nonnull = table.unwrap_object()?;
             let array = nonnull.unwrap_array();
             for (i, njv) in array.array_iterator().enumerate() {
                 match njv.try_cast_concurrent_hash_map_node() {
@@ -63,19 +73,23 @@ pub mod concurrent_hash_map {
                         eprintln!("#{} None", i);
                     }
                     Some(node) => {
-                        let value = node.value(jvm).cast_string().unwrap();
-                        let key = node.key(jvm).cast_string().unwrap();
-                        eprintln!("#{} Key: {}, Value: {}", i, key.to_rust_string(jvm), value.to_rust_string(jvm));
+                        // let value = node.value(jvm).cast_string().unwrap();
+                        // let key = node.key(jvm).cast_string().unwrap();
+                        let raw_key = node.key(jvm).to_interpreter_jv().to_raw();
+                        let raw_value = node.value(jvm).to_interpreter_jv().to_raw();
+                        eprintln!("#{} Key: {:X}, Value: {:X}", i, raw_key, raw_value/*key.to_rust_string(jvm), value.to_rust_string(jvm)*/);
                     }
                 }
             }
+            Some(())
         }
     }
 
     pub mod node {
-        use rust_jvm_common::compressed_classfile::names::FieldName;
+        use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
         use crate::{AllocatedHandle, JVMState};
+        use crate::class_loading::assert_inited_or_initing_class;
         use crate::new_java_values::{NewJavaValueHandle};
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
@@ -101,11 +115,13 @@ pub mod concurrent_hash_map {
 
         impl<'gc> Node<'gc> {
             pub fn key(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-                self.normal_object.get_var_top_level(jvm, FieldName::field_key())
+                let rc = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map_node().into());
+                self.normal_object.get_var(jvm, &rc,FieldName::field_key())
             }
 
             pub fn value(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-                self.normal_object.get_var_top_level(jvm, FieldName::field_val())
+                let rc = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map_node().into());
+                self.normal_object.get_var(jvm, &rc,FieldName::field_val())
             }
         }
     }

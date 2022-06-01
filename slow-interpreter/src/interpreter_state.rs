@@ -253,7 +253,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 let ir_frame_push_guard = match frame {
                     StackEntryPush::Java { operand_stack, local_vars, method_id } => {
                         assert_eq!(jvm.num_local_var_slots(method_id) as usize, local_vars.len());
-                        let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
+                        let ir_method_id = jvm.java_vm_state.try_lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
                         for local_var in local_vars {
                             if let Some(Some(obj)) = local_var.try_unwrap_object_alloc(){
@@ -265,7 +265,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                             data.push(unsafe { jv.to_native().as_u64 });
                         }
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
-                        int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
+                        int_state.push_frame(top_level_exit_ptr.as_ptr(), ir_method_id, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
                         jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl{ jvm: jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ }, method_id);
@@ -326,6 +326,15 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { current_exited_pc, .. } => {
                 *current_exited_pc
+            }
+        }
+    }
+
+    pub fn set_current_pc(&mut self, pc: Option<ByteCodeOffset>) {
+        match self {
+            InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
+            InterpreterStateGuard::LocalInterpreterState { current_exited_pc, .. } => {
+                *current_exited_pc = pc;
             }
         }
     }

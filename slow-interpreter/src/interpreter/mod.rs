@@ -14,7 +14,7 @@ use crate::instructions::special::{instance_of_exit_impl_impl_impl};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::{run_single_instruction};
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition};
+use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
 use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
@@ -53,12 +53,14 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
-    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 1 {
+    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 100 {
         let view = interpreter_state.current_class_view(jvm).clone();
         let method = view.method_view_i(method_i);
         let code = method.code_attribute().unwrap();
         let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
+        let ir_method_id = jvm.java_vm_state.lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 });
+        interpreter_state.current_frame_mut().frame_view.ir_mut.set_ir_method_id(ir_method_id);
         interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
         assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
         if !jvm.instruction_trace_options.partial_tracing() {
@@ -109,19 +111,14 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let method = view.method_view_i(method_i);
     let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
+    // jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
     interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
-        // assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
-        if !(real_interpreter_state.current_stack_depth_from_start <= code.max_stack) {
-            dbg!(method.name().0.to_str(&jvm.string_pool));
-            dbg!(method.classview().name().unwrap_name().0.to_str(&jvm.string_pool));
-            panic!()
-        }
+        assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;

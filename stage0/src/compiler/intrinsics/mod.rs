@@ -38,10 +38,10 @@ pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &Nativ
             IRInstr::Const16bit { to: shift_amount, const_: 32 },
             IRInstr::ShiftRight {
                 res,
-                a: res,
+                a: shift_amount,
                 cl_aka_register_2: shift_amount,
                 size: Size::pointer(),
-                signed: BitwiseLogicType::Arithmetic,
+                signed: BitwiseLogicType::Logical,
             },
             IRInstr::BinaryBitXor {
                 res,
