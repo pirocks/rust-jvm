@@ -299,4 +299,8 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
     fn debug_checkcast_assertions(&self) -> bool {
         self.jvm.checkcast_debug_assertions
     }
+
+    fn compile_interpreted(&self, method_id: MethodId) -> bool {
+        self.jvm.config.compile_threshold > self.jvm.function_execution_count.function_instruction_count(method_id)
+    }
 }

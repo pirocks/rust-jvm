@@ -13,7 +13,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::instructions::special::{instance_of_exit_impl_impl_impl};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::{run_single_instruction};
-use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
+use crate::interpreter_state::{InterpreterStateGuard};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
 use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
@@ -41,52 +41,58 @@ pub mod pop;
 pub mod throw;
 
 
-
-
 pub struct FrameToRunOn {
     pub frame_pointer: JavaStackPosition,
     pub size: usize,
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, frame_guard: &mut FramePushGuard) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
-    if jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= 100 {
-        let view = interpreter_state.current_class_view(jvm).clone();
-        let method = view.method_view_i(method_i);
-        let code = method.code_attribute().unwrap();
-        let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
-        let ir_method_id = jvm.java_vm_state.lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 });
-        interpreter_state.current_frame_mut().frame_view.ir_mut.set_ir_method_id(ir_method_id);
-        interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
-        assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
-        if !jvm.instruction_trace_options.partial_tracing() {
-            // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
-        }
-        let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id)?;
-        // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
-        // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
-        //todo bug what if gc happens here
-        if !jvm.instruction_trace_options.partial_tracing() {
-            // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
-        }
-        let return_type = &method.desc().return_type;
-        Ok(match return_type {
-            CompressedParsedDescriptorType::VoidType => None,
-            return_type => {
-                let native_value = NativeJavaValue { as_u64: function_res };
-                /*unsafe {
-                    eprintln!("{:X}",native_value.as_u64);
-                }*/
-                Some(native_to_new_java_value(native_value, *return_type, jvm))
-            }
-        })
-    } else {
-        run_function_interpreted(&jvm, interpreter_state)
+    let view = interpreter_state.current_class_view(jvm).clone();
+    let method = view.method_view_i(method_i);
+    let code = method.code_attribute().unwrap();
+    let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
+    let compile_interpreted = !(jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= jvm.config.compile_threshold);
+
+    if !compile_interpreted{
+        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id,false);
     }
+
+    let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }){
+        None => {
+            jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
+            jvm.java_vm_state.lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })
+        }
+        Some(ir_method_id) => ir_method_id
+    };
+    interpreter_state.current_frame_mut().frame_view.ir_mut.set_ir_method_id(ir_method_id);
+    interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
+    assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
+
+    if !jvm.instruction_trace_options.partial_tracing() {
+        // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
+    }
+    let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id)?;
+    // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
+    // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
+    //todo bug what if gc happens here
+    if !jvm.instruction_trace_options.partial_tracing() {
+        // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
+    }
+    let return_type = &method.desc().return_type;
+    Ok(match return_type {
+        CompressedParsedDescriptorType::VoidType => None,
+        return_type => {
+            let native_value = NativeJavaValue { as_u64: function_res };
+            /*unsafe {
+                eprintln!("{:X}",native_value.as_u64);
+            }*/
+            Some(native_to_new_java_value(native_value, *return_type, jvm))
+        }
+    })
 }
 
 
@@ -104,15 +110,16 @@ pub enum PostInstructionAction<'gc> {
 }
 
 pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+    // eprintln!("{}",Backtrace::force_capture().to_string());
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
+    // eprintln!("Interpreted:{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool));
     let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-    // jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id);
-    interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
+    jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id,true);
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
@@ -137,24 +144,24 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 } in code.exception_table.iter() {
                     let rc = real_interpreter_state.inner().throw().unwrap().runtime_class(jvm);
                     // dump_frame(&mut real_interpreter_state,&method,code);
-                    if *start_pc <= current_offset && current_offset < *end_pc{
+                    if *start_pc <= current_offset && current_offset < *end_pc {
                         let matches_class = match catch_type {
                             None => true,
                             Some(class_name) => {
                                 instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc) == 1
                             }
                         };
-                        if matches_class{
+                        if matches_class {
                             current_offset = *handler_pc;
                             let throw_obj = real_interpreter_state.inner().throw().unwrap().duplicate_discouraged().new_java_handle();
                             real_interpreter_state.inner().set_throw(None);
                             real_interpreter_state.current_stack_depth_from_start = 0;
                             real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
-                            continue 'outer
+                            continue 'outer;
                         }
                     }
                 }
-                return Err(WasException{})
+                return Err(WasException {});
             }
             PostInstructionAction::Next { .. } => {
                 current_offset.0 += current_instruct.instruction_size;

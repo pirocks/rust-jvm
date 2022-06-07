@@ -3,16 +3,17 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::{Arc, RwLock};
 use another_jit_vm::code_modification::GlobalCodeEditingLock;
-use another_jit_vm::IRMethodID;
+use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, WasException};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
+use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use crate::{InterpreterStateGuard, JVMState, MethodResolverImpl};
 use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
-use stage0::compiler::{compile_to_ir, Labeler, native_to_ir};
+use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
@@ -78,7 +79,10 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         }
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
         let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()) {
-            Ok(res) => res,
+            Ok(res) => {
+                // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                res
+            }
             Err(err_obj) => {
                 let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
                 int_state.set_throw(Some(obj));
@@ -160,15 +164,15 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     }
 }
 
+//todo rework so that we always recompile but sometimes recompile to exit and interpret
 
 impl<'vm> JavaVMStateWrapper<'vm> {
-    pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId) {
+    pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId, interpreter_debug: bool ) {
         // let compile_guard = jvm.perf_metrics.compilation_start();
-        if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver) {
-            let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
-            dbg!(method_string);
+        // let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
+        // dbg!(method_string);
+        if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver, interpreter_debug) {
             let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it| self.ir.lookup_ir_method_id_pointer(it));
-            // let tsc_start = unsafe { _rdtsc() };
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
             // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
@@ -187,7 +191,29 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                         let method_table = jvm.method_table.read().unwrap();
                         JavaCompilerMethodAndFrameData::new(jvm.instruction_trace_options.should_trace(method_id, jvm), &method_table, &function_frame_data.no_tops.get(&method_id).unwrap(), method_id)
                     });
-                let ir_instructions_and_offsets = compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions, reserved_method_id);
+                let ir_instructions_and_offsets = if resolver.compile_interpreted(method_id) {
+                    recompile_conditions.add_condition(NeedsRecompileIf::Interpreted { method_id });
+                    vec![
+                        (ByteCodeOffset(0), IRInstr::IRStart {
+                            temp_register: Register(0),
+                            ir_method_id: reserved_method_id,
+                            method_id,
+                            frame_size: java_frame_data.full_frame_size(),
+                            num_locals: java_frame_data.local_vars,
+                        }),
+                        (ByteCodeOffset(0), IRInstr::VMExit2 { exit_type: IRVMExitType::RunInterpreted { method_id } }),
+                        (ByteCodeOffset(0), IRInstr::Return {
+                            return_val: Some(Register(0)),
+                            temp_register_1: Register(1),
+                            temp_register_2: Register(2),
+                            temp_register_3: Register(3),
+                            temp_register_4: Register(4),
+                            frame_size: java_frame_data.full_frame_size(),
+                        }),
+                    ]
+                } else {
+                    compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions, reserved_method_id)
+                };
                 let mut ir_instructions = vec![];
                 let mut ir_index_to_bytecode_pc = HashMap::new();
                 let mut bytecode_pc_to_start_ir_index = HashMap::new();
@@ -212,8 +238,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
-            // dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool));
-            // dbg!(full_frame_size);
             let (ir_method_id, restart_points, function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modication_lock.acquire());
             self.function_call_targets.write().unwrap().sink_targets(function_call_targets);
             let mut write_guard = self.inner.write().unwrap();
@@ -227,13 +251,16 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             self.function_call_targets.read().unwrap().update_target(method_id, new_address, self.modication_lock.acquire());
             if let Some(prev_address) = prev_address {
                 jvm.vtable.lock().unwrap().update_address(prev_address, new_address);
+                jvm.invoke_interface_lookup_cache.write().unwrap().update(method_id, ResolvedInterfaceVTableEntry {
+                    address: new_address,
+                    ir_method_id,
+                    method_id,
+                    new_frame_size: full_frame_size,
+                })
             }
             drop(write_guard);
-            // let tsc_end = unsafe { _rdtsc() };
-            // if tsc_end - tsc_start > 1_000_000{
-            //     dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-            // }
         }
+        assert!(!jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver, false));
     }
 
     #[inline(never)]

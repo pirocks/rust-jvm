@@ -46,7 +46,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
     let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
     let mut function_call_frame = interpreter_state.push_frame(next_entry);
-    match run_function(jvm, interpreter_state, &mut function_call_frame) {
+    match run_function(jvm, interpreter_state) {
         Ok(_) => {}
         Err(_) => todo!(),
     }

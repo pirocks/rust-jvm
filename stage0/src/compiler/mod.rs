@@ -102,12 +102,16 @@ impl RecompileConditions {
         }
     }
 
-    pub fn should_recompile<'gc>(&self, method_id: MethodId, method_resolver: &impl MethodResolver<'gc>) -> bool {
+    pub fn should_recompile<'gc>(&self, method_id: MethodId, method_resolver: &impl MethodResolver<'gc>, interpreter_debug: bool) -> bool {
         match self.conditions.get(&method_id) {
             None => {
                 return true;
             }
             Some(needs_recompiling) => {
+                if interpreter_debug {
+                    // dbg!(needs_recompiling);
+                    assert!(needs_recompiling.iter().any(|elem|matches!(elem,NeedsRecompileIf::Interpreted {..})))
+                }
                 for condition in needs_recompiling {
                     if condition.should_recompile(method_resolver) {
                         return true;
@@ -149,6 +153,9 @@ pub enum NeedsRecompileIf {
     ClassLoaded {
         class: CPDType
     },
+    Interpreted {
+        method_id: MethodId
+    },
 }
 
 impl NeedsRecompileIf {
@@ -163,6 +170,9 @@ impl NeedsRecompileIf {
             }
             NeedsRecompileIf::ClassLoaded { class } => {
                 method_resolver.lookup_type_inited_initing(class).is_some()
+            }
+            NeedsRecompileIf::Interpreted { method_id } => {
+                !method_resolver.compile_interpreted(*method_id)
             }
         }
     }

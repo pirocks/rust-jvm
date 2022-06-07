@@ -14,6 +14,7 @@
 #![feature(never_type)]
 #![feature(box_patterns)]
 #![feature(once_cell)]
+#![feature(backtrace)]
 
 
 extern crate core;
@@ -99,14 +100,14 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
     let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id,false);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
     let local_var_array = setup_program_args(&jvm, int_state, args);
     initial_local_var_array[0] = local_var_array.new_java_value();
     let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
-    let mut main_frame_guard = int_state.push_frame(stack_entry);
+    let main_frame_guard = int_state.push_frame(stack_entry);
     jvm.include_name_field.store(true, Ordering::SeqCst);
-    match run_function(&jvm, int_state, &mut main_frame_guard) {
+    match run_function(&jvm, int_state) {
         Ok(_) => {
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, main_frame_guard, false);

@@ -51,14 +51,14 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
 
     let method_i = clinit.method_i() as u16;
     let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id, false);
 
 
     let new_stack = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
 
     //todo these java frames may have to be converted to native?
-    let mut new_function_frame = int_state.push_frame(new_stack);
-    return match run_function(jvm, int_state, &mut new_function_frame) {
+    let new_function_frame = int_state.push_frame(new_stack);
+    return match run_function(jvm, int_state) {
         Ok(res) => {
             assert!(res.is_none());
             int_state.pop_frame(jvm, new_function_frame, true);

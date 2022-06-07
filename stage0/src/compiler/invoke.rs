@@ -62,8 +62,8 @@ pub fn invokespecial<'vm>(
                     //todo have restart point ids for matching same restart points
                     Either::Left(array_into_iter([restart_point_class_load, restart_point_function_address, exit_instr]))
                 }
-                Some((ir_method_id, address)) => {
-                    recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
+                Some((_ir_method_id, address)) => {
+                    // recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
                     let arg_from_to_offsets = virtual_and_special_arg_offsets(method_frame_data, &current_instr_data, descriptor);
                     Either::Right(array_into_iter([restart_point_class_load, restart_point_function_address, IRInstr::IRCall {
                         temp_register_1: Register(1),
@@ -134,8 +134,8 @@ pub fn invokestatic<'vm>(
                         restart_point_function_address,
                         exit_instr]))
                 }
-                Some((ir_method_id, address)) => {
-                    recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
+                Some((_ir_method_id, address)) => {
+                    // recompile_conditions.add_condition(NeedsRecompileIf::FunctionRecompiled { function_method_id: method_id, current_ir_method_id: ir_method_id });
                     Either::Right(array_into_iter([class_init_restart_point,
                         restart_point_function_address,
                         IRInstr::IRCall {

@@ -3,13 +3,15 @@ use std::ffi::c_void;
 use std::hash::Hash;
 
 use another_jit_vm::IRMethodID;
-use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
+use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
+use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction, WasException};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::{InterpreterStateGuard, JavaValue, JVMState};
+use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
 
@@ -161,10 +163,26 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::RunNativeStaticNew { method_id, return_to_ptr } => {
                 run_native_static_new(jvm, int_state, *method_id, *return_to_ptr)
             }
+            RuntimeVMExitInput::RunInterpreted { method_id, return_to_ptr } => {
+                let int_state = int_state.unwrap();
+                let expected_method_id = int_state.current_frame().frame_view.ir_ref.method_id();
+                assert_eq!(expected_method_id, Some(*method_id));
+                match run_function_interpreted(jvm, int_state) {
+                    Ok(res) => {
+                        let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
+                        saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw() as *const c_void);
+                        let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
+                        IRVMExitAction::RestartWithRegisterState { diff }
+                    }
+                    Err(WasException {}) => {
+                        IRVMExitAction::Exception {
+                            throwable: int_state.throw().unwrap().ptr
+                        }
+                    }
+                }
+            }
         }
     }
-
-
 }
 
 pub mod exit_impls;

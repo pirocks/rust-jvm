@@ -30,6 +30,7 @@ pub struct JavaCompilerMethodAndFrameData {
     pub(crate) layout: YetAnotherLayoutImpl,
     pub index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
     pub current_method_id: MethodId,
+    pub local_vars: usize
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -43,6 +44,7 @@ impl JavaCompilerMethodAndFrameData {
             layout: YetAnotherLayoutImpl::new(frames_no_tops, code),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
+            local_vars: code.max_locals as usize
         }
     }
 
@@ -60,6 +62,10 @@ impl JavaCompilerMethodAndFrameData {
 
     pub fn full_frame_size(&self) -> usize {
         self.layout.full_frame_size()
+    }
+
+    pub fn num_local_vars(&self) -> usize{
+        self.local_vars
     }
 }
 
@@ -170,4 +176,7 @@ pub trait MethodResolver<'gc> {
     fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber;
     fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask>;
     fn debug_checkcast_assertions(&self) -> bool;
+    // fn invocation_compilation_threshold(&self) -> u64;
+    // fn invocation_count(&self, method_id: MethodId) -> u64;
+    fn compile_interpreted(&self, method_id: MethodId) -> bool;
 }

@@ -3,7 +3,6 @@ use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use itertools::{Itertools};
 use libc::{memset, rand};
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -14,7 +13,7 @@ use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use jvmti_jni_bindings::{jint, jlong};
 use runtime_class_stuff::method_numbers::MethodNumber;
-use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -70,47 +69,19 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     let method_view = class_view.method_view_i(target_method_i);
     let method_name = method_view.name();
     let method_desc = method_view.desc();
+    let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     let read_guard = jvm.invoke_interface_lookup_cache.read().unwrap();
-    let res = match read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone()) {
+    let res = match read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone()){
         None => {
-            drop(read_guard);
             let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_name, method_desc).unwrap();
             let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
-            let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
-            jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id);
-            if jvm.is_native_by_method_id(resolved_method_id) {
-                let args_jv_handle = virtual_args_extract(jvm, method_desc.arg_types.as_slice(), object_ref);
-                match run_native_method(jvm, int_state, resolved_rc, resolved_method_i, args_jv_handle.iter().map(|handle| handle.as_njv()).collect_vec()) {
-                    Ok(res) => {
-                        if let Some(res) = res {
-                            unsafe { ((native_method_res) as *mut NativeJavaValue).write(res.as_njv().to_native()) }
-                        };
-                        if !jvm.instruction_trace_options.partial_tracing() {
-                            // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
-                        }
-                        let restart_address = jvm.java_vm_state.lookup_restart_point(caller_method_id, native_method_restart_point);
-                        return IRVMExitAction::RestartAtPtr { ptr: restart_address };
-                    }
-                    Err(WasException {}) => {
-                        todo!()
-                    }
-                }
-            } else {
-                let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
-                let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
-                let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
-                let resolved = ResolvedInterfaceVTableEntry {
-                    address,
-                    ir_method_id,
-                    method_id: resolved_method_id,
-                    new_frame_size,
-                };
-                jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
-                resolved
-            }
+            drop(read_guard);
+            jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id, false);
+            let resolved = resloved_entry_from_method_id(jvm, resolver, resolved_method_id);
+            jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
+            resolved
         }
         Some(resolved) => {
-            drop(read_guard);
             resolved
         }
     };
@@ -125,12 +96,24 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     }
 }
 
+fn resloved_entry_from_method_id(jvm: &JVMState, resolver: MethodResolverImpl, resolved_method_id: MethodTableIndex) -> ResolvedInterfaceVTableEntry {
+    let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
+    let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
+    let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
+    let resolved = ResolvedInterfaceVTableEntry {
+        address,
+        ir_method_id,
+        method_id: resolved_method_id,
+        new_frame_size,
+    };
+    resolved
+}
+
 #[inline(never)]
 pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, res_ptr: *mut c_void, arg_start: *const c_void, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("RunNativeSpecial");
     }
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let class_view = rc.view();
     let method_view = class_view.method_view_i(method_i);
@@ -325,28 +308,8 @@ fn invoke_virtual_full<'gc>(
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     if jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }).is_none() {
         //todo needs way to exit to interpreter
-        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
+        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id, false);
     }
-
-    {
-        // let view = resolved_rc.view();
-        // let method_view = view.method_view_i(method_i);
-        // dbg!(method_view.name().0.to_str(&jvm.string_pool));
-        // dbg!(method_view.desc_str().to_str(&jvm.string_pool));
-        // dbg!(rc.view().name().jvm_representation(&jvm.string_pool));
-        // dbg!(resolved_rc.view().name().jvm_representation(&jvm.string_pool));
-        // assert_eq!(method_view.name(),name);
-        // assert_eq!(method_view.desc(),desc);
-
-        // dbg!(resolved_rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(5)).unwrap().to_jvm_representation(&jvm.string_pool));
-        // dbg!(resolved_rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(4)).unwrap().to_jvm_representation(&jvm.string_pool));
-        // dbg!(rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(5)).unwrap().to_jvm_representation(&jvm.string_pool));
-        // dbg!(rc.unwrap_class_class().method_numbers_reverse.get(&MethodNumber(4)).unwrap().to_jvm_representation(&jvm.string_pool));
-        // let resolved_method_number = resolved_rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
-        // let prior_method_number = rc.unwrap_class_class().method_numbers.get(&method_view.method_shape()).unwrap().clone();
-        // assert_eq!(resolved_method_number, prior_method_number);
-    }
-
 
     let ResolvedInvokeVirtual {
         address,
@@ -357,7 +320,7 @@ fn invoke_virtual_full<'gc>(
         }
         Err(NotCompiledYet { needs_compiling }) => {
             // let rc = assert_loaded_class(jvm, allocated_type.as_cpdtype());
-            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, needs_compiling);
+            jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, needs_compiling, false);
             // jvm.java_vm_state.add_method(jvm, &method_resolver, *debug_method_id);
             // jvm.java_vm_state.add_method(jvm, &method_resolver, method_id);
             dbg!(needs_compiling);
@@ -509,7 +472,7 @@ pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile done");
@@ -546,8 +509,8 @@ pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, int_
         eprintln!("CompileFunctionAndRecompileCurrent");
     }
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile);
-    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile, false);
+    jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
     IRVMExitAction::RestartAtPtr { ptr: restart_point }
 }
@@ -579,7 +542,7 @@ pub fn run_static_native<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpret
     }
     assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
     let args_new_jv = args_jv_handle.iter().map(|handle| handle.as_njv()).collect();
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id, false);
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {
@@ -634,9 +597,9 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         let method_i = current_frame.method_i(jvm);
         let method_view = view.method_view_i(method_i);
         if let Some(code) = method_view.code_attribute() {
-            let current_pc = match current_frame.try_pc(jvm){
+            let current_pc = match current_frame.try_pc(jvm) {
                 None => {
-                    return IRVMExitAction::Exception{ throwable: throwable.normal_object.ptr }
+                    return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
                 }
                 Some(current_pc) => current_pc
             };

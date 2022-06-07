@@ -129,12 +129,12 @@ pub enum IRInstr {
         target_address: IRCallTarget,
         current_frame_size: usize,
     },
-    IRStart{
+    IRStart {
         temp_register: Register,
         ir_method_id: IRMethodID,
         method_id: MethodId,
         frame_size: usize,
-        num_locals: usize
+        num_locals: usize,
     },
     NOP,
     DebuggerBreakpoint,
@@ -151,7 +151,7 @@ pub enum FloatCompareMode {
 pub enum IRCallTarget {
     Constant {
         address: *const c_void,
-        method_id: MethodId
+        method_id: MethodId,
     },
     Variable {
         address: Register,
@@ -261,6 +261,7 @@ impl IRInstr {
                     IRVMExitType::RunSpecialNativeNew { .. } => {
                         "RunSpecialNativeNew"
                     }
+                    IRVMExitType::RunInterpreted { .. } => { "RunInterpreted" }
                 })
             }
             IRInstr::NPECheck { .. } => {

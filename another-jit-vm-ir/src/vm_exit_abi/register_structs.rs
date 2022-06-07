@@ -456,3 +456,17 @@ impl ExitRegisterStruct for NPE {
         HashSet::from([Register(0), Self::JAVA_PC])
     }
 }
+
+
+pub struct RunInterpreted;
+
+impl RunInterpreted {
+    pub const METHOD_ID: Register = Register(2);
+    pub const RESTART_IP: Register = Register(3);
+}
+
+impl ExitRegisterStruct  for RunInterpreted {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::METHOD_ID, Self::RESTART_IP])
+    }
+}

@@ -14,7 +14,6 @@ use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::JavaValueCommon;
-use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
 use crate::new_java_values::NewJavaValueHandle;
@@ -57,7 +56,6 @@ pub unsafe fn call_static_method_impl<'gc>(env: *mut *const JNINativeInterface_,
     let parsed = method.desc();
     let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
     let res = invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {
         assert!(res.is_none());

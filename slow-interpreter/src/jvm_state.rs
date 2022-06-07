@@ -77,6 +77,7 @@ pub struct JVMConfig {
     pub assertions_enabled: bool,
     pub tracing: TracingSettings,
     pub main_class_name: CClassName,
+    pub compile_threshold: u64
 }
 
 pub struct Native {
@@ -287,6 +288,7 @@ impl<'gc> JVMState<'gc> {
                 compiled_mode_active: true,
                 tracing,
                 main_class_name,
+                compile_threshold: 100
             },
             properties,
             native_libaries: NativeLibraries::new(libjava),
