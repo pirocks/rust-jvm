@@ -167,7 +167,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 //todo rework so that we always recompile but sometimes recompile to exit and interpret
 
 impl<'vm> JavaVMStateWrapper<'vm> {
-    pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId, interpreter_debug: bool ) {
+    pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId, interpreter_debug: bool) {
         // let compile_guard = jvm.perf_metrics.compilation_start();
         // let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
         // dbg!(method_string);
@@ -175,7 +175,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it| self.ir.lookup_ir_method_id_pointer(it));
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();
             let mut recompile_conditions = recompilation_guard.recompile_conditions(method_id);
-            // eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            eprintln!("Re/Compile: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             //todo need some mechanism for detecting recompile necessary
             //todo unify resolver and recompile_conditions
             let is_native = jvm.is_native_by_method_id(method_id);
@@ -201,7 +201,9 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                             frame_size: java_frame_data.full_frame_size(),
                             num_locals: java_frame_data.local_vars,
                         }),
-                        (ByteCodeOffset(0), IRInstr::VMExit2 { exit_type: IRVMExitType::RunInterpreted { method_id } }),
+                        (ByteCodeOffset(0), IRInstr::VMExit2 {
+                            exit_type: IRVMExitType::RunInterpreted { method_id }
+                        }),
                         (ByteCodeOffset(0), IRInstr::Return {
                             return_val: Some(Register(0)),
                             temp_register_1: Register(1),

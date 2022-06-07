@@ -159,26 +159,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-public class DebuggingClass{
+public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        int x  = 0;
-        System.out.println(~(~x));
+        A.foo = 2;
+        System.out.println(B.foo);
     }
-
-    static {
-        System.out.println("foo");
-    }
-
 
 
     class A {
-        private void foo(){
-
-        }
+        static int foo = 1;
     }
-    class B extends  A{
-        public void foo(){
 
-        }
+    class B extends A {
+
     }
 }

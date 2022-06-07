@@ -11,7 +11,6 @@ use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle};
 use crate::class_loading::{assert_inited_or_initing_class};
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::interpreter::{PostInstructionAction};
-use crate::java_values::native_to_new_java_value;
 use crate::runtime_class::static_vars;
 
 //
@@ -27,7 +26,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     let mut entry_mut = int_state.current_frame_mut();
     let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let (field_number, _) = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name);
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name).number;
     let val = entry_mut.pop(field_type.to_runtime_type().unwrap());
     let object_ref = entry_mut.pop(RuntimeType::object());
     match object_ref {
@@ -76,8 +75,8 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
             return Ok(interface_lookup_res);
         }
     }
-    let temp = target_classfile.unwrap_class_class().static_vars.read().unwrap();
-    let attempted_get = temp.get(&field_name);
+   /* let temp = todo!()/*target_classfile.unwrap_class_class().static_vars.read().unwrap()*/;
+    let attempted_get = todo!()/*temp.get(&field_name)*/;
     let field_value = match attempted_get {
         None => {
             let possible_super = target_classfile.view().super_name();
@@ -90,12 +89,13 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
         }
         Some(val) => Some(native_to_new_java_value(val.clone().into(),cpdtype,jvm))
     };
-    Ok(field_value)
+    Ok(field_value)*/
+    todo!()
 }
 
 pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc>{
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let (field_number, _) = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name);
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name).number;
     let object_ref = current_frame.pop(RuntimeType::object());
     unsafe {
         match object_ref {

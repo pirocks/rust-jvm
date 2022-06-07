@@ -18,7 +18,7 @@ use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::{MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
-use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::{FieldNameAndFieldType, FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
@@ -83,9 +83,9 @@ impl<'gc> GC<'gc> {
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
                 assert!(arr.whole_array_runtime_class.cpdtype().is_array());
-                runtime_class_to_allocated_object_type(jvm,arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len()))
+                runtime_class_to_allocated_object_type(jvm, arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len()))
             }//todo loader name nonsense
-            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(jvm,obj.object_rc.clone(), LoaderName::BootstrapLoader, None),
+            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(jvm, obj.object_rc.clone(), LoaderName::BootstrapLoader, None),
         };
         let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
@@ -110,7 +110,7 @@ impl<'gc> GC<'gc> {
                     let array_base = allocated.as_ptr().offset(array_layout.elem_0_entry_offset() as isize);
                     assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
                     for (i, elem) in elems.into_iter().enumerate() {
-                        array_base.offset((i as isize)* array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
+                        array_base.offset((i as isize) * array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
                     }
                 }
             }
@@ -639,7 +639,7 @@ impl<'gc> JavaValue<'gc> {
 
         let class_class = runtime_class.unwrap_class_class();
 
-        let fields = class_class.field_numbers_reverse.iter().map(|(i, (_, cpd_type))| (*i, default_value_njv(cpd_type))).collect::<HashMap<_, _>>();
+        let fields = class_class.field_numbers_reverse.iter().map(|(i, FieldNameAndFieldType { cpdtype, .. })| (*i, default_value_njv(cpdtype))).collect::<HashMap<_, _>>();
 
         jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: runtime_class,
@@ -827,7 +827,7 @@ unsafe impl<'gc> Sync for Object<'gc, '_> {}
 impl<'gc, 'l> Object<'gc, 'l> {
     pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, s: FieldName) -> JavaValue<'gc> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let (field_number, cpdtype) = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
+        let FieldNumberAndFieldType { number: field_number, cpdtype } = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
             None => {
                 dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 dbg!(s.0.to_str(&jvm.string_pool));
@@ -1104,7 +1104,7 @@ pub struct NormalObject<'gc, 'l> {
 
 impl<'gc, 'l> NormalObject<'gc, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc>) {
-        let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         /*unsafe {
                                                                                                                                                     /*self.objinfo.fields[*field_index].get().as_mut()*/
                                                                                                                                                 }.unwrap() = jv.to_native();*/
@@ -1125,7 +1125,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
                 None => {
                     do_class_check = false;
                 }
-                Some((field_index, ptype)) => {
+                Some(FieldNumberAndFieldType { number: field_index, cpdtype: ptype }) => {
                     self.objinfo.fields.write().unwrap().get_mut(field_index.0 as usize).map(|set| *set = jv.to_native());
                     return;
                 }
@@ -1140,7 +1140,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
 
     pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, name: FieldName) -> JavaValue<'gc> {
         let name = name.into();
-        let (field_index, ptype) = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let FieldNumberAndFieldType{ .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         todo!()
         /*unsafe {
             self.objinfo.fields[*field_index].get().as_ref()
@@ -1228,7 +1228,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
     unsafe fn get_var_impl(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, name: FieldName, mut do_class_check: bool) -> JavaValue<'gc> {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
             match current_class_pointer.field_numbers.get(&name) {
-                Some((field_number, ptype)) => {
+                Some(_/*(field_number, ptype)*/) => {
                     todo!()
                     /*return self.objinfo.fields[*field_number].get().as_ref().unwrap().to_java_value(ptype.clone(), jvm);*/
                 }

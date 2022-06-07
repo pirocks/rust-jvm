@@ -10,8 +10,23 @@ use crate::RuntimeClass;
 pub struct FieldNumber(pub u32);
 
 pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
+    get_field_numbers_impl(class_view, parent, false)
+}
+
+pub fn get_field_numbers_static(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> (u32, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
+    get_field_numbers_impl(class_view, parent, true)
+}
+
+pub fn get_field_numbers_impl(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>, static_: bool) -> (u32, HashMap<FieldName, (FieldNumber, CompressedParsedDescriptorType)>) {
     let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
-    let field_numbers = class_view.fields().filter(|field| !field.is_static())
+    let field_numbers = class_view.fields().filter(|field| {
+        let is_static = field.is_static();
+        if static_ {
+            is_static
+        } else {
+            !is_static
+        }
+    })
         .map(|name| (name.field_name(), name.field_type()))
         .sorted_by_key(|(name, _ptype)| name.0)
         .enumerate()

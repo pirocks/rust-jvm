@@ -7,8 +7,7 @@ use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::{RuntimeClassClass};
-use runtime_class_stuff::field_numbers::FieldNumber;
+use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -64,12 +63,12 @@ pub fn putfield<'vm>(
                     class: cpd_type_id_obj,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
-                    java_pc: current_instr_data.current_offset
+                    java_pc: current_instr_data.current_offset,
                 }
             }]))
         }
         Some((rc, _)) => {
-            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
@@ -137,12 +136,12 @@ pub fn getfield<'vm>(
                     class: obj_cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
-                    java_pc: current_instr_data.current_offset
+                    java_pc: current_instr_data.current_offset,
                 }
             }]))
         }
         Some((rc, _)) => {
-            let (field_number, field_type) = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
             let offset = Register(3);
@@ -185,7 +184,7 @@ pub fn getfield<'vm>(
     }
 }
 
-pub fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldName) -> (FieldNumber, CPDType) {
+pub fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldName) -> FieldNumberAndFieldType {
     match rc.field_numbers.get(&name) {
         Some(x) => *x,
         None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),

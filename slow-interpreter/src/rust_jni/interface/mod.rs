@@ -20,8 +20,6 @@ use classfile_view::view::ptype_view::PTypeView;
 use java5_verifier::type_infer;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
 use runtime_class_stuff::{ClassStatus,  RuntimeClass, RuntimeClassClass};
-use runtime_class_stuff::field_numbers::get_field_numbers;
-use runtime_class_stuff::method_numbers::get_method_numbers;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -688,11 +686,9 @@ pub fn define_class_safe<'gc, 'l>(
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
-    let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &super_class);
-    let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &super_class, interfaces.as_slice());
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new(class_view.clone(), field_numbers, method_numbers, recursive_num_fields, recursive_num_methods, Default::default(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), static_var_types)
+        RuntimeClassClass::new_new(class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED))
     ));
     jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(), parsed.clone());
     let mut class_view_cache = HashMap::new();

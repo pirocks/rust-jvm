@@ -1,4 +1,3 @@
-import sun.invoke.util.ValueConversions;
 
 import javax.swing.*;
 import java.io.DataInputStream;
@@ -11,7 +10,6 @@ public class Swing {
     public static String another_test_var = "agagar";
 
     public static void main(String[] args) {
-        ValueConversions.cast();
         int i = 100000;
         while (i > 0) i--;
         int test_var  = -1;

@@ -23,7 +23,7 @@ use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
-use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
+use runtime_class_stuff::{ClassStatus, FieldNameAndFieldType, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -390,8 +390,8 @@ impl<'gc> JVMState<'gc> {
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
         let fields_map_owned = (0..recursive_num_fields).map(|i| {
             let field_number = FieldNumber(i as u32);
-            let (field_name, cpd_type) = field_numbers_reverse.get(&field_number).unwrap();
-            let default_jv = default_value(*cpd_type);
+            let FieldNameAndFieldType{ cpdtype,.. } = field_numbers_reverse.get(&field_number).unwrap();
+            let default_jv = default_value(*cpdtype);
             (field_number, default_jv)
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
@@ -426,7 +426,6 @@ impl<'gc> JVMState<'gc> {
             object_method_numbers,
             0,
             object_recursive_num_methods as u32,
-            RwLock::new(HashMap::new()),
             None,
             vec![],
             RwLock::new(ClassStatus::INITIALIZED),
@@ -439,7 +438,6 @@ impl<'gc> JVMState<'gc> {
             class_class_method_numbers,
             recursive_num_fields,
             class_recursive_num_methods,
-            static_vars,
             Some(temp_object_class),
             interfaces,
             status,
