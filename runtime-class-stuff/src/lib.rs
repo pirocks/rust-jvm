@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock};
@@ -144,7 +145,7 @@ pub struct RuntimeClassClass<'gc> {
     pub recursive_num_methods: u32,
     pub static_field_numbers: HashMap<FieldName, FieldNumberAndFieldType>,
     pub static_field_numbers_reverse: HashMap<FieldNumber, FieldNameAndFieldType>,
-    pub static_vars: Vec<NativeJavaValue<'gc>>,
+    pub static_vars: Vec<UnsafeCell<NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
     //class may not be prepared
@@ -206,7 +207,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             recursive_num_methods,
             static_field_numbers,
             static_field_numbers_reverse,
-            static_vars: (0..recursive_num_static_fields).map(|_|NativeJavaValue { as_u64: 0 }).collect(),
+            static_vars: (0..recursive_num_static_fields).map(|_|UnsafeCell::new(NativeJavaValue { as_u64: 0 })).collect(),
             parent,
             interfaces,
             status,

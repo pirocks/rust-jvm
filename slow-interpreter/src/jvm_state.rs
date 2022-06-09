@@ -408,7 +408,6 @@ impl<'gc> JVMState<'gc> {
         //todo turn this into a ::new
         let field_numbers = JVMState::get_class_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
-        let static_vars = Default::default();
         let interfaces = vec![];
         let status = ClassStatus::UNPREPARED.into();
         let recursive_num_fields = field_numbers.len() as u32;
@@ -419,29 +418,25 @@ impl<'gc> JVMState<'gc> {
             let class_method_number = class_class_method_numbers.get(object_method_shape).unwrap();
             assert_eq!(object_method_number, class_method_number);
         }
-        let object_class_static_var_types = get_static_var_types(object_class_view.deref());
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
             object_class_view,
-            HashMap::new(),
-            object_method_numbers,
             0,
-            object_recursive_num_methods as u32,
             None,
             vec![],
             RwLock::new(ClassStatus::INITIALIZED),
-            object_class_static_var_types,
+            HashMap::new(),
+            object_recursive_num_methods as u32,
+            object_method_numbers,
+            0,
+            HashMap::new(),
         )));
         let class_class_static_var_types = get_static_var_types(class_view.deref());
-        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
+        //todo Class does implement several interfaces, but non handled here
+        let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             class_view,
-            field_numbers,
-            class_class_method_numbers,
-            recursive_num_fields,
-            class_recursive_num_methods,
             Some(temp_object_class),
             interfaces,
-            status,
-            class_class_static_var_types,
+            status
         )));
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));

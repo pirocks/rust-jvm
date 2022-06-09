@@ -8,7 +8,7 @@ use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::jlong;
 
 
-use runtime_class_stuff::{RuntimeClass};
+use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
@@ -163,7 +163,7 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     }
 
     pub fn set_var<'any>(&self, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName, val: NewJavaValue<'gc, 'any>) {
-        let field_number = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().0;
+        let field_number = current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap().number;
         unsafe {
             self.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
         }
@@ -175,8 +175,8 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     }
 
     pub fn get_var(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
-        let (field_number, desc_type) = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
-        self.raw_get_var(jvm, *field_number, *desc_type)
+        let FieldNumberAndFieldType{ number, cpdtype }  = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
+        self.raw_get_var(jvm, *number, *cpdtype)
     }
 
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {

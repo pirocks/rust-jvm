@@ -75,8 +75,8 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
             return Ok(interface_lookup_res);
         }
     }
-   /* let temp = todo!()/*target_classfile.unwrap_class_class().static_vars.read().unwrap()*/;
-    let attempted_get = todo!()/*temp.get(&field_name)*/;
+    let temp = static_vars(target_classfile.deref(),jvm);
+    let attempted_get = temp.try_get(field_name);
     let field_value = match attempted_get {
         None => {
             let possible_super = target_classfile.view().super_name();
@@ -87,10 +87,9 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
                 }
             }
         }
-        Some(val) => Some(native_to_new_java_value(val.clone().into(),cpdtype,jvm))
+        Some(val) => Some(val)
     };
-    Ok(field_value)*/
-    todo!()
+    Ok(field_value)
 }
 
 pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc>{

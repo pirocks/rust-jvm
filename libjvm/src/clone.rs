@@ -7,7 +7,7 @@ use itertools::Itertools;
 use libc::time;
 
 use jvmti_jni_bindings::{JNIEnv, jobject};
-use runtime_class_stuff::{RuntimeClassClass};
+use runtime_class_stuff::{FieldNameAndFieldType, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::code::CompressedInstructionInfo::new;
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
@@ -57,8 +57,8 @@ pub fn copy_fields<'gc>(jvm: &'gc JVMState<'gc>, obj: &AllocatedNormalObjectHand
     if let Some(parent) = rc.parent.as_ref() {
         res.extend(copy_fields(jvm, obj, parent.unwrap_class_class()).into_iter());
     }
-    for (number, (name, type_)) in rc.field_numbers_reverse.iter() {
-        res.insert(*number, obj.raw_get_var(jvm, *number, *type_));
+    for (number, FieldNameAndFieldType{ name, cpdtype }) in rc.field_numbers_reverse.iter() {
+        res.insert(*number, obj.raw_get_var(jvm, *number, *cpdtype));
     }
     res
 }

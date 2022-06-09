@@ -1,13 +1,11 @@
-use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::{Arc, RwLockWriteGuard};
+use std::sync::{Arc};
 use another_jit_vm_ir::WasException;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use runtime_class_stuff::RuntimeClass;
+use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
-use rust_jvm_common::NativeJavaValue;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
 use crate::instructions::ldc::from_constant_pool_entry;
@@ -106,11 +104,10 @@ pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc
         RuntimeClass::Double => panic!(),
         RuntimeClass::Void => panic!(),
         RuntimeClass::Array(_) => panic!(),
-        RuntimeClass::Object(o) => {
+        RuntimeClass::Object(runtime_class_class) => {
             StaticVarGuard {
                 jvm,
-                data_guard: o.static_vars.write().unwrap(),
-                types: &o.static_var_types,
+                runtime_class_class,
             }
         }
         RuntimeClass::Top => panic!(),
@@ -119,15 +116,14 @@ pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc
 
 pub struct StaticVarGuard<'gc, 'l> {
     jvm: &'gc JVMState<'gc>,
-    data_guard: RwLockWriteGuard<'l, HashMap<FieldName, NativeJavaValue<'gc>>>,
-    types: &'l HashMap<FieldName, CPDType>,
+    runtime_class_class: &'l RuntimeClassClass<'gc>,
 }
 
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
-        let cpd_type = self.types.get(&name)?;
-        let native = *self.data_guard.get(&name)?;
-        Some(native_to_new_java_value(native, *cpd_type, self.jvm))
+        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
+        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().read() };
+        Some(native_to_new_java_value(native, cpd_type.cpdtype, self.jvm))
     }
 
     pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {
@@ -135,7 +131,12 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     }
 
     pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
-        // let cpd_type = self.types.get(&name).unwrap();
-        self.data_guard.insert(name, elem.to_native());
+        self.try_set(&name, elem).unwrap()
+    }
+
+    fn try_set(&mut self, name: &FieldName, elem: NewJavaValueHandle<'gc>) -> Option<()> {
+        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name).unwrap();
+        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().write(elem.to_native()); }
+        Some(())
     }
 }
