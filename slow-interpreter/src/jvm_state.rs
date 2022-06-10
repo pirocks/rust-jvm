@@ -19,8 +19,10 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, FieldNameAndFieldType, RuntimeClassClass};
@@ -120,7 +122,9 @@ pub struct JVMState<'gc> {
     pub perf_metrics: PerfMetrics,
     pub recompilation_conditions: RwLock<RecompileConditions>,
     pub known_addresses: KnownAddresses,
-    pub vtable: Mutex<VTables<'gc>>,
+    pub vtables: Mutex<VTables<'gc>>,
+    pub itables: Mutex<ITables<'gc>>,
+    pub interface_table: InterfaceTable<'gc>,
     pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
     pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
     pub string_exit_cache: RwLock<StringExitCache<'gc>>,
@@ -323,7 +327,9 @@ impl<'gc> JVMState<'gc> {
             perf_metrics: PerfMetrics::new(),
             recompilation_conditions: RwLock::new(RecompileConditions::new()),
             known_addresses: KnownAddresses::new(),
-            vtable: Mutex::new(VTables::new()),
+            vtables: Mutex::new(VTables::new()),
+            itables: Mutex::new(ITables::new()),
+            interface_table: InterfaceTable::new(),
             invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
             invoke_interface_lookup_cache: RwLock::new(InvokeInterfaceLookupCache::new()),
             string_exit_cache: RwLock::new(StringExitCache::new()),
@@ -384,7 +390,7 @@ impl<'gc> JVMState<'gc> {
     }
 
     pub fn add_class_class_class_object(&'gc self) {
-        let mut classes = self.classes.write().unwrap();
+        let classes = self.classes.read().unwrap();
         //todo desketchify this
         let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
         let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
@@ -396,7 +402,10 @@ impl<'gc> JVMState<'gc> {
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
 
-        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: classes.class_class.clone(), fields }));
+        let class_class = classes.class_class.clone();
+        drop(classes);
+        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: class_class, fields }));
+        let mut classes = self.classes.write().unwrap();
         let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
         let runtime_class = ByAddress(classes.class_class.clone());
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), runtime_class);

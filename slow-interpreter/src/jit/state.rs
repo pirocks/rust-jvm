@@ -18,6 +18,7 @@ pub struct Opaque {}
 
 
 pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_type: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
+    let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, ref_type.clone());
     match ref_type.deref() {
         RuntimeClass::Byte => panic!(),
         RuntimeClass::Boolean => panic!(),
@@ -29,7 +30,7 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
         RuntimeClass::Double => panic!(),
         RuntimeClass::Void => panic!(),
         RuntimeClass::Array(arr) => {
-            let object_vtable = jvm.vtable.lock().unwrap().lookup_or_new_vtable(assert_inited_or_initing_class(jvm, CClassName::object().into()));
+            let object_vtable = jvm.vtables.lock().unwrap().lookup_or_new_vtable(assert_inited_or_initing_class(jvm, CClassName::object().into()));
             let primitive_type = match arr.sub_class.deref() {
                 RuntimeClass::Byte => CompressedParsedDescriptorType::ByteType,
                 RuntimeClass::Boolean => CompressedParsedDescriptorType::BooleanType,
@@ -46,11 +47,12 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
                         len: arr_len.unwrap() as i32,
                         sub_type_loader: loader,
                         object_vtable,
+                        array_itable: itable
                     };
                 }
                 RuntimeClass::Top => panic!(),
             };
-            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() as i32, object_vtable }
+            AllocatedObjectType::PrimitiveArray { primitive_type, len: arr_len.unwrap() as i32, object_vtable, array_itable: itable }
         }
         RuntimeClass::Object(class_class) => {
             let layout = ObjectMemoryLayout::from_rc(class_class);
@@ -58,7 +60,8 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
                 size: layout.size(),
-                vtable: jvm.vtable.lock().unwrap().lookup_or_new_vtable(ref_type.clone()),
+                vtable: jvm.vtables.lock().unwrap().lookup_or_new_vtable(ref_type.clone()),
+                itable
             }
         }
         RuntimeClass::Top => panic!(),

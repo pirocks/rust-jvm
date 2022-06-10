@@ -10,6 +10,8 @@ use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 
 use runtime_class_stuff::RuntimeClass;
 
+pub mod interface_table;
+
 pub fn from_jmethod_id(jmethod: *mut _jmethodID) -> MethodId {
     jmethod as MethodId
 }

@@ -139,7 +139,9 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                         CPDType::Array { base_type: sub_type, num_nested_arrs } => {
                             drop(jvm.classes.write().unwrap());
                             let sub_class = check_loaded_class(jvm, int_state, sub_type.to_cpdtype())?;
-                            let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class }));
+                            let serializable = check_loaded_class(jvm, int_state, CClassName::serializable().into())?;
+                            let cloneable = check_loaded_class(jvm, int_state, CClassName::cloneable().into())?;
+                            let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable }));
                             let obj = create_class_object(jvm, int_state, None, loader)?.duplicate_discouraged();
                             jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj), ByAddress(res.clone()));
                             res
@@ -301,8 +303,10 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
         }
         CPDType::Array { base_type: sub_type, num_nested_arrs } => {
             let sub_class = check_resolved_class(jvm, int_state, ptype.unwrap_array_type())?;
+            let serializable = check_resolved_class(jvm, int_state, CClassName::serializable().into())?;
+            let cloneable = check_resolved_class(jvm, int_state, CClassName::cloneable().into())?;
             //todo handle class objects for arraus
-            (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class })))
+            (create_class_object(jvm, int_state, None, BootstrapLoader)?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable })))
         }
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));

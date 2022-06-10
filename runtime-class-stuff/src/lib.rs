@@ -121,6 +121,8 @@ impl<'gc> RuntimeClass<'gc> {
 #[derive(Debug)]
 pub struct RuntimeClassArray<'gc> {
     pub sub_class: Arc<RuntimeClass<'gc>>,
+    pub serializable: Arc<RuntimeClass<'gc>>,
+    pub cloneable: Arc<RuntimeClass<'gc>>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]

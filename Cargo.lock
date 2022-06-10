@@ -478,6 +478,7 @@ version = "0.1.0"
 dependencies = [
  "another-jit-vm",
  "iced-x86",
+ "interface-vtable",
  "itertools",
  "jvmti-jni-bindings",
  "libc",
@@ -593,6 +594,7 @@ dependencies = [
  "iced-x86",
  "itertools",
  "memoffset",
+ "method-table",
  "runtime-class-stuff",
  "rust-jvm-common",
 ]

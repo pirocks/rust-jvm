@@ -114,7 +114,6 @@ pub fn generate_vtable_access(
 
 pub struct VTables<'gc> {
     inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<RawNativeVTable>>,
-    //ref is leaked box
     resolved_to_entry: HashMap<NonNull<c_void>, Vec<(Arc<RuntimeClass<'gc>>, MethodNumber)>>,
 }
 

@@ -511,9 +511,7 @@ impl CompressedParsedDescriptorType {
             CompressedParsedDescriptorType::Array { .. } => false,
         }
     }
-}
 
-impl CompressedParsedDescriptorType {
     pub fn from_ptype(ptype: &PType, pool: &CompressedClassfileStringPool) -> Self {
         match ptype {
             PType::ByteType => Self::ByteType,

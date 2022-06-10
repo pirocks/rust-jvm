@@ -8,6 +8,7 @@ use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
 use memoffset::offset_of;
 
 use another_jit_vm::Register;
+use interface_vtable::ITable;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -18,9 +19,9 @@ use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
-    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable> },
-    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable> },
-    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable> },
+    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable>, itable: NonNull<ITable> },
+    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITable> },
+    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITable> },
     Raw { size: usize },
 }
 
@@ -32,6 +33,17 @@ impl AllocatedObjectType {
             }
             AllocatedObjectType::ObjectArray { object_vtable, .. } => Some(*object_vtable),
             AllocatedObjectType::PrimitiveArray { object_vtable, .. } => Some(*object_vtable),
+            AllocatedObjectType::Raw { .. } => None,
+        }
+    }
+
+    pub fn itable(&self) -> Option<NonNull<ITable>> {
+        match self {
+            AllocatedObjectType::Class { itable, .. } => {
+                Some(*itable)
+            }
+            AllocatedObjectType::ObjectArray { array_itable, .. } => Some(*array_itable),
+            AllocatedObjectType::PrimitiveArray { array_itable, .. } => Some(*array_itable),
             AllocatedObjectType::Raw { .. } => None,
         }
     }
@@ -90,6 +102,7 @@ pub struct RegionHeader {
     pub region_elem_size: usize,
     pub region_type: AllocatedTypeID,
     pub vtable_ptr: *mut RawNativeVTable,
+    pub itable_ptr: *mut ITable,
     region_header_magic_2: u32,
 }
 
@@ -284,6 +297,7 @@ impl MemoryRegions {
                 region_type: type_id,
                 vtable_ptr: to_allocate_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,
+                itable_ptr: to_allocate_type.itable().map(|itable| itable.as_ptr()).unwrap_or(null_mut())
             });
         }
         region_header_ptr
@@ -382,6 +396,10 @@ impl MemoryRegions {
 
     pub fn find_type_vtable(&self, ptr: NonNull<c_void>) -> Option<NonNull<RawNativeVTable>> {
         NonNull::new(self.find_object_region_header(ptr).vtable_ptr)
+    }
+
+    pub fn find_type_itable(&self, ptr: NonNull<c_void>) -> Option<NonNull<ITable>> {
+        NonNull::new(self.find_object_region_header(ptr).itable_ptr)
     }
 
 

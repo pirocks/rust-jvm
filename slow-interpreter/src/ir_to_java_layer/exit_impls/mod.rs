@@ -331,7 +331,7 @@ fn invoke_virtual_full<'gc>(
     let resolved_vtable_entry = VTableEntry {
         address: Some(NonNull::new(address as *mut c_void).unwrap()),
     };
-    jvm.vtable.lock().unwrap().vtable_register_entry(rc, method_number, resolved_vtable_entry);
+    jvm.vtables.lock().unwrap().vtable_register_entry(rc, method_number, resolved_vtable_entry);
     // jvm.vtable.lock().unwrap().vtable_register_entry(resolved_rc, method_number, resolved_vtable_entry,vtable_from_region);
 
     resolved_vtable_entry.resolved().unwrap()

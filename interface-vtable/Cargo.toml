@@ -9,6 +9,7 @@ edition = "2018"
 rust-jvm-common = { path = "../rust-jvm-common" }
 another-jit-vm = { path = "../another-jit-vm" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }
+method-table = { path = "../method-table" }
 memoffset = "0.6"
 itertools = "0.10"
 by_address = "1"
