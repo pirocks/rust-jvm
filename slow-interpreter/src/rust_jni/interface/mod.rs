@@ -688,7 +688,7 @@ pub fn define_class_safe<'gc, 'l>(
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new_new(class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED))
+        RuntimeClassClass::new_new(class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED),&jvm.string_pool)
     ));
     jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(), parsed.clone());
     let mut class_view_cache = HashMap::new();

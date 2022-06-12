@@ -10,8 +10,9 @@ use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::{IRVMExitAction, WasException};
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
-use interface_vtable::ResolvedInterfaceVTableEntry;
+use interface_vtable::{InterfaceVTableEntry, ITable, ResolvedInterfaceVTableEntry};
 use jvmti_jni_bindings::{jint, jlong};
+use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
@@ -56,7 +57,16 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 }
 
 #[inline(never)]
-pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, return_to_ptr: *const c_void, native_method_restart_point: RestartPointID, native_method_res: *mut c_void, object_ref: *const c_void, target_method_id: MethodId) -> IRVMExitAction {
+pub fn invoke_interface_resolve<'gc>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    return_to_ptr: *const c_void,
+    native_method_restart_point: RestartPointID,
+    native_method_res: *mut c_void,
+    object_ref: *const c_void,
+    target_method_shape_id: MethodShapeID,
+    interface_id: InterfaceID,
+) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeInterfaceResolve");
     }
@@ -64,30 +74,30 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
     let obj_jv_handle = native_to_new_java_value(obj_native_jv, CPDType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
-    let (target_rc, target_method_i) = jvm.method_table.read().unwrap().try_lookup(target_method_id).unwrap();
-    let class_view = target_rc.view();
-    let method_view = class_view.method_view_i(target_method_i);
-    let method_name = method_view.name();
-    let method_desc = method_view.desc();
+    let target_rc = jvm.interface_table.lookup(interface_id);
+    let method_shape = jvm.method_shapes.lookup_method_shape(target_method_shape_id);
     let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     let read_guard = jvm.invoke_interface_lookup_cache.read().unwrap();
-    let res = match read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone()){
+    let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, obj_rc.clone());
+    let method_number = *target_rc.unwrap_class_class().method_numbers.get(&method_shape).unwrap();
+    let res = match ITable::lookup(itable, interface_id, method_number)/*read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone())*/ {
         None => {
-            let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_name, method_desc).unwrap();
+            let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_shape.name, &method_shape.desc).unwrap();
             let resolved_method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc.clone(), resolved_method_i);
             drop(read_guard);
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id, false);
             let resolved = resloved_entry_from_method_id(jvm, resolver, resolved_method_id);
-            jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
-            resolved
+            ITable::set_entry(itable, interface_id, method_number, InterfaceVTableEntry { address: Some(resolved.address) });
+            // jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
+            InterfaceVTableEntry { address: Some(resolved.address) }
         }
         Some(resolved) => {
             resolved
         }
     };
-    let ResolvedInterfaceVTableEntry { address, ir_method_id, method_id, new_frame_size } = res;
+    let InterfaceVTableEntry { address } = res;
     let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr() as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.unwrap().as_ptr() as *mut c_void);
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
@@ -97,7 +107,11 @@ pub fn invoke_interface_resolve<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
 }
 
 fn resloved_entry_from_method_id(jvm: &JVMState, resolver: MethodResolverImpl, resolved_method_id: MethodTableIndex) -> ResolvedInterfaceVTableEntry {
-    let new_frame_size = resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size();
+    let new_frame_size = if resolver.is_native(resolved_method_id) {
+        resolver.lookup_native_method_layout(resolved_method_id).full_frame_size()
+    } else {
+        resolver.lookup_partial_method_layout(resolved_method_id).full_frame_size()
+    };
     let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(resolved_method_id);
     let address = jvm.java_vm_state.ir.lookup_ir_method_id_pointer(ir_method_id);
     let resolved = ResolvedInterfaceVTableEntry {

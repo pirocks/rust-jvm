@@ -103,7 +103,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         let address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
 
         let new_frame_size = if resolver.is_native(method_id) {
-            NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) }.full_frame_size()
+            resolver.lookup_native_method_layout(method_id).full_frame_size()
         } else {
             resolver.lookup_partial_method_layout(method_id).full_frame_size()
         };
@@ -258,7 +258,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     ir_method_id,
                     method_id,
                     new_frame_size: full_frame_size,
-                })
+                });
+                jvm.itables.lock().unwrap().update(prev_address.into(),new_address.into());
             }
             drop(write_guard);
         }

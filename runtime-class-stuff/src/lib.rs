@@ -4,7 +4,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock};
 
 use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::method_shape::MethodShape;
 use rust_jvm_common::NativeJavaValue;
@@ -161,7 +161,9 @@ impl<'gc> RuntimeClassClass<'gc> {
     pub fn new_new(class_view: Arc<ClassBackedView>,
                    parent: Option<Arc<RuntimeClass<'gc>>>,
                    interfaces: Vec<Arc<RuntimeClass<'gc>>>,
-                   status: RwLock<ClassStatus>) -> Self {
+                   status: RwLock<ClassStatus>,
+                   _string_pool: &CompressedClassfileStringPool
+    ) -> Self {
         let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
         let (recursive_num_static_fields, static_field_numbers) = get_field_numbers_static(&class_view, &parent);

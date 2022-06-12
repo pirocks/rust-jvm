@@ -117,6 +117,18 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_IO_SERIALIZABLE as AddOnlyVecIDType)
     }
 
+    pub const fn generic_declaration() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_GENERIC_DECLARATION as AddOnlyVecIDType)
+    }
+
+    pub const fn type_() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_TYPE as AddOnlyVecIDType)
+    }
+
+    pub const fn annotated_element() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_ANNOTATED_ELEMENT as AddOnlyVecIDType)
+    }
+
     pub const fn cloneable() -> Self {
         Self::from_raw_id(JAVA_LANG_CLONEABLE as AddOnlyVecIDType)
     }
@@ -285,6 +297,9 @@ enum PredefinedStrings {
     JAVA_LANG_REFLECT_METHOD,
     JAVA_LANG_SYSTEM,
     JAVA_IO_SERIALIZABLE,
+    JAVA_LANG_REFLECT_GENERIC_DECLARATION,
+    JAVA_LANG_REFLECT_TYPE,
+    JAVA_LANG_REFLECT_ANNOTATED_ELEMENT,
     JAVA_LANG_CLONEABLE,
     SUN_MISC_UNSAFE,
     JAVA_LANG_REFLECT_FIELD,
@@ -594,7 +609,10 @@ impl PredefinedStrings {
             JAVA_LANG_DEPRECATED => "java/lang/Deprecated".to_string(),
             method_equals => "equals".to_string(),
             method_get => "get".to_string(),
-            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE => "java/util/concurrent/ConcurrentHashMap$Node".to_string()
+            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE => "java/util/concurrent/ConcurrentHashMap$Node".to_string(),
+            JAVA_LANG_REFLECT_GENERIC_DECLARATION => "java/lang/reflect/GenericDeclaration".to_string(),
+            JAVA_LANG_REFLECT_TYPE => "java/lang/reflect/Type".to_string(),
+            JAVA_LANG_REFLECT_ANNOTATED_ELEMENT => "java/lang/reflect/AnnotatedElement".to_string()
         }
     }
 }

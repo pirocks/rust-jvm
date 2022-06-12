@@ -13,7 +13,7 @@ use method_table::interface_table::{InterfaceID, InterfaceTable};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::{RuntimeClass};
 use rust_jvm_common::compressed_classfile::{CPDTypeOrderWrapper};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName};
 use rust_jvm_common::MethodId;
 
 pub mod lookup_cache;
@@ -40,6 +40,14 @@ impl InterfaceVTableEntry {
     }
 }
 
+impl From<NonNull<c_void>> for InterfaceVTableEntry {
+    fn from(ptr: NonNull<c_void>) -> Self {
+        Self {
+            address: Some(ptr)
+        }
+    }
+}
+
 
 #[repr(C)]
 pub struct ITableEntry {
@@ -60,10 +68,22 @@ impl ITable {
                 .sorted_by_key(|interface| CPDTypeOrderWrapper(interface.unwrap_class_class().class_view.name().to_cpdtype()))
                 .map(|interface| {
                     let interface_id = interface_table.get_interface_id((*interface).clone());
-                    ITableEntry { interface_id, vtable: vec![] }
+                    let vtable_elems = (0..interface.unwrap_class_class().recursive_num_methods).map(|_| UnsafeCell::new(InterfaceVTableEntry::unresolved())).collect_vec();
+                    ITableEntry { interface_id, vtable: vtable_elems }
                 })
                 .collect_vec()
         }
+    }
+
+    pub fn lookup<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<InterfaceVTableEntry> {
+        unsafe {
+            lookup_unsafe(table, interface_id, interface_method_number)
+                .map(|address| InterfaceVTableEntry { address: Some(address) })
+        }
+    }
+
+    pub fn set_entry<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
+        unsafe { write_resolved_unsafe(table, interface_id, interface_method_number, resolved.address.unwrap()) }
     }
 }
 
@@ -96,11 +116,11 @@ impl<'gc> ITables<'gc> {
     fn all_interfaces_impl(rc: &Arc<RuntimeClass<'gc>>, hashset: &mut HashSet<ByAddress<Arc<RuntimeClass<'gc>>>>, array_interfaces_only: bool) {
         if rc.view().is_interface() {
             if array_interfaces_only {
-                if rc.cpdtype().is_primitive(){
+                if rc.cpdtype().is_primitive() {
                     //already handled on array case
-                }else {
+                } else {
                     let name = rc.view().name();
-                    if name == CClassName::serializable().into() && name == CClassName::cloneable().into(){
+                    if name == CClassName::serializable().into() && name == CClassName::cloneable().into() {
                         hashset.insert(ByAddress(rc.clone()));
                     }
                 }
@@ -114,7 +134,7 @@ impl<'gc> ITables<'gc> {
                 if arr.sub_class.cpdtype().is_primitive() {
                     hashset.insert(ByAddress(arr.serializable.clone()));
                     hashset.insert(ByAddress(arr.cloneable.clone()));
-                }else {
+                } else {
                     Self::all_interfaces_impl(&arr.sub_class, hashset, true);
                 }
             }
@@ -150,5 +170,15 @@ impl<'gc> ITables<'gc> {
             NonNull::new(Box::into_raw(box ITable::new(interface_table, interfaces.as_slice()))).unwrap()
         }
         )
+    }
+
+    pub fn update(&mut self, past_address: InterfaceVTableEntry, new_address: InterfaceVTableEntry) {
+        if let Some(entries) = self.resolved_to_entry.remove(&past_address.address.unwrap()) {
+            for (rc, interface, method_number) in entries.iter() {
+                let table = *self.inner.get(&ByAddress(rc.clone())).unwrap();
+                ITable::set_entry(table, *interface, *method_number, new_address);
+            }
+            self.resolved_to_entry.insert(new_address.address.unwrap(), entries);
+        }
     }
 }

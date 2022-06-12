@@ -6,6 +6,7 @@ use num_traits::FromPrimitive;
 
 use add_only_static_vec::AddOnlyId;
 use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
+use method_table::interface_table::InterfaceID;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileString, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
@@ -180,7 +181,8 @@ pub enum RuntimeVMExitInput {
         native_method_restart_point: RestartPointID,
         native_method_res: *mut c_void,
         object_ref: *const c_void,
-        target_method_id: MethodId,
+        method_shape_id: MethodShapeID,
+        interface_id: InterfaceID,
         pc: ByteCodeOffset,
     },
     MonitorEnter {
@@ -433,7 +435,8 @@ impl RuntimeVMExitInput {
                     native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::NATIVE_RESTART_POINT)),
                     native_method_res: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::OBJECT_REF) as *const c_void,
-                    target_method_id: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::TARGET_METHOD_ID) as MethodId,
+                    method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::METHOD_SHAPE_ID) as u64),
+                    interface_id: InterfaceID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::INTERFACE_ID) as usize),
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::JAVA_PC) as u16),
                 }
             }

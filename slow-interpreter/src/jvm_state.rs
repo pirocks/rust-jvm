@@ -41,7 +41,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
 use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
 use verification::verifier::{Frame};
 
-use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter, get_static_var_types};
+use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
@@ -79,7 +79,7 @@ pub struct JVMConfig {
     pub assertions_enabled: bool,
     pub tracing: TracingSettings,
     pub main_class_name: CClassName,
-    pub compile_threshold: u64
+    pub compile_threshold: u64,
 }
 
 pub struct Native {
@@ -128,7 +128,7 @@ pub struct JVMState<'gc> {
     pub invoke_virtual_lookup_cache: RwLock<InvokeVirtualLookupCache<'gc>>,
     pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
     pub string_exit_cache: RwLock<StringExitCache<'gc>>,
-    pub function_execution_count: FunctionInstructionExecutionCount
+    pub function_execution_count: FunctionInstructionExecutionCount,
 }
 
 
@@ -292,7 +292,7 @@ impl<'gc> JVMState<'gc> {
                 compiled_mode_active: true,
                 tracing,
                 main_class_name,
-                compile_threshold: 100
+                compile_threshold: 100,
             },
             properties,
             native_libaries: NativeLibraries::new(libjava),
@@ -333,11 +333,11 @@ impl<'gc> JVMState<'gc> {
             invoke_virtual_lookup_cache: RwLock::new(InvokeVirtualLookupCache::new()),
             invoke_interface_lookup_cache: RwLock::new(InvokeInterfaceLookupCache::new()),
             string_exit_cache: RwLock::new(StringExitCache::new()),
-            function_frame_type_data: RwLock::new(FunctionFrameData{
+            function_frame_type_data: RwLock::new(FunctionFrameData {
                 no_tops: Default::default(),
-                tops: Default::default()
+                tops: Default::default(),
             }),
-            function_execution_count: FunctionInstructionExecutionCount::new()
+            function_execution_count: FunctionInstructionExecutionCount::new(),
         };
         (args, jvm)
     }
@@ -368,7 +368,10 @@ impl<'gc> JVMState<'gc> {
         }
     }
 
-    pub fn verify_class_and_object(&self, object_runtime_class: Arc<RuntimeClass<'gc>>, class_runtime_class: Arc<RuntimeClass<'gc>>) {
+    pub fn verify_class_and_object(&self,
+                                   object_runtime_class: Arc<RuntimeClass<'gc>>,
+                                   class_runtime_class: Arc<RuntimeClass<'gc>>,
+    ) {
         let mut context = VerifierContext {
             live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
             classfile_getter: Arc::new(DefaultClassfileGetter { jvm: self }) as Arc<dyn ClassFileGetter>,
@@ -386,72 +389,117 @@ impl<'gc> JVMState<'gc> {
         context.verification_types.clear();
         let lookup = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
         verify(&mut context, CClassName::class(), LoaderName::BootstrapLoader).expect("Class doesn't verify");
-        self.sink_function_verification_date(&context.verification_types, class_runtime_class);
+        self.sink_function_verification_date(&context.verification_types, class_runtime_class.clone());
+
+        for interface in class_runtime_class.unwrap_class_class().interfaces.iter() {
+            context.verification_types.clear();
+            let name = interface.cpdtype().unwrap_class_type();
+            let lookup = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class interface");
+            verify(&mut context, name, LoaderName::BootstrapLoader).expect("Class doesn't verify");
+            self.sink_function_verification_date(&context.verification_types, interface.clone());
+        }
     }
 
-    pub fn add_class_class_class_object(&'gc self) {
-        let classes = self.classes.read().unwrap();
-        //todo desketchify this
-        let recursive_num_fields = classes.class_class.unwrap_class_class().recursive_num_fields;
-        let field_numbers_reverse = &classes.class_class.unwrap_class_class().field_numbers_reverse;
+
+    pub fn early_add_class(&'gc self,class: Arc<RuntimeClass<'gc>>){
+        let class_unwrapped = class.unwrap_class_class();
+        let recursive_num_fields = class_unwrapped.recursive_num_fields;
+        let field_numbers_reverse = &class_unwrapped.field_numbers_reverse;
         let fields_map_owned = (0..recursive_num_fields).map(|i| {
             let field_number = FieldNumber(i as u32);
-            let FieldNameAndFieldType{ cpdtype,.. } = field_numbers_reverse.get(&field_number).unwrap();
+            let FieldNameAndFieldType { cpdtype, .. } = field_numbers_reverse.get(&field_number).unwrap();
             let default_jv = default_value(*cpdtype);
             (field_number, default_jv)
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
-
-        let class_class = classes.class_class.clone();
-        drop(classes);
-        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: class_class, fields }));
-        let mut classes = self.classes.write().unwrap();
+        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: class.clone(), fields }));
         let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
-        let runtime_class = ByAddress(classes.class_class.clone());
-        classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), runtime_class);
-        let runtime_class = classes.class_class.clone();
-        classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), runtime_class);
+        let mut classes = self.classes.write().unwrap();
+        classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(class.clone()));
+        classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(class.clone().cpdtype(), class.clone());
+    }
+
+    pub fn add_class_class_class_object(&'gc self) {
+        //todo desketchify this
+        let class_class = self.classes.read().unwrap().class_class.clone();
+        self.early_add_class(class_class.clone());
+        for interface in class_class.unwrap_class_class().interfaces.iter() {
+            self.early_add_class(interface.clone());
+        }
+
     }
 
     fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
         //todo turn this into a ::new
-        let field_numbers = JVMState::get_class_class_field_numbers();
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
-        let interfaces = vec![];
-        let status = ClassStatus::UNPREPARED.into();
-        let recursive_num_fields = field_numbers.len() as u32;
+        let serializable_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::serializable(), pool).unwrap(), pool));
+        let generic_declaration_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::generic_declaration(), pool).unwrap(), pool));
+        let type_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::type_(), pool).unwrap(), pool));
+        let annotated_element_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::annotated_element(), pool).unwrap(), pool));
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
-        let (object_recursive_num_methods,object_method_numbers) = JVMState::get_class_class_or_object_class_method_numbers(pool,object_class_view.deref(), None);
-        let (class_recursive_num_methods, class_class_method_numbers) = JVMState::get_class_class_or_object_class_method_numbers(pool,class_view.deref(), Some(object_class_view.deref()));
-        for (object_method_shape, object_method_number) in object_method_numbers.iter(){
-            let class_method_number = class_class_method_numbers.get(object_method_shape).unwrap();
-            assert_eq!(object_method_number, class_method_number);
-        }
-        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new(
+        let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             object_class_view,
-            0,
             None,
             vec![],
-            RwLock::new(ClassStatus::INITIALIZED),
-            HashMap::new(),
-            object_recursive_num_methods as u32,
-            object_method_numbers,
-            0,
-            HashMap::new(),
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
         )));
-        let class_class_static_var_types = get_static_var_types(class_view.deref());
+
+        let annotated_element_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            annotated_element_view,
+            None,
+            vec![],
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
+        )));
+
+        let type_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            type_view,
+            None,
+            vec![],
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
+        )));
+
+        let serializable_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            serializable_view,
+            None,
+            vec![],
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
+        )));
+
+
+        let generic_declaration_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            generic_declaration_view,
+            None,
+            vec![annotated_element_class.clone()],
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
+        )));
         //todo Class does implement several interfaces, but non handled here
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             class_view,
             Some(temp_object_class),
-            interfaces,
-            status
+            vec![annotated_element_class.clone(), generic_declaration_class.clone(), type_class.clone(), serializable_class.clone()],
+            RwLock::new(ClassStatus::UNPREPARED),
+            pool,
         )));
+        let mut loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass>>> = Default::default();
+        loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), class_class.clone());
+        loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::serializable().into(), serializable_class.clone());
+        loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::type_().into(), type_class.clone());
+        loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::generic_declaration().into(), generic_declaration_class.clone());
+        loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::annotated_element().into(), annotated_element_class.clone());
         let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
         initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
+        initiating_loaders.insert(CClassName::serializable().into(), (LoaderName::BootstrapLoader, serializable_class.clone()));
+        initiating_loaders.insert(CClassName::type_().into(), (LoaderName::BootstrapLoader, type_class.clone()));
+        initiating_loaders.insert(CClassName::generic_declaration().into(), (LoaderName::BootstrapLoader, generic_declaration_class.clone()));
+        initiating_loaders.insert(CClassName::annotated_element().into(), (LoaderName::BootstrapLoader, annotated_element_class.clone()));
         let class_object_pool: BiMap<ByAddressAllocatedObject<'gc>, ByAddress<Arc<RuntimeClass<'gc>>>> = Default::default();
         let classes = RwLock::new(Classes {
-            loaded_classes_by_type: Default::default(),
+            loaded_classes_by_type,
             initiating_loaders,
             class_object_pool,
             anon_classes: Default::default(),
@@ -483,13 +531,13 @@ impl<'gc> JVMState<'gc> {
         field_numbers
     }
 
-    pub fn get_class_class_or_object_class_method_numbers(pool: &CompressedClassfileStringPool, class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32,HashMap<MethodShape, MethodNumber>) {
+    pub fn get_class_class_or_object_class_method_numbers(pool: &CompressedClassfileStringPool, class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32, HashMap<MethodShape, MethodNumber>) {
         let mut method_number_mappings = MethodNumberMappings::new();
 
-        if let Some(parent) = parent{
+        if let Some(parent) = parent {
             for method_shape in parent.methods()
                 .filter(|method| !method.is_static())
-                .map(|method|ShapeOrderWrapperOwned(method.method_shape())).sorted(){
+                .map(|method| ShapeOrderWrapperOwned(method.method_shape())).sorted() {
                 method_number_mappings.sink_method(method_shape.0);
             }
         }

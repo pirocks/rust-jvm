@@ -76,7 +76,7 @@ pub fn invokespecial<'vm>(
                         },
                         target_address: IRCallTarget::Constant {
                             address,
-                            method_id
+                            method_id,
                         },
                         current_frame_size: method_frame_data.full_frame_size(),
                     }]))
@@ -149,7 +149,7 @@ pub fn invokestatic<'vm>(
                             },
                             target_address: IRCallTarget::Constant {
                                 address,
-                                method_id
+                                method_id,
                             },
                             current_frame_size: method_frame_data.full_frame_size(),
                         }]))
@@ -251,7 +251,8 @@ pub fn invoke_interface<'vm>(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let after_call_restart_point_id = restart_point_generator.new_restart_point();
     let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
-    match resolver.lookup_interface(&target_class_cpdtype, *method_name, descriptor.clone()) {
+    let method_shape_id = resolver.lookup_method_shape(MethodShape { name: *method_name, desc: descriptor.clone() });
+    match resolver.lookup_interface_id(target_class_cpdtype) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_cpdtype });//todo this could be part of method resolver so that stuff always gets recompiled as needed
             Either::Right(array_into_iter([restart_point,
@@ -264,14 +265,15 @@ pub fn invoke_interface<'vm>(
                     },
                 }, after_call_restart_point]))
         }
-        Some((target_method_id, _is_native)) => {
+        Some(interface_id) => {
             Either::Left(
                 array_into_iter([
                     restart_point,
                     IRInstr::VMExit2 {
                         exit_type: IRVMExitType::InvokeInterfaceResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
-                            target_method_id,
+                            target_method_shape_id: method_shape_id,
+                            interface_id,
                             native_restart_point: after_call_restart_point_id,
                             native_return_offset: if descriptor.return_type.is_void() {
                                 None

@@ -17,6 +17,9 @@ pub struct InterfaceTableInner<'gc>{
 impl <'gc> InterfaceTableInner<'gc> {
 
     pub fn get_interface_id(&mut self, interface: Arc<RuntimeClass<'gc>>) -> InterfaceID{
+        if let Some(res) = self.id.get(&ByAddress(interface.clone())){
+            return *res;
+        }
         assert!(interface.unwrap_class_class().class_view.is_interface());
         let new_id = InterfaceID(self.interfaces.len());
         self.id.insert(ByAddress(interface.clone()), new_id);

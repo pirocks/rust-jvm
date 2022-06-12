@@ -8,11 +8,12 @@ use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use method_table::interface_table::InterfaceID;
 use method_table::MethodTable;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -154,7 +155,7 @@ pub trait MethodResolver<'gc> {
     fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID;
     fn lookup_native_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId>;
-    fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
+    fn lookup_interface_id(&self, interface: CPDType) -> Option<InterfaceID>;
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc>>, LoaderName)>;
     fn lookup_method_layout(&self, method_id: usize) -> YetAnotherLayoutImpl;
@@ -179,4 +180,5 @@ pub trait MethodResolver<'gc> {
     // fn invocation_compilation_threshold(&self) -> u64;
     // fn invocation_count(&self, method_id: MethodId) -> u64;
     fn compile_interpreted(&self, method_id: MethodId) -> bool;
+    fn string_pool(&self) -> &CompressedClassfileStringPool;
 }

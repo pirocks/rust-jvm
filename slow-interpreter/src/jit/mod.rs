@@ -8,10 +8,11 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
@@ -55,23 +56,23 @@ pub struct MethodResolverImpl<'gc> {
 }
 
 impl<'gc> MethodResolverImpl<'gc> {
-    fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
-        let view = rc.view();
-        if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
-            if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()) {
-                return Some(res);
-            }
-        }
-        for interface in rc.unwrap_class_class().interfaces.iter() {
-            if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()) {
-                return Some(res);
-            }
-        }
-        let method_view = view.lookup_method(name, &desc)?;
-        assert!(!method_view.is_static());
-        let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
-        Some((method_id, method_view.is_native()))
-    }
+    // fn lookup_interface_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
+    //     let view = rc.view();
+    //     if let Some(parent_rc) = rc.unwrap_class_class().parent.as_ref() {
+    //         if let Some(res) = self.lookup_interface_impl(name, desc, parent_rc.clone()) {
+    //             return Some(res);
+    //         }
+    //     }
+    //     for interface in rc.unwrap_class_class().interfaces.iter() {
+    //         if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()) {
+    //             return Some(res);
+    //         }
+    //     }
+    //     let method_view = view.lookup_method(name, &desc)?;
+    //     assert!(!method_view.is_static());
+    //     let method_id = self.jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_view.method_i());
+    //     Some((method_id, method_view.is_native()))
+    // }
 
     fn lookup_special_impl(&self, name: MethodName, desc: &CMethodDescriptor, rc: Arc<RuntimeClass<'gc>>) -> Option<(MethodId, bool)> {
         let view = rc.view();
@@ -162,12 +163,18 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         }
     }
 
-    fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    fn lookup_interface_id(&self, interface: CPDType) -> Option<InterfaceID> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
-        // assert_eq!(loader_name, self.loader);
-        Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
+        let (_, rc) = classes_guard.get_loader_and_runtime_class(&interface)?;
+        Some(self.jvm.interface_table.get_interface_id(rc))
     }
+
+    // fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
+    //     let classes_guard = self.jvm.classes.read().unwrap();
+    //     let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+    //     // assert_eq!(loader_name, self.loader);
+    //     Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
+    // }
 
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
@@ -302,5 +309,9 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn compile_interpreted(&self, method_id: MethodId) -> bool {
         self.jvm.config.compile_threshold > self.jvm.function_execution_count.function_instruction_count(method_id)
+    }
+
+    fn string_pool(&self) -> &CompressedClassfileStringPool {
+        &self.jvm.string_pool
     }
 }

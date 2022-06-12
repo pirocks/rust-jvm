@@ -4,6 +4,7 @@ use std::num::NonZeroU8;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
 
 use another_jit_vm::{FramePointerOffset, Register};
+use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::names::FieldName;
@@ -155,7 +156,8 @@ pub enum IRVMExitType {
     },
     InvokeInterfaceResolve {
         object_ref: FramePointerOffset,
-        target_method_id: MethodId,
+        target_method_shape_id: MethodShapeID,
+        interface_id: InterfaceID,
         native_restart_point: RestartPointID,
         native_return_offset: Option<FramePointerOffset>,
         java_pc: ByteCodeOffset,
@@ -367,10 +369,11 @@ impl IRVMExitType {
                 assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(RunNativeSpecial::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_id, native_restart_point, native_return_offset, java_pc } => {
+            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_shape_id, interface_id, native_restart_point, native_return_offset, java_pc } => {
                 assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
-                assembler.mov(InvokeInterfaceResolve::TARGET_METHOD_ID.to_native_64(), *target_method_id as u64).unwrap();
+                assembler.mov(InvokeInterfaceResolve::METHOD_SHAPE_ID.to_native_64(), target_method_shape_id.0 as u64).unwrap();
+                assembler.mov(InvokeInterfaceResolve::INTERFACE_ID.to_native_64(), interface_id.0 as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(InvokeInterfaceResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();
                 match native_return_offset {
