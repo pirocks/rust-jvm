@@ -82,7 +82,7 @@ impl ITable {
         }
     }
 
-    pub fn set_entry<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
+    fn set_entry<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
         unsafe { write_resolved_unsafe(table, interface_id, interface_method_number, resolved.address.unwrap()) }
     }
 }
@@ -100,7 +100,7 @@ pub unsafe fn lookup_unsafe(mut itable: NonNull<ITable>, interface_id: Interface
 
 pub struct ITables<'gc> {
     inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<ITable>>,
-    resolved_to_entry: HashMap<NonNull<c_void>, Vec<(Arc<RuntimeClass<'gc>>, InterfaceID, MethodNumber)>>,
+    resolved_to_entry: HashMap<NonNull<c_void>, HashSet<(ByAddress<Arc<RuntimeClass<'gc>>>, InterfaceID, MethodNumber)>>,
 }
 
 static mut ITABLE_ALLOCS: usize = 0;
@@ -158,6 +158,13 @@ impl<'gc> ITables<'gc> {
         res.into_iter().map(|rc| rc.0).collect_vec()
     }
 
+    pub fn set_entry(&mut self, rc: Arc<RuntimeClass<'gc>>, interface_id: InterfaceID, interface_method_number: MethodNumber, ptr: NonNull<c_void>) {
+        let by_address = ByAddress(rc);
+        let itable: NonNull<ITable> = *self.inner.get(&by_address).unwrap();
+        ITable::set_entry(itable, interface_id, interface_method_number, InterfaceVTableEntry { address: Some(ptr) });
+        self.resolved_to_entry.entry(ptr).or_default().insert((by_address, interface_id, interface_method_number));
+    }
+
     pub fn lookup_or_new_itable(&mut self, interface_table: &InterfaceTable<'gc>, rc: Arc<RuntimeClass<'gc>>) -> NonNull<ITable> {
         *self.inner.entry(ByAddress(rc.clone())).or_insert_with(|| {
             unsafe {
@@ -175,7 +182,8 @@ impl<'gc> ITables<'gc> {
     pub fn update(&mut self, past_address: InterfaceVTableEntry, new_address: InterfaceVTableEntry) {
         if let Some(entries) = self.resolved_to_entry.remove(&past_address.address.unwrap()) {
             for (rc, interface, method_number) in entries.iter() {
-                let table = *self.inner.get(&ByAddress(rc.clone())).unwrap();
+                let by_address = ByAddress(rc.clone());
+                let table = *self.inner.get(&by_address).unwrap();
                 ITable::set_entry(table, *interface, *method_number, new_address);
             }
             self.resolved_to_entry.insert(new_address.address.unwrap(), entries);

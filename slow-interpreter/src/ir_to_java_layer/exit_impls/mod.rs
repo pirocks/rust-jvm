@@ -87,7 +87,8 @@ pub fn invoke_interface_resolve<'gc>(
             drop(read_guard);
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id, false);
             let resolved = resloved_entry_from_method_id(jvm, resolver, resolved_method_id);
-            ITable::set_entry(itable, interface_id, method_number, InterfaceVTableEntry { address: Some(resolved.address) });
+            jvm.itables.lock().unwrap().set_entry(obj_rc,interface_id,method_number, resolved.address);
+            // ITable::set_entry(itable, interface_id, method_number, InterfaceVTableEntry { address: Some(resolved.address) });
             // jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
             InterfaceVTableEntry { address: Some(resolved.address) }
         }
