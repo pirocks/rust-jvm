@@ -169,6 +169,12 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         Some(self.jvm.interface_table.get_interface_id(rc))
     }
 
+    fn lookup_interface_method_number(&self, interface: CPDType, method_shape: MethodShape) -> Option<MethodNumber> {
+        let classes_guard = self.jvm.classes.read().unwrap();
+        let (_, rc) = classes_guard.get_loader_and_runtime_class(&interface)?;
+        rc.unwrap_class_class().method_numbers.get(&method_shape).cloned()
+    }
+
     // fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
     //     let classes_guard = self.jvm.classes.read().unwrap();
     //     let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;

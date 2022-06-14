@@ -1,14 +1,18 @@
 #![feature(box_syntax)]
+#![feature(vec_into_raw_parts)]
+#![feature(let_else)]
 
-use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
+use std::mem::size_of;
 use std::ops::Deref;
-use std::ptr::NonNull;
+use std::ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::sync::Arc;
 use by_address::ByAddress;
+use iced_x86::code_asm::{CodeAssembler};
 use itertools::Itertools;
-use another_jit_vm::IRMethodID;
+use memoffset::offset_of;
+use another_jit_vm::{IRMethodID, Register};
 use method_table::interface_table::{InterfaceID, InterfaceTable};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::{RuntimeClass};
@@ -50,56 +54,137 @@ impl From<NonNull<c_void>> for InterfaceVTableEntry {
 
 
 #[repr(C)]
-pub struct ITableEntry {
+pub struct ITableEntryRaw {
     interface_id: InterfaceID,
-    vtable: Vec<UnsafeCell<InterfaceVTableEntry>>,
+    vtable_ptr: *mut InterfaceVTableEntry,
+    vtable_len: usize,
+    vtable_capacity: usize,
+}
+
+pub enum ITableEntry {
+    Owned {
+        interface_id: InterfaceID,
+        vtable: Vec<InterfaceVTableEntry>,
+    },
+    Ref {
+        interface_id: InterfaceID,
+        vtable: &'static mut [InterfaceVTableEntry],
+    },
+}
+
+impl ITableEntry {
+    pub fn vtable(&mut self) -> &mut [InterfaceVTableEntry] {
+        match self {
+            ITableEntry::Owned { vtable, .. } => vtable.as_mut_slice(),
+            ITableEntry::Ref { vtable, .. } => vtable
+        }
+    }
+
+    pub fn to_raw(self) -> ITableEntryRaw {
+        let ITableEntry::Owned {
+            interface_id, vtable
+        } = self else { todo!() };
+        let (vtable_ptr, vtable_len, vtable_capacity) = vtable.into_raw_parts();
+        ITableEntryRaw {
+            interface_id,
+            vtable_ptr,
+            vtable_len,
+            vtable_capacity,
+        }
+    }
+
+    pub fn from_raw(raw: &ITableEntryRaw) -> ITableEntry {
+        unsafe {
+            ITableEntry::Ref {
+                interface_id: raw.interface_id,
+                vtable: &mut*slice_from_raw_parts_mut(raw.vtable_ptr, raw.vtable_len),
+            }
+        }
+    }
 }
 
 #[repr(C)]
-pub struct ITable {
-    itable: Vec<ITableEntry>,
+pub struct ITableRaw {
+    itable_ptr: *mut ITableEntryRaw,
+    len: usize,
+    capacity: usize,
+}
+
+pub enum ITable {
+    Owned {
+        itable: Vec<ITableEntryRaw>,
+    },
+    Ref {
+        itable: &'static [ITableEntryRaw],
+    },
 }
 
 impl ITable {
+    pub fn itable(&self) -> &[ITableEntryRaw] {
+        match self {
+            ITable::Owned { itable } => itable.as_slice(),
+            ITable::Ref { itable } => itable
+        }
+    }
+
+    pub fn from_raw(raw: &ITableRaw) -> ITable {
+        unsafe {
+            ITable::Ref {
+                itable: &*slice_from_raw_parts(raw.itable_ptr, raw.len)/*Vec::from_raw_parts(raw.itable_ptr, raw.len, raw.capacity)*/
+            }
+        }
+    }
+
+    pub fn to_raw(self) -> ITableRaw {
+        let Self::Owned { itable } = self else { todo!() };
+        let (itable_ptr, len, capacity) = itable.into_raw_parts();
+        ITableRaw {
+            itable_ptr,
+            len,
+            capacity,
+        }
+    }
+
     pub fn new<'gc>(interface_table: &InterfaceTable<'gc>, interfaces: &[Arc<RuntimeClass<'gc>>]) -> Self {
-        Self {
+        Self::Owned {
             itable: interfaces
                 .iter()
                 .sorted_by_key(|interface| CPDTypeOrderWrapper(interface.unwrap_class_class().class_view.name().to_cpdtype()))
                 .map(|interface| {
                     let interface_id = interface_table.get_interface_id((*interface).clone());
-                    let vtable_elems = (0..interface.unwrap_class_class().recursive_num_methods).map(|_| UnsafeCell::new(InterfaceVTableEntry::unresolved())).collect_vec();
-                    ITableEntry { interface_id, vtable: vtable_elems }
+                    let vtable = (0..interface.unwrap_class_class().recursive_num_methods).map(|_| InterfaceVTableEntry::unresolved()).collect_vec();
+                    ITableEntry::Owned { interface_id, vtable }.to_raw()
                 })
                 .collect_vec()
         }
     }
 
-    pub fn lookup<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<InterfaceVTableEntry> {
+    pub fn lookup<'gc>(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<InterfaceVTableEntry> {
         unsafe {
             lookup_unsafe(table, interface_id, interface_method_number)
                 .map(|address| InterfaceVTableEntry { address: Some(address) })
         }
     }
 
-    fn set_entry<'gc>(table: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
+    fn set_entry<'gc>(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
         unsafe { write_resolved_unsafe(table, interface_id, interface_method_number, resolved.address.unwrap()) }
     }
 }
 
-pub unsafe fn write_resolved_unsafe(mut itable: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber, res: NonNull<c_void>) {
-    let table = itable.as_mut().itable.iter().find(|table| table.interface_id == interface_id).unwrap();
-    table.vtable[interface_method_number.0 as usize].get().as_mut().unwrap().address = Some(res);
+pub unsafe fn write_resolved_unsafe(mut itable: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber, res: NonNull<c_void>) {
+    let itable = ITable::from_raw(itable.as_mut());
+    let table: &ITableEntryRaw = itable.itable().iter().find(|table| table.interface_id == interface_id).unwrap();
+    ITableEntry::from_raw(table).vtable().get_mut(interface_method_number.0 as usize).unwrap().address = Some(res);
 }
 
-
-pub unsafe fn lookup_unsafe(mut itable: NonNull<ITable>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<NonNull<c_void>> {
-    let table = itable.as_mut().itable.iter().find(|table| table.interface_id == interface_id).unwrap();
-    table.vtable[interface_method_number.0 as usize].get().as_ref().unwrap().address
+pub unsafe fn lookup_unsafe(mut itable: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<NonNull<c_void>> {
+    let itable = ITable::from_raw(itable.as_mut());
+    let table: &ITableEntryRaw = itable.itable().iter().find(|table| table.interface_id == interface_id).unwrap();
+    ITableEntry::from_raw(table).vtable().get_mut(interface_method_number.0 as usize).unwrap().address
 }
 
 pub struct ITables<'gc> {
-    inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<ITable>>,
+    inner: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, NonNull<ITableRaw>>,
     resolved_to_entry: HashMap<NonNull<c_void>, HashSet<(ByAddress<Arc<RuntimeClass<'gc>>>, InterfaceID, MethodNumber)>>,
 }
 
@@ -160,12 +245,12 @@ impl<'gc> ITables<'gc> {
 
     pub fn set_entry(&mut self, rc: Arc<RuntimeClass<'gc>>, interface_id: InterfaceID, interface_method_number: MethodNumber, ptr: NonNull<c_void>) {
         let by_address = ByAddress(rc);
-        let itable: NonNull<ITable> = *self.inner.get(&by_address).unwrap();
+        let itable: NonNull<ITableRaw> = *self.inner.get(&by_address).unwrap();
         ITable::set_entry(itable, interface_id, interface_method_number, InterfaceVTableEntry { address: Some(ptr) });
         self.resolved_to_entry.entry(ptr).or_default().insert((by_address, interface_id, interface_method_number));
     }
 
-    pub fn lookup_or_new_itable(&mut self, interface_table: &InterfaceTable<'gc>, rc: Arc<RuntimeClass<'gc>>) -> NonNull<ITable> {
+    pub fn lookup_or_new_itable(&mut self, interface_table: &InterfaceTable<'gc>, rc: Arc<RuntimeClass<'gc>>) -> NonNull<ITableRaw> {
         *self.inner.entry(ByAddress(rc.clone())).or_insert_with(|| {
             unsafe {
                 ITABLE_ALLOCS += 1;
@@ -174,7 +259,8 @@ impl<'gc> ITables<'gc> {
                 }
             }
             let interfaces = Self::all_interfaces(&rc);
-            NonNull::new(Box::into_raw(box ITable::new(interface_table, interfaces.as_slice()))).unwrap()
+            let table = ITable::new(interface_table, interfaces.as_slice()).to_raw();
+            NonNull::new(Box::into_raw(box table)).unwrap()
         }
         )
     }
@@ -189,4 +275,38 @@ impl<'gc> ITables<'gc> {
             self.resolved_to_entry.insert(new_address.address.unwrap(), entries);
         }
     }
+}
+
+pub fn generate_itable_access(
+    assembler: &mut CodeAssembler,
+    method_number: MethodNumber,
+    interface_id: InterfaceID,
+    raw_native_itable_address: Register,
+    temp_1: Register,
+    temp_2: Register,
+    temp_3: Register,
+    address: Register,
+) {
+    assert_ne!(temp_1,temp_2);
+    assert_ne!(temp_1,temp_3);
+    assert_ne!(temp_2,temp_3);
+    assert_ne!(address,temp_3);
+    assert_ne!(address,temp_2);
+    assert_ne!(address,temp_1);
+    let ptr_val = temp_1;
+    let mut interface_found = assembler.create_label();
+    let mut loop_start = assembler.create_label();
+    let target_interface_id = temp_2;
+    assembler.mov(target_interface_id.to_native_64(), interface_id.0 as u64).unwrap();
+    assembler.mov(ptr_val.to_native_64(), raw_native_itable_address.to_native_64() + offset_of!(ITableRaw,itable_ptr)).unwrap();
+    assembler.set_label(&mut loop_start).unwrap();
+    assert_eq!(offset_of!(ITableEntryRaw,interface_id), 0);
+    assembler.cmp(ptr_val.to_native_64() + offset_of!(ITableEntryRaw,interface_id), target_interface_id.to_native_32()).unwrap();
+    assembler.je(interface_found.clone()).unwrap();
+    assembler.lea(ptr_val.to_native_64(), ptr_val.to_native_64() + size_of::<ITableEntryRaw>()).unwrap();
+    assembler.jmp(loop_start.clone()).unwrap();
+    assembler.set_label(&mut interface_found).unwrap();
+    assembler.mov(temp_3.to_native_64(), ptr_val.to_native_64() + offset_of!(ITableEntryRaw,vtable_ptr)).unwrap();
+    assembler.mov(temp_2.to_native_64(), temp_3.to_native_64() + method_number.0 * size_of::<InterfaceVTableEntry>() as u32).unwrap();
+    assembler.mov(address.to_native_64(), temp_2.to_native_64()).unwrap();
 }

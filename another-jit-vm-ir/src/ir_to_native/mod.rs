@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx};
 use another_jit_vm::code_modification::{AssemblerFunctionCallTarget};
+use another_jit_vm::{Register, VMState};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
+use interface_vtable::generate_itable_access;
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};
 use crate::ir_to_native::integer_compare::{int_compare, sized_integer_compare};
 use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir_store_fp_relative};
 use crate::ir_to_native::special::{bounds_check, npe_check, vtable_lookup_or_exit};
-use crate::{gen_vm_exit, IRInstr, IRInstructIndex, LabelName, RestartPointID};
+use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
+use crate::vm_exit_abi::register_structs::InvokeInterfaceResolve;
 
 pub mod bit_manipulation;
 pub mod integer_arithmetic;
@@ -20,7 +24,7 @@ pub mod special;
 
 
 pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr, labels: &mut HashMap<LabelName, CodeLabel>,
-                       restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) -> Option<AssemblerFunctionCallTarget>{
+                           restart_points: &mut HashMap<RestartPointID, IRInstructIndex>, ir_instr_index: IRInstructIndex) -> Option<AssemblerFunctionCallTarget> {
     match instruction {
         IRInstr::LoadFPRelative { from, to, size } => {
             ir_load_fp_relative(assembler, *from, *to, *size)
@@ -117,12 +121,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             target_address,
             current_frame_size
         } => {
-            return ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size)
+            return ir_call(assembler, *temp_register_1, *temp_register_2, arg_from_to_offsets, *return_value, *target_address, *current_frame_size);
         }
         IRInstr::IRStart {
             temp_register, ir_method_id, method_id, frame_size, num_locals
         } => {
-            ir_function_start(assembler,*temp_register, *ir_method_id, *method_id,*frame_size, *num_locals)
+            ir_function_start(assembler, *temp_register, *ir_method_id, *method_id, *frame_size, *num_locals)
         }
         IRInstr::NPECheck { temp_register, npe_exit_type, possibly_null } => {
             npe_check(assembler, *temp_register, npe_exit_type, *possibly_null);
@@ -234,6 +238,31 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::VTableLookupOrExit { resolve_exit } => {
             vtable_lookup_or_exit(assembler, resolve_exit)
+        }
+        IRInstr::ITableLookupOrExit { resolve_exit } => {
+            match resolve_exit {
+                IRVMExitType::InvokeInterfaceResolve { object_ref, interface_id, method_number, .. } => {
+                    let obj_ptr = Register(0);
+                    assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+                    let vtable_ptr_register = Register(3);
+                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register.clone());
+                    let address_register = InvokeInterfaceResolve::ADDRESS_RES;// register 4
+                    // assembler.int3().unwrap();
+                    assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
+                    generate_itable_access(assembler, *method_number, *interface_id, vtable_ptr_register, Register(5), Register(6), Register(7), address_register);
+                    assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
+                    let mut fast_resolve_worked = assembler.create_label();
+                    assembler.jnz(fast_resolve_worked.clone()).unwrap();
+                    let registers = resolve_exit.registers_to_save();
+                    resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
+                    let mut before_exit_label = assembler.create_label();
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
+                    assembler.nop().unwrap();
+                }
+                _ => {
+                    panic!()
+                }
+            }
         }
     }
     None

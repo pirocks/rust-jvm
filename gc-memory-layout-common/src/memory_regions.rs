@@ -8,7 +8,7 @@ use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
 use memoffset::offset_of;
 
 use another_jit_vm::Register;
-use interface_vtable::ITable;
+use interface_vtable::ITableRaw;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -19,9 +19,9 @@ use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
-    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable>, itable: NonNull<ITable> },
-    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITable> },
-    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITable> },
+    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable>, itable: NonNull<ITableRaw> },
+    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITableRaw> },
+    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITableRaw> },
     Raw { size: usize },
 }
 
@@ -37,7 +37,7 @@ impl AllocatedObjectType {
         }
     }
 
-    pub fn itable(&self) -> Option<NonNull<ITable>> {
+    pub fn itable(&self) -> Option<NonNull<ITableRaw>> {
         match self {
             AllocatedObjectType::Class { itable, .. } => {
                 Some(*itable)
@@ -102,7 +102,7 @@ pub struct RegionHeader {
     pub region_elem_size: usize,
     pub region_type: AllocatedTypeID,
     pub vtable_ptr: *mut RawNativeVTable,
-    pub itable_ptr: *mut ITable,
+    pub itable_ptr: *mut ITableRaw,
     region_header_magic_2: u32,
 }
 
@@ -326,6 +326,11 @@ impl MemoryRegions {
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,vtable_ptr)).unwrap();
     }
 
+    pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
+        Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
+        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,itable_ptr)).unwrap();
+    }
+
     pub fn generate_find_allocated_type_id(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
         todo!()
     }
@@ -398,7 +403,7 @@ impl MemoryRegions {
         NonNull::new(self.find_object_region_header(ptr).vtable_ptr)
     }
 
-    pub fn find_type_itable(&self, ptr: NonNull<c_void>) -> Option<NonNull<ITable>> {
+    pub fn find_type_itable(&self, ptr: NonNull<c_void>) -> Option<NonNull<ITableRaw>> {
         NonNull::new(self.find_object_region_header(ptr).itable_ptr)
     }
 

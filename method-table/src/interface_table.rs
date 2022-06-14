@@ -7,7 +7,7 @@ use runtime_class_stuff::RuntimeClass;
 
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct InterfaceID(pub usize);
+pub struct InterfaceID(pub u32);
 
 pub struct InterfaceTableInner<'gc>{
     interfaces: Vec<Arc<RuntimeClass<'gc>>>,
@@ -21,15 +21,15 @@ impl <'gc> InterfaceTableInner<'gc> {
             return *res;
         }
         assert!(interface.unwrap_class_class().class_view.is_interface());
-        let new_id = InterfaceID(self.interfaces.len());
+        let new_id = InterfaceID(self.interfaces.len() as u32);
         self.id.insert(ByAddress(interface.clone()), new_id);
         self.interfaces.push(interface.clone());
         new_id
     }
 
     pub fn try_lookup(&self, id: InterfaceID) -> Option<Arc<RuntimeClass<'gc>>> {
-        if id.0 < self.interfaces.len() {
-            Some(self.interfaces[id.0].clone())
+        if id.0 < self.interfaces.len() as u32 {
+            Some(self.interfaces[id.0 as usize].clone())
         } else {
             None
         }

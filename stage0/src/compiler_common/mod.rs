@@ -156,6 +156,7 @@ pub trait MethodResolver<'gc> {
     fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID;
     fn lookup_native_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId>;
     fn lookup_interface_id(&self, interface: CPDType) -> Option<InterfaceID>;
+    fn lookup_interface_method_number(&self, interface: CPDType, method_shape: MethodShape) -> Option<MethodNumber>;
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc>>, LoaderName)>;
     fn lookup_method_layout(&self, method_id: usize) -> YetAnotherLayoutImpl;

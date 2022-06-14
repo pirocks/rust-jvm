@@ -66,6 +66,7 @@ pub fn invoke_interface_resolve<'gc>(
     object_ref: *const c_void,
     target_method_shape_id: MethodShapeID,
     interface_id: InterfaceID,
+    method_number: MethodNumber,
 ) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeInterfaceResolve");
@@ -79,7 +80,8 @@ pub fn invoke_interface_resolve<'gc>(
     let resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     let read_guard = jvm.invoke_interface_lookup_cache.read().unwrap();
     let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, obj_rc.clone());
-    let method_number = *target_rc.unwrap_class_class().method_numbers.get(&method_shape).unwrap();
+    let method_number_check = *target_rc.unwrap_class_class().method_numbers.get(&method_shape).unwrap();
+    assert_eq!(method_number,method_number_check);
     let res = match ITable::lookup(itable, interface_id, method_number)/*read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone())*/ {
         None => {
             let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_shape.name, &method_shape.desc).unwrap();
@@ -88,11 +90,10 @@ pub fn invoke_interface_resolve<'gc>(
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id, false);
             let resolved = resloved_entry_from_method_id(jvm, resolver, resolved_method_id);
             jvm.itables.lock().unwrap().set_entry(obj_rc,interface_id,method_number, resolved.address);
-            // ITable::set_entry(itable, interface_id, method_number, InterfaceVTableEntry { address: Some(resolved.address) });
-            // jvm.invoke_interface_lookup_cache.write().unwrap().register_entry(obj_rc, method_name, method_desc.clone(), resolved);
             InterfaceVTableEntry { address: Some(resolved.address) }
         }
         Some(resolved) => {
+            dbg!("already resolved");
             resolved
         }
     };

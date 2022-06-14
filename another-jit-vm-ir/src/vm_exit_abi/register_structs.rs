@@ -391,11 +391,11 @@ impl InvokeInterfaceResolve {
     pub const JAVA_PC: Register = Register(4);
     pub const NATIVE_RETURN_PTR: Register = Register(5);
     pub const METHOD_SHAPE_ID: Register = Register(7);
+    pub const METHOD_NUMBER: Register = Register(6);
     pub const INTERFACE_ID: Register = Register(8);
     pub const NATIVE_RESTART_POINT: Register = Register(9);
     pub const ADDRESS_RES: Register = Register(4);
     pub const NEW_FRAME_SIZE_RES: Register = Register(7);
-    pub const METHOD_ID_RES: Register = Register(6);
 }
 
 impl ExitRegisterStruct for InvokeInterfaceResolve {
@@ -405,9 +405,9 @@ impl ExitRegisterStruct for InvokeInterfaceResolve {
             Self::OBJECT_REF,
             Self::RESTART_IP,
             Self::ADDRESS_RES,
-            Self::METHOD_ID_RES,
             Self::NEW_FRAME_SIZE_RES,
             Self::METHOD_SHAPE_ID,
+            Self::METHOD_NUMBER,
             Self::INTERFACE_ID,
             Self::NATIVE_RESTART_POINT,
             Self::NATIVE_RETURN_PTR,

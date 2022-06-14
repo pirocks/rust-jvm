@@ -160,6 +160,7 @@ pub enum IRVMExitType {
         interface_id: InterfaceID,
         native_restart_point: RestartPointID,
         native_return_offset: Option<FramePointerOffset>,
+        method_number: MethodNumber,
         java_pc: ByteCodeOffset,
     },
     MonitorEnter {
@@ -369,10 +370,11 @@ impl IRVMExitType {
                 assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(RunNativeSpecial::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_shape_id, interface_id, native_restart_point, native_return_offset, java_pc } => {
+            IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_shape_id, interface_id, native_restart_point, native_return_offset, method_number, java_pc } => {
                 assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
                 assembler.mov(InvokeInterfaceResolve::METHOD_SHAPE_ID.to_native_64(), target_method_shape_id.0 as u64).unwrap();
+                assembler.mov(InvokeInterfaceResolve::METHOD_NUMBER.to_native_64(), method_number.0 as u64).unwrap();
                 assembler.mov(InvokeInterfaceResolve::INTERFACE_ID.to_native_64(), interface_id.0 as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(InvokeInterfaceResolve::NATIVE_RESTART_POINT.to_native_64(), native_restart_point.0).unwrap();

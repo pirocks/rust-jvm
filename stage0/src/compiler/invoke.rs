@@ -251,7 +251,8 @@ pub fn invoke_interface<'vm>(
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let after_call_restart_point_id = restart_point_generator.new_restart_point();
     let after_call_restart_point = IRInstr::RestartPoint(after_call_restart_point_id);
-    let method_shape_id = resolver.lookup_method_shape(MethodShape { name: *method_name, desc: descriptor.clone() });
+    let method_shape = MethodShape { name: *method_name, desc: descriptor.clone() };
+    let method_shape_id = resolver.lookup_method_shape(method_shape.clone());
     match resolver.lookup_interface_id(target_class_cpdtype) {
         None => {
             recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: target_class_cpdtype });//todo this could be part of method resolver so that stuff always gets recompiled as needed
@@ -269,10 +270,10 @@ pub fn invoke_interface<'vm>(
             Either::Left(
                 array_into_iter([
                     restart_point,
-                    IRInstr::VMExit2 {
-                        exit_type: IRVMExitType::InvokeInterfaceResolve {
+                    IRInstr::ITableLookupOrExit {
+                        resolve_exit: IRVMExitType::InvokeInterfaceResolve {
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, num_args),
-                            target_method_shape_id: method_shape_id,
+                            method_number: resolver.lookup_interface_method_number(target_class_cpdtype, method_shape).unwrap(),
                             interface_id,
                             native_restart_point: after_call_restart_point_id,
                             native_return_offset: if descriptor.return_type.is_void() {
@@ -281,6 +282,7 @@ pub fn invoke_interface<'vm>(
                                 Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                             },
                             java_pc: current_instr_data.current_offset,
+                            target_method_shape_id: method_shape_id
                         }
                     },
                     IRInstr::IRCall {

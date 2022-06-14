@@ -141,8 +141,8 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr, pc: _ } => {
                 exit_impls::run_native_special(jvm, int_state.unwrap(), *res_ptr, *arg_start, *method_id, *return_to_ptr)
             }
-            RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, method_shape_id, interface_id, pc: _ } => {
-                exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id,*interface_id)
+            RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, method_shape_id, method_number, interface_id, pc: _ } => {
+                exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id,*interface_id, *method_number)
             }
             RuntimeVMExitInput::Throw { exception_obj_ptr, pc: _ } => {
                 exit_impls::throw_exit(&jvm, int_state.unwrap(), *exception_obj_ptr)

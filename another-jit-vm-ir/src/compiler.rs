@@ -119,6 +119,9 @@ pub enum IRInstr {
     VTableLookupOrExit {
         resolve_exit: IRVMExitType
     },
+    ITableLookupOrExit {
+        resolve_exit: IRVMExitType
+    },
     VMExit2 { exit_type: IRVMExitType },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
@@ -386,6 +389,9 @@ impl IRInstr {
             }
             IRInstr::IRStart { .. } => {
                 "IRStart".to_string()
+            }
+            IRInstr::ITableLookupOrExit { .. } => {
+                "ITableLookupOrExit".to_string()
             }
         }
     }
