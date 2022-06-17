@@ -27,11 +27,11 @@ pub trait InheritanceTreeElement<T: InheritanceTreeElement<T>>: Clone + PartialE
     fn path(&self) -> Vec<T>;
 }
 
-pub struct InheritanceTree<T: Debug> {
+pub struct InheritanceTree<T: Debug + InheritanceTreeElement<T>> {
     object_node: InheritanceTreeNode<T>,
 }
 
-impl<T: Debug> InheritanceTree<T> {
+impl<T: Debug + InheritanceTreeElement<T>> InheritanceTree<T> {
     pub fn node_at_path(&self, path: TreePath) -> &InheritanceTreeNode<T> {
         let mut current_node = &self.object_node;
         let path = path.to_left_or_right_path();
@@ -39,6 +39,10 @@ impl<T: Debug> InheritanceTree<T> {
             current_node = current_node.left_or_right(left_or_right).unwrap()
         }
         return current_node;
+    }
+
+    pub fn find_path(&mut self, elem: T) -> TreePath {
+        todo!()
     }
 
     pub fn insert_at_path(&mut self, path: TreePath, elem: T) {
@@ -52,13 +56,13 @@ impl<T: Debug> InheritanceTree<T> {
     }
 }
 
-pub struct ClassNode<T: Debug> {
+pub struct ClassNode<T: Debug + InheritanceTreeElement<T>> {
     left: Box<InheritanceTreeNode<T>>,
     right: Box<InheritanceTreeNode<T>>,
     class: T,
 }
 
-pub trait HasLeftAndRight<T: Debug> {
+pub trait HasLeftAndRight<T: Debug + InheritanceTreeElement<T>> {
     fn left(&self) -> &InheritanceTreeNode<T>;
     fn right(&self) -> &InheritanceTreeNode<T>;
     fn left_right_mut(&mut self) -> (&mut InheritanceTreeNode<T>, &mut InheritanceTreeNode<T>);
@@ -68,6 +72,43 @@ pub trait HasLeftAndRight<T: Debug> {
     fn right_mut(&mut self) -> &mut InheritanceTreeNode<T> {
         self.left_right_mut().1
     }
+
+    fn find_path_impl(&self, current_tree_path: TreePath, target_elem: &T) -> Option<TreePath> {
+        match &self.left() {
+            InheritanceTreeNode::Class(elem) => {
+                if elem.class.is_same(target_elem) {
+                    return Some(current_tree_path.push(LeftOrRight::Left));
+                }
+                if elem.class.is_child_transitive(&elem.class){
+                    return elem.find_path_impl(current_tree_path, target_elem);
+                }
+            }
+            InheritanceTreeNode::GrowthNode => {}
+            InheritanceTreeNode::GrownNode(grown) => {
+                if let Some(res) = grown.find_path_impl(current_tree_path.clone(),target_elem){
+                    return Some(res)
+                }
+            }
+        };
+        match self.right() {
+            InheritanceTreeNode::Class(elem) => {
+                if elem.class.is_same(&target_elem) {
+                    return Some(current_tree_path.push(LeftOrRight::Left));
+                }
+                if elem.class.is_child_transitive(&elem.class){
+                    return elem.find_path_impl(current_tree_path, target_elem);
+                }
+                None
+            }
+            InheritanceTreeNode::GrowthNode => {
+                None
+            }
+            InheritanceTreeNode::GrownNode(grown) => {
+                grown.find_path_impl(current_tree_path,target_elem)
+            }
+        }
+    }
+
     fn num_growth_points(&self) -> u64 {
         (match &self.left() {
             InheritanceTreeNode::Class(class) => class.num_growth_points(),
@@ -104,7 +145,7 @@ pub trait HasLeftAndRight<T: Debug> {
     }
 }
 
-impl<T: Debug> HasLeftAndRight<T> for ClassNode<T> {
+impl<T: Debug + InheritanceTreeElement<T>> HasLeftAndRight<T> for ClassNode<T> {
     fn left(&self) -> &InheritanceTreeNode<T> {
         &self.left
     }
@@ -118,7 +159,7 @@ impl<T: Debug> HasLeftAndRight<T> for ClassNode<T> {
     }
 }
 
-impl<T: Debug> ClassNode<T> {
+impl<T: Debug + InheritanceTreeElement<T>> ClassNode<T> {
     pub fn num_direct_children(&self) -> u64 {
         self.left.num_direct_children_impl() + self.right.num_direct_children_impl()
     }
@@ -154,12 +195,12 @@ impl<T: Debug> ClassNode<T> {
     }
 }
 
-pub struct GrownNode<T: Debug> {
+pub struct GrownNode<T: Debug + InheritanceTreeElement<T>> {
     left: Box<InheritanceTreeNode<T>>,
     right: Box<InheritanceTreeNode<T>>,
 }
 
-impl<T: Debug> HasLeftAndRight<T> for GrownNode<T> {
+impl<T: Debug + InheritanceTreeElement<T>> HasLeftAndRight<T> for GrownNode<T> {
     fn left(&self) -> &InheritanceTreeNode<T> {
         &self.left
     }
@@ -173,15 +214,15 @@ impl<T: Debug> HasLeftAndRight<T> for GrownNode<T> {
     }
 }
 
-impl<T: Debug> GrownNode<T> {}
+impl<T: Debug + InheritanceTreeElement<T>> GrownNode<T> {}
 
-pub enum InheritanceTreeNode<T: Debug> {
+pub enum InheritanceTreeNode<T: Debug + InheritanceTreeElement<T>> {
     Class(ClassNode<T>),
     GrowthNode,
     GrownNode(GrownNode<T>),
 }
 
-impl<T: Debug> InheritanceTreeNode<T> {
+impl<T: Debug + InheritanceTreeElement<T>> InheritanceTreeNode<T> {
     pub fn left_or_right(&self, left_or_right: LeftOrRight) -> Option<&InheritanceTreeNode<T>> {
         Some(match self {
             InheritanceTreeNode::Class(ClassNode { left, right, class }) => {
@@ -241,6 +282,7 @@ impl LeftOrRight {
     }
 }
 
+#[derive(Clone)]
 pub enum TreePath {
     BitPath64 {
         bit_path: u64
@@ -267,6 +309,21 @@ impl TreePath {
             TreePath::BitPath128 { bit_path } => todo!(),
             TreePath::Path { path } => {
                 Cow::Borrowed(path)
+            }
+        }
+    }
+
+    pub fn push(self, left_or_right: LeftOrRight) -> TreePath{
+        match self {
+            TreePath::BitPath64 { .. } => {
+                todo!()
+            }
+            TreePath::BitPath128 { .. } => {
+                todo!()
+            }
+            TreePath::Path { mut path,.. } => {
+                path.push(left_or_right);
+                TreePath::Path { path }
             }
         }
     }
