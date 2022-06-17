@@ -4,6 +4,11 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::DerefMut;
 
+#[cfg(test)]
+pub mod test;
+
+pub mod attempt_tree;
+
 pub trait InheritanceTreeElement<T: InheritanceTreeElement<T>>: Clone + PartialEq + Eq {
     fn is_same(&self, other: &T) -> bool {
         self.path() == other.path()
@@ -329,5 +334,3 @@ impl TreePath {
     }
 }
 
-#[cfg(test)]
-pub mod test;
