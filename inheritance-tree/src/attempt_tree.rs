@@ -17,6 +17,10 @@ impl InheritanceTree {
         }
     }
 
+    pub fn insert(&mut self, class_id_path: InheritanceClassIDPath) {
+
+    }
+
     pub fn lookup(&self, path: InheritanceTreePath<'_>) -> ClassID {
         self.top_node.lookup_impl(path).unwrap()
     }
@@ -24,6 +28,10 @@ impl InheritanceTree {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct ClassID(u32);
+
+pub struct InheritanceClassIDPath<'a> {
+    inner: &'a [ClassID]
+}
 
 pub struct InheritanceTreeNode {
     class_id: ClassID,
