@@ -1,7 +1,7 @@
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{_jobject, JNIEnv, jstring};
 use another_jit_vm_ir::WasException;
+use jvmti_jni_bindings::{_jobject, JNIEnv, jstring};
 use slow_interpreter::rust_jni::interface::string::intern_impl_unsafe;
 use slow_interpreter::rust_jni::native_util::{get_interpreter_state, get_state};
 

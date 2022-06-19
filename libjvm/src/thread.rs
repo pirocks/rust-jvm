@@ -12,14 +12,14 @@ use nix::sys::pthread::pthread_self;
 use nix::unistd::gettid;
 use parking_lot::Mutex;
 use wtf8::Wtf8Buf;
-use another_jit_vm_ir::WasException;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::PType;
-use slow_interpreter::interpreter::{run_function};
+use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::invoke_interface::get_env;
 use slow_interpreter::java::lang::string::JString;

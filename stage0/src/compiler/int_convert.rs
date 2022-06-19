@@ -1,5 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
@@ -12,18 +13,18 @@ pub fn i2l(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelative {
             from: from_offset,
             to: from_register,
-            size: Size::int()
+            size: Size::int(),
         },
         IRInstr::SignExtend {
             from: from_register,
             to: to_register,
             from_size: Size::int(),
-            to_size: Size::long()
+            to_size: Size::long(),
         },
         IRInstr::StoreFPRelative {
             from: to_register,
             to: to_offset,
-            size: Size::long()
+            size: Size::long(),
         }
     ])
 }
@@ -37,18 +38,18 @@ pub fn i2c(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelative {
             from: from_offset,
             to: from_register,
-            size: Size::char()
+            size: Size::char(),
         },
         IRInstr::ZeroExtend {
             from: from_register,
             to: to_register,
             from_size: Size::char(),
-            to_size: Size::int()
+            to_size: Size::int(),
         },
         IRInstr::StoreFPRelative {
             from: to_register,
             to: to_offset,
-            size: Size::int()
+            size: Size::int(),
         }
     ])
 }
@@ -62,18 +63,18 @@ pub fn i2s(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelative {
             from: from_offset,
             to: from_register,
-            size: Size::char()
+            size: Size::char(),
         },
         IRInstr::SignExtend {
             from: from_register,
             to: to_register,
             from_size: Size::char(),
-            to_size: Size::int()
+            to_size: Size::int(),
         },
         IRInstr::StoreFPRelative {
             from: to_register,
             to: to_offset,
-            size: Size::int()
+            size: Size::int(),
         }
     ])
 }
@@ -87,18 +88,18 @@ pub fn i2b(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelative {
             from: from_offset,
             to: from_register,
-            size: Size::byte()
+            size: Size::byte(),
         },
         IRInstr::SignExtend {
             from: from_register,
             to: to_register,
             from_size: Size::byte(),
-            to_size: Size::int()
+            to_size: Size::int(),
         },
         IRInstr::StoreFPRelative {
             from: to_register,
             to: to_offset,
-            size: Size::int()
+            size: Size::int(),
         }
     ])
 }
@@ -111,12 +112,12 @@ pub fn l2i(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelative {
             from: from_offset,
             to: temp_register,
-            size: Size::int()
+            size: Size::int(),
         },
         IRInstr::StoreFPRelative {
             from: temp_register,
             to: to_offset,
-            size: Size::int()
+            size: Size::int(),
         }
     ])
 }

@@ -1,6 +1,5 @@
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
@@ -26,7 +25,7 @@ pub fn putstatic<'vm>(
                         class: resolver.get_cpdtype_id(target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     },
                 }])
         }
@@ -37,7 +36,7 @@ pub fn putstatic<'vm>(
                     exit_type: IRVMExitType::PutStatic {
                         field_id,
                         value: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     }
                 }])
         }
@@ -65,7 +64,7 @@ pub fn getstatic<'vm>(
                         class: resolver.get_cpdtype_id(target_class.into()),
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     },
                 }])
         }
@@ -77,7 +76,7 @@ pub fn getstatic<'vm>(
                         field_name: name,
                         rc_type,
                         res_value: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     }
                 }])
         }

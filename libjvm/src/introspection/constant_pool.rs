@@ -6,6 +6,7 @@ use std::sync::Arc;
 use by_address::ByAddress;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
 use classfile_view::view::method_view::MethodView;
@@ -19,7 +20,6 @@ use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::reflect::field::Field;
 use slow_interpreter::java::lang::reflect::method::Method;

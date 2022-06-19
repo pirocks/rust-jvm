@@ -51,7 +51,7 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
     let elem_register_size = field_type_to_register_size(arr_type);
     array_into_iter([
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: array_ref, size: Size::pointer() },
-        IRInstr::NPECheck { possibly_null: array_ref, temp_register: index, npe_exit_type: IRVMExitType::NPE{ java_pc: current_instr_data.current_offset } },
+        IRInstr::NPECheck { possibly_null: array_ref, temp_register: index, npe_exit_type: IRVMExitType::NPE { java_pc: current_instr_data.current_offset } },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: index, size: Size::int() },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: array_ref, size: Size::pointer() },
         IRInstr::Const64bit { to: native_jv_size_register, const_: elem_size as u64 },

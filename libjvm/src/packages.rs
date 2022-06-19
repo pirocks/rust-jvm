@@ -4,8 +4,8 @@ use std::ptr::null_mut;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use jvmti_jni_bindings::{JNIEnv, jobjectArray, jstring};
 use another_jit_vm_ir::WasException;
+use jvmti_jni_bindings::{JNIEnv, jobjectArray, jstring};
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::native_allocation::AllocationType::CString;

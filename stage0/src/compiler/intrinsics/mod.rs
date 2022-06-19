@@ -5,6 +5,7 @@ use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::MethodId;
+
 use crate::compiler_common::MethodResolver;
 
 pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
@@ -12,7 +13,7 @@ pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &Nativ
         Some((method_view.desc().clone(), method_view.name(), method_view.classview().name().try_unwrap_name()?))//todo handle intrinsics on arrays
     })?;
 
-    if method_name == MethodName::method_hashCode() && desc == CompressedMethodDescriptor::empty_args(CPDType::IntType) && class_name == CClassName::object(){
+    if method_name == MethodName::method_hashCode() && desc == CompressedMethodDescriptor::empty_args(CPDType::IntType) && class_name == CClassName::object() {
         let temp = Register(1);
         let res = Register(0);
         let shift_amount = Register(2);

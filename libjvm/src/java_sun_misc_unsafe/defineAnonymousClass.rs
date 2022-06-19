@@ -11,6 +11,7 @@ use std::sync::atomic::Ordering::AcqRel;
 use by_address::ByAddress;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -23,10 +24,9 @@ use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
-use slow_interpreter::jvm_state::{JVMState};
+use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::rust_jni::interface::define_class_safe;
@@ -51,7 +51,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     //todo local ref
 }
 
-pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, mut args: &mut Vec<JavaValue<'gc>>) -> JavaValue<'gc> {
+pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, mut args: &mut Vec<JavaValue<'gc>>) -> JavaValue<'gc> {
     let _parent_class = &args[1]; //todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array(jvm).iter().map(|b| *b as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");

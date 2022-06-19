@@ -2,8 +2,8 @@ use std::ptr::null_mut;
 
 use by_address::ByAddress;
 use itertools::Itertools;
-use another_jit_vm_ir::WasException;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
@@ -35,11 +35,11 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
     let mut args = vec![];
     args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
-    let res = invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor,args).unwrap().unwrap().unwrap_object();
+    let res = invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor, args).unwrap().unwrap().unwrap_object();
     if int_state.throw().is_some() {
         return null_mut();
     }
-    new_local_ref_public_new(res.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(res.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 ///Java_java_security_AccessController_getInheritedAccessControlContext

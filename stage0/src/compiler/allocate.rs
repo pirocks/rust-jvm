@@ -1,21 +1,22 @@
 use std::num::NonZeroU8;
+
 use itertools::Either;
 
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::classfile::Atype;
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
-                     method_frame_data: &JavaCompilerMethodAndFrameData,
-                     current_instr_data: &CurrentInstructionCompilerData,
-                     restart_point_generator: &mut RestartPointGenerator,
-                     recompile_conditions: &mut MethodRecompileConditions,
-                     ccn: CClassName) -> impl Iterator<Item=IRInstr> {
+                method_frame_data: &JavaCompilerMethodAndFrameData,
+                current_instr_data: &CurrentInstructionCompilerData,
+                restart_point_generator: &mut RestartPointGenerator,
+                recompile_conditions: &mut MethodRecompileConditions,
+                ccn: CClassName) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
     let cpd_type_id = resolver.get_cpdtype_id(ccn.into());
@@ -27,7 +28,7 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                     class: cpd_type_id,
                     this_method_id: method_frame_data.current_method_id,
                     restart_point_id,
-                    java_pc: current_instr_data.current_offset
+                    java_pc: current_instr_data.current_offset,
                 },
             }])
         }
@@ -36,7 +37,7 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                 exit_type: IRVMExitType::AllocateObject {
                     class_type: cpd_type_id,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
-                    java_pc: current_instr_data.current_offset
+                    java_pc: current_instr_data.current_offset,
                 }
             }])
         }
@@ -65,7 +66,7 @@ pub fn anewarray<'vm>(
                         class: cpd_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     },
                 }]))
         }
@@ -81,7 +82,7 @@ pub fn anewarray<'vm>(
                         array_type,
                         arr_len,
                         arr_res,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     }
                 }]))
         }
@@ -97,7 +98,7 @@ pub fn newarray<'vm>(
     recompile_conditions: &mut MethodRecompileConditions,
     elem_type: &Atype,
 ) -> impl Iterator<Item=IRInstr> {
-    anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, recompile_conditions,&match elem_type {
+    anewarray(resolver, method_frame_data, current_instr_data, restart_point_generator, recompile_conditions, &match elem_type {
         Atype::TBoolean => CPDType::BooleanType,
         Atype::TChar => CPDType::CharType,
         Atype::TFloat => CPDType::FloatType,
@@ -117,7 +118,7 @@ pub fn multianewarray<'vm>(
     restart_point_generator: &mut RestartPointGenerator,
     recompile_conditions: &mut MethodRecompileConditions,
     array_type: CPDType,
-    num_arrays: NonZeroU8
+    num_arrays: NonZeroU8,
 ) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
@@ -131,7 +132,7 @@ pub fn multianewarray<'vm>(
                         class: cpd_type_id,
                         this_method_id: method_frame_data.current_method_id,
                         restart_point_id,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     },
                 }]))
         }
@@ -149,7 +150,7 @@ pub fn multianewarray<'vm>(
                         num_arrays,
                         arr_len_start,
                         arr_res,
-                        java_pc: current_instr_data.current_offset
+                        java_pc: current_instr_data.current_offset,
                     }
                 }]))
         }

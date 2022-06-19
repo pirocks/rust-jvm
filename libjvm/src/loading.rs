@@ -1,9 +1,9 @@
 use std::ptr::null_mut;
 
+use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::class_objects::get_or_create_class_object;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::class_loader::ClassLoader;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
@@ -33,7 +33,7 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, loader_name: LoaderName) -> jobject {
+unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, loader_name: LoaderName) -> jobject {
     new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object().to_gc_managed()), int_state)
 }
 
@@ -103,7 +103,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
         }
     }
     return new_local_ref_public(
-todo!()/*        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+        todo!()/*        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
             Ok(res) => res,
             Err(_) => todo!(),
         }

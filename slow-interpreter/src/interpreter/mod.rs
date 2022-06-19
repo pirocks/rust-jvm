@@ -57,11 +57,11 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     let compile_interpreted = !(jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= jvm.config.compile_threshold);
 
-    if !compile_interpreted{
-        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id,false);
+    if !compile_interpreted {
+        jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
     }
 
-    let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }){
+    let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }) {
         None => {
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
             jvm.java_vm_state.lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 })
@@ -119,7 +119,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     // eprintln!("Interpreted:{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool));
     let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-    jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id,true);
+    jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, true);
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);

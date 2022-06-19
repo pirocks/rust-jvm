@@ -1,11 +1,13 @@
 use std::mem::size_of;
+
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::NativeJavaValue;
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler::fields::field_type_to_register_size;
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
@@ -23,23 +25,23 @@ pub fn bastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
 }
 
 pub fn iastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-    array_store_impl(method_frame_data, current_instr_data,CPDType::IntType)
+    array_store_impl(method_frame_data, current_instr_data, CPDType::IntType)
 }
 
 pub fn fastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-    array_store_impl(method_frame_data, current_instr_data,CPDType::FloatType)
+    array_store_impl(method_frame_data, current_instr_data, CPDType::FloatType)
 }
 
 pub fn aastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-    array_store_impl(method_frame_data, current_instr_data,CClassName::object().into())
+    array_store_impl(method_frame_data, current_instr_data, CClassName::object().into())
 }
 
 pub fn lastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-    array_store_impl(method_frame_data, current_instr_data,CPDType::LongType)
+    array_store_impl(method_frame_data, current_instr_data, CPDType::LongType)
 }
 
 pub fn dastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
-    array_store_impl(method_frame_data, current_instr_data,CPDType::DoubleType)
+    array_store_impl(method_frame_data, current_instr_data, CPDType::DoubleType)
 }
 
 fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, elem_type: CPDType) -> impl Iterator<Item=IRInstr> {

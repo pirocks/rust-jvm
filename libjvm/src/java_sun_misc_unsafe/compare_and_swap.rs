@@ -4,15 +4,16 @@ use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
 use std::sync::atomic::AtomicPtr;
+
 use libc::c_void;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
@@ -20,10 +21,9 @@ use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
-
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
-    if target_obj == null_mut(){
+    if target_obj == null_mut() {
         todo!()
     }
     let jvm = get_state(env);
@@ -45,7 +45,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jlong, new: jlong) -> jboolean {
-    if target_obj == null_mut(){
+    if target_obj == null_mut() {
         todo!()
     }
     atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jlong, old, new).1 as jboolean
@@ -66,11 +66,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 }
 
 
-
 #[no_mangle]
 unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
     //todo make these intrinsics
-    if target_obj == null_mut(){
+    if target_obj == null_mut() {
         todo!()
     }
     let target = (target_obj as *mut c_void).offset(offset as isize) as *mut jobject;

@@ -3,8 +3,10 @@ use std::mem::transmute;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
+
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
+
 use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
@@ -15,7 +17,7 @@ use slow_interpreter::options::JVMOptions;
 use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
 
 #[no_mangle]
-unsafe extern "system" fn rust_jvm_real_main(){
+unsafe extern "system" fn rust_jvm_real_main() {
     main_()
 }
 

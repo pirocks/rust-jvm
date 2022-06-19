@@ -1,5 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
 

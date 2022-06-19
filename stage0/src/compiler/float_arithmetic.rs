@@ -1,5 +1,6 @@
 use another_jit_vm::{DoubleRegister, FloatRegister, Register};
 use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, Size};
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
@@ -108,6 +109,7 @@ pub fn fadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
+
 pub fn fsub(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value2 = FloatRegister(0);
     let value1 = FloatRegister(1);

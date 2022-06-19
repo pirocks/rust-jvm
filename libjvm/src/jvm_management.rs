@@ -9,9 +9,9 @@ use std::sync::RwLock;
 use lazy_static::lazy_static;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use jmm_bindings::jmmInterface_1_;
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;

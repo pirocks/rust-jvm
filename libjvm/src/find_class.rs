@@ -6,6 +6,7 @@ use std::ptr::null_mut;
 use by_address::ByAddress;
 use nix::sys::aio::aio_suspend;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations;
@@ -18,7 +19,6 @@ use rust_jvm_common::ptype::PType::Ref;
 use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};

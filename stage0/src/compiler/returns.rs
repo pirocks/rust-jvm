@@ -47,7 +47,6 @@ pub fn areturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr
 }
 
 
-
 pub fn dreturn(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let return_temp = Register(1);
 

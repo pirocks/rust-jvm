@@ -40,7 +40,7 @@ pub fn dup_x2(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
             IRInstr::StoreFPRelative { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1), size: Size::X86QWord },
             IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 2), size: Size::X86QWord },
         ]))
-    }else {
+    } else {
         Either::Right(array_into_iter([
             IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1, size: Size::X86QWord },
             IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value2, size: Size::X86QWord },

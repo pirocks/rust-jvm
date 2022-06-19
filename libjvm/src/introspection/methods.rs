@@ -4,6 +4,7 @@ use std::ptr::null_mut;
 
 use itertools::Itertools;
 
+use another_jit_vm_ir::WasException;
 use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
@@ -13,7 +14,6 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedR
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
@@ -199,7 +199,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
     let bytes_vec = match rc.unwrap_class_class().class_view.annotations() {
         Some(x) => x,
         None => {
-            return null_mut()
+            return null_mut();
         }
     };
     let java_bytes_vec = bytes_vec

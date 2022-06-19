@@ -1,13 +1,14 @@
 use std::ptr::null_mut;
+
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::JavaValue;
@@ -37,7 +38,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     };
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let prop_obj = from_object_new(jvm,p0).unwrap();
+    let prop_obj = from_object_new(jvm, p0).unwrap();
     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("user.dir".to_string())).unwrap();
     let properties = prop_obj.cast_properties();
     let table = properties.table(jvm);
@@ -60,8 +61,8 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(key))?.intern(jvm,int_state)?;
-    let val = JString::from_rust(jvm,int_state,Wtf8Buf::from_string(val))?.intern(jvm,int_state)?;
+    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(key))?.intern(jvm, int_state)?;
+    let val = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
     let prop_obj = match from_object_new(jvm, p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -79,7 +80,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
         md,
         runtime_class.clone(),
         meth,
-        vec![NewJavaValue::AllocObject(normal_object_handle.as_allocated_obj()),key.new_java_value_handle().as_njv(),val.new_java_value_handle().as_njv()]
+        vec![NewJavaValue::AllocObject(normal_object_handle.as_allocated_obj()), key.new_java_value_handle().as_njv(), val.new_java_value_handle().as_njv()],
     )?.unwrap().unwrap_object();
-    Ok(new_local_ref_public_new(p.as_ref().map(|handle|handle.as_allocated_obj()),int_state))
+    Ok(new_local_ref_public_new(p.as_ref().map(|handle| handle.as_allocated_obj()), int_state))
 }

@@ -6,9 +6,11 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use by_address::ByAddress;
+use itertools::Itertools;
 use num_cpus::get;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
@@ -24,7 +26,6 @@ use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
-use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;
@@ -33,6 +34,8 @@ use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
@@ -42,9 +45,6 @@ use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
 use slow_interpreter::utils::throw_npe;
-use itertools::Itertools;
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -70,7 +70,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     };
     let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CClassName::class().into()));
     let elems = interface_vec.iter().map(|handle| NewJavaValue::AllocObject(handle.as_allocated_obj())).collect_vec();
-    let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{ whole_array_runtime_class, elems }));
+    let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }));
     new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
 
@@ -194,7 +194,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle|handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]
@@ -224,10 +224,10 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     let this_native_fn_frame = stack.next().unwrap();
     assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque());
     let mut parent_frame = stack.next().unwrap();
-    if parent_frame.is_native_method() || parent_frame.is_opaque(){
+    if parent_frame.is_native_method() || parent_frame.is_opaque() {
         parent_frame = stack.next().unwrap();
     }
-    if parent_frame.is_native_method() || parent_frame.is_opaque(){
+    if parent_frame.is_native_method() || parent_frame.is_opaque() {
         parent_frame = stack.next().unwrap();
     }
     assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque());
@@ -251,7 +251,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     let jclass = load_class_constant_by_type(jvm, int_state, type_).unwrap();
-    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

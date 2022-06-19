@@ -64,7 +64,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_allocateInstance(env: *mut JNIEnv
     let int_state = get_interpreter_state(env);
     let jclass = from_jclass(jvm, cls);
     let rc = check_initing_or_inited_class(jvm, int_state, jclass.as_type(jvm)).unwrap();
-    let obj_handle = new_object(jvm,int_state,&rc);
+    let obj_handle = new_object(jvm, int_state, &rc);
     to_object_new(Some(obj_handle.as_allocated_obj()))
 }
 
@@ -164,7 +164,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(),jvm);
+            let static_vars = static_vars(rc.deref(), jvm);
             static_vars.get(field_name).to_jv().unwrap_int()
         }
     }
@@ -215,7 +215,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(),jvm);
+            let static_vars = static_vars(rc.deref(), jvm);
             static_vars.get(field_name).to_jv().unwrap_long()
         }
     }
@@ -260,7 +260,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let res = static_vars(runtime_class.deref(),jvm).get(name);
+            let res = static_vars(runtime_class.deref(), jvm).get(name);
             to_object(todo!()/*res.unwrap_object()*/)
         }
         Some(object_to_read) => {
@@ -288,7 +288,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let mut static_vars_guard = static_vars(runtime_class.deref(),jvm);
+            let mut static_vars_guard = static_vars(runtime_class.deref(), jvm);
             let mut res = static_vars_guard.get(name);
             res = NewJavaValueHandle::from_optional_object(from_object_new(jvm, to_put)); //todo dup with get function
             static_vars_guard.set(name, res)

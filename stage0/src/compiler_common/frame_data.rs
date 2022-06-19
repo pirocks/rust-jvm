@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use java5_verifier::{InferredFrame, SimplifiedVType};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::vtype::VType;
@@ -10,7 +11,6 @@ pub enum SunkVerifierFrames {
 }
 
 impl SunkVerifierFrames {
-
     pub fn try_unwrap_full_frame(&self) -> Option<&Frame> {
         match self {
             SunkVerifierFrames::FullFrame(full_frame) => Some(full_frame),
@@ -22,14 +22,14 @@ impl SunkVerifierFrames {
         self.try_unwrap_full_frame().unwrap()
     }
 
-    pub fn try_unwrap_partial_inferred_frame(&self) -> Option<&InferredFrame>{
+    pub fn try_unwrap_partial_inferred_frame(&self) -> Option<&InferredFrame> {
         match self {
             SunkVerifierFrames::FullFrame(_) => None,
             SunkVerifierFrames::PartialInferredFrame(inferred_frame) => Some(inferred_frame)
         }
     }
 
-    pub fn unwrap_partial_inferred_frame(&self) -> &InferredFrame{
+    pub fn unwrap_partial_inferred_frame(&self) -> &InferredFrame {
         self.try_unwrap_partial_inferred_frame().unwrap()
     }
 
@@ -38,7 +38,7 @@ impl SunkVerifierFrames {
             SunkVerifierFrames::FullFrame(frame) => {
                 assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
                 frame.stack_map.len()
-            },
+            }
             SunkVerifierFrames::PartialInferredFrame(frame) => {
                 assert!(frame.operand_stack.iter().all(|types| !matches!(types, SimplifiedVType::Top)));
                 frame.operand_stack.len()
@@ -52,9 +52,9 @@ impl SunkVerifierFrames {
             SunkVerifierFrames::FullFrame(frame) => {
                 assert!(frame.stack_map.iter().all(|types| !matches!(types, VType::TopType)));
                 frame.stack_map.iter().map(|vtype| is_type_2_computational_type(vtype)).collect()
-            },
+            }
             SunkVerifierFrames::PartialInferredFrame(frame) => {
-                frame.operand_stack.iter().map(|vtype|match vtype {
+                frame.operand_stack.iter().map(|vtype| match vtype {
                     SimplifiedVType::OneWord => false,
                     SimplifiedVType::TwoWord => true,
                     SimplifiedVType::Top => panic!()
@@ -85,9 +85,9 @@ fn is_type_2_computational_type(vtype: &VType) -> bool {
     }
 }
 
-pub struct FunctionFrameData{
+pub struct FunctionFrameData {
     pub no_tops: HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>,
-    pub tops: HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>
+    pub tops: HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>,
 }
 
 

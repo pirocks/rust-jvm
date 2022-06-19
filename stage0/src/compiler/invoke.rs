@@ -282,7 +282,7 @@ pub fn invoke_interface<'vm>(
                                 Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                             },
                             java_pc: current_instr_data.current_offset,
-                            target_method_shape_id: method_shape_id
+                            target_method_shape_id: method_shape_id,
                         }
                     },
                     IRInstr::IRCall {

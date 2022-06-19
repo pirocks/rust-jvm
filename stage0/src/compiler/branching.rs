@@ -140,7 +140,7 @@ pub fn lookup_switch(method_frame_data: &JavaCompilerMethodAndFrameData, current
             a: key_register,
             b: current_key_register,
             label: target_label,
-            size: Size::int()
+            size: Size::int(),
         });
     }
     //todo dup have a lable_at_offset which does this addition
@@ -163,7 +163,7 @@ pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
     res.push(IRInstr::LoadFPRelative {
         from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
         to: index,
-        size: Size::int()
+        size: Size::int(),
     });
     res.push(IRInstr::Const32bit { to: low_register, const_: *low as u32 });
     res.push(IRInstr::Const32bit { to: high_register, const_: *high as u32 });
@@ -171,18 +171,18 @@ pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
         a: low_register,
         b: index,
         label: default_label,
-        size: Size::int()
+        size: Size::int(),
     });
     res.push(IRInstr::BranchAGreaterB {
         a: index,
         b: high_register,
         label: default_label,
-        size: Size::int()
+        size: Size::int(),
     });
     res.push(IRInstr::Sub {
         res: index,
         to_subtract: low_register,
-        size: Size::int()
+        size: Size::int(),
     });
     for (i, offset) in offsets.iter().enumerate() {
         res.push(IRInstr::Const32bit { to: current_test, const_: i as u32 });
@@ -192,7 +192,7 @@ pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
             a: index,
             b: current_test,
             label: current_label,
-            size: Size::int()
+            size: Size::int(),
         });
     }
     res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo });

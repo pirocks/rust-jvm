@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use itertools::{Either};
+use itertools::Either;
 
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::layout::{NativeStackframeMemoryLayout};
+use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
@@ -36,7 +36,6 @@ use crate::compiler::returns::{areturn, dreturn, freturn, ireturn, lreturn, retu
 use crate::compiler::static_fields::{getstatic, putstatic};
 use crate::compiler::throw::athrow;
 use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
-
 
 pub struct CurrentInstructionCompilerData<'l, 'k> {
     current_index: ByteCodeIndex,
@@ -110,7 +109,7 @@ impl RecompileConditions {
             Some(needs_recompiling) => {
                 if interpreter_debug {
                     // dbg!(needs_recompiling);
-                    assert!(needs_recompiling.iter().any(|elem|matches!(elem,NeedsRecompileIf::Interpreted {..})))
+                    assert!(needs_recompiling.iter().any(|elem| matches!(elem,NeedsRecompileIf::Interpreted {..})))
                 }
                 for condition in needs_recompiling {
                     if condition.should_recompile(method_resolver) {

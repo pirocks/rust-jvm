@@ -1,5 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
 
@@ -43,7 +44,6 @@ pub fn fstore_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_inst
         IRInstr::StoreFPRelative { from: Register(1), to: to_offset, size: Size::float() },
     ])
 }
-
 
 
 pub fn dstore_n(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData, n: u16) -> impl Iterator<Item=IRInstr> {

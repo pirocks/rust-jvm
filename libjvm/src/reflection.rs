@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
@@ -14,7 +15,6 @@ use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descript
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
-use another_jit_vm_ir::WasException;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::boolean::Boolean;
 use slow_interpreter::java::lang::byte::Byte;
@@ -63,14 +63,14 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     };
     let args = args_not_null.unwrap_array();
     let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
-            None => return throw_npe(jvm, int_state),
-            Some(method_name) => method_name.cast_string().to_rust_string(jvm),
-        };
+        None => return throw_npe(jvm, int_state),
+        Some(method_name) => method_name.cast_string().to_rust_string(jvm),
+    };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
     let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
-            None => return throw_npe(jvm, int_state),
-            Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
-        };
+        None => return throw_npe(jvm, int_state),
+        Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
+    };
     let clazz_java_val = method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
@@ -89,10 +89,10 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
         return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
     };
-    let invoke_virtual_obj = NewJavaValueHandle::from_optional_object(from_object_new(jvm,obj));
-    let mut res_args = if obj  == null_mut(){
+    let invoke_virtual_obj = NewJavaValueHandle::from_optional_object(from_object_new(jvm, obj));
+    let mut res_args = if obj == null_mut() {
         vec![]
-    }else {
+    } else {
         vec![invoke_virtual_obj.as_njv()]
     };
     let collected_args_array = args.array_iterator().collect_vec();
@@ -187,7 +187,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     };
     let obj = new_object(jvm, int_state, &clazz);
     let mut full_args = vec![obj.new_java_value()];
-    full_args.extend(args.iter().map(|handle|handle.as_njv()));
+    full_args.extend(args.iter().map(|handle| handle.as_njv()));
     // dbg!(&full_args);
     run_constructor(jvm, int_state, clazz, full_args, &signature);
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)

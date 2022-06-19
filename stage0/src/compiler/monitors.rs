@@ -1,5 +1,6 @@
 use another_jit_vm_ir::compiler::IRInstr;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
 

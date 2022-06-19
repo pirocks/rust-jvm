@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::Arc;
+
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
+
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
@@ -20,6 +22,7 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
+
 use crate::compiler_common::frame_data::SunkVerifierFrames;
 
 pub mod frame_data;
@@ -31,7 +34,7 @@ pub struct JavaCompilerMethodAndFrameData {
     pub(crate) layout: YetAnotherLayoutImpl,
     pub index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
     pub current_method_id: MethodId,
-    pub local_vars: usize
+    pub local_vars: usize,
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -45,7 +48,7 @@ impl JavaCompilerMethodAndFrameData {
             layout: YetAnotherLayoutImpl::new(frames_no_tops, code),
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
-            local_vars: code.max_locals as usize
+            local_vars: code.max_locals as usize,
         }
     }
 
@@ -65,7 +68,7 @@ impl JavaCompilerMethodAndFrameData {
         self.layout.full_frame_size()
     }
 
-    pub fn num_local_vars(&self) -> usize{
+    pub fn num_local_vars(&self) -> usize {
         self.local_vars
     }
 }

@@ -4,10 +4,10 @@ use std::io::{Cursor, Write};
 use std::ptr::null_mut;
 use std::sync::Arc;
 
+use another_jit_vm_ir::WasException;
 use classfile_parser::parse_class_file;
 use classfile_view::view::ClassBackedView;
 use jvmti_jni_bindings::{jbyte, jclass, JNIEnv, jobject, jsize};
-use another_jit_vm_ir::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::define_class_safe;
 use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object, to_object_new};
