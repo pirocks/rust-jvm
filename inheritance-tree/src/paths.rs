@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use crate::{Bit, ClassID};
+use std::simd::u8x16;
 
 #[derive(Debug)]
 pub enum InheritanceTreePath<'a> {
@@ -49,6 +50,68 @@ impl<'a> InheritanceTreePath<'a> {
     pub fn split_1(&self) -> (Bit, InheritanceTreePath) {
         (self.as_slice()[0], InheritanceTreePath::Borrowed { inner: &self.as_slice()[1..] })
     }
+
+    fn set_bit(target: &mut u8, bit_i: u8, set_to: Bit){
+        assert!(bit_i <= 8);
+        match set_to {
+            Bit::Set => {
+                *target |= 1u8 << bit_i
+            }
+            Bit::UnSet => {
+                *target &= !(1u8 << bit_i)
+            }
+        }
+
+    }
+
+    pub fn to_bit_path256(&self) -> Result<BitPath256,DoesNotFit>{
+        let bit_len = self.as_slice().len().try_into().map_err(|_|DoesNotFit)?;
+        let mut bit_path = [0u8;16];
+        let mut valid_mask = [0u8;16];
+        for (i,bit) in self.as_slice().iter().enumerate(){
+            let vec_i = i/8;
+            let bit_i = (i % 8) as u8;
+            Self::set_bit(bit_path.get_mut(vec_i).unwrap(), bit_i, *bit);
+            Self::set_bit(valid_mask.get_mut(vec_i).unwrap(), bit_i, Bit::Set);
+        }
+        Ok(BitPath256{
+            bit_len,
+            valid_mask,
+            bit_path
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct DoesNotFit;
+
+
+pub struct BitPath256{
+    bit_len: u8,
+    valid_mask: [u8;16],
+    bit_path: [u8;16]
+}
+
+impl BitPath256{
+    pub fn bit_path_to_vector(&self) -> u8x16{
+        u8x16::from_array(self.bit_path)
+    }
+
+    pub fn mask_to_vector(&self) -> u8x16{
+        u8x16::from_array(self.valid_mask)
+    }
+
+    pub fn is_subpath_of(&self, super_path: BitPath256) -> bool{
+        if self.bit_len < super_path.bit_len{
+            return false;
+        }
+        let super_path_mask = super_path.mask_to_vector();
+        let super_path = super_path.bit_path_to_vector();
+        let self_path = self.bit_path_to_vector();
+        let compared = super_path ^ self_path;
+        let should_be_all_zero = compared & super_path_mask;
+        should_be_all_zero == u8x16::splat(0)
+    }
 }
 
 
@@ -96,3 +159,4 @@ impl From<Vec<ClassID>>  for InheritanceClassIDPath<'_>{
         InheritanceClassIDPath::Owned { inner: class_ids }
     }
 }
+

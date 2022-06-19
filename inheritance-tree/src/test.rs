@@ -1,14 +1,13 @@
+use crate::{Bit, ClassID, ClassList, InheritanceClassIDPath, InheritanceTreeInner, InheritanceTreePath};
 use crate::class_list::{ClassListNode, STAGE_1_TARGET_CAPACITY, STAGE_2_TARGET_CAPACITY, STAGE_3_TARGET_CAPACITY};
-use crate::{ClassID, ClassList, InheritanceClassIDPath, InheritanceTreeInner};
 
 #[test]
 pub fn class_list_insert_many() {
     let mut class_list = ClassList::new_4_stage();
-    for i in 0..(STAGE_3_TARGET_CAPACITY + STAGE_2_TARGET_CAPACITY + STAGE_1_TARGET_CAPACITY + 10){
+    for i in 0..(STAGE_3_TARGET_CAPACITY + STAGE_2_TARGET_CAPACITY + STAGE_1_TARGET_CAPACITY + 10) {
         class_list.insert(ClassID(i));
     }
 }
-
 
 
 #[test]
@@ -63,9 +62,8 @@ pub fn inheritance_tree_build_up() {
     inheritance_tree.insert(&b_path);
     inheritance_tree.insert(&b_a_path);
     // three class list levels + max of 2 stage 2 elems.
-    assert!(inheritance_tree.max_bit_depth() <= 2*3 + 2 + 2);
+    assert!(inheritance_tree.max_bit_depth() <= 2 * 3 + 2 + 2);
     inheritance_tree.top_node.lookup_class_id_path(&a_a_path);
-
 }
 
 
@@ -80,7 +78,42 @@ pub fn inheritance_tree_bug_0_maybe() {
     inheritance_tree.insert(&vec![object_class].into());
     inheritance_tree.insert(&vec![object_class, a_class].into());
     inheritance_tree.insert(&vec![object_class].into());
-    inheritance_tree.insert(&vec![object_class,b_class].into());
-    inheritance_tree.insert(&vec![object_class,c_class].into());
-    inheritance_tree.insert(&vec![object_class,d_class].into());
+    inheritance_tree.insert(&vec![object_class, b_class].into());
+    inheritance_tree.insert(&vec![object_class, c_class].into());
+    inheritance_tree.insert(&vec![object_class, d_class].into());
+}
+
+#[test]
+pub fn test_bit_path_comparison() {
+    let sub___ = vec![Bit::Set, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    let super_ = vec![Bit::Set, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::Set];
+    assert!(!is_sub_path(sub___, super_));
+
+    let sub___ = vec![Bit::Set, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::Set];
+    let super_ = vec![Bit::Set, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    assert!(is_sub_path(sub___, super_));
+
+    let sub___ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::Set];
+    let super_ = vec![Bit::Set, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    assert!(!is_sub_path(sub___, super_));
+
+    let sub___ = vec![];
+    let super_ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::Set];
+    assert!(!is_sub_path(sub___, super_));
+
+    let sub___ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::Set];
+    let super_ = vec![];
+    assert!(is_sub_path(sub___, super_));
+
+
+    let sub___ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::UnSet];
+    let super_ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    assert!(is_sub_path(sub___, super_));
+}
+
+fn is_sub_path(sub: Vec<Bit>, super_: Vec<Bit>) -> bool {
+    let sub_bit_path = InheritanceTreePath::Owned { inner: sub }.to_bit_path256().unwrap();
+    let super_bit_path = InheritanceTreePath::Owned { inner: super_ }.to_bit_path256().unwrap();
+    let is_subpath = sub_bit_path.is_subpath_of(super_bit_path);
+    is_subpath
 }
