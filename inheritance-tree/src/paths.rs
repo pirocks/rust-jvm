@@ -89,3 +89,10 @@ impl<'a> InheritanceClassIDPath<'a> {
         (self.as_slice()[0], InheritanceClassIDPath::Borrowed { inner: &self.as_slice()[1..] })
     }
 }
+
+
+impl From<Vec<ClassID>>  for InheritanceClassIDPath<'_>{
+    fn from(class_ids: Vec<ClassID>) -> Self {
+        InheritanceClassIDPath::Owned { inner: class_ids }
+    }
+}

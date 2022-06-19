@@ -13,13 +13,14 @@ use itertools::Itertools;
 use libc::rand;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::PTypeView;
 use java5_verifier::type_infer;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNINativeInterface_, jobject, jsize, jstring, jvalue};
-use runtime_class_stuff::{ClassStatus,  RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -34,7 +35,6 @@ use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
-use another_jit_vm_ir::WasException;
 use crate::interpreter_util::new_object;
 use crate::java::lang::class::JClass;
 use crate::java::lang::reflect::field::Field;
@@ -688,7 +688,7 @@ pub fn define_class_safe<'gc, 'l>(
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new_new(class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED),&jvm.string_pool)
+        RuntimeClassClass::new_new(&jvm.inheritance_tree, class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
     ));
     jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(), parsed.clone());
     let mut class_view_cache = HashMap::new();

@@ -240,7 +240,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
             }
 
             let res = Arc::new(RuntimeClass::Object(
-                RuntimeClassClass::new_new(class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(),&jvm.string_pool)
+                RuntimeClassClass::new_new(&jvm.inheritance_tree, class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(),&jvm.string_pool, &jvm.class_ids)
             ));
             let mut verifier_context = VerifierContext {
                 live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,

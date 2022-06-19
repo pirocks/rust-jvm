@@ -1,3 +1,15 @@
+use crate::class_list::{ClassListNode, STAGE_1_TARGET_CAPACITY, STAGE_2_TARGET_CAPACITY, STAGE_3_TARGET_CAPACITY};
+use crate::{ClassID, ClassList, InheritanceClassIDPath, InheritanceTreeInner};
+
+#[test]
+pub fn class_list_insert_many() {
+    let mut class_list = ClassList::new_4_stage();
+    for i in 0..(STAGE_3_TARGET_CAPACITY + STAGE_2_TARGET_CAPACITY + STAGE_1_TARGET_CAPACITY + 10){
+        class_list.insert(ClassID(i));
+    }
+}
+
+
 
 #[test]
 pub fn class_list_insert_at_depth_works_1() {
@@ -31,7 +43,7 @@ pub fn class_list_insert_at_depth_works_3() {
 #[test]
 pub fn inheritance_tree_build_up() {
     let object_class = ClassID(0);
-    let mut inheritance_tree = InheritanceTree::new(object_class);
+    let mut inheritance_tree = InheritanceTreeInner::new(object_class);
     let class_a = ClassID(1);
     let class_a_a = ClassID(2);
     let class_a_b = ClassID(3);
@@ -52,6 +64,23 @@ pub fn inheritance_tree_build_up() {
     inheritance_tree.insert(&b_a_path);
     // three class list levels + max of 2 stage 2 elems.
     assert!(inheritance_tree.max_bit_depth() <= 2*3 + 2 + 2);
-    inheritance_tree.lookup_class_id_path(&a_a_path);
+    inheritance_tree.top_node.lookup_class_id_path(&a_a_path);
 
+}
+
+
+#[test]
+pub fn inheritance_tree_bug_0_maybe() {
+    let object_class = ClassID(0);
+    let a_class = ClassID(5);
+    let b_class = ClassID(8);
+    let c_class = ClassID(10);
+    let d_class = ClassID(11);
+    let mut inheritance_tree = InheritanceTreeInner::new(object_class);
+    inheritance_tree.insert(&vec![object_class].into());
+    inheritance_tree.insert(&vec![object_class, a_class].into());
+    inheritance_tree.insert(&vec![object_class].into());
+    inheritance_tree.insert(&vec![object_class,b_class].into());
+    inheritance_tree.insert(&vec![object_class,c_class].into());
+    inheritance_tree.insert(&vec![object_class,d_class].into());
 }

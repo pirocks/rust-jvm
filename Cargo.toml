@@ -13,6 +13,8 @@ jvm = { path = "./libjvm" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 inheritance-tree = { path = "./inheritance-tree" }
 
+
+
 [workspace]
 members = [
     "rust-jvm-common",
@@ -41,3 +43,6 @@ members = [
     "stage0",
     "inheritance-tree"
 ]
+
+[profile.debug_minecraft]
+inherits = 'dev'

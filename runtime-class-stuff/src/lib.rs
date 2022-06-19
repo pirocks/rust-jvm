@@ -4,6 +4,9 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::{Arc, RwLock};
 
 use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
+use inheritance_tree::{ClassID, InheritanceTree};
+use inheritance_tree::class_ids::ClassIDs;
+use inheritance_tree::paths::InheritanceClassIDPath;
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::method_shape::MethodShape;
@@ -150,6 +153,8 @@ pub struct RuntimeClassClass<'gc> {
     pub static_vars: Vec<UnsafeCell<NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
+    pub class_id_path: Option<Vec<ClassID>>,
+    //n/a for interfaces
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
 }
@@ -158,19 +163,23 @@ pub struct RuntimeClassClass<'gc> {
 //todo refactor to make it impossible to create RuntimeClassClass without registering to array, box leak jvm state to static
 
 impl<'gc> RuntimeClassClass<'gc> {
-    pub fn new_new(class_view: Arc<ClassBackedView>,
+    pub fn new_new(inheritance_tree: &InheritanceTree,
+                   class_view: Arc<ClassBackedView>,
                    parent: Option<Arc<RuntimeClass<'gc>>>,
                    interfaces: Vec<Arc<RuntimeClass<'gc>>>,
                    status: RwLock<ClassStatus>,
-                   _string_pool: &CompressedClassfileStringPool
+                   _string_pool: &CompressedClassfileStringPool,
+                   class_ids: &ClassIDs
     ) -> Self {
+        let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
         let (recursive_num_static_fields, static_field_numbers) = get_field_numbers_static(&class_view, &parent);
-        Self::new(class_view, recursive_num_fields, parent, interfaces, status, field_numbers, recursive_num_methods, method_numbers, recursive_num_static_fields, static_field_numbers)
+        Self::new(inheritance_tree, class_view, recursive_num_fields, parent, interfaces, status, field_numbers, recursive_num_methods, method_numbers, recursive_num_static_fields, static_field_numbers, class_id_path)
     }
 
     pub fn new(
+        inheritance_tree: &InheritanceTree,
         class_view: Arc<dyn ClassView>,
         recursive_num_fields: u32,
         parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -181,6 +190,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_static_fields: u32,
         static_field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
+        class_id_path: Vec<ClassID>,
     ) -> Self {
         fn reverse_fields(field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>) -> (HashMap<FieldName, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
             let reverse = field_numbers.clone().into_iter()
@@ -190,6 +200,10 @@ impl<'gc> RuntimeClassClass<'gc> {
                 .map(|(name, (number, cpdtype))| (name, FieldNumberAndFieldType { number, cpdtype }))
                 .collect();
             (forward, reverse)
+        }
+
+        if !class_view.is_interface(){
+            inheritance_tree.insert(&InheritanceClassIDPath::Borrowed { inner: class_id_path.as_slice() });
         }
 
         let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
@@ -211,9 +225,10 @@ impl<'gc> RuntimeClassClass<'gc> {
             recursive_num_methods,
             static_field_numbers,
             static_field_numbers_reverse,
-            static_vars: (0..recursive_num_static_fields).map(|_|UnsafeCell::new(NativeJavaValue { as_u64: 0 })).collect(),
+            static_vars: (0..recursive_num_static_fields).map(|_| UnsafeCell::new(NativeJavaValue { as_u64: 0 })).collect(),
             parent,
             interfaces,
+            class_id_path: Some(class_id_path),
             status,
         }
     }
@@ -225,6 +240,22 @@ impl<'gc> RuntimeClassClass<'gc> {
     pub fn num_virtual_methods(&self) -> usize {
         self.class_view.methods().filter(|method| !method.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_virtual_methods()).unwrap_or(0)
     }
+}
+
+fn get_class_id_path<'gc>(class_view: &Arc<dyn ClassView>, parent: &Option<Arc<RuntimeClass<'gc>>>, class_ids: &ClassIDs) -> Vec<ClassID> {
+    let mut res = vec![];
+    get_class_id_path_impl(class_view, parent, class_ids, &mut res);
+    res
+}
+
+
+fn get_class_id_path_impl<'gc>(class_view: &Arc<dyn ClassView>, parent: &Option<Arc<RuntimeClass<'gc>>>, class_ids: &ClassIDs, res: &mut Vec<ClassID>) {
+    let class_id = class_ids.get_id_or_add(class_view.name().to_cpdtype());
+    if let Some(parent) = parent {
+        let class = parent.unwrap_class_class();
+        get_class_id_path_impl(&class.class_view, &class.parent, class_ids, res);
+    }
+    res.push(class_id);
 }
 
 #[allow(unreachable_code)]

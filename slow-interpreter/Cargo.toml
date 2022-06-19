@@ -30,6 +30,7 @@ runtime-class-stuff = { path = "../runtime-class-stuff" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 method-table = { path = "../method-table" }
+inheritance-tree = { path = "../inheritance-tree" }
 metered = "0.8"
 serde_yaml = "0.8"
 num-traits = "0.2"

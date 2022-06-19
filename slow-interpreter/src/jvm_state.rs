@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
 use std::iter;
-use std::iter::{FromIterator};
+use std::iter::FromIterator;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -19,6 +19,8 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use inheritance_tree::class_ids::ClassIDs;
+use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
@@ -28,6 +30,7 @@ use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, FieldNameAndFieldType, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -38,14 +41,20 @@ use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapp
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
+use stage0::compiler::RecompileConditions;
+use stage0::compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
+use stage0::compiler_common::JavaCompilerMethodAndFrameData;
 use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
-use verification::verifier::{Frame};
+use verification::verifier::Frame;
+use vtable::lookup_cache::InvokeVirtualLookupCache;
+use vtable::VTables;
 
+use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
+use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use stage0::compiler::{RecompileConditions};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
@@ -54,21 +63,13 @@ use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
-use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
-use runtime_class_stuff::RuntimeClass;
-use stage0::compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
-use stage0::compiler_common::JavaCompilerMethodAndFrameData;
-use vtable::lookup_cache::InvokeVirtualLookupCache;
-use vtable::VTables;
-use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
-use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
+use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use crate::string_exit_cache::StringExitCache;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
 use crate::tracing::TracingSettings;
-
 
 pub static mut JVM: Option<&'static JVMState> = None;
 
@@ -129,6 +130,8 @@ pub struct JVMState<'gc> {
     pub invoke_interface_lookup_cache: RwLock<InvokeInterfaceLookupCache<'gc>>,
     pub string_exit_cache: RwLock<StringExitCache<'gc>>,
     pub function_execution_count: FunctionInstructionExecutionCount,
+    pub class_ids: ClassIDs,
+    pub inheritance_tree: InheritanceTree,
 }
 
 
@@ -281,7 +284,10 @@ impl<'gc> JVMState<'gc> {
             None
         };
         let thread_state = ThreadState::new(scope);
-        let classes = JVMState::init_classes(&string_pool, &classpath_arc);
+        let class_ids = ClassIDs::new();
+        let object_class_id = class_ids.get_id_or_add(CPDType::object());
+        let inheritance_tree = InheritanceTree::new(object_class_id);
+        let classes = JVMState::init_classes(&string_pool, &class_ids, &inheritance_tree, &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 
         let jvm = Self {
@@ -338,6 +344,8 @@ impl<'gc> JVMState<'gc> {
                 tops: Default::default(),
             }),
             function_execution_count: FunctionInstructionExecutionCount::new(),
+            class_ids,
+            inheritance_tree: inheritance_tree,
         };
         (args, jvm)
     }
@@ -401,7 +409,7 @@ impl<'gc> JVMState<'gc> {
     }
 
 
-    pub fn early_add_class(&'gc self,class: Arc<RuntimeClass<'gc>>){
+    pub fn early_add_class(&'gc self, class: Arc<RuntimeClass<'gc>>) {
         let class_unwrapped = class.unwrap_class_class();
         let recursive_num_fields = class_unwrapped.recursive_num_fields;
         let field_numbers_reverse = &class_unwrapped.field_numbers_reverse;
@@ -426,10 +434,9 @@ impl<'gc> JVMState<'gc> {
         for interface in class_class.unwrap_class_class().interfaces.iter() {
             self.early_add_class(interface.clone());
         }
-
     }
 
-    fn init_classes(pool: &CompressedClassfileStringPool, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
+    fn init_classes(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs, inheritance_tree: &InheritanceTree, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
         //todo turn this into a ::new
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
         let serializable_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::serializable(), pool).unwrap(), pool));
@@ -438,52 +445,64 @@ impl<'gc> JVMState<'gc> {
         let annotated_element_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::annotated_element(), pool).unwrap(), pool));
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             object_class_view,
             None,
             vec![],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
 
         let annotated_element_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             annotated_element_view,
             None,
             vec![],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
 
         let type_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             type_view,
             None,
             vec![],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
 
         let serializable_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             serializable_view,
             None,
             vec![],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
 
 
         let generic_declaration_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             generic_declaration_view,
             None,
             vec![annotated_element_class.clone()],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
         //todo Class does implement several interfaces, but non handled here
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
+            inheritance_tree,
             class_view,
             Some(temp_object_class),
             vec![annotated_element_class.clone(), generic_declaration_class.clone(), type_class.clone(), serializable_class.clone()],
             RwLock::new(ClassStatus::UNPREPARED),
             pool,
+            class_ids,
         )));
         let mut loaded_classes_by_type: HashMap<LoaderName, HashMap<CPDType, Arc<RuntimeClass>>> = Default::default();
         loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::class().into(), class_class.clone());

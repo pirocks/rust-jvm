@@ -129,14 +129,14 @@ impl ClassList {
         }
     }
 
-    #[must_use]
-    pub fn insert(&mut self, class_id: ClassID) -> InheritanceTreePath {
+    pub fn insert<'any>(&mut self, class_id: ClassID) -> InheritanceTreePath<'any> {
         let stage_to_insert = self.current_stage_to_insert();
         *self.stage_utilization_mut(stage_to_insert) += 1;
         let stage_depth = stage_to_insert.stage_depth();
         let stage_path = stage_to_insert.stage_path();
         let stage_to_insert = self.stage_mut(stage_to_insert);
         let sub_path = stage_to_insert.insert_at_depth(stage_depth, class_id);
+        assert_eq!(sub_path.as_slice().len(), stage_depth as usize);
         stage_path.concat(&sub_path)
     }
 
@@ -229,11 +229,12 @@ impl ClassListNode {
                 panic!()
             }
             ClassListNode::GrownNode { set, unset } => {
+                let save = path_so_far.len();
                 path_so_far.push(Bit::Set);
                 if let Ok(()) = set.try_insert_at_depth_impl(depth - 1, to_insert, path_so_far) {
                     return Ok(());
                 }
-                path_so_far.pop();
+                path_so_far.resize(save, Bit::Set);
                 path_so_far.push(Bit::UnSet);
                 return unset.try_insert_at_depth_impl(depth - 1, to_insert, path_so_far);
             }
@@ -338,6 +339,8 @@ impl ClassListNode {
             }
             ClassListNode::LeafNode { .. } |
             ClassListNode::GrowthNode => {
+                dbg!(self);
+                dbg!(path);
                 panic!()
             }
         }

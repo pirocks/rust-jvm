@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::sync::RwLock;
 use crate::class_list::ClassList;
 use crate::paths::{InheritanceClassIDPath, InheritanceTreePath};
 
@@ -9,13 +10,39 @@ pub mod class_list;
 pub mod paths;
 #[cfg(test)]
 pub mod test;
+pub mod class_ids;
 
-#[derive(Debug)]
-pub struct InheritanceTree {
-    top_node: InheritanceTreeNode,
+pub struct InheritanceTree{
+    inner: RwLock<InheritanceTreeInner>
 }
 
 impl InheritanceTree {
+    pub fn new(object_class_id: ClassID) -> Self {
+        Self {
+            inner: RwLock::new(InheritanceTreeInner::new(object_class_id))
+        }
+    }
+
+    pub fn insert(&self, class_id_path: &InheritanceClassIDPath) {
+        self.inner.write().unwrap().insert(class_id_path);
+        unsafe {
+            if libc::rand() < 100000000 {
+                dbg!(self.inner.read().unwrap().max_bit_depth());
+            }
+        }
+    }
+
+    pub fn max_bit_depth(&self) -> usize{
+        self.inner.read().unwrap().max_bit_depth()
+    }
+}
+
+#[derive(Debug)]
+pub struct InheritanceTreeInner {
+    top_node: InheritanceTreeNode,
+}
+
+impl InheritanceTreeInner {
     pub fn new(object_class_id: ClassID) -> Self {
         Self {
             top_node: InheritanceTreeNode {
@@ -28,14 +55,6 @@ impl InheritanceTree {
 
     pub fn insert(&mut self, class_id_path: &InheritanceClassIDPath) {
         self.top_node.insert(class_id_path)
-    }
-
-    pub fn lookup_class_id_path(&self, class_id_path: &InheritanceClassIDPath) -> Option<InheritanceTreePath> {
-        self.top_node.lookup_class_id_path(class_id_path)
-    }
-
-    pub fn lookup(&self, path: &InheritanceTreePath<'_>) -> ClassID {
-        self.top_node.lookup_impl(path).unwrap()
     }
 
     pub fn max_bit_depth(&self) -> usize{
@@ -113,6 +132,7 @@ impl InheritanceTreeNode{
             already_present_path
         }else {
             let path = self.sub_classes.insert(class_id);
+            self.sub_classes.inheritance_tree_node_at_path_mut(&path);
             self.subclass_locations.insert(class_id,path);
             self.subclass_locations.lookup_class_id_non_recursive(class_id).unwrap()
         };
