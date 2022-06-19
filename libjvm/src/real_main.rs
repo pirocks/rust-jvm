@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use crossbeam::thread::Scope;
+use raw_cpuid::CpuId;
 
 use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
@@ -18,7 +19,17 @@ use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
 
 #[no_mangle]
 unsafe extern "system" fn rust_jvm_real_main() {
+    avx_check();
     main_()
+}
+
+fn avx_check() {
+    let cpuid = CpuId::new();
+    //todo figure out why these libs don't allow for checking avx2
+    //or maybe use safe_arch = "0.6.0"
+    if !cpuid.get_feature_info().expect("Cpuid doesn't work?").has_avx() {
+        eprintln!("This JVM requires AVX");
+    }
 }
 
 pub fn main_<'l>() {
