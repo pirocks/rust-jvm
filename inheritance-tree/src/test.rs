@@ -109,11 +109,15 @@ pub fn test_bit_path_comparison() {
     let sub___ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::UnSet, Bit::UnSet];
     let super_ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
     assert!(is_sub_path(sub___, super_));
+
+    let sub___ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    let super_ = vec![Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set, Bit::Set, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::UnSet, Bit::Set];
+    assert!(is_sub_path(sub___, super_));
 }
 
 fn is_sub_path(sub: Vec<Bit>, super_: Vec<Bit>) -> bool {
     let sub_bit_path = InheritanceTreePath::Owned { inner: sub }.to_bit_path256().unwrap();
     let super_bit_path = InheritanceTreePath::Owned { inner: super_ }.to_bit_path256().unwrap();
-    let is_subpath = sub_bit_path.is_subpath_of(super_bit_path);
+    let is_subpath = sub_bit_path.is_subpath_of(&super_bit_path);
     is_subpath
 }

@@ -241,8 +241,9 @@ impl IRVMExitType {
                 assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::NPE { .. } => {
+            IRVMExitType::NPE { java_pc } => {
                 assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
+                assembler.mov(NPE::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
             IRVMExitType::PutStatic { field_id, value, java_pc } => {
                 assembler.mov(rax, RawVMExitType::PutStatic as u64).unwrap();

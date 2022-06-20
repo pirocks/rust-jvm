@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="run-jvm debug test desktop minecraft" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
-    <option name="command" value="run --profile debug_minecraft  --   --main net.minecraft.server.MinecraftServer  --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args this is an arg    --classpath $PROJECT_DIR$/resources/test $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security $USER_HOME$/Desktop/test/unzipped-jar --debug-exceptions --args nogui     " />
+    <option name="command" value="run  --   --main net.minecraft.server.MinecraftServer  --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args this is an arg    --classpath $PROJECT_DIR$/resources/test $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security $USER_HOME$/Desktop/test/unzipped-jar --debug-exceptions --args nogui     " />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

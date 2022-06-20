@@ -19,6 +19,7 @@ use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
@@ -132,6 +133,7 @@ pub struct JVMState<'gc> {
     pub function_execution_count: FunctionInstructionExecutionCount,
     pub class_ids: ClassIDs,
     pub inheritance_tree: InheritanceTree,
+    pub bit_vec_paths: RwLock<BitVecPaths>,
 }
 
 
@@ -287,7 +289,8 @@ impl<'gc> JVMState<'gc> {
         let class_ids = ClassIDs::new();
         let object_class_id = class_ids.get_id_or_add(CPDType::object());
         let inheritance_tree = InheritanceTree::new(object_class_id);
-        let classes = JVMState::init_classes(&string_pool, &class_ids, &inheritance_tree, &classpath_arc);
+        let bt_vec_paths = RwLock::new(BitVecPaths::new());
+        let classes = JVMState::init_classes(&string_pool, &class_ids, &inheritance_tree, &mut bt_vec_paths.write().unwrap(), &classpath_arc);
         let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 
         let jvm = Self {
@@ -345,7 +348,8 @@ impl<'gc> JVMState<'gc> {
             }),
             function_execution_count: FunctionInstructionExecutionCount::new(),
             class_ids,
-            inheritance_tree: inheritance_tree,
+            inheritance_tree,
+            bit_vec_paths: bt_vec_paths,
         };
         (args, jvm)
     }
@@ -436,7 +440,7 @@ impl<'gc> JVMState<'gc> {
         }
     }
 
-    fn init_classes(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs, inheritance_tree: &InheritanceTree, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
+    fn init_classes(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs, inheritance_tree: &InheritanceTree, bit_vec_paths: &mut BitVecPaths, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
         //todo turn this into a ::new
         let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
         let serializable_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::serializable(), pool).unwrap(), pool));
@@ -446,6 +450,7 @@ impl<'gc> JVMState<'gc> {
         let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             object_class_view,
             None,
             vec![],
@@ -456,6 +461,7 @@ impl<'gc> JVMState<'gc> {
 
         let annotated_element_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             annotated_element_view,
             None,
             vec![],
@@ -466,6 +472,7 @@ impl<'gc> JVMState<'gc> {
 
         let type_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             type_view,
             None,
             vec![],
@@ -476,6 +483,7 @@ impl<'gc> JVMState<'gc> {
 
         let serializable_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             serializable_view,
             None,
             vec![],
@@ -487,6 +495,7 @@ impl<'gc> JVMState<'gc> {
 
         let generic_declaration_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             generic_declaration_view,
             None,
             vec![annotated_element_class.clone()],
@@ -497,6 +506,7 @@ impl<'gc> JVMState<'gc> {
         //todo Class does implement several interfaces, but non handled here
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
+            bit_vec_paths,
             class_view,
             Some(temp_object_class),
             vec![annotated_element_class.clone(), generic_declaration_class.clone(), type_class.clone(), serializable_class.clone()],

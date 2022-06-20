@@ -4,11 +4,11 @@
 #![feature(trait_alias)]
 #![feature(bound_as_ref)]
 
+use std::cell::OnceCell;
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
 use std::iter::Step;
-use std::lazy::OnceCell;
 use std::ops::{Deref, Range, RangeBounds};
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};

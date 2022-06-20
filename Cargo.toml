@@ -11,7 +11,6 @@ path = "src/main.rs"
 [dependencies]
 jvm = { path = "./libjvm" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
-inheritance-tree = { path = "./inheritance-tree" }
 
 
 
@@ -43,6 +42,3 @@ members = [
     "stage0",
     "inheritance-tree"
 ]
-
-[profile.debug_minecraft]
-inherits = 'dev'

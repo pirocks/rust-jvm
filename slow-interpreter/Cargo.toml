@@ -31,8 +31,6 @@ vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 method-table = { path = "../method-table" }
 inheritance-tree = { path = "../inheritance-tree" }
-metered = "0.8"
-serde_yaml = "0.8"
 num-traits = "0.2"
 num-derive = "0.3"
 lazy_static = "1.4"
@@ -48,7 +46,6 @@ bimap = "0.6"
 itertools = "0.10"
 wtf8 = "0.1"
 memoffset = "0.6"
-rand = "0.8.5"
 
 
 [dependencies.iced-x86]

@@ -86,10 +86,12 @@ impl<'a> InheritanceTreePath<'a> {
 pub struct DoesNotFit;
 
 
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[repr(C)]
 pub struct BitPath256{
-    bit_len: u8,
-    valid_mask: [u8;16],
-    bit_path: [u8;16]
+    pub valid_mask: [u8;16],
+    pub bit_path: [u8;16],
+    pub bit_len: u8,
 }
 
 impl BitPath256{
@@ -101,7 +103,7 @@ impl BitPath256{
         u8x16::from_array(self.valid_mask)
     }
 
-    pub fn is_subpath_of(&self, super_path: BitPath256) -> bool{
+    pub fn is_subpath_of(&self, super_path: &BitPath256) -> bool{
         if self.bit_len < super_path.bit_len{
             return false;
         }

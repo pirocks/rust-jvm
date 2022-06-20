@@ -15,10 +15,12 @@ gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 method-table = { path = "../method-table" }
+inheritance-tree = { path = "../inheritance-tree" }
 libc = "0.2"
 num-derive = "0.3"
 num-traits = "0.2"
 itertools = "0.10"
+memoffset = "0.6.5"
 
 [dependencies.iced-x86]
 version = "1.15"

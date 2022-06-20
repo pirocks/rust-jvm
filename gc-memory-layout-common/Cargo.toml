@@ -13,6 +13,7 @@ runtime-class-stuff = { path = "../runtime-class-stuff" }
 another-jit-vm = { path = "../another-jit-vm" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
+inheritance-tree = { path = "../inheritance-tree" }
 
 nix = "0.23"
 libc = "0.2"

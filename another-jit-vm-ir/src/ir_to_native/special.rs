@@ -1,6 +1,7 @@
 use iced_x86::code_asm::{CodeAssembler, rax, rbp};
 use another_jit_vm::{Register, VMState};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
+use rust_jvm_common::ByteCodeOffset;
 use vtable::generate_vtable_access;
 use crate::{gen_vm_exit, InvokeVirtualResolve, IRVMExitType, Size};
 
@@ -31,7 +32,7 @@ pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Regi
 
 
 
-pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVMExitType) {
+pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVMExitType,java_pc: ByteCodeOffset) {
     match resolve_exit {
         IRVMExitType::InvokeVirtualResolve {
             object_ref,
@@ -40,6 +41,13 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
         } => {
             let obj_ptr = Register(0);
             assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+            let mut not_null = assembler.create_label();
+            assembler.cmp(obj_ptr.to_native_64(),0).unwrap();
+            assembler.jne(not_null).unwrap();
+            let registers = resolve_exit.registers_to_save();
+            IRVMExitType::NPE { java_pc }.gen_assembly(assembler, &mut not_null, &registers);
+            let mut before_exit_label = assembler.create_label();
+            VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
             let vtable_ptr_register = Register(3);
             MemoryRegions::generate_find_vtable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register);
             let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4

@@ -1,19 +1,19 @@
 use std::ops::Deref;
 use std::sync::Arc;
-use another_jit_vm_ir::WasException;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::interface_view::InterfaceView;
 use jvmti_jni_bindings::jint;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
-use crate::interpreter::{PostInstructionAction};
-use crate::java_values::{GcManagedObject};
-use crate::java_values::Object::{Array, Object};
-use runtime_class_stuff::RuntimeClass;
+use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_resolved_class, try_assert_loaded_class};
+use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
+use crate::java_values::GcManagedObject;
+use crate::java_values::Object::{Array, Object};
 
 pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedHandle<'gc>>) -> jint {
     match obj {
@@ -66,7 +66,42 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let object_class = assert_inited_or_initing_class(jvm, (object).into());
+                    let object_class = assert_loaded_class(jvm, (object).into());
+                    if !object_class.unwrap_class_class().class_view.is_interface() {
+                        if let Some(sub_inheritance_tree_vec) = rc.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                            let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()){
+                                None => {
+                                    return if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
+                                        panic!()
+                                    } else {
+                                        0
+                                    }
+                                }
+                                Some(instance_of_class) => {
+                                    if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                                        unsafe {
+                                            return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
+                                                // dbg!(CPDType::Class(instance_of_class_name).jvm_representation(&jvm.string_pool));
+                                                // dbg!(rc.cpdtype().jvm_representation(&jvm.string_pool));
+                                                // dbg!(sub_inheritance_tree_vec);
+                                                // dbg!(super_inheritance_tree_vec);
+                                                assert!(inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
+                                                1
+                                            } else {
+                                                // dbg!(instance_of_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
+                                                // dbg!(rc.view().name().to_cpdtype().jvm_representation(&jvm.string_pool));
+                                                // dbg!(rc.unwrap_class_class().inheritance_tree_vec.as_ref());
+                                                // dbg!(sub_inheritance_tree_vec);
+                                                // dbg!(super_inheritance_tree_vec);
+                                                assert!(!inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
+                                                0
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                        }
+                    }
                     if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
                         1
                     } else {

@@ -47,7 +47,7 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
                         len: arr_len.unwrap() as i32,
                         sub_type_loader: loader,
                         object_vtable,
-                        array_itable: itable
+                        array_itable: itable,
                     };
                 }
                 RuntimeClass::Top => panic!(),
@@ -56,12 +56,15 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
         }
         RuntimeClass::Object(class_class) => {
             let layout = ObjectMemoryLayout::from_rc(class_class);
+            let inheritance_bit_vec = class_class.inheritance_tree_vec.clone();
+
             AllocatedObjectType::Class {
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
                 size: layout.size(),
                 vtable: jvm.vtables.lock().unwrap().lookup_or_new_vtable(ref_type.clone()),
-                itable
+                itable,
+                inheritance_bit_vec,
             }
         }
         RuntimeClass::Top => panic!(),

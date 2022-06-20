@@ -1,8 +1,10 @@
 use std::collections::HashMap;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
+use memoffset::offset_of;
 use another_jit_vm::code_modification::{AssemblerFunctionCallTarget};
 use another_jit_vm::{Register, VMState};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
+use inheritance_tree::paths::BitPath256;
 use interface_vtable::generate_itable_access;
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
@@ -12,6 +14,7 @@ use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir
 use crate::ir_to_native::special::{bounds_check, npe_check, vtable_lookup_or_exit};
 use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
 use crate::vm_exit_abi::register_structs::InvokeInterfaceResolve;
+use gc_memory_layout_common::memory_regions::RegionHeader;
 
 pub mod bit_manipulation;
 pub mod integer_arithmetic;
@@ -236,8 +239,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::ZeroExtend { from, to, from_size, to_size } => {
             zero_extend(assembler, *from, *to, *from_size, *to_size);
         }
-        IRInstr::VTableLookupOrExit { resolve_exit } => {
-            vtable_lookup_or_exit(assembler, resolve_exit)
+        IRInstr::VTableLookupOrExit { resolve_exit, java_pc } => {
+            vtable_lookup_or_exit(assembler, resolve_exit, *java_pc)
         }
         IRInstr::ITableLookupOrExit { resolve_exit } => {
             match resolve_exit {
@@ -263,6 +266,75 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     panic!()
                 }
             }
+        }
+        IRInstr::InstanceOfClass {
+            inheritance_path,
+            object_ref,
+            return_val,
+            instance_of_exit,
+        } => {
+            let mut instance_of_exit_label = assembler.create_label();
+            let mut instance_of_succeed = assembler.create_label();
+            let mut instance_of_fail = assembler.create_label();
+            let obj_ptr = Register(0);
+            assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+            assembler.cmp(obj_ptr.to_native_64(),0).unwrap();
+            assembler.je(instance_of_fail).unwrap();
+            let object_inheritance_path_pointer = Register(3);
+            MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), object_inheritance_path_pointer.clone());
+            // assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
+            // assembler.je(instance_of_exit_label).unwrap();
+            assembler.mov(object_inheritance_path_pointer.to_native_64(), object_inheritance_path_pointer.to_native_64() + offset_of!(RegionHeader,inheritance_bit_path_ptr)).unwrap();
+            assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
+            assembler.je(instance_of_exit_label).unwrap();
+
+            let object_bit_len_register = Register(1);
+            assembler.sub(object_bit_len_register.to_native_64(), object_bit_len_register.to_native_64()).unwrap();
+            assembler.mov(object_bit_len_register.to_native_8(), object_inheritance_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len) as u32).unwrap();
+
+            let instanceof_path_pointer = Register(2);
+            assembler.mov(instanceof_path_pointer.to_native_64(), inheritance_path.as_ptr() as u64).unwrap();
+
+            let instanceof_bit_len_register = Register(4);
+            assembler.sub(instanceof_bit_len_register.to_native_64(), instanceof_bit_len_register.to_native_64()).unwrap();
+            assembler.mov(instanceof_bit_len_register.to_native_8(), instanceof_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len) as u32).unwrap();
+
+            assembler.cmp(object_bit_len_register.to_native_8(), instanceof_bit_len_register.to_native_8()).unwrap();
+            assembler.jl(instance_of_fail).unwrap();
+
+
+            let mask_register = ymm2;
+            let instance_of_bit_path = ymm1;
+            let object_inheritance_bit_path = ymm0;
+            assembler.vmovdqu(mask_register, instanceof_path_pointer.to_native_64() + offset_of!(BitPath256,valid_mask)).unwrap();
+            assembler.vmovdqu(instance_of_bit_path, instanceof_path_pointer.to_native_64() + offset_of!(BitPath256,bit_path)).unwrap();
+            assembler.vmovdqu(object_inheritance_bit_path, object_inheritance_path_pointer.to_native_64() + offset_of!(BitPath256,bit_path)).unwrap();
+            let xored = ymm4;
+            assembler.vpxor(xored, instance_of_bit_path, object_inheritance_bit_path).unwrap();
+            assembler.vptest(xored, mask_register).unwrap();// ands xored and mask and cmp whole res with zero
+            assembler.je(instance_of_succeed.clone()).unwrap();
+            assembler.jmp(instance_of_fail.clone()).unwrap();
+            let mut done = assembler.create_label();
+            assembler.set_label(&mut instance_of_succeed).unwrap();
+            assembler.mov(return_val.to_native_64(),1u64).unwrap();
+            assembler.jmp(done).unwrap();
+            assembler.set_label(&mut instance_of_fail).unwrap();
+            assembler.mov(return_val.to_native_64(), 0u64).unwrap();
+            assembler.jmp(done).unwrap();
+            assembler.set_label(&mut instance_of_exit_label).unwrap();
+            match instance_of_exit {
+                IRVMExitType::InstanceOf { .. } => {
+                    let registers = instance_of_exit.registers_to_save();
+                    instance_of_exit.gen_assembly(assembler, &mut done, &registers);
+                    let mut before_exit_label = assembler.create_label();
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
+                }
+                _ => {
+                    panic!()
+                }
+            }
+            // assembler.set_label(&mut done).unwrap(); //done in gen_vm_exit
+            assembler.nop().unwrap();
         }
     }
     None

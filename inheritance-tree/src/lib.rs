@@ -5,13 +5,14 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::RwLock;
 use crate::class_list::ClassList;
-use crate::paths::{InheritanceClassIDPath, InheritanceTreePath};
+use crate::paths::{BitPath256, DoesNotFit, InheritanceClassIDPath, InheritanceTreePath};
 
 pub mod class_list;
 pub mod paths;
+pub mod class_ids;
+pub mod bit_vec_path;
 #[cfg(test)]
 pub mod test;
-pub mod class_ids;
 
 pub struct InheritanceTree{
     inner: RwLock<InheritanceTreeInner>
@@ -24,13 +25,15 @@ impl InheritanceTree {
         }
     }
 
-    pub fn insert(&self, class_id_path: &InheritanceClassIDPath) {
-        self.inner.write().unwrap().insert(class_id_path);
+    pub fn insert(&self, class_id_path: &InheritanceClassIDPath) -> Result<BitPath256,DoesNotFit> {
+        let mut write_guard = self.inner.write().unwrap();
+        let res = write_guard.insert(class_id_path).to_bit_path256();
         unsafe {
             if libc::rand() < 100000000 {
-                dbg!(self.inner.read().unwrap().max_bit_depth());
+                dbg!(write_guard.max_bit_depth());
             }
         }
+        res
     }
 
     pub fn max_bit_depth(&self) -> usize{
@@ -54,8 +57,14 @@ impl InheritanceTreeInner {
         }
     }
 
-    pub fn insert(&mut self, class_id_path: &InheritanceClassIDPath) {
-        self.top_node.insert(class_id_path)
+    pub fn insert(&mut self, class_id_path: &InheritanceClassIDPath) -> InheritanceTreePath {
+        self.top_node.insert(class_id_path);
+        let res = self.top_node.lookup_class_id_path(class_id_path).unwrap();
+        if !(class_id_path.as_slice().len() < res.as_slice().len()) {
+            dbg!(&self);
+            panic!()
+        }
+        res
     }
 
     pub fn max_bit_depth(&self) -> usize{
@@ -117,10 +126,17 @@ impl InheritanceTreeNode{
         if let Some(already_present_path) = self.subclass_locations.lookup_class_id_non_recursive(class_id) {
             assert_eq!(self.sub_classes.lookup_impl(&already_present_path).unwrap(), class_id);
             let next_node = self.sub_classes.inheritance_tree_node_at_path_ref(&already_present_path);
-            if rest.is_empty(){
-                return Some(already_present_path)
-            }else {
-                return next_node.lookup_class_id_path(&rest)
+            return if rest.is_empty() {
+                Some(already_present_path)
+            } else {
+                match next_node.lookup_class_id_path(&rest){
+                    None => {
+                        None
+                    }
+                    Some(next_path) => {
+                        Some(already_present_path.concat(&next_path))
+                    }
+                }
             }
         }
         None

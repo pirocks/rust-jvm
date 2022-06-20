@@ -1,12 +1,14 @@
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
+use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
 use classfile_view::view::{ArrayView, ClassBackedView, ClassView, HasAccessFlags, PrimitiveView};
 use inheritance_tree::{ClassID, InheritanceTree};
+use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
-use inheritance_tree::paths::InheritanceClassIDPath;
+use inheritance_tree::paths::{BitPath256, InheritanceClassIDPath};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::method_shape::MethodShape;
@@ -154,6 +156,7 @@ pub struct RuntimeClassClass<'gc> {
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
     pub class_id_path: Option<Vec<ClassID>>,
+    pub inheritance_tree_vec: Option<NonNull<BitPath256>>,
     //n/a for interfaces
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
@@ -164,22 +167,24 @@ pub struct RuntimeClassClass<'gc> {
 
 impl<'gc> RuntimeClassClass<'gc> {
     pub fn new_new(inheritance_tree: &InheritanceTree,
+                   bit_vec_paths: &mut BitVecPaths,
                    class_view: Arc<ClassBackedView>,
                    parent: Option<Arc<RuntimeClass<'gc>>>,
                    interfaces: Vec<Arc<RuntimeClass<'gc>>>,
                    status: RwLock<ClassStatus>,
                    _string_pool: &CompressedClassfileStringPool,
-                   class_ids: &ClassIDs
+                   class_ids: &ClassIDs,
     ) -> Self {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
         let (recursive_num_static_fields, static_field_numbers) = get_field_numbers_static(&class_view, &parent);
-        Self::new(inheritance_tree, class_view, recursive_num_fields, parent, interfaces, status, field_numbers, recursive_num_methods, method_numbers, recursive_num_static_fields, static_field_numbers, class_id_path)
+        Self::new(inheritance_tree, bit_vec_paths, class_view, recursive_num_fields, parent, interfaces, status, field_numbers, recursive_num_methods, method_numbers, recursive_num_static_fields, static_field_numbers, class_id_path)
     }
 
     pub fn new(
         inheritance_tree: &InheritanceTree,
+        bit_vec_paths: &mut BitVecPaths,
         class_view: Arc<dyn ClassView>,
         recursive_num_fields: u32,
         parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -202,9 +207,17 @@ impl<'gc> RuntimeClassClass<'gc> {
             (forward, reverse)
         }
 
-        if !class_view.is_interface(){
-            inheritance_tree.insert(&InheritanceClassIDPath::Borrowed { inner: class_id_path.as_slice() });
-        }
+        let inheritance_tree_vec = if !class_view.is_interface() {
+            match inheritance_tree.insert(&InheritanceClassIDPath::Borrowed { inner: class_id_path.as_slice() }).ok(){
+                None => None,
+                Some(inheritance_tree_vec) => {
+                    let id = bit_vec_paths.lookup_or_add(inheritance_tree_vec);
+                    Some(bit_vec_paths.get_ptr_from_id(id))
+                }
+            }
+        } else {
+            None
+        };
 
         let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
 
@@ -229,6 +242,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             parent,
             interfaces,
             class_id_path: Some(class_id_path),
+            inheritance_tree_vec,
             status,
         }
     }

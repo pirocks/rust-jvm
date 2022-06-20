@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 itertools = "0.10"
-cow_vec_item = "0.5.1"
 rust-jvm-common = { path = "../rust-jvm-common" }
 libc = "0.2.126"

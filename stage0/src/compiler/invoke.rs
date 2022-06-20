@@ -214,7 +214,8 @@ pub fn invokevirtual<'vm>(
                     Some(method_frame_data.operand_stack_entry(current_instr_data.next_index, 0))
                 },
                 java_pc: current_instr_data.current_offset,
-            }
+            },
+            java_pc: current_instr_data.current_offset
         },
         IRInstr::IRCall {
             temp_register_1: Register(1),

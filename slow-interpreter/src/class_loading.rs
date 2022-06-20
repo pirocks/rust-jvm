@@ -107,7 +107,11 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
 }
 
 pub fn assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Arc<RuntimeClass<'gc>> {
-    jvm.classes.read().unwrap().is_loaded(&ptype).unwrap()
+    try_assert_loaded_class(jvm,ptype).unwrap()
+}
+
+pub fn try_assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Option<Arc<RuntimeClass<'gc>>> {
+    jvm.classes.read().unwrap().is_loaded(&ptype)
 }
 
 pub fn check_loaded_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
@@ -240,7 +244,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
             }
 
             let res = Arc::new(RuntimeClass::Object(
-                RuntimeClassClass::new_new(&jvm.inheritance_tree, class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(),&jvm.string_pool, &jvm.class_ids)
+                RuntimeClassClass::new_new(&jvm.inheritance_tree, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(), &jvm.string_pool, &jvm.class_ids)
             ));
             let mut verifier_context = VerifierContext {
                 live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
