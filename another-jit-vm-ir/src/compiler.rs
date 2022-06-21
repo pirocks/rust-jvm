@@ -274,6 +274,7 @@ impl IRInstr {
                         "RunSpecialNativeNew"
                     }
                     IRVMExitType::RunInterpreted { .. } => { "RunInterpreted" }
+                    IRVMExitType::AssertInstanceOf { .. } => { "AssertInstanceOf" }
                 })
             }
             IRInstr::NPECheck { .. } => {

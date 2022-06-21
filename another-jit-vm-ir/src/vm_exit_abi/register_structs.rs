@@ -338,6 +338,31 @@ impl ExitRegisterStruct for InstanceOf {
     }
 }
 
+
+pub struct AssertInstanceOf;
+
+impl AssertInstanceOf {
+    pub const VALUE_PTR: Register = Register(2);
+    pub const RES_VALUE_PTR: Register = Register(3);
+    pub const RESTART_IP: Register = Register(4);
+    pub const CPDTYPE_ID: Register = Register(5);
+    pub const JAVA_PC: Register = Register(6);
+    pub const FAST_INSTANCE_OF_RES: Register = Register(7);
+}
+
+impl ExitRegisterStruct for AssertInstanceOf {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0),
+            Self::VALUE_PTR,
+            Self::RES_VALUE_PTR,
+            Self::RESTART_IP,
+            Self::CPDTYPE_ID,
+            Self::JAVA_PC,
+            Self::FAST_INSTANCE_OF_RES
+        ])
+    }
+}
+
 pub struct CheckCast;
 
 impl CheckCast {

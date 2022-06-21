@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use crate::{Bit, ClassID};
-use std::simd::u8x16;
+use std::simd::{u8x32};
 
 #[derive(Debug)]
 pub enum InheritanceTreePath<'a> {
@@ -66,8 +66,8 @@ impl<'a> InheritanceTreePath<'a> {
 
     pub fn to_bit_path256(&self) -> Result<BitPath256,DoesNotFit>{
         let bit_len = self.as_slice().len().try_into().map_err(|_|DoesNotFit)?;
-        let mut bit_path = [0u8;16];
-        let mut valid_mask = [0u8;16];
+        let mut bit_path = [0u8;32];
+        let mut valid_mask = [0u8;32];
         for (i,bit) in self.as_slice().iter().enumerate(){
             let vec_i = i/8;
             let bit_i = (i % 8) as u8;
@@ -89,22 +89,22 @@ pub struct DoesNotFit;
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(C)]
 pub struct BitPath256{
-    pub valid_mask: [u8;16],
-    pub bit_path: [u8;16],
+    pub valid_mask: [u8;32],
+    pub bit_path: [u8;32],
     pub bit_len: u8,
 }
 
 impl BitPath256{
-    pub fn bit_path_to_vector(&self) -> u8x16{
-        u8x16::from_array(self.bit_path)
+    pub fn bit_path_to_vector(&self) -> u8x32{
+        u8x32::from_array(self.bit_path)
     }
 
-    pub fn mask_to_vector(&self) -> u8x16{
-        u8x16::from_array(self.valid_mask)
+    pub fn mask_to_vector(&self) -> u8x32{
+        u8x32::from_array(self.valid_mask)
     }
 
     pub fn is_subpath_of(&self, super_path: &BitPath256) -> bool{
-        if self.bit_len < super_path.bit_len{
+        if self.bit_len < super_path.bit_len {
             return false;
         }
         let super_path_mask = super_path.mask_to_vector();
@@ -112,7 +112,7 @@ impl BitPath256{
         let self_path = self.bit_path_to_vector();
         let compared = super_path ^ self_path;
         let should_be_all_zero = compared & super_path_mask;
-        should_be_all_zero == u8x16::splat(0)
+        should_be_all_zero == u8x32::splat(0)
     }
 }
 

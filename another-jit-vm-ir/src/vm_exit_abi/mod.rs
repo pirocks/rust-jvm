@@ -13,7 +13,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::RawVMExitType;
 
 pub mod register_structs;
@@ -112,6 +112,13 @@ pub enum IRVMExitType {
         cpdtype: CPDTypeID,
         java_pc: ByteCodeOffset,
     },
+    AssertInstanceOf {
+        value: FramePointerOffset,
+        res: FramePointerOffset,
+        cpdtype: CPDTypeID,
+        java_pc: ByteCodeOffset,
+        expected: Register,
+    },
     CheckCast {
         value: FramePointerOffset,
         cpdtype: CPDTypeID,
@@ -175,9 +182,9 @@ pub enum IRVMExitType {
         to_throw_obj_offset: FramePointerOffset,
         java_pc: ByteCodeOffset,
     },
-    RunInterpreted{
+    RunInterpreted {
         method_id: MethodId
-    }
+    },
 }
 
 impl IRVMExitType {
@@ -430,6 +437,15 @@ impl IRVMExitType {
                 assembler.mov(RunSpecialNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
                 assembler.lea(RunSpecialNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
+            IRVMExitType::AssertInstanceOf { value, res, cpdtype, java_pc, expected } => {
+                assembler.mov(AssertInstanceOf::FAST_INSTANCE_OF_RES.to_native_64(), expected.to_native_64()).unwrap();
+                assembler.mov(rax, RawVMExitType::AssertInstanceOf as u64).unwrap();
+                assembler.lea(AssertInstanceOf::RES_VALUE_PTR.to_native_64(), rbp - res.0).unwrap();
+                assembler.lea(AssertInstanceOf::VALUE_PTR.to_native_64(), rbp - value.0).unwrap();
+                assembler.mov(AssertInstanceOf::CPDTYPE_ID.to_native_64(), cpdtype.0 as u64).unwrap();
+                assembler.lea(AssertInstanceOf::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+                assembler.mov(AssertInstanceOf::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+            }
         }
     }
 
@@ -523,6 +539,9 @@ impl IRVMExitType {
                 todo!()
             }
             IRVMExitType::RunInterpreted { .. } => {
+                todo!()
+            }
+            IRVMExitType::AssertInstanceOf { .. } => {
                 todo!()
             }
         }
@@ -619,6 +638,9 @@ impl IRVMExitType {
             }
             IRVMExitType::RunInterpreted { .. } => {
                 RunInterpreted::all_registers()
+            }
+            IRVMExitType::AssertInstanceOf { .. } => {
+                AssertInstanceOf::all_registers()
             }
         };
         assert!(res.contains(&Register(0)));

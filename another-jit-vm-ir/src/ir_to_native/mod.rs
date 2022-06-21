@@ -290,14 +290,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
 
             let object_bit_len_register = Register(1);
             assembler.sub(object_bit_len_register.to_native_64(), object_bit_len_register.to_native_64()).unwrap();
-            assembler.mov(object_bit_len_register.to_native_8(), object_inheritance_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len) as u32).unwrap();
+            assembler.mov(object_bit_len_register.to_native_8(), object_inheritance_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len)).unwrap();
 
             let instanceof_path_pointer = Register(2);
             assembler.mov(instanceof_path_pointer.to_native_64(), inheritance_path.as_ptr() as u64).unwrap();
 
             let instanceof_bit_len_register = Register(4);
             assembler.sub(instanceof_bit_len_register.to_native_64(), instanceof_bit_len_register.to_native_64()).unwrap();
-            assembler.mov(instanceof_bit_len_register.to_native_8(), instanceof_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len) as u32).unwrap();
+            assembler.mov(instanceof_bit_len_register.to_native_8(), instanceof_path_pointer.to_native_64() + offset_of!(BitPath256,bit_len)).unwrap();
 
             assembler.cmp(object_bit_len_register.to_native_8(), instanceof_bit_len_register.to_native_8()).unwrap();
             assembler.jl(instance_of_fail).unwrap();

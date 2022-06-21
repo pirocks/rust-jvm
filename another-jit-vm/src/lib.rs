@@ -429,6 +429,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
 
 impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
     #[allow(named_asm_labels)]
+    #[inline(never)]
     fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitEvent {
         // unsafe {
         //     if GOING_IN_COUNT == 5 {

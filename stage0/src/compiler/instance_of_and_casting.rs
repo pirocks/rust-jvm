@@ -101,14 +101,6 @@ pub fn instanceof<'vm>(
                             to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                             size: Size::int()
                         }
-                        /*IRInstr::VMExit2 {
-                            exit_type: IRVMExitType::InstanceOf {
-                                value: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
-                                res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
-                                cpdtype: cpdtype_id,
-                                java_pc: current_instr_data.current_offset,
-                            }
-                        }*/
                     ]))
                 }
             };

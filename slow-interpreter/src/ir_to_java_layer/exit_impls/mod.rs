@@ -1,4 +1,4 @@
-use std::ffi::{c_void};
+use std::ffi::c_void;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
@@ -6,8 +6,8 @@ use std::ptr::NonNull;
 use libc::{memset, rand};
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
-use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::{IRVMExitAction, WasException};
+use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::{InterfaceVTableEntry, ITable, ResolvedInterfaceVTableEntry};
@@ -33,7 +33,7 @@ use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::class::JClass;
-use crate::java_values::{native_to_new_java_value};
+use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::runtime_class::static_vars;
@@ -81,7 +81,7 @@ pub fn invoke_interface_resolve<'gc>(
     let read_guard = jvm.invoke_interface_lookup_cache.read().unwrap();
     let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, obj_rc.clone());
     let method_number_check = *target_rc.unwrap_class_class().method_numbers.get(&method_shape).unwrap();
-    assert_eq!(method_number,method_number_check);
+    assert_eq!(method_number, method_number_check);
     let res = match ITable::lookup(itable, interface_id, method_number)/*read_guard.lookup(obj_rc.clone(), method_name, method_desc.clone())*/ {
         None => {
             let (resolved_method_i, resolved_rc) = lookup_method_parsed(jvm, obj_rc.clone(), method_shape.name, &method_shape.desc).unwrap();
@@ -89,7 +89,7 @@ pub fn invoke_interface_resolve<'gc>(
             drop(read_guard);
             jvm.java_vm_state.add_method_if_needed(jvm, &resolver, resolved_method_id, false);
             let resolved = resloved_entry_from_method_id(jvm, resolver, resolved_method_id);
-            jvm.itables.lock().unwrap().set_entry(obj_rc,interface_id,method_number, resolved.address);
+            jvm.itables.lock().unwrap().set_entry(obj_rc, interface_id, method_number, resolved.address);
             InterfaceVTableEntry { address: Some(resolved.address) }
         }
         Some(resolved) => {
@@ -195,6 +195,27 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     let value = value.unwrap_object();
     check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
+    unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
+    IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+}
+
+
+#[inline(never)]
+pub fn assert_instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void, expected: bool) -> IRVMExitAction {
+    if jvm.exit_trace_options.tracing_enabled() {
+        eprintln!("InstanceOf");
+    }
+    let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
+    let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
+    let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
+    let value = value.unwrap_object();
+    let initied = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
+    // dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+    // unsafe { dbg!(value.unwrap().runtime_class(jvm).unwrap_class_class().inheritance_tree_vec.as_ref().unwrap().as_ref()); }
+    // unsafe { dbg!(initied.unwrap_class_class().inheritance_tree_vec.as_ref().unwrap().as_ref()); }
+    // dbg!(cpdtype.jvm_representation(&jvm.string_pool));
+    assert_eq!(res_int, if expected { 1 } else { 0 });
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
 }
