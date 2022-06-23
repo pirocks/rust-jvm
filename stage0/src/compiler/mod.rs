@@ -109,7 +109,7 @@ impl RecompileConditions {
             Some(needs_recompiling) => {
                 if interpreter_debug {
                     // dbg!(needs_recompiling);
-                    assert!(needs_recompiling.iter().any(|elem| matches!(elem,NeedsRecompileIf::Interpreted {..})))
+                    // assert!(needs_recompiling.iter().any(|elem| matches!(elem,NeedsRecompileIf::Interpreted {..})))
                 }
                 for condition in needs_recompiling {
                     if condition.should_recompile(method_resolver) {

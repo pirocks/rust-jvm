@@ -144,6 +144,20 @@ impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
         }
     }
 
+    pub fn from_save(jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>, save: RealInterpreterStateSave) -> Self{
+        Self {
+            interpreter_state,
+            jvm,
+            current_stack_depth_from_start: save.current_stack_depth_from_start
+        }
+    }
+
+    pub fn save(&self) -> RealInterpreterStateSave{
+        RealInterpreterStateSave{
+            current_stack_depth_from_start: self.current_stack_depth_from_start
+        }
+    }
+
     pub fn current_frame_mut(&mut self) -> InterpreterFrame<'gc, 'l, 'k, '_> {
         InterpreterFrame {
             inner: self
@@ -153,6 +167,11 @@ impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
     pub fn inner(&'_ mut self) -> &'_ mut InterpreterStateGuard<'gc, 'l> {
         self.interpreter_state
     }
+}
+
+#[derive(Clone)]
+pub struct RealInterpreterStateSave{
+    current_stack_depth_from_start: u16,
 }
 
 

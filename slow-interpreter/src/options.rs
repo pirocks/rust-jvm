@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::iter::FromIterator;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;
 
 use crate::JVMState;
 use crate::loading::Classpath;
-use crate::options::InstructionTraceOptions::{TraceMethods, TraceNone};
+use crate::options::InstructionTraceOptions::{TraceNone};
 
 pub struct SharedLibraryPaths {
     pub(crate) libjava: OsString,

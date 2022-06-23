@@ -1,10 +1,13 @@
 use std::sync::Arc;
-use itertools::Itertools;
-use another_jit_vm_ir::WasException;
 
-use classfile_view::view::{HasAccessFlags};
+use itertools::Itertools;
+
+use another_jit_vm_ir::WasException;
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
+use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
@@ -13,16 +16,14 @@ use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::{PostInstructionAction, run_function};
-use crate::new_java_values::NewJavaValueHandle;
-use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l,'k>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
     method: &MethodView,
     code: &CompressedCode,
     ref_type: CPRefType,
@@ -80,21 +81,64 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
         final_target_method.clone(),
         target_method_i,
         &final_target_method.view().method_view_i(target_method_i),
-        args.iter().map(|handle|handle.as_njv()).collect_vec(),
+        args.iter().map(|handle| handle.as_njv()).collect_vec(),
     );
     match res {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
         }
-        Ok(None) => {
-
-        }
-        Err(WasException{}) => {
-            return PostInstructionAction::Exception { exception: WasException{} }
+        Ok(None) => {}
+        Err(WasException {}) => {
+            return PostInstructionAction::Exception { exception: WasException {} };
         }
     }
     PostInstructionAction::Next {}
 }
+
+
+// todo this doesn't handle sig poly
+pub fn run_invoke_static_new<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    method: &MethodView,
+    code: &CompressedCode,
+    ref_type: CPRefType,
+    expected_method_name: MethodName,
+    expected_descriptor: &CMethodDescriptor,
+) -> PostInstructionAction<'gc> {
+    //todo handle monitor enter and exit
+    //handle init cases
+    //todo  spec says where check_ is allowed. need to match that
+    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), ref_type.to_cpdtype()) {
+        Ok(x) => x,
+        Err(exception) => return PostInstructionAction::Exception { exception },
+    };
+    let (target_method_i, final_target_class) = find_target_method(jvm, int_state.inner(), expected_method_name, &expected_descriptor, target_class);
+
+    let view = final_target_class.view();
+    let target_method = view.method_view_i(target_method_i);
+
+    let mut args = vec![];
+    let max_locals = target_method.local_var_slots();
+    for _ in 0..max_locals {
+        args.push(NewJavaValueHandle::Top);
+    }
+    let mut i = 0;
+    for ptype in expected_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+
+    args[0..i].reverse();
+    let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class, target_method_i);
+    if jvm.is_native_by_method_id(method_id){
+        PostInstructionAction::NativeCall { method_id }
+    }else {
+        PostInstructionAction::Call { method_id, local_vars: args }
+    }
+}
+
 
 pub fn invoke_static_impl<'l, 'gc>(
     jvm: &'gc JVMState<'gc>,
@@ -127,7 +171,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
-        let args = fixup_args(args,max_locals);
+        let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
         match run_function(jvm, interpreter_state) {
@@ -146,9 +190,9 @@ pub fn invoke_static_impl<'l, 'gc>(
             Ok(res) => {
                 return Ok(res);
             }
-            Err(WasException{}) => {
-                return Err(WasException{})
-            },
+            Err(WasException {}) => {
+                return Err(WasException {});
+            }
         }
     }
 }

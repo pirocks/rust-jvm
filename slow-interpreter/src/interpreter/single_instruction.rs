@@ -6,10 +6,10 @@ use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCo
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JVMState};
 use crate::function_instruction_count::FunctionExecutionCounter;
-use crate::instructions::invoke::interface::invoke_interface;
-use crate::instructions::invoke::special::invoke_special;
-use crate::instructions::invoke::static_::run_invoke_static;
-use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
+use crate::instructions::invoke::interface::{invoke_interface_new};
+use crate::instructions::invoke::special::{invoke_special_new};
+use crate::instructions::invoke::static_::{run_invoke_static_new};
+use crate::instructions::invoke::virtual_::{invoke_virtual_instruction_new};
 use crate::instructions::special::invoke_instanceof;
 use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
@@ -55,7 +55,8 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
 
-    match instruct {
+    dbg!(interpreter_state.current_stack_depth_from_start);
+    match dbg!(instruct) {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
@@ -200,12 +201,14 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::ineg => ineg(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::instanceof(cp) => invoke_instanceof(jvm, interpreter_state.current_frame_mut(), *cp),
         // CInstructionInfo::invokedynamic(cp) => invoke_dynamic(jvm, interpreter_state, *cp),
-        CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
-        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
-        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor),
+        CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface_new(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special_new(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
+            run_invoke_static_new(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor)
+        }/*run_invoke_static(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor)*/,
         CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type: _ } => {
             // dump_frame(interpreter_state,method,code);
-            invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor)
+            invoke_virtual_instruction_new(jvm, interpreter_state, *method_name, descriptor)
         }
         CInstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),

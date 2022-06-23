@@ -68,6 +68,36 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
     }
 }
 
+pub fn invoke_virtual_instruction_new<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
+    //let the main instruction check intresstate inste
+    let mut args = vec![];
+    for _ in 0..(expected_descriptor.arg_types.len() + 1) {//todo dupe
+        args.push(NewJavaValueHandle::Top)
+    }
+    let mut i = 1;
+    for ptype in expected_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+    args[1..i].reverse();
+    args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
+    let base_object_class = args[0].as_njv().unwrap_object_alloc().unwrap().runtime_class(jvm);
+    let current_loader = int_state.inner().current_frame().loader(jvm);
+    let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
+    let view = resolved_rc.view();
+    let method_view = view.method_view_i(method_i);
+    let args_len = args.len() as u16;
+    for _ in args_len..method_view.local_var_slots() {
+        args.push(NewJavaValueHandle::Top);
+    }
+    let method_id = jvm.method_table.write().unwrap().get_method_id(resolved_rc,method_i);
+
+    // TODO MAKE INTERPRETER USE SAME AFTER INSTRUCTION EXITS
+
+    PostInstructionAction::Call { method_id, local_vars: args }
+}
+
 pub fn invoke_virtual_method_i<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,

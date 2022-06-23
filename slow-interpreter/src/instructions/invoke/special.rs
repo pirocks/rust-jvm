@@ -58,6 +58,52 @@ pub fn invoke_special<'gc, 'l, 'k>(
     }
 }
 
+pub fn invoke_special_new<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    method_class_name: CClassName,
+    method_name: MethodName,
+    parsed_descriptor: &CMethodDescriptor
+) -> PostInstructionAction<'gc> {
+    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), method_class_name.into()) {
+        Ok(x) => x,
+        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
+    };
+    let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
+    let view  = final_target_class.view();
+    let target_method = view.method_view_i(target_m_i);
+    let mut args = vec![];
+    for _ in 0..target_method.local_var_slots(){//todo dupe
+        args.push(NewJavaValueHandle::Top)
+    }
+    let mut i = 1;
+    for ptype in parsed_descriptor.arg_types.iter().rev() {
+        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
+        args[i] = popped;
+        i += 1;
+    }
+    args[1..i].reverse();
+    args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class, target_m_i);
+    if jvm.is_native_by_method_id(method_id){
+        PostInstructionAction::NativeCall { method_id }
+    }else {
+        PostInstructionAction::Call { method_id, local_vars: args }
+    }
+    /*match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh|njvh.as_njv()).collect_vec()){
+        Ok(Some(res)) => {
+            int_state.current_frame_mut().push(res.to_interpreter_jv());
+            return PostInstructionAction::Next {}
+        }
+        Ok(None) => {
+            return PostInstructionAction::Next {}
+        }
+        Err(WasException{}) => {
+            PostInstructionAction::Exception { exception: WasException{} }
+        }
+    }*/
+}
+
 pub fn invoke_special_impl<'k, 'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,

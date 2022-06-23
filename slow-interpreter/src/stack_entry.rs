@@ -811,6 +811,10 @@ pub struct StackEntryRef<'gc, 'l> {
 }
 
 impl<'gc, 'l> StackEntryRef<'gc, 'l> {
+    pub fn method_id(&self) -> MethodId{
+        self.frame_view.ir_ref.method_id().unwrap()
+    }
+
     pub fn frame_view(&self, jvm: &'gc JVMState<'gc>) -> &FrameView<'gc, 'l> {
         todo!()
     }
